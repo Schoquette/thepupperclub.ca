@@ -15,4 +15,6 @@ return [
         'secret'          => env('STRIPE_SECRET'),
         'webhook_secret'  => env('STRIPE_WEBHOOK_SECRET'),
     ],
+
+    'frontend_url' => env('FRONTEND_URL', 'https://thepupperclub.ca'),
 ];

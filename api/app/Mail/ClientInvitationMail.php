@@ -18,7 +18,7 @@ class ClientInvitationMail extends Mailable
         public string $token,
         public ?string $tempPassword
     ) {
-        $frontendUrl = config('app.frontend_url', 'https://thepupperclub.ca');
+        $frontendUrl = config('services.frontend_url');
         $this->setPasswordUrl = "{$frontendUrl}/set-password?token={$token}&email=" . urlencode($user->email);
     }
 
