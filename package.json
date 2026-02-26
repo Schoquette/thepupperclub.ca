@@ -1,0 +1,16 @@
+{
+  "name": "thepupperclub",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "web",
+    "mobile",
+    "shared"
+  ],
+  "scripts": {
+    "web": "npm --workspace=web run dev",
+    "mobile": "npm --workspace=mobile run start",
+    "build:web": "npm --workspace=web run build",
+    "typecheck": "npm --workspace=web run typecheck && npm --workspace=mobile run typecheck && npm --workspace=shared run typecheck"
+  }
+}
