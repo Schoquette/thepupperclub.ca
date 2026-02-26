@@ -457,6 +457,30 @@ function AddDogCard({ clientId, onSaved }: { clientId: number; onSaved: () => vo
   );
 }
 
+// ── Home access form ──────────────────────────────────────────────────────────
+
+interface HomeAccessForm {
+  entry_instructions: string;
+  lockbox_code: string;
+  door_code: string;
+  alarm_code: string;
+  key_location: string;
+  parking_instructions: string;
+  notes: string;
+}
+
+function buildHomeAccessForm(data?: any): HomeAccessForm {
+  return {
+    entry_instructions:   data?.entry_instructions   ?? '',
+    lockbox_code:         data?.lockbox_code         ?? '',
+    door_code:            data?.door_code            ?? '',
+    alarm_code:           data?.alarm_code           ?? '',
+    key_location:         data?.key_location         ?? '',
+    parking_instructions: data?.parking_instructions ?? '',
+    notes:                data?.notes                ?? '',
+  };
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminClientDetailPage() {
@@ -466,6 +490,8 @@ export default function AdminClientDetailPage() {
   const [tab, setTab] = useState<Tab>('profile');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProfileForm | null>(null);
+  const [editingAccess, setEditingAccess] = useState(false);
+  const [accessForm, setAccessForm] = useState<HomeAccessForm>(buildHomeAccessForm());
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['admin-client', id],
@@ -479,6 +505,7 @@ export default function AdminClientDetailPage() {
   });
 
   useEffect(() => { if (client) setForm(buildProfileForm(client)); }, [client]);
+  useEffect(() => { setAccessForm(buildHomeAccessForm(homeAccess)); }, [homeAccess]);
 
   const resend = useMutation({
     mutationFn: () => api.post(`/admin/clients/${id}/resend-invite`),
@@ -504,6 +531,14 @@ export default function AdminClientDetailPage() {
       },
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-client', id] }); setEditing(false); },
+  });
+
+  const saveAccess = useMutation({
+    mutationFn: (f: HomeAccessForm) => api.patch(`/admin/clients/${id}/home-access`, f),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-client-access', id] });
+      setEditingAccess(false);
+    },
   });
 
   const handleProfileChange = (name: keyof ProfileForm, value: string) =>
@@ -733,8 +768,63 @@ export default function AdminClientDetailPage() {
       {/* ── Home Access tab ───────────────────────────────────────────────── */}
       {tab === 'access' && (
         <Card>
-          <CardHeader title="Home Access" subtitle="Codes are encrypted and only visible here." />
-          {homeAccess ? (
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-display text-espresso">Home Access</h2>
+              <p className="mt-1 text-sm text-taupe">Codes are encrypted at rest and only visible here.</p>
+            </div>
+            {editingAccess ? (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setAccessForm(buildHomeAccessForm(homeAccess)); setEditingAccess(false); }}>
+                  Cancel
+                </Button>
+                <Button size="sm" loading={saveAccess.isPending} onClick={() => saveAccess.mutate(accessForm)}>
+                  Save
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setEditingAccess(true)}>
+                Edit
+              </Button>
+            )}
+          </div>
+
+          {saveAccess.isError && (
+            <p className="text-sm text-red-600 mb-4">
+              {(saveAccess.error as any)?.response?.data?.message ?? 'Save failed.'}
+            </p>
+          )}
+
+          {editingAccess ? (
+            <div className="space-y-4">
+              {([
+                { label: 'Entry Instructions', key: 'entry_instructions', multiline: true },
+                { label: 'Lockbox Code',       key: 'lockbox_code' },
+                { label: 'Door Code',          key: 'door_code' },
+                { label: 'Alarm Code',         key: 'alarm_code' },
+                { label: 'Key Location',       key: 'key_location' },
+                { label: 'Parking Instructions', key: 'parking_instructions', multiline: true },
+                { label: 'Notes',              key: 'notes', multiline: true },
+              ] as const).map(({ label, key, multiline }) => (
+                <div key={key}>
+                  <label className="label">{label}</label>
+                  {multiline ? (
+                    <textarea
+                      className="input min-h-16 resize-y font-mono"
+                      value={accessForm[key]}
+                      onChange={e => setAccessForm(prev => ({ ...prev, [key]: e.target.value }))}
+                    />
+                  ) : (
+                    <Input
+                      className="font-mono"
+                      value={accessForm[key]}
+                      onChange={e => setAccessForm(prev => ({ ...prev, [key]: e.target.value }))}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : homeAccess ? (
             <dl className="space-y-3 text-sm">
               {[
                 ['Entry Instructions', homeAccess.entry_instructions],
@@ -746,13 +836,13 @@ export default function AdminClientDetailPage() {
                 ['Notes',              homeAccess.notes],
               ].map(([label, value]) => value && (
                 <div key={String(label)} className="flex gap-4">
-                  <dt className="w-36 text-taupe flex-shrink-0">{label}</dt>
+                  <dt className="w-40 text-taupe flex-shrink-0">{label}</dt>
                   <dd className="text-espresso font-mono bg-cream rounded px-2 py-0.5">{value}</dd>
                 </div>
               ))}
             </dl>
           ) : (
-            <p className="text-center py-8 text-taupe">No home access info on file.</p>
+            <p className="text-center py-8 text-taupe">No home access info on file. Click Edit to add.</p>
           )}
         </Card>
       )}
