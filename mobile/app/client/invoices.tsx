@@ -140,7 +140,7 @@ export default function ClientInvoicesScreen() {
                       <Text style={md.lineQty}>{item.quantity} × ${Number(item.unit_price).toFixed(2)}</Text>
                     )}
                   </View>
-                  <Text style={md.lineAmt}>${Number(item.amount).toFixed(2)}</Text>
+                  <Text style={md.lineAmt}>${Number(item.total).toFixed(2)}</Text>
                 </View>
               ))}
 

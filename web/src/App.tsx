@@ -19,6 +19,7 @@ import AdminInboxPage from './pages/admin/InboxPage';
 import AdminConversationPage from './pages/admin/ConversationPage';
 import AdminInvoicesPage from './pages/admin/InvoicesPage';
 import AdminInvoiceDetailPage from './pages/admin/InvoiceDetailPage';
+import AdminInvoiceCreatePage from './pages/admin/InvoiceCreatePage';
 
 // Client pages
 import ClientLayout from './components/client/ClientLayout';
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="inbox" element={<AdminInboxPage />} />
         <Route path="inbox/:clientId" element={<AdminConversationPage />} />
         <Route path="invoices" element={<AdminInvoicesPage />} />
+        <Route path="invoices/new" element={<AdminInvoiceCreatePage />} />
         <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
       </Route>
 

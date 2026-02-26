@@ -23,3 +23,4 @@ storage/framework/sessions/
 storage/framework/views/
 storage/logs/
 bootstrap/cache/
+database.sqlite
