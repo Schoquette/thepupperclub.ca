@@ -10,6 +10,8 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 
 type Tab = 'profile' | 'dogs' | 'documents' | 'access';
 
+// ── Profile form ──────────────────────────────────────────────────────────────
+
 interface ProfileForm {
   name: string;
   status: string;
@@ -27,7 +29,7 @@ interface ProfileForm {
   notes: string;
 }
 
-function buildForm(client: any): ProfileForm {
+function buildProfileForm(client: any): ProfileForm {
   const p = client?.client_profile ?? {};
   return {
     name:                    client?.name ?? '',
@@ -47,6 +49,79 @@ function buildForm(client: any): ProfileForm {
   };
 }
 
+// ── Dog form ──────────────────────────────────────────────────────────────────
+
+interface Medication { name: string; dosage: string; frequency: string; notes: string }
+interface DogForm {
+  name: string;
+  breed: string;
+  date_of_birth: string;
+  size: string;
+  sex: string;
+  weight_kg: string;
+  colour: string;
+  microchip_number: string;
+  spayed_neutered: boolean;
+  bite_history: boolean;
+  bite_history_notes: string;
+  aggression_notes: string;
+  vet_name: string;
+  vet_phone: string;
+  vet_address: string;
+  medications: Medication[];
+  special_instructions: string;
+  is_active: boolean;
+}
+
+function buildDogForm(dog?: any): DogForm {
+  return {
+    name:               dog?.name ?? '',
+    breed:              dog?.breed ?? '',
+    date_of_birth:      dog?.date_of_birth?.split('T')[0] ?? '',
+    size:               dog?.size ?? '',
+    sex:                dog?.sex ?? '',
+    weight_kg:          dog?.weight_kg != null ? String(dog.weight_kg) : '',
+    colour:             dog?.colour ?? '',
+    microchip_number:   dog?.microchip_number ?? '',
+    spayed_neutered:    dog?.spayed_neutered ?? false,
+    bite_history:       dog?.bite_history ?? false,
+    bite_history_notes: dog?.bite_history_notes ?? '',
+    aggression_notes:   dog?.aggression_notes ?? '',
+    vet_name:           dog?.vet_name ?? '',
+    vet_phone:          dog?.vet_phone ?? '',
+    vet_address:        dog?.vet_address ?? '',
+    medications:        dog?.medications ?? [],
+    special_instructions: dog?.special_instructions ?? '',
+    is_active:          dog?.is_active ?? true,
+  };
+}
+
+function dogPayload(f: DogForm, userId: number) {
+  return {
+    user_id:            userId,
+    name:               f.name,
+    breed:              f.breed || null,
+    date_of_birth:      f.date_of_birth || null,
+    size:               f.size || null,
+    sex:                f.sex || null,
+    weight_kg:          f.weight_kg ? Number(f.weight_kg) : null,
+    colour:             f.colour || null,
+    microchip_number:   f.microchip_number || null,
+    spayed_neutered:    f.spayed_neutered,
+    bite_history:       f.bite_history,
+    bite_history_notes: f.bite_history_notes || null,
+    aggression_notes:   f.aggression_notes || null,
+    vet_name:           f.vet_name || null,
+    vet_phone:          f.vet_phone || null,
+    vet_address:        f.vet_address || null,
+    medications:        f.medications.length ? f.medications : null,
+    special_instructions: f.special_instructions || null,
+    is_active:          f.is_active,
+  };
+}
+
+// ── Shared small components ───────────────────────────────────────────────────
+
 function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex justify-between py-1.5">
@@ -62,20 +137,327 @@ function FormField({
   label: string;
   name: keyof ProfileForm;
   form: ProfileForm;
-  onChange: (name: keyof ProfileForm, value: string) => void;
+  onChange: (n: keyof ProfileForm, v: string) => void;
   type?: string;
 }) {
   return (
     <div>
       <label className="label">{label}</label>
-      <Input
-        type={type}
-        value={form[name]}
-        onChange={e => onChange(name, e.target.value)}
-      />
+      <Input type={type} value={form[name] as string} onChange={e => onChange(name, e.target.value)} />
     </div>
   );
 }
+
+function Checkbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+      />
+      <span className="text-sm text-espresso">{label}</span>
+    </label>
+  );
+}
+
+// ── Dog edit form (used for both editing and adding) ──────────────────────────
+
+function DogEditForm({
+  form,
+  onChange,
+  onBoolChange,
+  onMedChange,
+  onAddMed,
+  onRemoveMed,
+}: {
+  form: DogForm;
+  onChange: (f: Partial<DogForm>) => void;
+  onBoolChange: (k: keyof DogForm, v: boolean) => void;
+  onMedChange: (i: number, k: keyof Medication, v: string) => void;
+  onAddMed: () => void;
+  onRemoveMed: (i: number) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Basic info */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="label">Name *</label>
+          <Input value={form.name} onChange={e => onChange({ name: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Breed</label>
+          <Input value={form.breed} onChange={e => onChange({ breed: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Colour</label>
+          <Input value={form.colour} onChange={e => onChange({ colour: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Date of Birth</label>
+          <Input type="date" value={form.date_of_birth} onChange={e => onChange({ date_of_birth: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Weight (kg)</label>
+          <Input type="number" step="0.1" min="0" value={form.weight_kg} onChange={e => onChange({ weight_kg: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Size</label>
+          <select className="input" value={form.size} onChange={e => onChange({ size: e.target.value })}>
+            <option value="">Select…</option>
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="large">Large</option>
+            <option value="extra_large">Extra Large</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Sex</label>
+          <select className="input" value={form.sex} onChange={e => onChange({ sex: e.target.value })}>
+            <option value="">Select…</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Microchip #</label>
+          <Input value={form.microchip_number} onChange={e => onChange({ microchip_number: e.target.value })} />
+        </div>
+        <div className="flex items-end pb-1">
+          <Checkbox label="Spayed / Neutered" checked={form.spayed_neutered} onChange={v => onBoolChange('spayed_neutered', v)} />
+        </div>
+      </div>
+
+      {/* Status */}
+      <div>
+        <Checkbox label="Active (approved for walks)" checked={form.is_active} onChange={v => onBoolChange('is_active', v)} />
+      </div>
+
+      {/* Behaviour */}
+      <div className="space-y-3">
+        <Checkbox label="Bite History" checked={form.bite_history} onChange={v => onBoolChange('bite_history', v)} />
+        {form.bite_history && (
+          <div>
+            <label className="label">Bite History Notes</label>
+            <textarea className="input min-h-16 resize-y" value={form.bite_history_notes}
+              onChange={e => onChange({ bite_history_notes: e.target.value })} />
+          </div>
+        )}
+        <div>
+          <label className="label">Aggression / Behaviour Notes</label>
+          <textarea className="input min-h-16 resize-y" value={form.aggression_notes}
+            onChange={e => onChange({ aggression_notes: e.target.value })} />
+        </div>
+      </div>
+
+      {/* Vet info */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label">Vet Name</label>
+          <Input value={form.vet_name} onChange={e => onChange({ vet_name: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Vet Phone</label>
+          <Input type="tel" value={form.vet_phone} onChange={e => onChange({ vet_phone: e.target.value })} />
+        </div>
+        <div className="col-span-2">
+          <label className="label">Vet Address</label>
+          <Input value={form.vet_address} onChange={e => onChange({ vet_address: e.target.value })} />
+        </div>
+      </div>
+
+      {/* Medications */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="label mb-0">Medications</label>
+          <button type="button" onClick={onAddMed} className="text-sm text-blue hover:underline">+ Add</button>
+        </div>
+        {form.medications.map((med, i) => (
+          <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
+            <div className="col-span-3">
+              {i === 0 && <div className="text-xs text-taupe mb-1">Name</div>}
+              <Input placeholder="Medication" value={med.name} onChange={e => onMedChange(i, 'name', e.target.value)} />
+            </div>
+            <div className="col-span-3">
+              {i === 0 && <div className="text-xs text-taupe mb-1">Dosage</div>}
+              <Input placeholder="50mg" value={med.dosage} onChange={e => onMedChange(i, 'dosage', e.target.value)} />
+            </div>
+            <div className="col-span-3">
+              {i === 0 && <div className="text-xs text-taupe mb-1">Frequency</div>}
+              <Input placeholder="Twice daily" value={med.frequency} onChange={e => onMedChange(i, 'frequency', e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              {i === 0 && <div className="text-xs text-taupe mb-1">Notes</div>}
+              <Input placeholder="With food" value={med.notes} onChange={e => onMedChange(i, 'notes', e.target.value)} />
+            </div>
+            <div className="col-span-1 flex items-end pb-1">
+              <button type="button" onClick={() => onRemoveMed(i)} className="text-taupe hover:text-red-500 text-lg leading-none">×</button>
+            </div>
+          </div>
+        ))}
+        {!form.medications.length && (
+          <p className="text-sm text-taupe">No medications.</p>
+        )}
+      </div>
+
+      {/* Special instructions */}
+      <div>
+        <label className="label">Special Instructions</label>
+        <textarea className="input min-h-20 resize-y" value={form.special_instructions}
+          onChange={e => onChange({ special_instructions: e.target.value })} />
+      </div>
+    </div>
+  );
+}
+
+// ── Dog card (read + inline edit) ─────────────────────────────────────────────
+
+function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<DogForm>(buildDogForm(dog));
+
+  useEffect(() => { setForm(buildDogForm(dog)); }, [dog]);
+
+  const update = useMutation({
+    mutationFn: (f: DogForm) => api.patch(`/admin/dogs/${dog.id}`, dogPayload(f, clientId)),
+    onSuccess: () => { setEditing(false); onSaved(); },
+  });
+
+  const activate = useMutation({
+    mutationFn: () => api.patch(`/admin/dogs/${dog.id}`, dogPayload({ ...buildDogForm(dog), is_active: true }, clientId)),
+    onSuccess: onSaved,
+  });
+
+  const handleChange = (partial: Partial<DogForm>) => setForm(prev => ({ ...prev, ...partial }));
+  const handleBool = (k: keyof DogForm, v: boolean) => setForm(prev => ({ ...prev, [k]: v }));
+  const handleMedChange = (i: number, k: keyof Medication, v: string) =>
+    setForm(prev => ({ ...prev, medications: prev.medications.map((m, idx) => idx === i ? { ...m, [k]: v } : m) }));
+  const handleAddMed = () => setForm(prev => ({ ...prev, medications: [...prev.medications, { name: '', dosage: '', frequency: '', notes: '' }] }));
+  const handleRemoveMed = (i: number) => setForm(prev => ({ ...prev, medications: prev.medications.filter((_, idx) => idx !== i) }));
+
+  if (editing) {
+    return (
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-espresso text-base">Editing {dog.name}</h3>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setForm(buildDogForm(dog)); setEditing(false); }}>Cancel</Button>
+            <Button size="sm" loading={update.isPending} onClick={() => update.mutate(form)}>Save</Button>
+          </div>
+        </div>
+        {update.isError && (
+          <p className="text-sm text-red-600 mb-3">
+            {(update.error as any)?.response?.data?.message ?? 'Save failed.'}
+          </p>
+        )}
+        <DogEditForm
+          form={form}
+          onChange={handleChange}
+          onBoolChange={handleBool}
+          onMedChange={handleMedChange}
+          onAddMed={handleAddMed}
+          onRemoveMed={handleRemoveMed}
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <div className="flex items-start gap-3">
+        <div className="h-12 w-12 rounded-full bg-cream flex items-center justify-center text-2xl flex-shrink-0">🐕</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="font-semibold text-espresso">{dog.name}</div>
+              <div className="text-sm text-taupe">
+                {[dog.breed, dog.size, dog.sex].filter(Boolean).join(' · ') || '—'}
+              </div>
+            </div>
+            <div className="flex gap-1.5 flex-shrink-0">
+              {!dog.is_active && (
+                <Button size="sm" variant="outline" loading={activate.isPending} onClick={() => activate.mutate()}>
+                  Activate
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-2 flex-wrap">
+            {!dog.is_active && <Badge variant="red">Pending Review</Badge>}
+            {dog.bite_history && <Badge variant="red">⚠️ Bite History</Badge>}
+            {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
+          </div>
+          {dog.special_instructions && (
+            <p className="text-xs text-taupe mt-2 line-clamp-2">{dog.special_instructions}</p>
+          )}
+          {dog.medications?.length > 0 && (
+            <p className="text-xs text-taupe mt-1">💊 {dog.medications.map((m: any) => m.name).join(', ')}</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ── Add Dog form ──────────────────────────────────────────────────────────────
+
+function AddDogCard({ clientId, onSaved }: { clientId: number; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<DogForm>(buildDogForm());
+
+  const create = useMutation({
+    mutationFn: (f: DogForm) => api.post('/admin/dogs', dogPayload(f, clientId)),
+    onSuccess: () => { setOpen(false); setForm(buildDogForm()); onSaved(); },
+  });
+
+  const handleChange = (partial: Partial<DogForm>) => setForm(prev => ({ ...prev, ...partial }));
+  const handleBool = (k: keyof DogForm, v: boolean) => setForm(prev => ({ ...prev, [k]: v }));
+  const handleMedChange = (i: number, k: keyof Medication, v: string) =>
+    setForm(prev => ({ ...prev, medications: prev.medications.map((m, idx) => idx === i ? { ...m, [k]: v } : m) }));
+  const handleAddMed = () => setForm(prev => ({ ...prev, medications: [...prev.medications, { name: '', dosage: '', frequency: '', notes: '' }] }));
+  const handleRemoveMed = (i: number) => setForm(prev => ({ ...prev, medications: prev.medications.filter((_, idx) => idx !== i) }));
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full rounded-xl border-2 border-dashed border-taupe/40 py-6 text-sm text-taupe hover:border-gold hover:text-gold transition-colors"
+      >
+        + Add Dog
+      </button>
+    );
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-display text-espresso text-base">New Dog</h3>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => { setOpen(false); setForm(buildDogForm()); }}>Cancel</Button>
+          <Button size="sm" loading={create.isPending} onClick={() => create.mutate(form)}>Add Dog</Button>
+        </div>
+      </div>
+      {create.isError && (
+        <p className="text-sm text-red-600 mb-3">
+          {(create.error as any)?.response?.data?.message ?? 'Failed to add dog.'}
+        </p>
+      )}
+      <DogEditForm
+        form={form}
+        onChange={handleChange}
+        onBoolChange={handleBool}
+        onMedChange={handleMedChange}
+        onAddMed={handleAddMed}
+        onRemoveMed={handleRemoveMed}
+      />
+    </Card>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -96,16 +478,13 @@ export default function AdminClientDetailPage() {
     enabled: tab === 'access',
   });
 
-  // Sync form when client data loads
-  useEffect(() => {
-    if (client) setForm(buildForm(client));
-  }, [client]);
+  useEffect(() => { if (client) setForm(buildProfileForm(client)); }, [client]);
 
   const resend = useMutation({
     mutationFn: () => api.post(`/admin/clients/${id}/resend-invite`),
   });
 
-  const save = useMutation({
+  const saveProfile = useMutation({
     mutationFn: (f: ProfileForm) => api.patch(`/admin/clients/${id}`, {
       name:   f.name,
       status: f.status,
@@ -124,20 +503,15 @@ export default function AdminClientDetailPage() {
         notes:                   f.notes || null,
       },
     }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-client', id] });
-      setEditing(false);
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-client', id] }); setEditing(false); },
   });
 
-  const handleChange = (name: keyof ProfileForm, value: string) => {
+  const handleProfileChange = (name: keyof ProfileForm, value: string) =>
     setForm(prev => prev ? { ...prev, [name]: value } : prev);
-  };
 
-  const handleCancel = () => {
-    setForm(buildForm(client));
-    setEditing(false);
-  };
+  const handleProfileCancel = () => { setForm(buildProfileForm(client)); setEditing(false); };
+
+  const refreshClient = () => qc.invalidateQueries({ queryKey: ['admin-client', id] });
 
   if (isLoading) return <PageLoader />;
   if (!client) return <div className="text-center py-12 text-taupe">Client not found.</div>;
@@ -186,42 +560,34 @@ export default function AdminClientDetailPage() {
       {/* ── Profile tab ───────────────────────────────────────────────────── */}
       {tab === 'profile' && form && (
         <div className="space-y-6">
-          {/* Edit / Save / Cancel actions */}
           <div className="flex justify-end gap-2">
             {editing ? (
               <>
-                <Button variant="outline" size="sm" onClick={handleCancel}>Cancel</Button>
-                <Button size="sm" loading={save.isPending} onClick={() => save.mutate(form)}>
+                <Button variant="outline" size="sm" onClick={handleProfileCancel}>Cancel</Button>
+                <Button size="sm" loading={saveProfile.isPending} onClick={() => saveProfile.mutate(form)}>
                   Save Changes
                 </Button>
               </>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                Edit Profile
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit Profile</Button>
             )}
           </div>
 
-          {save.isError && (
+          {saveProfile.isError && (
             <p className="text-sm text-red-600">
-              {(save.error as any)?.response?.data?.message ?? 'Save failed. Please try again.'}
+              {(saveProfile.error as any)?.response?.data?.message ?? 'Save failed. Please try again.'}
             </p>
           )}
 
           {editing ? (
-            /* ── Edit mode ────────────────────────────────────────────────── */
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader title="Account" />
                 <div className="space-y-4">
-                  <FormField label="Full Name" name="name" form={form} onChange={handleChange} />
+                  <FormField label="Full Name" name="name" form={form} onChange={handleProfileChange} />
                   <div>
                     <label className="label">Status</label>
-                    <select
-                      className="input"
-                      value={form.status}
-                      onChange={e => handleChange('status', e.target.value)}
-                    >
+                    <select className="input" value={form.status} onChange={e => handleProfileChange('status', e.target.value)}>
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
                       <option value="pending">Pending</option>
@@ -233,21 +599,21 @@ export default function AdminClientDetailPage() {
               <Card>
                 <CardHeader title="Contact Info" />
                 <div className="space-y-4">
-                  <FormField label="Phone" name="phone" form={form} onChange={handleChange} type="tel" />
-                  <FormField label="Address" name="address" form={form} onChange={handleChange} />
+                  <FormField label="Phone" name="phone" form={form} onChange={handleProfileChange} type="tel" />
+                  <FormField label="Address" name="address" form={form} onChange={handleProfileChange} />
                   <div className="grid grid-cols-2 gap-3">
-                    <FormField label="City" name="city" form={form} onChange={handleChange} />
-                    <FormField label="Province" name="province" form={form} onChange={handleChange} />
+                    <FormField label="City" name="city" form={form} onChange={handleProfileChange} />
+                    <FormField label="Province" name="province" form={form} onChange={handleProfileChange} />
                   </div>
-                  <FormField label="Postal Code" name="postal_code" form={form} onChange={handleChange} />
+                  <FormField label="Postal Code" name="postal_code" form={form} onChange={handleProfileChange} />
                 </div>
               </Card>
 
               <Card>
                 <CardHeader title="Emergency Contact" />
                 <div className="space-y-4">
-                  <FormField label="Name" name="emergency_contact_name" form={form} onChange={handleChange} />
-                  <FormField label="Phone" name="emergency_contact_phone" form={form} onChange={handleChange} type="tel" />
+                  <FormField label="Name" name="emergency_contact_name" form={form} onChange={handleProfileChange} />
+                  <FormField label="Phone" name="emergency_contact_phone" form={form} onChange={handleProfileChange} type="tel" />
                 </div>
               </Card>
 
@@ -256,11 +622,7 @@ export default function AdminClientDetailPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="label">Billing Method</label>
-                    <select
-                      className="input"
-                      value={form.billing_method}
-                      onChange={e => handleChange('billing_method', e.target.value)}
-                    >
+                    <select className="input" value={form.billing_method} onChange={e => handleProfileChange('billing_method', e.target.value)}>
                       <option value="credit_card">Credit Card</option>
                       <option value="e_transfer">E-Transfer</option>
                       <option value="cash">Cash</option>
@@ -268,11 +630,7 @@ export default function AdminClientDetailPage() {
                   </div>
                   <div>
                     <label className="label">Subscription Tier</label>
-                    <select
-                      className="input"
-                      value={form.subscription_tier}
-                      onChange={e => handleChange('subscription_tier', e.target.value)}
-                    >
+                    <select className="input" value={form.subscription_tier} onChange={e => handleProfileChange('subscription_tier', e.target.value)}>
                       <option value="">None</option>
                       <option value="basic">Basic</option>
                       <option value="standard">Standard</option>
@@ -280,8 +638,8 @@ export default function AdminClientDetailPage() {
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <FormField label="Start Date" name="subscription_start_date" form={form} onChange={handleChange} type="date" />
-                    <FormField label="End Date" name="subscription_end_date" form={form} onChange={handleChange} type="date" />
+                    <FormField label="Start Date" name="subscription_start_date" form={form} onChange={handleProfileChange} type="date" />
+                    <FormField label="End Date" name="subscription_end_date" form={form} onChange={handleProfileChange} type="date" />
                   </div>
                 </div>
               </Card>
@@ -292,12 +650,11 @@ export default function AdminClientDetailPage() {
                   className="input min-h-24 resize-y"
                   placeholder="Internal notes about this client…"
                   value={form.notes}
-                  onChange={e => handleChange('notes', e.target.value)}
+                  onChange={e => handleProfileChange('notes', e.target.value)}
                 />
               </Card>
             </div>
           ) : (
-            /* ── Read mode ────────────────────────────────────────────────── */
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader title="Contact Info" />
@@ -341,26 +698,11 @@ export default function AdminClientDetailPage() {
 
       {/* ── Dogs tab ──────────────────────────────────────────────────────── */}
       {tab === 'dogs' && (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-4">
           {client.dogs?.map((dog: any) => (
-            <Card key={dog.id}>
-              <div className="flex items-start gap-3">
-                <div className="h-12 w-12 rounded-full bg-cream flex items-center justify-center text-2xl">🐕</div>
-                <div className="flex-1">
-                  <div className="font-semibold text-espresso">{dog.name}</div>
-                  <div className="text-sm text-taupe">{dog.breed} · {dog.size}</div>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {!dog.is_active && <Badge variant="red">Pending Review</Badge>}
-                    {dog.bite_history && <Badge variant="red">⚠️ Bite History</Badge>}
-                    {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
-                  </div>
-                </div>
-              </div>
-            </Card>
+            <DogCard key={dog.id} dog={dog} clientId={Number(id)} onSaved={refreshClient} />
           ))}
-          {!client.dogs?.length && (
-            <div className="col-span-2 text-center py-8 text-taupe">No dogs on file.</div>
-          )}
+          <AddDogCard clientId={Number(id)} onSaved={refreshClient} />
         </div>
       )}
 
@@ -376,8 +718,7 @@ export default function AdminClientDetailPage() {
                     <div className="text-sm font-medium text-espresso">{doc.filename}</div>
                     <div className="text-xs text-taupe">{doc.type.replace(/_/g, ' ')} · uploaded by {doc.uploaded_by}</div>
                   </div>
-                  <a href={doc.signed_url} target="_blank" rel="noopener noreferrer"
-                    className="text-blue text-sm hover:underline">
+                  <a href={doc.signed_url} target="_blank" rel="noopener noreferrer" className="text-blue text-sm hover:underline">
                     Download
                   </a>
                 </div>
