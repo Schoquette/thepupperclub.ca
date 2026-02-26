@@ -1,17 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+
+type Tab = 'profile' | 'dogs' | 'documents' | 'access';
+
+interface ProfileForm {
+  name: string;
+  status: string;
+  phone: string;
+  address: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  billing_method: string;
+  subscription_tier: string;
+  subscription_start_date: string;
+  subscription_end_date: string;
+  notes: string;
+}
+
+function buildForm(client: any): ProfileForm {
+  const p = client?.client_profile ?? {};
+  return {
+    name:                    client?.name ?? '',
+    status:                  client?.status ?? 'active',
+    phone:                   p.phone ?? '',
+    address:                 p.address ?? '',
+    city:                    p.city ?? '',
+    province:                p.province ?? '',
+    postal_code:             p.postal_code ?? '',
+    emergency_contact_name:  p.emergency_contact_name ?? '',
+    emergency_contact_phone: p.emergency_contact_phone ?? '',
+    billing_method:          p.billing_method ?? 'credit_card',
+    subscription_tier:       p.subscription_tier ?? '',
+    subscription_start_date: p.subscription_start_date?.split('T')[0] ?? '',
+    subscription_end_date:   p.subscription_end_date?.split('T')[0] ?? '',
+    notes:                   p.notes ?? '',
+  };
+}
+
+function Field({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="flex justify-between py-1.5">
+      <dt className="text-taupe">{label}</dt>
+      <dd className="text-espresso font-medium text-right max-w-[60%]">{value || '—'}</dd>
+    </div>
+  );
+}
+
+function FormField({
+  label, name, form, onChange, type = 'text',
+}: {
+  label: string;
+  name: keyof ProfileForm;
+  form: ProfileForm;
+  onChange: (name: keyof ProfileForm, value: string) => void;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <Input
+        type={type}
+        value={form[name]}
+        onChange={e => onChange(name, e.target.value)}
+      />
+    </div>
+  );
+}
 
 export default function AdminClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'profile' | 'dogs' | 'documents' | 'access'>('profile');
+  const [tab, setTab] = useState<Tab>('profile');
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<ProfileForm | null>(null);
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['admin-client', id],
@@ -24,12 +96,53 @@ export default function AdminClientDetailPage() {
     enabled: tab === 'access',
   });
 
+  // Sync form when client data loads
+  useEffect(() => {
+    if (client) setForm(buildForm(client));
+  }, [client]);
+
   const resend = useMutation({
     mutationFn: () => api.post(`/admin/clients/${id}/resend-invite`),
   });
 
+  const save = useMutation({
+    mutationFn: (f: ProfileForm) => api.patch(`/admin/clients/${id}`, {
+      name:   f.name,
+      status: f.status,
+      profile: {
+        phone:                   f.phone || null,
+        address:                 f.address || null,
+        city:                    f.city || null,
+        province:                f.province || null,
+        postal_code:             f.postal_code || null,
+        emergency_contact_name:  f.emergency_contact_name || null,
+        emergency_contact_phone: f.emergency_contact_phone || null,
+        billing_method:          f.billing_method || null,
+        subscription_tier:       f.subscription_tier || null,
+        subscription_start_date: f.subscription_start_date || null,
+        subscription_end_date:   f.subscription_end_date || null,
+        notes:                   f.notes || null,
+      },
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-client', id] });
+      setEditing(false);
+    },
+  });
+
+  const handleChange = (name: keyof ProfileForm, value: string) => {
+    setForm(prev => prev ? { ...prev, [name]: value } : prev);
+  };
+
+  const handleCancel = () => {
+    setForm(buildForm(client));
+    setEditing(false);
+  };
+
   if (isLoading) return <PageLoader />;
   if (!client) return <div className="text-center py-12 text-taupe">Client not found.</div>;
+
+  const p = client.client_profile ?? {};
 
   return (
     <div className="space-y-6">
@@ -60,7 +173,7 @@ export default function AdminClientDetailPage() {
         {(['profile', 'dogs', 'documents', 'access'] as const).map(t => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => { setTab(t); setEditing(false); }}
             className={`px-4 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
               tab === t ? 'border-gold text-gold' : 'border-transparent text-taupe hover:text-espresso'
             }`}
@@ -70,59 +183,163 @@ export default function AdminClientDetailPage() {
         ))}
       </div>
 
-      {/* Profile tab */}
-      {tab === 'profile' && (
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader title="Contact Info" />
-            <dl className="space-y-3 text-sm">
-              {[
-                ['Phone', client.client_profile?.phone],
-                ['Address', client.client_profile?.address],
-                ['City', client.client_profile?.city],
-                ['Province', client.client_profile?.province],
-                ['Postal Code', client.client_profile?.postal_code],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="flex justify-between">
-                  <dt className="text-taupe">{label}</dt>
-                  <dd className="text-espresso font-medium">{value || '—'}</dd>
+      {/* ── Profile tab ───────────────────────────────────────────────────── */}
+      {tab === 'profile' && form && (
+        <div className="space-y-6">
+          {/* Edit / Save / Cancel actions */}
+          <div className="flex justify-end gap-2">
+            {editing ? (
+              <>
+                <Button variant="outline" size="sm" onClick={handleCancel}>Cancel</Button>
+                <Button size="sm" loading={save.isPending} onClick={() => save.mutate(form)}>
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                Edit Profile
+              </Button>
+            )}
+          </div>
+
+          {save.isError && (
+            <p className="text-sm text-red-600">
+              {(save.error as any)?.response?.data?.message ?? 'Save failed. Please try again.'}
+            </p>
+          )}
+
+          {editing ? (
+            /* ── Edit mode ────────────────────────────────────────────────── */
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader title="Account" />
+                <div className="space-y-4">
+                  <FormField label="Full Name" name="name" form={form} onChange={handleChange} />
+                  <div>
+                    <label className="label">Status</label>
+                    <select
+                      className="input"
+                      value={form.status}
+                      onChange={e => handleChange('status', e.target.value)}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="pending">Pending</option>
+                    </select>
+                  </div>
                 </div>
-              ))}
-            </dl>
-          </Card>
-          <Card>
-            <CardHeader title="Emergency Contact" />
-            <dl className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-taupe">Name</dt>
-                <dd className="text-espresso font-medium">{client.client_profile?.emergency_contact_name || '—'}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-taupe">Phone</dt>
-                <dd className="text-espresso font-medium">{client.client_profile?.emergency_contact_phone || '—'}</dd>
-              </div>
-            </dl>
-          </Card>
-          <Card>
-            <CardHeader title="Billing" />
-            <dl className="space-y-3 text-sm">
-              {[
-                ['Method', client.client_profile?.billing_method?.replace('_', ' ')],
-                ['Tier', client.client_profile?.subscription_tier],
-                ['Start Date', client.client_profile?.subscription_start_date],
-                ['End Date', client.client_profile?.subscription_end_date],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="flex justify-between">
-                  <dt className="text-taupe">{label}</dt>
-                  <dd className="text-espresso font-medium">{value || '—'}</dd>
+              </Card>
+
+              <Card>
+                <CardHeader title="Contact Info" />
+                <div className="space-y-4">
+                  <FormField label="Phone" name="phone" form={form} onChange={handleChange} type="tel" />
+                  <FormField label="Address" name="address" form={form} onChange={handleChange} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="City" name="city" form={form} onChange={handleChange} />
+                    <FormField label="Province" name="province" form={form} onChange={handleChange} />
+                  </div>
+                  <FormField label="Postal Code" name="postal_code" form={form} onChange={handleChange} />
                 </div>
-              ))}
-            </dl>
-          </Card>
+              </Card>
+
+              <Card>
+                <CardHeader title="Emergency Contact" />
+                <div className="space-y-4">
+                  <FormField label="Name" name="emergency_contact_name" form={form} onChange={handleChange} />
+                  <FormField label="Phone" name="emergency_contact_phone" form={form} onChange={handleChange} type="tel" />
+                </div>
+              </Card>
+
+              <Card>
+                <CardHeader title="Billing & Subscription" />
+                <div className="space-y-4">
+                  <div>
+                    <label className="label">Billing Method</label>
+                    <select
+                      className="input"
+                      value={form.billing_method}
+                      onChange={e => handleChange('billing_method', e.target.value)}
+                    >
+                      <option value="credit_card">Credit Card</option>
+                      <option value="e_transfer">E-Transfer</option>
+                      <option value="cash">Cash</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Subscription Tier</label>
+                    <select
+                      className="input"
+                      value={form.subscription_tier}
+                      onChange={e => handleChange('subscription_tier', e.target.value)}
+                    >
+                      <option value="">None</option>
+                      <option value="basic">Basic</option>
+                      <option value="standard">Standard</option>
+                      <option value="premium">Premium</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Start Date" name="subscription_start_date" form={form} onChange={handleChange} type="date" />
+                    <FormField label="End Date" name="subscription_end_date" form={form} onChange={handleChange} type="date" />
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="md:col-span-2">
+                <CardHeader title="Admin Notes" />
+                <textarea
+                  className="input min-h-24 resize-y"
+                  placeholder="Internal notes about this client…"
+                  value={form.notes}
+                  onChange={e => handleChange('notes', e.target.value)}
+                />
+              </Card>
+            </div>
+          ) : (
+            /* ── Read mode ────────────────────────────────────────────────── */
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader title="Contact Info" />
+                <dl className="space-y-1 text-sm">
+                  <Field label="Phone" value={p.phone} />
+                  <Field label="Address" value={p.address} />
+                  <Field label="City" value={p.city} />
+                  <Field label="Province" value={p.province} />
+                  <Field label="Postal Code" value={p.postal_code} />
+                </dl>
+              </Card>
+
+              <Card>
+                <CardHeader title="Emergency Contact" />
+                <dl className="space-y-1 text-sm">
+                  <Field label="Name" value={p.emergency_contact_name} />
+                  <Field label="Phone" value={p.emergency_contact_phone} />
+                </dl>
+              </Card>
+
+              <Card>
+                <CardHeader title="Billing & Subscription" />
+                <dl className="space-y-1 text-sm">
+                  <Field label="Billing Method" value={p.billing_method?.replace('_', ' ')} />
+                  <Field label="Subscription Tier" value={p.subscription_tier} />
+                  <Field label="Start Date" value={p.subscription_start_date} />
+                  <Field label="End Date" value={p.subscription_end_date} />
+                </dl>
+              </Card>
+
+              {p.notes && (
+                <Card>
+                  <CardHeader title="Admin Notes" />
+                  <p className="text-sm text-espresso whitespace-pre-wrap">{p.notes}</p>
+                </Card>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Dogs tab */}
+      {/* ── Dogs tab ──────────────────────────────────────────────────────── */}
       {tab === 'dogs' && (
         <div className="grid gap-4 sm:grid-cols-2">
           {client.dogs?.map((dog: any) => (
@@ -132,7 +349,7 @@ export default function AdminClientDetailPage() {
                 <div className="flex-1">
                   <div className="font-semibold text-espresso">{dog.name}</div>
                   <div className="text-sm text-taupe">{dog.breed} · {dog.size}</div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 flex-wrap">
                     {!dog.is_active && <Badge variant="red">Pending Review</Badge>}
                     {dog.bite_history && <Badge variant="red">⚠️ Bite History</Badge>}
                     {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
@@ -147,7 +364,7 @@ export default function AdminClientDetailPage() {
         </div>
       )}
 
-      {/* Documents tab */}
+      {/* ── Documents tab ─────────────────────────────────────────────────── */}
       {tab === 'documents' && (
         <Card>
           <CardHeader title="Documents" />
@@ -172,7 +389,7 @@ export default function AdminClientDetailPage() {
         </Card>
       )}
 
-      {/* Home Access tab */}
+      {/* ── Home Access tab ───────────────────────────────────────────────── */}
       {tab === 'access' && (
         <Card>
           <CardHeader title="Home Access" subtitle="Codes are encrypted and only visible here." />
@@ -180,12 +397,12 @@ export default function AdminClientDetailPage() {
             <dl className="space-y-3 text-sm">
               {[
                 ['Entry Instructions', homeAccess.entry_instructions],
-                ['Lockbox Code', homeAccess.lockbox_code],
-                ['Door Code', homeAccess.door_code],
-                ['Alarm Code', homeAccess.alarm_code],
-                ['Key Location', homeAccess.key_location],
-                ['Parking', homeAccess.parking_instructions],
-                ['Notes', homeAccess.notes],
+                ['Lockbox Code',       homeAccess.lockbox_code],
+                ['Door Code',          homeAccess.door_code],
+                ['Alarm Code',         homeAccess.alarm_code],
+                ['Key Location',       homeAccess.key_location],
+                ['Parking',            homeAccess.parking_instructions],
+                ['Notes',              homeAccess.notes],
               ].map(([label, value]) => value && (
                 <div key={String(label)} className="flex gap-4">
                   <dt className="w-36 text-taupe flex-shrink-0">{label}</dt>
