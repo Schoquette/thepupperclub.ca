@@ -20,7 +20,7 @@ export default function ClientHomeScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
-  const { data: appointments, refetch: refetchAppts, isRefreshing } = useQuery({
+  const { data: appointments, refetch: refetchAppts, isFetching } = useQuery({
     queryKey: ['mobile-client-appointments'],
     queryFn: () => api.get('/client/appointments', { params: { upcoming: 1 } }).then(r => r.data.data),
   });
@@ -37,7 +37,7 @@ export default function ClientHomeScreen() {
     <ScrollView
       style={s.container}
       contentContainerStyle={s.content}
-      refreshControl={<RefreshControl refreshing={!!isRefreshing} onRefresh={refetchAppts} />}
+      refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetchAppts} />}
     >
       <Text style={s.greeting}>Hey{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 🐾</Text>
 
