@@ -457,6 +457,169 @@ function AddDogCard({ clientId, onSaved }: { clientId: number; onSaved: () => vo
   );
 }
 
+// ── Documents tab ─────────────────────────────────────────────────────────────
+
+const DOC_TYPES = [
+  { value: 'vaccination_record', label: 'Vaccination Record' },
+  { value: 'vet_record',         label: 'Vet Record' },
+  { value: 'service_agreement',  label: 'Service Agreement' },
+  { value: 'liability_waiver',   label: 'Liability Waiver' },
+  { value: 'other',              label: 'Other' },
+];
+
+function DocumentsTab({ clientId, client, onChanged }: { clientId: number; client: any; onChanged: () => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState('other');
+  const [dogId, setDogId] = useState('');
+  const [uploadError, setUploadError] = useState('');
+
+  const upload = useMutation({
+    mutationFn: () => {
+      const form = new FormData();
+      form.append('file', file!);
+      form.append('type', docType);
+      if (dogId) form.append('dog_id', dogId);
+      return api.post(`/admin/clients/${clientId}/documents`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: () => {
+      setFile(null);
+      setDocType('other');
+      setDogId('');
+      setUploading(false);
+      setUploadError('');
+      onChanged();
+    },
+    onError: (err: any) => {
+      setUploadError(err.response?.data?.message ?? 'Upload failed.');
+    },
+  });
+
+  const deleteDoc = useMutation({
+    mutationFn: (docId: number) => api.delete(`/admin/clients/${clientId}/documents/${docId}`),
+    onSuccess: onChanged,
+  });
+
+  const handleDelete = (doc: any) => {
+    if (!window.confirm(`Delete "${doc.filename}"? This cannot be undone.`)) return;
+    deleteDoc.mutate(doc.id);
+  };
+
+  const handleDownload = async (doc: any) => {
+    const res = await api.get(`/documents/${doc.id}`, { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = doc.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Document list */}
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-display text-espresso">Documents</h2>
+          <Button size="sm" variant="outline" onClick={() => { setUploading(v => !v); setUploadError(''); }}>
+            {uploading ? 'Cancel' : '+ Upload'}
+          </Button>
+        </div>
+
+        {client.documents?.length > 0 ? (
+          <div className="space-y-1">
+            {client.documents.map((doc: any) => (
+              <div key={doc.id} className="flex items-center gap-3 py-2.5 border-b border-cream last:border-0">
+                <div className="text-xl">{fileIcon(doc.mime_type)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-espresso truncate">{doc.filename}</div>
+                  <div className="text-xs text-taupe capitalize">
+                    {doc.type.replace(/_/g, ' ')}
+                    {doc.dog && <span> · {doc.dog.name}</span>}
+                    {' · '}uploaded by {doc.uploaded_by}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <button
+                    onClick={() => handleDownload(doc)}
+                    className="text-blue text-sm hover:underline"
+                  >
+                    Download
+                  </button>
+                  <button
+                    onClick={() => handleDelete(doc)}
+                    disabled={deleteDoc.isPending}
+                    className="text-taupe hover:text-red-500 text-sm transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center py-8 text-taupe">No documents on file.</p>
+        )}
+      </Card>
+
+      {/* Upload form */}
+      {uploading && (
+        <Card>
+          <CardHeader title="Upload Document" />
+          <div className="space-y-4">
+            <div>
+              <label className="label">File</label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.docx"
+                onChange={e => setFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-taupe file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cream file:text-espresso hover:file:bg-taupe/20 cursor-pointer"
+              />
+              <p className="text-xs text-taupe mt-1">PDF, JPG, PNG, HEIC, or DOCX · max 10 MB</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Document Type</label>
+                <select className="input" value={docType} onChange={e => setDocType(e.target.value)}>
+                  {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Dog (optional)</label>
+                <select className="input" value={dogId} onChange={e => setDogId(e.target.value)}>
+                  <option value="">— Not dog-specific —</option>
+                  {client.dogs?.map((dog: any) => (
+                    <option key={dog.id} value={dog.id}>{dog.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+            <div className="flex justify-end">
+              <Button
+                loading={upload.isPending}
+                disabled={!file}
+                onClick={() => upload.mutate()}
+              >
+                Upload
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function fileIcon(mimeType: string): string {
+  if (mimeType?.includes('pdf')) return '📄';
+  if (mimeType?.includes('image')) return '🖼️';
+  if (mimeType?.includes('word') || mimeType?.includes('docx')) return '📝';
+  return '📎';
+}
+
 // ── Home access form ──────────────────────────────────────────────────────────
 
 interface HomeAccessForm {
@@ -743,26 +906,7 @@ export default function AdminClientDetailPage() {
 
       {/* ── Documents tab ─────────────────────────────────────────────────── */}
       {tab === 'documents' && (
-        <Card>
-          <CardHeader title="Documents" />
-          {client.documents?.length ? (
-            <div className="space-y-2">
-              {client.documents.map((doc: any) => (
-                <div key={doc.id} className="flex items-center justify-between py-2 border-b border-cream last:border-0">
-                  <div>
-                    <div className="text-sm font-medium text-espresso">{doc.filename}</div>
-                    <div className="text-xs text-taupe">{doc.type.replace(/_/g, ' ')} · uploaded by {doc.uploaded_by}</div>
-                  </div>
-                  <a href={doc.signed_url} target="_blank" rel="noopener noreferrer" className="text-blue text-sm hover:underline">
-                    Download
-                  </a>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center py-8 text-taupe">No documents on file.</p>
-          )}
-        </Card>
+        <DocumentsTab clientId={Number(id)} client={client} onChanged={refreshClient} />
       )}
 
       {/* ── Home Access tab ───────────────────────────────────────────────── */}

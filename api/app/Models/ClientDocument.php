@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Carbon;
 
 class ClientDocument extends Model
 {
@@ -20,19 +19,9 @@ class ClientDocument extends Model
         'uploaded_by',
     ];
 
-    public function getSignedUrlAttribute(): string
+    public function getDownloadUrlAttribute(): string
     {
-        return route('documents.serve', ['document' => $this->id, 'token' => $this->generateToken()]);
-    }
-
-    public function getExpiresAtAttribute(): string
-    {
-        return Carbon::now()->addMinutes(30)->toIso8601String();
-    }
-
-    protected function generateToken(): string
-    {
-        return hash_hmac('sha256', $this->id . $this->storage_path, config('app.key'));
+        return route('documents.serve', $this->id);
     }
 
     public function user(): BelongsTo

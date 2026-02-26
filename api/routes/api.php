@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Client;
 use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -107,6 +108,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/invoices/{invoice}/pay',       [Client\InvoiceController::class, 'pay']);
         Route::post('/invoices/{invoice}/tip',       [Client\InvoiceController::class, 'tip']);
     });
+
+    // ── Shared: Document download (admin or document owner) ──────────────────
+    Route::get('/documents/{document}', [DocumentController::class, 'serve'])->name('documents.serve');
 
     // ── Shared: Conversations (both roles access by client ID) ────────────────
     Route::get('/conversations/{clientId}',                              [ConversationController::class, 'thread']);
