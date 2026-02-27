@@ -124,5 +124,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/conversations/{clientId}/messages',                    [ConversationController::class, 'sendMessage']);
     Route::post('/conversations/{clientId}/photo',                       [ConversationController::class, 'sendPhoto']);
     Route::patch('/conversations/{clientId}/messages/{message}/read',    [ConversationController::class, 'markRead']);
+    Route::patch('/messages/{message}',                                  [ConversationController::class, 'editMessage']);
+    Route::delete('/messages/{message}',                                 [ConversationController::class, 'deleteMessage']);
     Route::get('/messages/{message}/photo',                              [ConversationController::class, 'servePhoto']);
 });

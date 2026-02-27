@@ -13,10 +13,13 @@ export default function ClientMessagesPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Edit state
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editBody, setEditBody] = useState('');
+
   const { data, isLoading } = useQuery({
     queryKey: ['client-conversation'],
-    queryFn: () =>
-      api.get(`/conversations/${user?.id}`).then((r) => r.data),
+    queryFn: () => api.get(`/conversations/${user?.id}`).then((r) => r.data),
     refetchInterval: 5_000,
     enabled: !!user?.id,
   });
@@ -44,6 +47,20 @@ export default function ClientMessagesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['client-conversation'] }),
   });
 
+  const editMsg = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: string }) =>
+      api.patch(`/messages/${id}`, { body }),
+    onSuccess: () => {
+      setEditingId(null);
+      qc.invalidateQueries({ queryKey: ['client-conversation'] });
+    },
+  });
+
+  const deleteMsg = useMutation({
+    mutationFn: (id: number) => api.delete(`/messages/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-conversation'] }),
+  });
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -55,6 +72,15 @@ export default function ClientMessagesPage() {
     const file = e.target.files?.[0];
     if (file) sendPhoto.mutate(file);
     e.target.value = '';
+  };
+
+  const startEdit = (msg: any) => {
+    setEditingId(msg.id);
+    setEditBody(msg.body ?? '');
+  };
+
+  const confirmDelete = (msg: any) => {
+    if (window.confirm('Delete this message?')) deleteMsg.mutate(msg.id);
   };
 
   if (isLoading) return <PageLoader />;
@@ -71,9 +97,44 @@ export default function ClientMessagesPage() {
             <p className="text-taupe text-sm">No messages yet. Say hi to Sophie!</p>
           </div>
         )}
-        {data?.data?.map((msg: any) => (
-          <MessageBubble key={msg.id} message={msg} currentUserId={user?.id ?? 0} />
-        ))}
+        {data?.data?.map((msg: any) =>
+          editingId === msg.id ? (
+            <div key={msg.id} className="flex justify-end">
+              <div className="max-w-[75%] w-full space-y-1">
+                <textarea
+                  rows={2}
+                  className="w-full border border-gold rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gold/30"
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  autoFocus
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    className="text-xs text-taupe hover:text-espresso"
+                    onClick={() => setEditingId(null)}
+                  >
+                    Cancel
+                  </button>
+                  <Button
+                    size="sm"
+                    loading={editMsg.isPending}
+                    onClick={() => editMsg.mutate({ id: msg.id, body: editBody })}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              currentUserId={user?.id ?? 0}
+              onEdit={startEdit}
+              onDelete={confirmDelete}
+            />
+          )
+        )}
         <div ref={bottomRef} />
       </div>
 

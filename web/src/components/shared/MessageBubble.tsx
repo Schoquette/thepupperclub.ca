@@ -5,8 +5,10 @@ import { format } from 'date-fns';
 import api from '@/lib/api';
 
 interface Props {
-  message: Message & { sender?: { id: number; name: string; role: string } };
+  message: Message & { sender?: { id: number; name: string; role: string }; edited_at?: string | null };
   currentUserId: number;
+  onEdit?: (message: any) => void;
+  onDelete?: (message: any) => void;
 }
 
 const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
@@ -145,7 +147,7 @@ function PhotoBubble({
   );
 }
 
-export default function MessageBubble({ message, currentUserId }: Props) {
+export default function MessageBubble({ message, currentUserId, onEdit, onDelete }: Props) {
   const isOwn = message.sender_id === currentUserId;
 
   if (message.type === 'photo') {
@@ -225,8 +227,34 @@ export default function MessageBubble({ message, currentUserId }: Props) {
   }
 
   // Standard text bubble
+  const canMutate = isOwn && message.type === 'text' &&
+    new Date(message.created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000;
+
   return (
-    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+    <div className={`group flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+      {/* Edit/Delete controls — appear on hover for own messages within 2h */}
+      {canMutate && (
+        <div className="self-center mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(message)}
+              className="text-taupe hover:text-espresso text-xs px-2 py-1 rounded bg-cream"
+              title="Edit"
+            >
+              ✏️
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(message)}
+              className="text-taupe hover:text-red-500 text-xs px-2 py-1 rounded bg-cream"
+              title="Delete"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
+      )}
       <div
         className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
           isOwn
@@ -240,7 +268,8 @@ export default function MessageBubble({ message, currentUserId }: Props) {
         <p className="leading-relaxed">{message.body}</p>
         <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
           {format(new Date(message.created_at), 'h:mm a')}
-          {isOwn && message.read_at && ' · Read'}
+          {(message as any).edited_at && ' · Edited'}
+          {isOwn && message.read_at && !((message as any).edited_at) && ' · Read'}
         </div>
       </div>
     </div>

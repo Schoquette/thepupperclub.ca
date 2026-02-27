@@ -14,6 +14,7 @@ class Message extends Model
         'body',
         'metadata',
         'read_at',
+        'edited_at',
         'deleted_at',
     ];
 
@@ -22,6 +23,7 @@ class Message extends Model
         return [
             'metadata'   => 'array',
             'read_at'    => 'datetime',
+            'edited_at'  => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }

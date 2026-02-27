@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
-  Modal, Dimensions,
+  Modal, Dimensions, Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -70,10 +70,12 @@ function MessageItem({
   message,
   currentUserId,
   token,
+  onLongPress,
 }: {
   message: any;
   currentUserId: number;
   token: string | null;
+  onLongPress?: (msg: any) => void;
 }) {
   const isOwn = message.sender_id === currentUserId;
 
@@ -125,19 +127,29 @@ function MessageItem({
     );
   }
 
+  const canMutate = isOwn && message.type === 'text' &&
+    new Date(message.created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000;
+
   return (
     <View style={[bubble.row, isOwn ? bubble.right : bubble.left]}>
-      <View style={[bubble.bubble, isOwn ? bubble.ownBubble : bubble.otherBubble]}>
-        {!isOwn && message.sender && (
-          <Text style={bubble.senderName}>{message.sender.name}</Text>
-        )}
-        <Text style={[bubble.text, isOwn ? bubble.ownText : bubble.otherText]}>
-          {message.body}
-        </Text>
-        <Text style={[bubble.time, isOwn ? bubble.ownTime : bubble.otherTime]}>
-          {format(new Date(message.created_at), 'h:mm a')}
-        </Text>
-      </View>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onLongPress={() => canMutate && onLongPress?.(message)}
+        delayLongPress={500}
+      >
+        <View style={[bubble.bubble, isOwn ? bubble.ownBubble : bubble.otherBubble]}>
+          {!isOwn && message.sender && (
+            <Text style={bubble.senderName}>{message.sender.name}</Text>
+          )}
+          <Text style={[bubble.text, isOwn ? bubble.ownText : bubble.otherText]}>
+            {message.body}
+          </Text>
+          <Text style={[bubble.time, isOwn ? bubble.ownTime : bubble.otherTime]}>
+            {format(new Date(message.created_at), 'h:mm a')}
+            {message.edited_at ? ' · Edited' : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -149,6 +161,8 @@ export default function AdminConversationScreen() {
   const qc = useQueryClient();
   const [text, setText] = useState('');
   const listRef = useRef<FlatList>(null);
+  const [editModalMsg, setEditModalMsg] = useState<any>(null);
+  const [editBody, setEditBody] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['mobile-admin-conversation', userId],
@@ -192,6 +206,35 @@ export default function AdminConversationScreen() {
     },
   });
 
+  const editMsg = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: string }) =>
+      api.patch(`/messages/${id}`, { body }),
+    onSuccess: () => {
+      setEditModalMsg(null);
+      qc.invalidateQueries({ queryKey: ['mobile-admin-conversation', userId] });
+    },
+  });
+
+  const deleteMsg = useMutation({
+    mutationFn: (id: number) => api.delete(`/messages/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mobile-admin-conversation', userId] }),
+  });
+
+  const handleLongPress = (msg: any) => {
+    Alert.alert('Message', undefined, [
+      { text: 'Edit', onPress: () => { setEditModalMsg(msg); setEditBody(msg.body ?? ''); } },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => Alert.alert('Delete message?', undefined, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => deleteMsg.mutate(msg.id) },
+        ]),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
@@ -226,13 +269,48 @@ export default function AdminConversationScreen() {
           data={data?.data ?? []}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
-            <MessageItem message={item} currentUserId={user?.id ?? 0} token={token} />
+            <MessageItem
+              message={item}
+              currentUserId={user?.id ?? 0}
+              token={token}
+              onLongPress={handleLongPress}
+            />
           )}
           contentContainerStyle={{ padding: 16, gap: 12 }}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={<Text style={s.empty}>No messages yet.</Text>}
         />
       )}
+
+      {/* Edit modal */}
+      <Modal visible={!!editModalMsg} transparent animationType="slide" onRequestClose={() => setEditModalMsg(null)}>
+        <View style={em.overlay}>
+          <View style={em.sheet}>
+            <Text style={em.title}>Edit Message</Text>
+            <TextInput
+              style={em.input}
+              value={editBody}
+              onChangeText={setEditBody}
+              multiline
+              autoFocus
+            />
+            <View style={em.btnRow}>
+              <TouchableOpacity style={em.cancelBtn} onPress={() => setEditModalMsg(null)}>
+                <Text style={em.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={em.saveBtn}
+                onPress={() => editMsg.mutate({ id: editModalMsg.id, body: editBody })}
+                disabled={editMsg.isPending}
+              >
+                {editMsg.isPending
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={em.saveText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <View style={s.inputRow}>
         <TouchableOpacity
@@ -328,4 +406,16 @@ const inv = StyleSheet.create({
   num:       { fontSize: 12, color: '#C8BFB6', fontFamily: 'monospace' },
   total:     { fontSize: 22, fontWeight: '700', color: '#3B2F2A', marginTop: 4 },
   time:      { fontSize: 11, color: '#C8BFB6', marginTop: 6 },
+});
+
+const em = StyleSheet.create({
+  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet:      { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36 },
+  title:      { fontSize: 16, fontWeight: '700', color: '#3B2F2A', marginBottom: 12 },
+  input:      { borderWidth: 1, borderColor: '#C8BFB6', borderRadius: 12, padding: 12, fontSize: 14, color: '#3B2F2A', minHeight: 80, maxHeight: 160 },
+  btnRow:     { flexDirection: 'row', gap: 12, marginTop: 16 },
+  cancelBtn:  { flex: 1, borderWidth: 1, borderColor: '#C8BFB6', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  cancelText: { color: '#C8BFB6', fontWeight: '600' },
+  saveBtn:    { flex: 1, backgroundColor: '#3B2F2A', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  saveText:   { color: '#F6F3EE', fontWeight: '700' },
 });

@@ -138,6 +138,37 @@ class ConversationController extends Controller
         );
     }
 
+    public function editMessage(Request $request, Message $message): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless($message->sender_id === $user->id, 403);
+        abort_unless($message->type === 'text', 422);
+        abort_unless($message->created_at->diffInMinutes(now()) <= 120, 422);
+
+        $request->validate(['body' => 'required|string|max:5000']);
+
+        $message->update([
+            'body'       => $request->body,
+            'edited_at'  => now(),
+        ]);
+
+        return response()->json(['data' => $message->fresh('sender')]);
+    }
+
+    public function deleteMessage(Request $request, Message $message): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless($message->sender_id === $user->id, 403);
+        abort_unless(in_array($message->type, ['text', 'photo']), 422);
+        abort_unless($message->created_at->diffInMinutes(now()) <= 120, 422);
+
+        $message->update(['deleted_at' => now()]);
+
+        return response()->json(['message' => 'Message deleted.']);
+    }
+
     public function markRead(Request $request, int $clientId, Message $message): JsonResponse
     {
         $user = $request->user();
