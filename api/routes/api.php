@@ -99,6 +99,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/notifications/broadcast',   [Admin\NotificationController::class, 'broadcast']);
         Route::get('/notifications/history',      [Admin\NotificationController::class, 'history']);
 
+        // Vaccination records
+        Route::get('/dogs/{dog}/vaccinations',              [Admin\VaccinationController::class, 'index']);
+        Route::post('/dogs/{dog}/vaccinations',             [Admin\VaccinationController::class, 'store']);
+        Route::delete('/dogs/{dog}/vaccinations/{record}',  [Admin\VaccinationController::class, 'destroy']);
+
+        // Audit logs
+        Route::get('/audit-logs', [Admin\AuditLogController::class, 'index']);
+
         // Conversations (admin inbox)
         Route::get('/conversations',                                    [ConversationController::class, 'inbox']);
         Route::patch('/conversations/{conversation}/status',            [ConversationController::class, 'updateStatus']);

@@ -20,5 +20,7 @@ class DatabaseSeeder extends Seeder
 
         $this->command->info('Admin user created: sophie@thepupperclub.ca / changeme123');
         $this->command->warn('IMPORTANT: Change the admin password immediately after first login!');
+
+        $this->call(TestDataSeeder::class);
     }
 }

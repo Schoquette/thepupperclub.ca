@@ -23,6 +23,8 @@ import AdminInvoiceCreatePage from './pages/admin/InvoiceCreatePage';
 import AdminIntakeFormPage from './pages/admin/IntakeFormPage';
 import AdminReportCardsPage from './pages/admin/ReportCardsPage';
 import AdminReportCardFormPage from './pages/admin/ReportCardFormPage';
+import AdminBroadcastPage from './pages/admin/BroadcastPage';
+import AdminAuditLogsPage from './pages/admin/AuditLogsPage';
 
 // Client pages
 import ClientLayout from './components/client/ClientLayout';
@@ -82,6 +84,8 @@ export default function App() {
         <Route path="report-cards" element={<AdminReportCardsPage />} />
         <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
         <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
+        <Route path="broadcast" element={<AdminBroadcastPage />} />
+        <Route path="audit-logs" element={<AdminAuditLogsPage />} />
       </Route>
 
       {/* Client */}

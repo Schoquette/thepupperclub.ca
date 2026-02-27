@@ -312,6 +312,126 @@ function DogEditForm({
   );
 }
 
+// ── Vaccination records section ────────────────────────────────────────────────
+
+function VaccinationSection({ dogId }: { dogId: number }) {
+  const qc = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [vacForm, setVacForm] = useState({ vaccine_name: '', administered_date: '', expiry_date: '' });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['vaccinations', dogId],
+    queryFn: () => api.get(`/admin/dogs/${dogId}/vaccinations`).then(r => r.data.data),
+  });
+
+  const create = useMutation({
+    mutationFn: () => api.post(`/admin/dogs/${dogId}/vaccinations`, vacForm),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vaccinations', dogId] });
+      setAdding(false);
+      setVacForm({ vaccine_name: '', administered_date: '', expiry_date: '' });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: (recordId: number) => api.delete(`/admin/dogs/${dogId}/vaccinations/${recordId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['vaccinations', dogId] }),
+  });
+
+  const vaccinations: any[] = data ?? [];
+
+  return (
+    <div className="mt-3 pt-3 border-t border-cream">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-taupe uppercase tracking-wide">Vaccinations</span>
+        {!adding && (
+          <button onClick={() => setAdding(true)} className="text-xs text-blue hover:underline">+ Add</button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <p className="text-xs text-taupe">Loading…</p>
+      ) : vaccinations.length === 0 && !adding ? (
+        <p className="text-xs text-taupe">No vaccination records on file.</p>
+      ) : (
+        <div className="space-y-1">
+          {vaccinations.map((v: any) => {
+            const expired = v.expiry_date && new Date(v.expiry_date) < new Date();
+            return (
+              <div key={v.id} className="flex items-center justify-between gap-2 text-xs">
+                <span className={`font-medium ${expired ? 'text-red-600' : 'text-espresso'}`}>
+                  {v.vaccine_name}
+                  {expired && <span className="ml-1 text-red-500">(expired)</span>}
+                </span>
+                <span className="text-taupe">
+                  {v.administered_date ? new Date(v.administered_date).toLocaleDateString('en-CA') : '—'}
+                  {v.expiry_date && ` → ${new Date(v.expiry_date).toLocaleDateString('en-CA')}`}
+                </span>
+                <button
+                  onClick={() => remove.mutate(v.id)}
+                  className="text-taupe hover:text-red-500 transition-colors ml-1"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {adding && (
+        <div className="mt-2 space-y-2 p-3 bg-cream/50 rounded-lg">
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <div className="text-xs text-taupe mb-1">Vaccine</div>
+              <input
+                className="input text-xs py-1.5"
+                placeholder="e.g. Rabies"
+                value={vacForm.vaccine_name}
+                onChange={e => setVacForm(f => ({ ...f, vaccine_name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <div className="text-xs text-taupe mb-1">Administered</div>
+              <input
+                type="date"
+                className="input text-xs py-1.5"
+                value={vacForm.administered_date}
+                onChange={e => setVacForm(f => ({ ...f, administered_date: e.target.value }))}
+              />
+            </div>
+            <div>
+              <div className="text-xs text-taupe mb-1">Expires</div>
+              <input
+                type="date"
+                className="input text-xs py-1.5"
+                value={vacForm.expiry_date}
+                onChange={e => setVacForm(f => ({ ...f, expiry_date: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { setAdding(false); setVacForm({ vaccine_name: '', administered_date: '', expiry_date: '' }); }}
+              className="text-xs text-taupe hover:text-espresso"
+            >
+              Cancel
+            </button>
+            <Button
+              size="sm"
+              loading={create.isPending}
+              disabled={!vacForm.vaccine_name || !vacForm.administered_date}
+              onClick={() => create.mutate()}
+            >
+              Save
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Dog card (read + inline edit) ─────────────────────────────────────────────
 
 function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSaved: () => void }) {
@@ -396,6 +516,7 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
           {dog.medications?.length > 0 && (
             <p className="text-xs text-taupe mt-1">💊 {dog.medications.map((m: any) => m.name).join(', ')}</p>
           )}
+          <VaccinationSection dogId={dog.id} />
         </div>
       </div>
     </Card>
