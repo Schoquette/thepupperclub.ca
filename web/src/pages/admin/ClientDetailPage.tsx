@@ -594,6 +594,31 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
   const [docType, setDocType] = useState('other');
   const [dogId, setDogId] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [signingUrl, setSigningUrl] = useState<string | null>(null);
+
+  const requestSignature = useMutation({
+    mutationFn: (docId: number) =>
+      api.post(`/admin/clients/${clientId}/documents/${docId}/request-signature`).then(r => r.data),
+    onSuccess: (data) => {
+      setSigningUrl(data.signing_url);
+      onChanged();
+    },
+  });
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url).catch(() => {});
+    alert('Signing link copied to clipboard!');
+  };
+
+  const handleDownloadCertificate = async (doc: any) => {
+    const res = await api.get(`/admin/clients/${clientId}/documents/${doc.id}/certificate`, { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `signed_${doc.filename}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const upload = useMutation({
     mutationFn: () => {
@@ -649,6 +674,28 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
           </Button>
         </div>
 
+        {/* Signing link popup */}
+        {signingUrl && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm font-semibold text-green-800 mb-1">Signing link generated!</p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={signingUrl}
+                className="flex-1 text-xs border border-green-200 rounded px-2 py-1 bg-white text-espresso"
+              />
+              <button
+                onClick={() => handleCopyLink(signingUrl)}
+                className="text-xs bg-green-700 text-white px-3 py-1 rounded hover:bg-green-800"
+              >
+                Copy
+              </button>
+              <button onClick={() => setSigningUrl(null)} className="text-green-600 hover:text-green-800 text-lg leading-none">×</button>
+            </div>
+            <p className="text-xs text-green-600 mt-1">This link has also been sent to the client in their conversation thread.</p>
+          </div>
+        )}
+
         {client.documents?.length > 0 ? (
           <div className="space-y-1">
             {client.documents.map((doc: any) => (
@@ -661,8 +708,36 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
                     {doc.dog && <span> · {doc.dog.name}</span>}
                     {' · '}uploaded by {doc.uploaded_by}
                   </div>
+                  {/* Signature status */}
+                  {doc.signed_at ? (
+                    <div className="text-xs text-green-700 font-medium mt-0.5">
+                      ✓ Signed by {doc.signer_name} · {new Date(doc.signed_at).toLocaleDateString('en-CA')}
+                    </div>
+                  ) : doc.signature_requested_at ? (
+                    <div className="text-xs text-gold font-medium mt-0.5">
+                      ⏳ Signature pending
+                    </div>
+                  ) : null}
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                  {/* Signature actions */}
+                  {doc.mime_type === 'application/pdf' && !doc.signed_at && (
+                    <button
+                      onClick={() => requestSignature.mutate(doc.id)}
+                      disabled={requestSignature.isPending}
+                      className="text-xs text-gold hover:underline"
+                    >
+                      {doc.signature_requested_at ? 'Resend' : 'Request Signature'}
+                    </button>
+                  )}
+                  {doc.signed_at && (
+                    <button
+                      onClick={() => handleDownloadCertificate(doc)}
+                      className="text-xs text-green-700 hover:underline"
+                    >
+                      Certificate
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDownload(doc)}
                     className="text-blue text-sm hover:underline"

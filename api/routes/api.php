@@ -17,6 +17,11 @@ Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 Route::post('/webhooks/stripe',     [StripeWebhookController::class, 'handle']);
 
+// Document signing (token-based, no auth required)
+Route::get('/signing/{token}',          [\App\Http\Controllers\SigningController::class, 'show']);
+Route::get('/signing/{token}/document', [\App\Http\Controllers\SigningController::class, 'serveDocument']);
+Route::post('/signing/{token}/sign',    [\App\Http\Controllers\SigningController::class, 'sign']);
+
 // ── Authenticated ─────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout',      [AuthController::class, 'logout']);
@@ -47,6 +52,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/clients/{client}/intake',           [IntakeController::class, 'show']);
         Route::put('/clients/{client}/intake',           [IntakeController::class, 'save']);
         Route::post('/clients/{client}/intake/submit',   [IntakeController::class, 'submit']);
+
+        // Document signing
+        Route::post('/clients/{client}/documents/{document}/request-signature', [\App\Http\Controllers\SigningController::class, 'request']);
+        Route::get('/clients/{client}/documents/{document}/certificate',         [\App\Http\Controllers\SigningController::class, 'certificate']);
 
         // Dogs
         Route::get('/dogs',         [Admin\DogController::class, 'index']);

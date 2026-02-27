@@ -17,7 +17,22 @@ class ClientDocument extends Model
         'size_bytes',
         'storage_path',
         'uploaded_by',
+        'signature_requested_at',
+        'signature_token',
+        'signed_at',
+        'signer_name',
+        'signer_ip',
+        'signature_data',
+        'signed_pdf_path',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'signature_requested_at' => 'datetime',
+            'signed_at'              => 'datetime',
+        ];
+    }
 
     public function getDownloadUrlAttribute(): string
     {

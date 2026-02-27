@@ -25,6 +25,7 @@ import AdminReportCardsPage from './pages/admin/ReportCardsPage';
 import AdminReportCardFormPage from './pages/admin/ReportCardFormPage';
 import AdminBroadcastPage from './pages/admin/BroadcastPage';
 import AdminAuditLogsPage from './pages/admin/AuditLogsPage';
+import SigningPage from './pages/SigningPage';
 
 // Client pages
 import ClientLayout from './components/client/ClientLayout';
@@ -50,6 +51,9 @@ export default function App() {
 
   return (
     <Routes>
+      {/* Public signing page — no auth required */}
+      <Route path="/sign/:token" element={<SigningPage />} />
+
       {/* Auth */}
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
       <Route path="/set-password" element={<SetPasswordPage />} />
