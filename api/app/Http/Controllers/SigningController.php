@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClientDocument;
 use App\Models\Conversation;
-use Barryvdh\LaravelDompdf\Facade\Pdf;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;

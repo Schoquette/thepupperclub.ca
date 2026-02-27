@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Dog;
 use App\Models\HomeAccess;
 use App\Models\User;
-use Barryvdh\LaravelDompdf\Facade\Pdf;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
