@@ -8,6 +8,8 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\IntakeController;
+use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
+use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
@@ -68,6 +70,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/service-requests/{request}',   [Admin\ServiceRequestController::class, 'update']);
 
         // Invoices
+        // Stripe
+        Route::get('/stripe/products',            [Admin\StripeController::class, 'products']);
+
         Route::get('/invoices/dashboard',         [Admin\InvoiceController::class, 'dashboard']);
         Route::get('/invoices',                   [Admin\InvoiceController::class, 'index']);
         Route::post('/invoices',                  [Admin\InvoiceController::class, 'store']);
@@ -76,6 +81,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/invoices/{invoice}/mark-paid', [Admin\InvoiceController::class, 'markPaid']);
         Route::post('/invoices/{invoice}/send',   [Admin\InvoiceController::class, 'send']);
         Route::get('/invoices/{invoice}/pdf',     [Admin\InvoiceController::class, 'pdf']);
+
+        // Report cards
+        Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
+        Route::post('/report-cards',                               [AdminReportCardController::class, 'store']);
+        Route::get('/report-cards/{reportCard}',                   [AdminReportCardController::class, 'show']);
+        Route::post('/report-cards/{reportCard}',                  [AdminReportCardController::class, 'update']); // POST for multipart
+        Route::delete('/report-cards/{reportCard}',                [AdminReportCardController::class, 'destroy']);
+        Route::post('/report-cards/{reportCard}/send',             [AdminReportCardController::class, 'send']);
+        Route::get('/report-cards/{reportCard}/photo',             [AdminReportCardController::class, 'servePhoto']);
+        Route::delete('/report-cards/{reportCard}/photo',          [AdminReportCardController::class, 'deletePhoto']);
+        Route::get('/clients/{client}/report-template',            [AdminReportCardController::class, 'getTemplate']);
+        Route::put('/clients/{client}/report-template',            [AdminReportCardController::class, 'saveTemplate']);
+        Route::delete('/clients/{client}/report-template',         [AdminReportCardController::class, 'resetTemplate']);
 
         // Notifications
         Route::post('/notifications/broadcast',   [Admin\NotificationController::class, 'broadcast']);
@@ -109,6 +127,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/appointments',                  [Client\AppointmentController::class, 'index']);
         Route::get('/service-requests',              [Client\AppointmentController::class, 'serviceRequests']);
         Route::post('/service-requests',             [Client\AppointmentController::class, 'storeServiceRequest']);
+
+        // Report cards
+        Route::get('/report-cards',                          [ClientReportCardController::class, 'index']);
+        Route::get('/report-cards/{reportCard}',             [ClientReportCardController::class, 'show']);
+        Route::get('/report-cards/{reportCard}/photo',       [ClientReportCardController::class, 'servePhoto']);
 
         // Invoices
         Route::get('/invoices',                      [Client\InvoiceController::class, 'index']);

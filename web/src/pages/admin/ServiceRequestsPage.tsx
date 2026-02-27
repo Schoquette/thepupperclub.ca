@@ -15,6 +15,15 @@ const TIME_BLOCK_LABELS = {
   afternoon: '2–5 PM', evening: '5–8 PM',
 };
 
+// Maps a time block to the start-of-block time, used to pre-fill the datetime picker
+const TIME_BLOCK_DEFAULTS: Record<string, string> = {
+  early_morning: '08:00',
+  morning:       '09:00',
+  midday:        '12:00',
+  afternoon:     '14:00',
+  evening:       '17:00',
+};
+
 export default function AdminServiceRequestsPage() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<any>(null);
@@ -73,7 +82,16 @@ export default function AdminServiceRequestsPage() {
               <div className="flex items-center gap-2">
                 <Badge variant={statusBadge(sr.status)}>{sr.status.replace('_', ' ')}</Badge>
                 {sr.status === 'pending' && (
-                  <Button size="sm" onClick={() => { setSelected(sr); setAction('approve'); }}>
+                  <Button size="sm" onClick={() => {
+                    setSelected(sr);
+                    setAction('approve');
+                    setAdminResponse('');
+                    setApiError(null);
+                    // Pre-fill with requested date + start of their preferred time block
+                    const date = sr.preferred_date ? String(sr.preferred_date).substring(0, 10) : '';
+                    const time = TIME_BLOCK_DEFAULTS[sr.preferred_time_block] ?? '09:00';
+                    setScheduledTime(date ? `${date}T${time}` : '');
+                  }}>
                     Review
                   </Button>
                 )}
@@ -88,7 +106,7 @@ export default function AdminServiceRequestsPage() {
         )}
       </div>
 
-      <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); }} title="Respond to Request">
+      <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); setScheduledTime(''); setAdminResponse(''); }} title="Respond to Request">
         {selected && (
           <div className="space-y-4">
             <div className="bg-cream rounded-lg p-4 text-sm">
@@ -118,6 +136,7 @@ export default function AdminServiceRequestsPage() {
               <Input
                 label="Scheduled date & time"
                 type="datetime-local"
+                step={900}
                 value={scheduledTime}
                 onChange={e => setScheduledTime(e.target.value)}
               />
@@ -144,7 +163,7 @@ export default function AdminServiceRequestsPage() {
               <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>
             )}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setSelected(null); setAction(null); setApiError(null); }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setSelected(null); setAction(null); setApiError(null); setScheduledTime(''); setAdminResponse(''); }}>Cancel</Button>
               <Button
                 loading={respond.isPending}
                 variant={action === 'decline' ? 'danger' : 'primary'}

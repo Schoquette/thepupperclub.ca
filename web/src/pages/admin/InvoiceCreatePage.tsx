@@ -6,6 +6,22 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+interface StripePrice {
+  id: string;
+  amount: number | null;
+  currency: string;
+  nickname: string | null;
+  type: string;
+  interval: string | null;
+}
+
+interface StripeProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  prices: StripePrice[];
+}
+
 interface LineItem {
   description: string;
   quantity: number;
@@ -36,6 +52,22 @@ export default function InvoiceCreatePage() {
     queryKey: ['clients-list'],
     queryFn: () => api.get('/admin/clients').then(r => r.data.data),
   });
+
+  const { data: stripeProducts } = useQuery<StripeProduct[]>({
+    queryKey: ['stripe-products'],
+    queryFn: () => api.get('/admin/stripe/products').then(r => r.data.data),
+    staleTime: 5 * 60 * 1000, // cache 5 min
+  });
+
+  const addFromStripe = (product: StripeProduct, price: StripePrice) => {
+    const label = price.nickname ? `${product.name} — ${price.nickname}` : product.name;
+    setLines(prev => [...prev.filter(l => l.description || l.unit_price), {
+      description: label,
+      quantity: 1,
+      unit_price: price.amount?.toString() ?? '',
+      service_date: '',
+    }]);
+  };
 
   const create = useMutation({
     mutationFn: (payload: object) => api.post('/admin/invoices', payload),
@@ -121,6 +153,40 @@ export default function InvoiceCreatePage() {
         {/* Line items */}
         <Card>
           <CardHeader title="Line Items" />
+
+          {/* Stripe quick-add */}
+          {stripeProducts && stripeProducts.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">
+                Quick add from Stripe
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {stripeProducts.map(product =>
+                  product.prices.map(price => (
+                    <button
+                      key={price.id}
+                      type="button"
+                      onClick={() => addFromStripe(product, price)}
+                      className="inline-flex items-center gap-1.5 bg-cream hover:bg-gold/10 border border-taupe/30 hover:border-gold/50 text-espresso text-xs px-3 py-1.5 rounded-full transition-colors"
+                    >
+                      <span className="font-medium">{product.name}</span>
+                      {price.nickname && (
+                        <span className="text-taupe">· {price.nickname}</span>
+                      )}
+                      {price.amount !== null && (
+                        <span className="text-gold font-semibold ml-0.5">
+                          ${price.amount.toFixed(2)}
+                          {price.interval ? `/${price.interval}` : ''}
+                        </span>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="border-t border-cream mt-4 mb-3" />
+            </div>
+          )}
+
           <div className="space-y-3">
             {lines.map((line, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 items-end">

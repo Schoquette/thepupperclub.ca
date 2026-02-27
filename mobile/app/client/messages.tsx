@@ -15,8 +15,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.thepupperclub.ca
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
-const REACTION_EMOJIS = ['👍', '❤️', '😂', '😢', '🙏', '🐾'];
-const QUICK_EMOJIS = ['😊', '❤️', '😂', '😢', '🙏', '👍', '🎉', '🐾', '✨', '🔥', '😅', '🥰'];
+const REACTION_EMOJIS = ['👍', '👎', '❤️', '😂', '😢', '🙏', '🎉', '🐾'];
+const QUICK_EMOJIS = ['😊', '😂', '❤️', '🥰', '😢', '😮', '🙏', '👍', '👎', '🎉', '🐾', '🐶', '😅', '💪', '🔥', '✨'];
 
 function PhotoMessage({
   message,

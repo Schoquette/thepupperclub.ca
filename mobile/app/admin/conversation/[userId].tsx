@@ -19,8 +19,8 @@ const MOOD_EMOJI: Record<string, string> = {
   great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒',
 };
 
-const REACTION_EMOJIS = ['👍', '❤️', '😂', '😢', '🙏', '🐾'];
-const QUICK_EMOJIS = ['😊', '❤️', '😂', '😢', '🙏', '👍', '🎉', '🐾', '✨', '🔥', '😅', '🥰'];
+const REACTION_EMOJIS = ['👍', '👎', '❤️', '😂', '😢', '🙏', '🎉', '🐾'];
+const QUICK_EMOJIS = ['😊', '😂', '❤️', '🥰', '😢', '😮', '🙏', '👍', '👎', '🎉', '🐾', '🐶', '😅', '💪', '🔥', '✨'];
 
 function PhotoMessage({
   message,

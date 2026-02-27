@@ -10,24 +10,39 @@ class VisitReport extends Model
 {
     protected $fillable = [
         'appointment_id',
+        'user_id',
+        'arrival_time',
+        'departure_time',
+        'checklist',
+        'special_trip_details',
+        'report_photo_path',
+        'notes',
+        'sent_at',
+        'email_sent_at',
+        // Legacy fields (kept for backward compat)
         'eliminated',
         'ate_well',
         'drank_water',
         'mood',
         'energy_level',
         'distance_km',
-        'notes',
         'photo_paths',
     ];
 
     protected function casts(): array
     {
         return [
-            'eliminated'  => 'boolean',
-            'ate_well'    => 'boolean',
-            'drank_water' => 'boolean',
-            'distance_km' => 'decimal:2',
-            'photo_paths' => 'array',
+            'arrival_time'   => 'datetime',
+            'departure_time' => 'datetime',
+            'checklist'      => 'array',
+            'sent_at'        => 'datetime',
+            'email_sent_at'  => 'datetime',
+            // Legacy
+            'eliminated'     => 'boolean',
+            'ate_well'       => 'boolean',
+            'drank_water'    => 'boolean',
+            'distance_km'    => 'decimal:2',
+            'photo_paths'    => 'array',
         ];
     }
 
@@ -41,5 +56,10 @@ class VisitReport extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

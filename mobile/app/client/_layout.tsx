@@ -52,6 +52,12 @@ export default function ClientLayout() {
         }}
       />
       <Tabs.Screen
+        name="reports"
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📝" label="Reports" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="dogs"
         options={{
           tabBarIcon: ({ focused }) => <TabIcon emoji="🐕" label="Dogs" focused={focused} />,

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Dog;
 use App\Models\HomeAccess;
 use App\Models\User;
+use Barryvdh\LaravelDompdf\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -50,24 +51,27 @@ class IntakeController extends Controller
             ['intake_submitted_at' => now()]
         );
 
-        // Generate and store intake form document
-        $content = json_encode([
-            'title'        => 'Client Intake Form',
-            'submitted_at' => now()->toIso8601String(),
-            'client_name'  => $client->name,
-            'client_id'    => $client->id,
-            'form_data'    => $request->except(['_token']),
-        ], JSON_PRETTY_PRINT);
+        // Generate and store intake form as PDF
+        $client->load(['clientProfile', 'dogs', 'homeAccess']);
 
-        $filename = "intake_{$client->id}_" . now()->format('Ymd') . '.json';
+        $pdf = Pdf::loadView('pdfs.intake_form', [
+            'client'      => $client,
+            'profile'     => $client->clientProfile,
+            'dogs'        => $client->dogs,
+            'homeAccess'  => $client->homeAccess,
+            'submittedAt' => now()->setTimezone('America/Vancouver')->format('F j, Y g:i A'),
+        ]);
+
+        $pdfContent  = $pdf->output();
+        $filename    = "intake_{$client->id}_" . now()->format('Ymd') . '.pdf';
         $storagePath = "private/documents/{$filename}";
-        Storage::disk('local')->put($storagePath, $content);
+        Storage::disk('local')->put($storagePath, $pdfContent);
 
         $client->documents()->create([
             'type'         => 'intake_form',
-            'filename'     => 'Client Intake Form.json',
-            'mime_type'    => 'application/json',
-            'size_bytes'   => strlen($content),
+            'filename'     => 'Client Intake Form.pdf',
+            'mime_type'    => 'application/pdf',
+            'size_bytes'   => strlen($pdfContent),
             'storage_path' => $storagePath,
             'uploaded_by'  => 'admin',
         ]);

@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import MessageBubble from '@/components/shared/MessageBubble';
 
-const QUICK_EMOJIS = ['😊', '❤️', '😂', '😢', '🙏', '👍', '🎉', '🐾'];
+const QUICK_EMOJIS = [
+  '😊', '😂', '❤️', '🥰', '😢', '😮', '🙏', '👍',
+  '👎', '🎉', '🐾', '🐶', '😅', '💪', '🔥', '✨',
+];
 
 export default function ClientMessagesPage() {
   const { user } = useAuth();
@@ -207,7 +210,7 @@ export default function ClientMessagesPage() {
             😊
           </button>
           {showEmojiPicker && (
-            <div className="absolute bottom-10 left-0 bg-white rounded-xl shadow-lg border border-cream p-2 grid grid-cols-4 gap-1 z-20">
+            <div className="absolute bottom-full left-0 mb-1 bg-white rounded-xl shadow-lg border border-cream p-2 grid grid-cols-8 gap-0.5 z-20">
               {QUICK_EMOJIS.map(e => (
                 <button
                   key={e}

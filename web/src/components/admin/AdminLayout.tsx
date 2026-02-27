@@ -5,12 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 const NAV = [
-  { to: '/admin',                label: 'Dashboard',        icon: '🏠', end: true },
-  { to: '/admin/calendar',       label: 'Calendar',         icon: '📅' },
-  { to: '/admin/service-requests', label: 'Requests',       icon: '📋' },
-  { to: '/admin/clients',        label: 'Clients',          icon: '👥' },
-  { to: '/admin/inbox',          label: 'Messages',         icon: '💬' },
-  { to: '/admin/invoices',       label: 'Invoices',         icon: '💰' },
+  { to: '/admin',                  label: 'Dashboard',  icon: '🏠', end: true },
+  { to: '/admin/calendar',         label: 'Calendar',   icon: '📅' },
+  { to: '/admin/service-requests', label: 'Requests',   icon: '📋' },
+  { to: '/admin/clients',          label: 'Clients',    icon: '👥' },
+  { to: '/admin/inbox',            label: 'Messages',   icon: '💬' },
+  { to: '/admin/report-cards',     label: 'Reports',    icon: '📝' },
+  { to: '/admin/invoices',         label: 'Invoices',   icon: '💰' },
 ];
 
 export default function AdminLayout() {

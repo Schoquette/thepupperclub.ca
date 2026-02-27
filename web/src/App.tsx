@@ -21,6 +21,8 @@ import AdminInvoicesPage from './pages/admin/InvoicesPage';
 import AdminInvoiceDetailPage from './pages/admin/InvoiceDetailPage';
 import AdminInvoiceCreatePage from './pages/admin/InvoiceCreatePage';
 import AdminIntakeFormPage from './pages/admin/IntakeFormPage';
+import AdminReportCardsPage from './pages/admin/ReportCardsPage';
+import AdminReportCardFormPage from './pages/admin/ReportCardFormPage';
 
 // Client pages
 import ClientLayout from './components/client/ClientLayout';
@@ -32,6 +34,7 @@ import ClientAppointmentsPage from './pages/client/AppointmentsPage';
 import ClientMessagesPage from './pages/client/MessagesPage';
 import ClientInvoicesPage from './pages/client/InvoicesPage';
 import ClientBillingPage from './pages/client/BillingPage';
+import ClientReportCardsPage from './pages/client/ReportCardsPage';
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'admin' | 'client' }) {
   const { user } = useAuth();
@@ -76,6 +79,9 @@ export default function App() {
         <Route path="invoices" element={<AdminInvoicesPage />} />
         <Route path="invoices/new" element={<AdminInvoiceCreatePage />} />
         <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
+        <Route path="report-cards" element={<AdminReportCardsPage />} />
+        <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
+        <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
       </Route>
 
       {/* Client */}
@@ -88,6 +94,7 @@ export default function App() {
         <Route path="messages" element={<ClientMessagesPage />} />
         <Route path="invoices" element={<ClientInvoicesPage />} />
         <Route path="billing" element={<ClientBillingPage />} />
+        <Route path="report-cards" element={<ClientReportCardsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

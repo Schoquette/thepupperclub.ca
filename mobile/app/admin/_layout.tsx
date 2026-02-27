@@ -45,6 +45,12 @@ export default function AdminLayout() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="💬" label="Inbox" focused={focused} />,
         }}
       />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📝" label="Reports" focused={focused} />,
+        }}
+      />
     </Tabs>
   );
 }

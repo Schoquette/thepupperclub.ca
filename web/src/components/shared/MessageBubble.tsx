@@ -23,7 +23,16 @@ interface Props {
 }
 
 const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
-const REACTION_EMOJIS = ['👍', '❤️', '😂', '😢', '🙏', '🐾'];
+const REACTION_EMOJIS = ['👍', '👎', '❤️', '😂', '😢', '🙏', '🎉', '🐾'];
+
+/** Returns true if the text is 1–5 emojis with no other characters. */
+function isEmojiOnly(text: unknown): boolean {
+  if (typeof text !== 'string' || !text.trim()) return false;
+  const t = text.trim();
+  if (t.length > 12) return false; // rough guard: most 1-5 emojis are ≤ 12 chars
+  const stripped = t.replace(/\p{Extended_Pictographic}/gu, '').trim();
+  return stripped.length === 0;
+}
 
 // Fetches a photo via authenticated API and renders it as an <img>.
 function AuthImage({
@@ -198,39 +207,73 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
 
   if (message.type === 'visit_report') {
     const meta = message.metadata as any;
+    const checklist: Record<string, boolean> = meta.checklist ?? {};
+    const checkedItems = Object.entries(checklist)
+      .filter(([k, v]) => k !== 'special_trip_details' && v)
+      .map(([k]) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
+
     return (
-      <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-card p-5 border-l-4 border-gold">
-        <div className="font-display text-espresso text-sm mb-3">Visit Report 🐾</div>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          {[
-            { label: '🐕 Walked', value: true },
-            { label: '🚿 Eliminated', value: meta.eliminated },
-            { label: '🥩 Ate Well', value: meta.ate_well },
-            { label: '💧 Hydrated', value: meta.drank_water },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className={`rounded-lg p-2 text-center text-xs ${
-                value ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-              }`}
-            >
-              {label}
+      <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-card overflow-hidden border-l-4 border-gold">
+        {/* Header */}
+        <div className="bg-espresso px-4 py-3">
+          <div className="font-display text-cream text-sm tracking-wide">Visit Report Card 🐾</div>
+          {(meta.arrival_time || meta.departure_time) && (
+            <div className="flex gap-6 mt-2">
+              {meta.arrival_time && (
+                <div>
+                  <div className="text-taupe text-[10px] uppercase tracking-wide">Arrived</div>
+                  <div className="text-cream text-sm font-bold">
+                    {format(new Date(meta.arrival_time), 'h:mm a')}
+                  </div>
+                </div>
+              )}
+              {meta.departure_time && (
+                <div>
+                  <div className="text-taupe text-[10px] uppercase tracking-wide">Departed</div>
+                  <div className="text-cream text-sm font-bold">
+                    {format(new Date(meta.departure_time), 'h:mm a')}
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
-        <div className="flex items-center gap-2 text-sm mb-2">
-          <span className="text-2xl">{MOOD_EMOJI[meta.mood as keyof typeof MOOD_EMOJI] ?? '😊'}</span>
-          <span className="capitalize">{meta.mood}</span>
-        </div>
-        {meta.notes && <p className="text-xs text-taupe italic">{meta.notes}</p>}
-        {meta.photo_urls?.length > 0 && (
-          <div className="grid grid-cols-2 gap-1 mt-3">
-            {meta.photo_urls.slice(0, 4).map((url: string, i: number) => (
-              <img key={i} src={url} alt="Walk photo" className="rounded-lg object-cover h-24 w-full" />
-            ))}
+
+        {/* Body */}
+        <div className="p-4">
+          {checkedItems.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {checkedItems.map((item) => (
+                <span
+                  key={item}
+                  className="inline-flex items-center gap-1 bg-cream text-espresso text-xs px-2.5 py-1 rounded-full"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-gold flex-shrink-0" />
+                  {item}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {meta.special_trip_details && (
+            <div className="bg-gold/10 border border-gold/20 rounded-lg px-2.5 py-2 mb-3 text-xs">
+              <span className="font-semibold text-gold">Special Trip: </span>
+              <span className="text-espresso">{meta.special_trip_details}</span>
+            </div>
+          )}
+
+          {meta.notes && (
+            <p className="text-xs text-taupe italic line-clamp-2 mb-2">{meta.notes}</p>
+          )}
+
+          {meta.has_photo && (
+            <div className="text-xs text-taupe mb-1">📷 Photo included</div>
+          )}
+
+          <div className="text-xs text-taupe mt-1">
+            {format(new Date(message.created_at), 'h:mm a')}
           </div>
-        )}
-        <div className="text-xs text-taupe mt-2">{format(new Date(message.created_at), 'h:mm a')}</div>
+        </div>
       </div>
     );
   }
@@ -273,6 +316,7 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
     new Date(message.created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000;
 
   const reactions = message.reactions ?? [];
+  const emojiOnly = message.type === 'text' && isEmojiOnly(message.body);
 
   return (
     <div className={`group flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
@@ -322,23 +366,33 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
           </div>
         )}
 
-        <div
-          className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-            isOwn
-              ? 'bg-gold text-white rounded-br-sm'
-              : 'bg-white shadow-card text-espresso rounded-bl-sm'
-          }`}
-        >
-          {!isOwn && (
-            <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
-          )}
-          <p className="leading-relaxed">{message.body}</p>
-          <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
-            {format(new Date(message.created_at), 'h:mm a')}
-            {(message as any).edited_at && ' · Edited'}
-            {isOwn && message.read_at && !((message as any).edited_at) && ' · Read'}
+        {emojiOnly ? (
+          <div className="px-1 py-0.5">
+            <p className="text-5xl leading-none select-none">{message.body}</p>
+            <div className={`text-xs mt-1 ${isOwn ? 'text-taupe text-right' : 'text-taupe'}`}>
+              {format(new Date(message.created_at), 'h:mm a')}
+              {isOwn && message.read_at && ' · Read'}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div
+            className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+              isOwn
+                ? 'bg-gold text-white rounded-br-sm'
+                : 'bg-white shadow-card text-espresso rounded-bl-sm'
+            }`}
+          >
+            {!isOwn && (
+              <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
+            )}
+            <p className="leading-relaxed">{message.body}</p>
+            <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
+              {format(new Date(message.created_at), 'h:mm a')}
+              {(message as any).edited_at && ' · Edited'}
+              {isOwn && message.read_at && !((message as any).edited_at) && ' · Read'}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reaction pills */}

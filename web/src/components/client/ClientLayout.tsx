@@ -5,12 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 const NAV = [
-  { to: '/client',              label: 'Home',         icon: '🏠', end: true },
-  { to: '/client/appointments', label: 'Walks',        icon: '🐕' },
-  { to: '/client/messages',     label: 'Messages',     icon: '💬' },
-  { to: '/client/invoices',     label: 'Billing',      icon: '💳' },
-  { to: '/client/dogs',         label: 'My Dogs',      icon: '🐾' },
-  { to: '/client/profile',      label: 'Profile',      icon: '👤' },
+  { to: '/client',               label: 'Home',     icon: '🏠', end: true },
+  { to: '/client/appointments',  label: 'Walks',    icon: '🐕' },
+  { to: '/client/messages',      label: 'Messages', icon: '💬' },
+  { to: '/client/report-cards',  label: 'Reports',  icon: '📝' },
+  { to: '/client/invoices',      label: 'Billing',  icon: '💳' },
+  { to: '/client/dogs',          label: 'My Dogs',  icon: '🐾' },
+  { to: '/client/profile',       label: 'Profile',  icon: '👤' },
 ];
 
 export default function ClientLayout() {
