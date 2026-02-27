@@ -7,6 +7,8 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ConversationController extends Controller
 {
@@ -14,18 +16,16 @@ class ConversationController extends Controller
     {
         $user = $request->user();
 
-        // Admin can view any; client can only view own
         if ($user->isClient()) {
             abort_unless($user->id === $clientId, 403);
         }
 
         $conversation = Conversation::firstOrCreate(['user_id' => $clientId]);
 
-        $query = $conversation->messages()
+        $messages = $conversation->messages()
             ->with('sender:id,name,role')
-            ->when($request->since, fn($q) => $q->where('id', '>', $request->since));
-
-        $messages = $query->orderBy('id')->paginate(50);
+            ->orderBy('id')
+            ->paginate(50);
 
         // Mark as read for requesting user
         if ($user->isClient()) {
@@ -65,7 +65,6 @@ class ConversationController extends Controller
             'body'      => $request->body,
         ]);
 
-        // Increment unread count for the other party
         if ($user->isClient()) {
             $conversation->increment('unread_count_admin');
         } else {
@@ -75,6 +74,68 @@ class ConversationController extends Controller
         $conversation->update(['last_message_at' => now()]);
 
         return response()->json(['data' => $message->load('sender:id,name,role')], 201);
+    }
+
+    public function sendPhoto(Request $request, int $clientId): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->isClient()) {
+            abort_unless($user->id === $clientId, 403);
+        }
+
+        $request->validate([
+            'photo' => 'required|file|image|max:10240',
+        ]);
+
+        $conversation = Conversation::firstOrCreate(['user_id' => $clientId]);
+
+        $file  = $request->file('photo');
+        $path  = $file->store("photos/{$conversation->id}", 'local');
+
+        $message = $conversation->messages()->create([
+            'sender_id' => $user->id,
+            'type'      => 'photo',
+            'body'      => $file->getClientOriginalName(),
+            'metadata'  => [
+                'storage_path'  => $path,
+                'mime_type'     => $file->getMimeType(),
+                'original_name' => $file->getClientOriginalName(),
+            ],
+        ]);
+
+        if ($user->isClient()) {
+            $conversation->increment('unread_count_admin');
+        } else {
+            $conversation->increment('unread_count_client');
+        }
+
+        $conversation->update(['last_message_at' => now()]);
+
+        return response()->json(['data' => $message->load('sender:id,name,role')], 201);
+    }
+
+    public function servePhoto(Request $request, Message $message): StreamedResponse
+    {
+        $user         = $request->user();
+        $conversation = $message->conversation;
+
+        if ($user->isClient()) {
+            abort_unless($conversation->user_id === $user->id, 403);
+        }
+
+        abort_unless($message->type === 'photo', 404);
+
+        $meta = $message->metadata ?? [];
+        $path = $meta['storage_path'] ?? null;
+
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response(
+            $path,
+            $meta['original_name'] ?? 'photo.jpg',
+            ['Content-Type' => $meta['mime_type'] ?? 'image/jpeg']
+        );
     }
 
     public function markRead(Request $request, int $clientId, Message $message): JsonResponse

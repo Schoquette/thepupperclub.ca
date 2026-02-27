@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Message } from '@pupper/shared';
 import { format } from 'date-fns';
+import api from '@/lib/api';
 
 interface Props {
   message: Message & { sender?: { id: number; name: string; role: string } };
@@ -9,8 +11,146 @@ interface Props {
 
 const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
 
+// Fetches a photo via authenticated API and renders it as an <img>.
+// Caches the blob URL for the lifetime of the component.
+function AuthImage({
+  messageId,
+  alt,
+  className,
+  onClick,
+}: {
+  messageId: number;
+  alt: string;
+  className?: string;
+  onClick?: () => void;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let objectUrl = '';
+    api
+      .get(`/messages/${messageId}/photo`, { responseType: 'blob' })
+      .then((r) => {
+        objectUrl = URL.createObjectURL(r.data);
+        setSrc(objectUrl);
+      })
+      .catch(() => {});
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [messageId]);
+
+  if (!src) {
+    return <div className="h-48 w-56 bg-cream animate-pulse rounded-2xl" />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      onClick={onClick}
+    />
+  );
+}
+
+// Photo bubble with tap-to-expand lightbox and download button.
+function PhotoBubble({
+  message,
+  isOwn,
+}: {
+  message: Props['message'];
+  isOwn: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let url = '';
+    api
+      .get(`/messages/${message.id}/photo`, { responseType: 'blob' })
+      .then((r) => {
+        url = URL.createObjectURL(r.data);
+        setBlobUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [message.id]);
+
+  const download = () => {
+    if (!blobUrl) return;
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = (message.body as string) || 'photo.jpg';
+    a.click();
+  };
+
+  return (
+    <>
+      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+        <div>
+          {!blobUrl ? (
+            <div className="h-48 w-56 bg-cream animate-pulse rounded-2xl" />
+          ) : (
+            <img
+              src={blobUrl}
+              alt="Photo"
+              className="rounded-2xl cursor-zoom-in max-h-64 max-w-[18rem] object-cover shadow-card"
+              onClick={() => setOpen(true)}
+            />
+          )}
+          <div className={`text-xs mt-1 text-taupe ${isOwn ? 'text-right' : ''}`}>
+            {format(new Date(message.created_at), 'h:mm a')}
+          </div>
+        </div>
+      </div>
+
+      {open &&
+        blobUrl &&
+        createPortal(
+          <div
+            className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"
+            onClick={() => setOpen(false)}
+          >
+            <div
+              className="relative max-w-4xl w-full mx-4 flex flex-col items-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={blobUrl}
+                alt="Photo"
+                className="max-h-[75vh] max-w-full rounded-2xl object-contain shadow-2xl"
+              />
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={download}
+                  className="bg-white text-espresso px-5 py-2 rounded-xl text-sm font-semibold hover:bg-cream transition-colors"
+                >
+                  ↓ Download
+                </button>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="bg-white/20 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 export default function MessageBubble({ message, currentUserId }: Props) {
   const isOwn = message.sender_id === currentUserId;
+
+  if (message.type === 'photo') {
+    return <PhotoBubble message={message} isOwn={isOwn} />;
+  }
 
   if (message.type === 'visit_report') {
     const meta = message.metadata as any;
@@ -24,7 +164,12 @@ export default function MessageBubble({ message, currentUserId }: Props) {
             { label: '🥩 Ate Well', value: meta.ate_well },
             { label: '💧 Hydrated', value: meta.drank_water },
           ].map(({ label, value }) => (
-            <div key={label} className={`rounded-lg p-2 text-center text-xs ${value ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+            <div
+              key={label}
+              className={`rounded-lg p-2 text-center text-xs ${
+                value ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+              }`}
+            >
               {label}
             </div>
           ))}
@@ -82,11 +227,13 @@ export default function MessageBubble({ message, currentUserId }: Props) {
   // Standard text bubble
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-        isOwn
-          ? 'bg-gold text-white rounded-br-sm'
-          : 'bg-white shadow-card text-espresso rounded-bl-sm'
-      }`}>
+      <div
+        className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+          isOwn
+            ? 'bg-gold text-white rounded-br-sm'
+            : 'bg-white shadow-card text-espresso rounded-bl-sm'
+        }`}
+      >
         {!isOwn && (
           <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
         )}

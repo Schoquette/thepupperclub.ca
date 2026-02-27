@@ -33,17 +33,39 @@ class Dog extends Model
         'special_instructions',
         'photo_path',
         'is_active',
+        // Intake fields
+        'personality_description',
+        'energy_level',
+        'interaction_dogs',
+        'interaction_strangers',
+        'interaction_children',
+        'triggers',
+        'preferred_walk_style',
+        'preferred_gear',
+        'treats_allowed',
+        'treats_notes',
+        'training_commands',
+        'avoid_on_walks',
+        'medical_conditions',
+        'allergies',
+        'administer_medication_on_visits',
+        'mobility_limitations',
+        'recent_surgeries',
     ];
 
     protected function casts(): array
     {
         return [
-            'date_of_birth'   => 'date',
-            'weight_kg'       => 'decimal:2',
-            'spayed_neutered' => 'boolean',
-            'bite_history'    => 'boolean',
-            'is_active'       => 'boolean',
-            'medications'     => 'array',
+            'date_of_birth'                     => 'date',
+            'weight_kg'                         => 'decimal:2',
+            'spayed_neutered'                   => 'boolean',
+            'bite_history'                      => 'boolean',
+            'is_active'                         => 'boolean',
+            'medications'                       => 'array',
+            'preferred_walk_style'              => 'array',
+            'preferred_gear'                    => 'array',
+            'administer_medication_on_visits'   => 'boolean',
+            'mobility_limitations'              => 'boolean',
         ];
     }
 

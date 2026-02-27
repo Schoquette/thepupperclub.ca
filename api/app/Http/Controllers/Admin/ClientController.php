@@ -95,6 +95,24 @@ class ClientController extends Controller
         return response()->json(['data' => $user, 'message' => 'Invitation sent.'], 201);
     }
 
+    public function createDraft(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+        ]);
+
+        $user = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => bcrypt(Str::random(32)),
+            'role'     => 'client',
+            'status'   => 'pending',
+        ]);
+
+        return response()->json(['data' => $user], 201);
+    }
+
     public function resendInvite(User $client): JsonResponse
     {
         $this->ensureIsClient($client);

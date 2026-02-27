@@ -7,6 +7,7 @@ use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\IntakeController;
 
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
@@ -28,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Clients
         Route::get('/clients/pending',                  [Admin\ClientController::class, 'pending']);
         Route::post('/clients/invite',                  [Admin\ClientController::class, 'invite']);
+        Route::post('/clients/create-draft',            [Admin\ClientController::class, 'createDraft']);
         Route::get('/clients',                          [Admin\ClientController::class, 'index']);
         Route::get('/clients/{client}',                 [Admin\ClientController::class, 'show']);
         Route::patch('/clients/{client}',               [Admin\ClientController::class, 'update']);
@@ -38,6 +40,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/clients/{client}/documents',       [Admin\ClientController::class, 'documents']);
         Route::post('/clients/{client}/documents',      [Admin\ClientController::class, 'uploadDocument']);
         Route::delete('/clients/{client}/documents/{document}', [Admin\ClientController::class, 'deleteDocument']);
+
+        // Intake form
+        Route::get('/clients/{client}/intake',           [IntakeController::class, 'show']);
+        Route::put('/clients/{client}/intake',           [IntakeController::class, 'save']);
+        Route::post('/clients/{client}/intake/submit',   [IntakeController::class, 'submit']);
 
         // Dogs
         Route::get('/dogs',         [Admin\DogController::class, 'index']);
@@ -115,5 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Shared: Conversations (both roles access by client ID) ────────────────
     Route::get('/conversations/{clientId}',                              [ConversationController::class, 'thread']);
     Route::post('/conversations/{clientId}/messages',                    [ConversationController::class, 'sendMessage']);
+    Route::post('/conversations/{clientId}/photo',                       [ConversationController::class, 'sendPhoto']);
     Route::patch('/conversations/{clientId}/messages/{message}/read',    [ConversationController::class, 'markRead']);
+    Route::get('/messages/{message}/photo',                              [ConversationController::class, 'servePhoto']);
 });

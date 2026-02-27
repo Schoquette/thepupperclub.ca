@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
@@ -14,32 +14,92 @@ export default function AdminClientsPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
-  const [inviteModal, setInviteModal] = useState(false);
-  const [inviteName, setInviteName] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteError, setInviteError] = useState('');
+
+  // Create dropdown
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Quick Create modal
+  const [quickModal, setQuickModal] = useState(false);
+  const [quickName, setQuickName] = useState('');
+  const [quickEmail, setQuickEmail] = useState('');
+  const [quickError, setQuickError] = useState('');
+
+  // Intake flow modal (step 1: name + email)
+  const [intakeModal, setIntakeModal] = useState(false);
+  const [intakeName, setIntakeName] = useState('');
+  const [intakeEmail, setIntakeEmail] = useState('');
+  const [intakeError, setIntakeError] = useState('');
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-clients', filter, search],
     queryFn: () => api.get('/admin/clients', { params: { filter, search } }).then(r => r.data),
   });
 
-  const invite = useMutation({
-    mutationFn: (data: { name: string; email: string }) =>
-      api.post('/admin/clients/invite', data),
+  // Quick Create: create + send invite
+  const quickCreate = useMutation({
+    mutationFn: (d: { name: string; email: string }) => api.post('/admin/clients/invite', d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-clients'] });
-      setInviteModal(false);
-      setInviteName(''); setInviteEmail(''); setInviteError('');
+      setQuickModal(false);
+      setQuickName(''); setQuickEmail(''); setQuickError('');
     },
-    onError: (e: any) => setInviteError(e.response?.data?.message || 'Could not send invite.'),
+    onError: (e: any) => setQuickError(e.response?.data?.message || 'Could not send invite.'),
+  });
+
+  // Intake flow: create draft client → navigate to intake form
+  const createDraft = useMutation({
+    mutationFn: (d: { name: string; email: string }) => api.post('/admin/clients/create-draft', d),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['admin-clients'] });
+      setIntakeModal(false);
+      setIntakeName(''); setIntakeEmail(''); setIntakeError('');
+      navigate(`/admin/clients/${res.data.data.id}/intake`);
+    },
+    onError: (e: any) => setIntakeError(e.response?.data?.message || 'Could not create client.'),
   });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="page-title">Clients</h1>
-        <Button onClick={() => setInviteModal(true)}>+ Invite Client</Button>
+
+        {/* Create client dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <Button onClick={() => setDropdownOpen(v => !v)}>
+            + New Client ▾
+          </Button>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-cream z-20 overflow-hidden">
+              <button
+                className="w-full text-left px-4 py-3 hover:bg-cream transition-colors text-sm"
+                onClick={() => { setDropdownOpen(false); setQuickModal(true); }}
+              >
+                <div className="font-semibold text-espresso">⚡ Quick Create</div>
+                <div className="text-taupe text-xs mt-0.5">Name + email, invite sent immediately</div>
+              </button>
+              <div className="border-t border-cream" />
+              <button
+                className="w-full text-left px-4 py-3 hover:bg-cream transition-colors text-sm"
+                onClick={() => { setDropdownOpen(false); setIntakeModal(true); }}
+              >
+                <div className="font-semibold text-espresso">📋 Complete Intake Form</div>
+                <div className="text-taupe text-xs mt-0.5">Build full profile, invite when ready</div>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -75,13 +135,17 @@ export default function AdminClientsPage() {
                 <th className="px-6 py-4 font-semibold text-espresso">Status</th>
                 <th className="px-6 py-4 font-semibold text-espresso">Dogs</th>
                 <th className="px-6 py-4 font-semibold text-espresso">Tier</th>
+                <th className="px-6 py-4 font-semibold text-espresso">Intake</th>
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
             <tbody>
               {data?.data?.map((client: any) => (
-                <tr key={client.id} className="border-b border-cream last:border-0 hover:bg-cream/50 cursor-pointer"
-                  onClick={() => navigate(`/admin/clients/${client.id}`)}>
+                <tr
+                  key={client.id}
+                  className="border-b border-cream last:border-0 hover:bg-cream/50 cursor-pointer"
+                  onClick={() => navigate(`/admin/clients/${client.id}`)}
+                >
                   <td className="px-6 py-4">
                     <div className="font-medium text-espresso">{client.name}</div>
                     <div className="text-taupe text-xs">{client.email}</div>
@@ -90,7 +154,21 @@ export default function AdminClientsPage() {
                     <Badge variant={statusBadge(client.status)}>{client.status}</Badge>
                   </td>
                   <td className="px-6 py-4 text-taupe">{client.dogs_count ?? 0}</td>
-                  <td className="px-6 py-4 text-taupe text-xs">{client.client_profile?.subscription_tier || '—'}</td>
+                  <td className="px-6 py-4 text-taupe text-xs">
+                    {client.client_profile?.subscription_tier || '—'}
+                  </td>
+                  <td className="px-6 py-4">
+                    {client.client_profile?.intake_submitted_at ? (
+                      <span className="text-xs text-green-600 font-semibold">✓ Submitted</span>
+                    ) : (
+                      <button
+                        className="text-xs text-blue hover:underline font-medium"
+                        onClick={e => { e.stopPropagation(); navigate(`/admin/clients/${client.id}/intake`); }}
+                      >
+                        Open Form →
+                      </button>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <button className="text-blue hover:underline text-sm">View →</button>
                   </td>
@@ -104,32 +182,67 @@ export default function AdminClientsPage() {
         </Card>
       )}
 
-      {/* Invite modal */}
-      <Modal open={inviteModal} onClose={() => setInviteModal(false)} title="Invite Client">
+      {/* Quick Create modal */}
+      <Modal open={quickModal} onClose={() => setQuickModal(false)} title="Quick Create Client">
         <div className="space-y-4">
+          <p className="text-sm text-taupe">Creates the client account and sends an invite email immediately.</p>
           <Input
             label="Full name"
-            value={inviteName}
-            onChange={e => setInviteName(e.target.value)}
+            value={quickName}
+            onChange={e => setQuickName(e.target.value)}
             placeholder="Jane Smith"
           />
           <Input
             label="Email address"
             type="email"
-            value={inviteEmail}
-            onChange={e => setInviteEmail(e.target.value)}
+            value={quickEmail}
+            onChange={e => setQuickEmail(e.target.value)}
             placeholder="jane@example.com"
           />
-          {inviteError && (
-            <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{inviteError}</div>
+          {quickError && (
+            <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{quickError}</div>
           )}
           <div className="flex justify-end gap-3 mt-6">
-            <Button variant="outline" onClick={() => setInviteModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setQuickModal(false)}>Cancel</Button>
             <Button
-              loading={invite.isPending}
-              onClick={() => invite.mutate({ name: inviteName, email: inviteEmail })}
+              loading={quickCreate.isPending}
+              onClick={() => quickCreate.mutate({ name: quickName, email: quickEmail })}
             >
               Send Invitation
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Intake Form modal — step 1: collect name + email */}
+      <Modal open={intakeModal} onClose={() => setIntakeModal(false)} title="Complete Intake Form">
+        <div className="space-y-4">
+          <p className="text-sm text-taupe">
+            Creates the client account without sending an invite. You can fill out the full intake form and send the invite whenever you're ready.
+          </p>
+          <Input
+            label="Full name"
+            value={intakeName}
+            onChange={e => setIntakeName(e.target.value)}
+            placeholder="Jane Smith"
+          />
+          <Input
+            label="Email address"
+            type="email"
+            value={intakeEmail}
+            onChange={e => setIntakeEmail(e.target.value)}
+            placeholder="jane@example.com"
+          />
+          {intakeError && (
+            <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{intakeError}</div>
+          )}
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="outline" onClick={() => setIntakeModal(false)}>Cancel</Button>
+            <Button
+              loading={createDraft.isPending}
+              onClick={() => createDraft.mutate({ name: intakeName, email: intakeEmail })}
+            >
+              Start Intake Form →
             </Button>
           </div>
         </div>

@@ -732,6 +732,13 @@ export default function AdminClientDetailPage() {
           <Button variant="outline" size="sm" onClick={() => navigate(`/admin/inbox/${client.id}`)}>
             💬 Message
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/clients/${id}/intake`)}
+          >
+            {client.client_profile?.intake_submitted_at ? '📋 View Intake' : '📋 Intake Form'}
+          </Button>
           {client.status === 'pending' && (
             <Button variant="outline" size="sm" loading={resend.isPending} onClick={() => resend.mutate()}>
               Resend Invite

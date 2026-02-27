@@ -5,6 +5,7 @@ import type { User, AuthToken } from '@pupper/shared';
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
@@ -15,12 +16,17 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const restore = async () => {
-      const stored = await SecureStore.getItemAsync('user');
+      const [stored, storedToken] = await Promise.all([
+        SecureStore.getItemAsync('user'),
+        SecureStore.getItemAsync('token'),
+      ]);
       if (stored) setUserState(JSON.parse(stored));
+      if (storedToken) setToken(storedToken);
       setLoading(false);
     };
     restore();
@@ -31,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await SecureStore.setItemAsync('token', data.token);
     await SecureStore.setItemAsync('user', JSON.stringify(data.user));
     setUserState(data.user);
+    setToken(data.token);
     return data.user;
   }, []);
 
@@ -39,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await SecureStore.deleteItemAsync('token');
     await SecureStore.deleteItemAsync('user');
     setUserState(null);
+    setToken(null);
   }, []);
 
   const setUser = useCallback(async (u: User) => {
@@ -47,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -16,21 +16,43 @@ class ClientProfile extends Model
         'postal_code',
         'emergency_contact_name',
         'emergency_contact_phone',
+        'emergency_contact_relationship',
+        'vet_clinic_name',
+        'vet_phone',
+        'vet_address',
         'billing_method',
+        'food_storage_location',
+        'customized_care_options',
+        'preferred_update_method',
+        'report_detail_level',
+        'preferred_walk_days',
+        'preferred_walk_length',
+        'preferred_walk_times',
+        'what_great_care_looks_like',
+        'biggest_concern',
+        'comfort_factors',
+        'referral_source',
+        'additional_notes',
         'subscription_tier',
         'subscription_start_date',
         'subscription_end_date',
         'stripe_customer_id',
         'notes',
         'onboarding_completed_at',
+        'intake_submitted_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'subscription_start_date' => 'date',
-            'subscription_end_date'   => 'date',
-            'onboarding_completed_at' => 'datetime',
+            'subscription_start_date'       => 'date',
+            'subscription_end_date'         => 'date',
+            'onboarding_completed_at'       => 'datetime',
+            'intake_submitted_at'           => 'datetime',
+            'customized_care_options'       => 'array',
+            'preferred_update_method'       => 'array',
+            'preferred_walk_days'           => 'array',
+            'preferred_walk_times'          => 'array',
         ];
     }
 
