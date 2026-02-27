@@ -220,16 +220,18 @@ class TestDataSeeder extends Seeder
 
         // ── Service Requests ─────────────────────────────────────────────────
 
-        ServiceRequest::firstOrCreate(
+        $sr = ServiceRequest::firstOrCreate(
             ['user_id' => $marcus->id, 'status' => 'pending'],
             [
-                'service_type'       => 'drop_in',
-                'preferred_date'     => now()->addDays(5)->toDateString(),
+                'service_type'        => 'drop_in',
+                'preferred_date'      => now()->addDays(5)->toDateString(),
                 'preferred_time_block'=> 'afternoon',
-                'notes'              => 'Mochi needs a check-in visit while I\'m at work.',
-                'dog_ids'            => [$mochi->id],
+                'notes'               => 'Mochi needs a check-in visit while I\'m at work.',
             ]
         );
+        if ($sr->wasRecentlyCreated) {
+            $sr->dogs()->attach($mochi->id);
+        }
 
         // ── Conversations & Messages ──────────────────────────────────────────
 
@@ -257,70 +259,46 @@ class TestDataSeeder extends Seeder
 
         // ── Invoices ─────────────────────────────────────────────────────────
 
-        // Emma - paid invoice
-        $inv1 = Invoice::firstOrCreate(
-            ['user_id' => $emma->id, 'invoice_number' => 'PC-' . date('Y') . '-0001'],
-            [
-                'status'         => 'paid',
-                'subtotal'       => 250.00,
-                'gst'            => 12.50,
-                'surcharge'      => 7.61,
-                'tip'            => 25.00,
-                'total'          => 295.11,
-                'billing_method' => 'credit_card',
-                'due_date'       => now()->subMonth(),
-                'paid_at'        => now()->subMonth()->addDays(3),
-                'notes'          => 'Monthly subscription — November',
-            ]
-        );
-        if ($inv1->lineItems()->count() === 0) {
-            $inv1->lineItems()->createMany([
-                ['description' => '60-min Walk × 4', 'quantity' => 4, 'unit_price' => 50.00, 'amount' => 200.00],
-                ['description' => 'Drop-in Visit × 2', 'quantity' => 2, 'unit_price' => 25.00, 'amount' => 50.00],
-            ]);
-        }
+        $this->seedInvoice('PC-' . date('Y') . '-T001', $emma->id, [
+            'status'                => 'paid',
+            'subtotal'              => 250.00,
+            'gst'                   => 12.50,
+            'credit_card_surcharge' => 7.61,
+            'tip'                   => 25.00,
+            'total'                 => 295.11,
+            'due_date'              => now()->subMonth(),
+            'paid_at'               => now()->subMonth()->addDays(3),
+            'notes'                 => 'Monthly subscription — November',
+        ], [
+            ['description' => '60-min Walk × 4', 'quantity' => 4, 'unit_price' => 50.00, 'total' => 200.00],
+            ['description' => 'Drop-in Visit × 2', 'quantity' => 2, 'unit_price' => 25.00, 'total' => 50.00],
+        ]);
 
-        // Emma - outstanding invoice
-        $inv2 = Invoice::firstOrCreate(
-            ['user_id' => $emma->id, 'invoice_number' => 'PC-' . date('Y') . '-0002'],
-            [
-                'status'         => 'sent',
-                'subtotal'       => 300.00,
-                'gst'            => 15.00,
-                'surcharge'      => 9.14,
-                'tip'            => 0.00,
-                'total'          => 324.14,
-                'billing_method' => 'credit_card',
-                'due_date'       => now()->addWeek(),
-                'notes'          => 'Monthly subscription — December',
-            ]
-        );
-        if ($inv2->lineItems()->count() === 0) {
-            $inv2->lineItems()->createMany([
-                ['description' => '60-min Walk × 4', 'quantity' => 4, 'unit_price' => 50.00, 'amount' => 200.00],
-                ['description' => 'Day Boarding × 1', 'quantity' => 1, 'unit_price' => 100.00, 'amount' => 100.00],
-            ]);
-        }
+        $this->seedInvoice('PC-' . date('Y') . '-T002', $emma->id, [
+            'status'                => 'sent',
+            'subtotal'              => 300.00,
+            'gst'                   => 15.00,
+            'credit_card_surcharge' => 9.14,
+            'tip'                   => 0.00,
+            'total'                 => 324.14,
+            'due_date'              => now()->addWeek(),
+            'notes'                 => 'Monthly subscription — December',
+        ], [
+            ['description' => '60-min Walk × 4', 'quantity' => 4, 'unit_price' => 50.00, 'total' => 200.00],
+            ['description' => 'Day Boarding × 1', 'quantity' => 1, 'unit_price' => 100.00, 'total' => 100.00],
+        ]);
 
-        // Marcus - outstanding invoice
-        $inv3 = Invoice::firstOrCreate(
-            ['user_id' => $marcus->id, 'invoice_number' => 'PC-' . date('Y') . '-0003'],
-            [
-                'status'         => 'sent',
-                'subtotal'       => 120.00,
-                'gst'            => 6.00,
-                'surcharge'      => 0.00,
-                'tip'            => 0.00,
-                'total'          => 126.00,
-                'billing_method' => 'e_transfer',
-                'due_date'       => now()->addDays(5),
-            ]
-        );
-        if ($inv3->lineItems()->count() === 0) {
-            $inv3->lineItems()->createMany([
-                ['description' => '60-min Walk × 3', 'quantity' => 3, 'unit_price' => 40.00, 'amount' => 120.00],
-            ]);
-        }
+        $this->seedInvoice('PC-' . date('Y') . '-T003', $marcus->id, [
+            'status'                => 'sent',
+            'subtotal'              => 120.00,
+            'gst'                   => 6.00,
+            'credit_card_surcharge' => 0.00,
+            'tip'                   => 0.00,
+            'total'                 => 126.00,
+            'due_date'              => now()->addDays(5),
+        ], [
+            ['description' => '60-min Walk × 3', 'quantity' => 3, 'unit_price' => 40.00, 'total' => 120.00],
+        ]);
 
         $this->command->info('Test data seeded: 3 clients, 5 dogs, appointments, messages, invoices.');
         $this->command->info('Login: emma@test.com / password123');
@@ -349,6 +327,17 @@ class TestDataSeeder extends Seeder
         ]);
 
         $appt->dogs()->attach($dogIds);
+    }
+
+    private function seedInvoice(string $number, int $userId, array $attrs, array $lineItems): void
+    {
+        $inv = Invoice::firstOrCreate(
+            ['invoice_number' => $number],
+            array_merge(['user_id' => $userId], $attrs)
+        );
+        if ($inv->wasRecentlyCreated && count($lineItems)) {
+            $inv->lineItems()->createMany($lineItems);
+        }
     }
 
     private function seedConversation(User $client, User $admin, array $messages): void
