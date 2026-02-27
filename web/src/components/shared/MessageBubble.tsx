@@ -1,20 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Message } from '@pupper/shared';
 import { format } from 'date-fns';
 import api from '@/lib/api';
 
+interface Reaction {
+  emoji: string;
+  count: number;
+  reacted_by_me: boolean;
+}
+
 interface Props {
-  message: Message & { sender?: { id: number; name: string; role: string }; edited_at?: string | null };
+  message: Message & {
+    sender?: { id: number; name: string; role: string };
+    edited_at?: string | null;
+    reactions?: Reaction[];
+  };
   currentUserId: number;
   onEdit?: (message: any) => void;
   onDelete?: (message: any) => void;
+  onReact?: (messageId: number, emoji: string) => void;
 }
 
 const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😢', '🙏', '🐾'];
 
 // Fetches a photo via authenticated API and renders it as an <img>.
-// Caches the blob URL for the lifetime of the component.
 function AuthImage({
   messageId,
   alt,
@@ -147,8 +158,39 @@ function PhotoBubble({
   );
 }
 
-export default function MessageBubble({ message, currentUserId, onEdit, onDelete }: Props) {
+// Inline reaction picker shown on hover
+function ReactionPicker({ onReact }: { onReact: (emoji: string) => void }) {
+  return (
+    <div className="absolute bottom-full mb-1 bg-white rounded-2xl shadow-lg border border-cream px-2 py-1.5 flex gap-1 z-20">
+      {REACTION_EMOJIS.map((emoji) => (
+        <button
+          key={emoji}
+          onClick={() => onReact(emoji)}
+          className="text-lg hover:scale-125 transition-transform px-0.5"
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function MessageBubble({ message, currentUserId, onEdit, onDelete, onReact }: Props) {
   const isOwn = message.sender_id === currentUserId;
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPicker]);
 
   if (message.type === 'photo') {
     return <PhotoBubble message={message} isOwn={isOwn} />;
@@ -230,48 +272,94 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
   const canMutate = isOwn && message.type === 'text' &&
     new Date(message.created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000;
 
+  const reactions = message.reactions ?? [];
+
   return (
-    <div className={`group flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-      {/* Edit/Delete controls — appear on hover for own messages within 2h */}
-      {canMutate && (
-        <div className="self-center mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-          {onEdit && (
-            <button
-              onClick={() => onEdit(message)}
-              className="text-taupe hover:text-espresso text-xs px-2 py-1 rounded bg-cream"
-              title="Edit"
-            >
-              ✏️
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={() => onDelete(message)}
-              className="text-taupe hover:text-red-500 text-xs px-2 py-1 rounded bg-cream"
-              title="Delete"
-            >
-              🗑️
-            </button>
-          )}
-        </div>
-      )}
-      <div
-        className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
-          isOwn
-            ? 'bg-gold text-white rounded-br-sm'
-            : 'bg-white shadow-card text-espresso rounded-bl-sm'
-        }`}
-      >
-        {!isOwn && (
-          <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
+    <div className={`group flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} w-full`}>
+        {/* Edit/Delete controls — appear on hover for own messages within 2h */}
+        {canMutate && (
+          <div className="self-center mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(message)}
+                className="text-taupe hover:text-espresso text-xs px-2 py-1 rounded bg-cream"
+                title="Edit"
+              >
+                ✏️
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(message)}
+                className="text-taupe hover:text-red-500 text-xs px-2 py-1 rounded bg-cream"
+                title="Delete"
+              >
+                🗑️
+              </button>
+            )}
+          </div>
         )}
-        <p className="leading-relaxed">{message.body}</p>
-        <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
-          {format(new Date(message.created_at), 'h:mm a')}
-          {(message as any).edited_at && ' · Edited'}
-          {isOwn && message.read_at && !((message as any).edited_at) && ' · Read'}
+
+        {/* Reaction picker trigger */}
+        {onReact && (
+          <div ref={pickerRef} className="relative self-center mr-1">
+            <button
+              onClick={() => setShowPicker(v => !v)}
+              className={`opacity-0 group-hover:opacity-100 transition-opacity text-taupe hover:text-gold text-xs px-1.5 py-1 rounded bg-cream ${isOwn ? 'order-first mr-2' : ''}`}
+              title="React"
+            >
+              😊
+            </button>
+            {showPicker && (
+              <ReactionPicker
+                onReact={(emoji) => {
+                  onReact(message.id, emoji);
+                  setShowPicker(false);
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        <div
+          className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+            isOwn
+              ? 'bg-gold text-white rounded-br-sm'
+              : 'bg-white shadow-card text-espresso rounded-bl-sm'
+          }`}
+        >
+          {!isOwn && (
+            <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
+          )}
+          <p className="leading-relaxed">{message.body}</p>
+          <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
+            {format(new Date(message.created_at), 'h:mm a')}
+            {(message as any).edited_at && ' · Edited'}
+            {isOwn && message.read_at && !((message as any).edited_at) && ' · Read'}
+          </div>
         </div>
       </div>
+
+      {/* Reaction pills */}
+      {reactions.length > 0 && (
+        <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+          {reactions.map((r) => (
+            <button
+              key={r.emoji}
+              onClick={() => onReact?.(message.id, r.emoji)}
+              className={`flex items-center gap-0.5 text-xs rounded-full px-2 py-0.5 border transition-colors ${
+                r.reacted_by_me
+                  ? 'bg-gold/15 border-gold/40 text-espresso'
+                  : 'bg-cream border-cream hover:border-taupe text-espresso'
+              }`}
+            >
+              <span>{r.emoji}</span>
+              <span className="font-medium">{r.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

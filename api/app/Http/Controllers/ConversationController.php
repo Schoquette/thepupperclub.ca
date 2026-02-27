@@ -22,10 +22,25 @@ class ConversationController extends Controller
 
         $conversation = Conversation::firstOrCreate(['user_id' => $clientId]);
 
+        $currentUserId = $user->id;
         $messages = $conversation->messages()
-            ->with('sender:id,name,role')
+            ->with(['sender:id,name,role', 'reactions'])
             ->orderBy('id')
             ->paginate(50);
+
+        // Transform reactions into grouped summary
+        $messages->getCollection()->transform(function ($msg) use ($currentUserId) {
+            $grouped = $msg->reactions
+                ->groupBy('emoji')
+                ->map(fn($group, $emoji) => [
+                    'emoji'         => $emoji,
+                    'count'         => $group->count(),
+                    'reacted_by_me' => $group->contains('user_id', $currentUserId),
+                ])
+                ->values();
+            $msg->setRelation('reactions', $grouped);
+            return $msg;
+        });
 
         // Mark as read for requesting user
         if ($user->isClient()) {
@@ -167,6 +182,44 @@ class ConversationController extends Controller
         $message->update(['deleted_at' => now()]);
 
         return response()->json(['message' => 'Message deleted.']);
+    }
+
+    public function toggleReaction(Request $request, Message $message): JsonResponse
+    {
+        $user         = $request->user();
+        $conversation = Conversation::findOrFail($message->conversation_id);
+
+        if ($user->isClient()) {
+            abort_unless($conversation->user_id === $user->id, 403);
+        }
+
+        $data = $request->validate(['emoji' => 'required|string|max:20']);
+
+        $existing = $message->reactions()
+            ->where('user_id', $user->id)
+            ->where('emoji', $data['emoji'])
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+        } else {
+            $message->reactions()->create([
+                'user_id' => $user->id,
+                'emoji'   => $data['emoji'],
+            ]);
+        }
+
+        $currentUserId = $user->id;
+        $grouped = $message->fresh(['reactions'])->reactions
+            ->groupBy('emoji')
+            ->map(fn($group, $emoji) => [
+                'emoji'         => $emoji,
+                'count'         => $group->count(),
+                'reacted_by_me' => $group->contains('user_id', $currentUserId),
+            ])
+            ->values();
+
+        return response()->json(['data' => $grouped]);
     }
 
     public function markRead(Request $request, int $clientId, Message $message): JsonResponse

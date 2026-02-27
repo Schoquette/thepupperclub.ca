@@ -57,10 +57,12 @@ class InvoiceService
     {
         $invoice->update(['status' => 'sent']);
 
+        $adminId = \App\Models\User::where('role', 'admin')->value('id') ?? 1;
+
         // Send invoice message in conversation thread
         $conversation = $invoice->user->conversation()->firstOrCreate(['user_id' => $invoice->user_id]);
         $conversation->messages()->create([
-            'sender_id' => null, // system message — use admin user id
+            'sender_id' => $adminId,
             'type'      => 'invoice',
             'body'      => "Invoice #{$invoice->invoice_number} for \${$invoice->total} is ready.",
             'metadata'  => [

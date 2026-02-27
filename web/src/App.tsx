@@ -31,6 +31,7 @@ import ClientDogsPage from './pages/client/DogsPage';
 import ClientAppointmentsPage from './pages/client/AppointmentsPage';
 import ClientMessagesPage from './pages/client/MessagesPage';
 import ClientInvoicesPage from './pages/client/InvoicesPage';
+import ClientBillingPage from './pages/client/BillingPage';
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'admin' | 'client' }) {
   const { user } = useAuth();
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="appointments" element={<ClientAppointmentsPage />} />
         <Route path="messages" element={<ClientMessagesPage />} />
         <Route path="invoices" element={<ClientInvoicesPage />} />
+        <Route path="billing" element={<ClientBillingPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

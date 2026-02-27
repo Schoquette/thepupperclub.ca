@@ -114,6 +114,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/invoices',                      [Client\InvoiceController::class, 'index']);
         Route::post('/invoices/{invoice}/pay',       [Client\InvoiceController::class, 'pay']);
         Route::post('/invoices/{invoice}/tip',       [Client\InvoiceController::class, 'tip']);
+        Route::post('/billing/setup-intent',         [Client\InvoiceController::class, 'setupIntent']);
+        Route::post('/billing/payment-method',       [Client\InvoiceController::class, 'savePaymentMethod']);
+        Route::get('/billing/payment-method',        [Client\InvoiceController::class, 'paymentMethod']);
     });
 
     // ── Shared: Document download (admin or document owner) ──────────────────
@@ -127,4 +130,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/messages/{message}',                                  [ConversationController::class, 'editMessage']);
     Route::delete('/messages/{message}',                                 [ConversationController::class, 'deleteMessage']);
     Route::get('/messages/{message}/photo',                              [ConversationController::class, 'servePhoto']);
+    Route::post('/messages/{message}/reactions',                         [ConversationController::class, 'toggleReaction']);
 });

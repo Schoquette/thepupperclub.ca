@@ -67,9 +67,12 @@ class ClientController extends Controller
             'profile.postal_code'             => 'sometimes|nullable|string|max:7',
             'profile.emergency_contact_name'  => 'sometimes|nullable|string',
             'profile.emergency_contact_phone' => 'sometimes|nullable|string',
-            'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,cash',
+            'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,cash,ach',
             'profile.subscription_tier'       => 'sometimes|nullable|string',
+            'profile.subscription_plan'       => 'sometimes|nullable|string',
+            'profile.subscription_amount'     => 'sometimes|nullable|numeric|min:0',
             'profile.subscription_start_date' => 'sometimes|nullable|date',
+            'profile.next_billing_date'       => 'sometimes|nullable|date',
             'profile.subscription_end_date'   => 'sometimes|nullable|date',
             'profile.notes'                   => 'sometimes|nullable|string',
         ]);

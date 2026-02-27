@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -83,7 +84,12 @@ export default function ClientInvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-xl text-espresso">Invoices</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-xl text-espresso">Invoices</h1>
+        <Link to="/client/billing" className="text-sm text-gold hover:text-espresso font-medium transition-colors">
+          💳 Payment Method
+        </Link>
+      </div>
 
       {data?.length === 0 && (
         <Card>

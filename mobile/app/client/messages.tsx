@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
-  Modal, Dimensions, Alert,
+  Modal, Dimensions, Alert, ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,6 +15,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.thepupperclub.ca
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😢', '🙏', '🐾'];
+const QUICK_EMOJIS = ['😊', '❤️', '😂', '😢', '🙏', '👍', '🎉', '🐾', '✨', '🔥', '😅', '🥰'];
 
 function PhotoMessage({
   message,
@@ -63,16 +65,41 @@ function PhotoMessage({
   );
 }
 
+function ReactionRow({
+  reactions,
+  onReact,
+}: {
+  reactions?: Array<{ emoji: string; count: number; reacted_by_me: boolean }>;
+  onReact?: (emoji: string) => void;
+}) {
+  if (!reactions?.length) return null;
+  return (
+    <View style={rx.row}>
+      {reactions.map((r) => (
+        <TouchableOpacity
+          key={r.emoji}
+          style={[rx.pill, r.reacted_by_me && rx.pillActive]}
+          onPress={() => onReact?.(r.emoji)}
+        >
+          <Text style={rx.pillText}>{r.emoji} {r.count}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
 function MessageItem({
   message,
   currentUserId,
   token,
   onLongPress,
+  onReact,
 }: {
   message: any;
   currentUserId: number;
   token: string | null;
   onLongPress?: (msg: any) => void;
+  onReact?: (msgId: number, emoji: string) => void;
 }) {
   const isOwn = message.sender_id === currentUserId;
 
@@ -131,8 +158,8 @@ function MessageItem({
     <View style={[bubble.row, isOwn ? bubble.right : bubble.left]}>
       <TouchableOpacity
         activeOpacity={0.85}
-        onLongPress={() => canMutate && onLongPress?.(message)}
-        delayLongPress={500}
+        onLongPress={() => onLongPress?.(message)}
+        delayLongPress={400}
       >
         <View style={[bubble.bubble, isOwn ? bubble.ownBubble : bubble.otherBubble]}>
           {!isOwn && message.sender && (
@@ -147,6 +174,10 @@ function MessageItem({
           </Text>
         </View>
       </TouchableOpacity>
+      <ReactionRow
+        reactions={message.reactions}
+        onReact={(emoji) => onReact?.(message.id, emoji)}
+      />
     </View>
   );
 }
@@ -158,6 +189,10 @@ export default function ClientMessagesScreen() {
   const listRef = useRef<FlatList>(null);
   const [editModalMsg, setEditModalMsg] = useState<any>(null);
   const [editBody, setEditBody] = useState('');
+  const [showEmojiBar, setShowEmojiBar] = useState(false);
+
+  // Reaction picker modal state
+  const [reactTarget, setReactTarget] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['mobile-client-conversation'],
@@ -209,19 +244,39 @@ export default function ClientMessagesScreen() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['mobile-client-conversation'] }),
   });
 
+  const reactMsg = useMutation({
+    mutationFn: ({ id, emoji }: { id: number; emoji: string }) =>
+      api.post(`/messages/${id}/reactions`, { emoji }),
+    onSuccess: () => {
+      setReactTarget(null);
+      qc.invalidateQueries({ queryKey: ['mobile-client-conversation'] });
+    },
+  });
+
   const handleLongPress = (msg: any) => {
-    Alert.alert('Message', undefined, [
-      { text: 'Edit', onPress: () => { setEditModalMsg(msg); setEditBody(msg.body ?? ''); } },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => Alert.alert('Delete message?', undefined, [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => deleteMsg.mutate(msg.id) },
-        ]),
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    const canMutate = msg.sender_id === user?.id && msg.type === 'text' &&
+      new Date(msg.created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000;
+
+    const options: any[] = [
+      { text: '😊 React', onPress: () => setReactTarget(msg) },
+    ];
+
+    if (canMutate) {
+      options.push(
+        { text: '✏️ Edit', onPress: () => { setEditModalMsg(msg); setEditBody(msg.body ?? ''); } },
+        {
+          text: '🗑️ Delete',
+          style: 'destructive',
+          onPress: () => Alert.alert('Delete message?', undefined, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => deleteMsg.mutate(msg.id) },
+          ]),
+        },
+      );
+    }
+
+    options.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Message options', undefined, options);
   };
 
   const pickPhoto = async () => {
@@ -259,12 +314,30 @@ export default function ClientMessagesScreen() {
               currentUserId={user?.id ?? 0}
               token={token}
               onLongPress={handleLongPress}
+              onReact={(id, emoji) => reactMsg.mutate({ id, emoji })}
             />
           )}
           contentContainerStyle={{ padding: 16, gap: 12 }}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
           ListEmptyComponent={<Text style={s.empty}>No messages yet. Say hi to Sophie! 🐾</Text>}
         />
+      )}
+
+      {/* Emoji quick-pick bar */}
+      {showEmojiBar && (
+        <View style={s.emojiBar}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {QUICK_EMOJIS.map(e => (
+              <TouchableOpacity
+                key={e}
+                style={s.emojiBtn}
+                onPress={() => setText(prev => prev + e)}
+              >
+                <Text style={s.emoji}>{e}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {/* Edit modal */}
@@ -297,15 +370,34 @@ export default function ClientMessagesScreen() {
         </View>
       </Modal>
 
+      {/* Reaction picker modal */}
+      <Modal visible={!!reactTarget} transparent animationType="fade" onRequestClose={() => setReactTarget(null)}>
+        <TouchableOpacity style={rx.overlay} activeOpacity={1} onPress={() => setReactTarget(null)}>
+          <View style={rx.picker}>
+            <Text style={rx.pickerTitle}>React with</Text>
+            <View style={rx.pickerRow}>
+              {REACTION_EMOJIS.map(e => (
+                <TouchableOpacity
+                  key={e}
+                  style={rx.pickerBtn}
+                  onPress={() => reactMsg.mutate({ id: reactTarget.id, emoji: e })}
+                >
+                  <Text style={rx.pickerEmoji}>{e}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <View style={s.inputRow}>
-        <TouchableOpacity
-          style={s.photoBtn}
-          onPress={pickPhoto}
-          disabled={sendPhoto.isPending}
-        >
+        <TouchableOpacity style={s.iconBtn} onPress={pickPhoto} disabled={sendPhoto.isPending}>
           {sendPhoto.isPending
             ? <ActivityIndicator color="#C8BFB6" size="small" />
-            : <Text style={s.photoBtnIcon}>📷</Text>}
+            : <Text style={s.iconBtnText}>📷</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity style={s.iconBtn} onPress={() => setShowEmojiBar(v => !v)}>
+          <Text style={s.iconBtnText}>😊</Text>
         </TouchableOpacity>
         <TextInput
           style={s.input}
@@ -334,9 +426,12 @@ const s = StyleSheet.create({
   headerTitle:   { color: '#F6F3EE', fontSize: 18, fontWeight: '700', letterSpacing: 1 },
   loading:       { flex: 1, justifyContent: 'center', alignItems: 'center' },
   empty:         { textAlign: 'center', color: '#C8BFB6', marginTop: 40, fontSize: 14 },
+  emojiBar:      { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#F6F3EE', paddingHorizontal: 8, paddingVertical: 6 },
+  emojiBtn:      { paddingHorizontal: 6 },
+  emoji:         { fontSize: 26 },
   inputRow:      { flexDirection: 'row', gap: 8, padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#F6F3EE', alignItems: 'flex-end' },
-  photoBtn:      { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
-  photoBtnIcon:  { fontSize: 22 },
+  iconBtn:       { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+  iconBtnText:   { fontSize: 22 },
   input:         { flex: 1, borderWidth: 1, borderColor: '#C8BFB6', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: '#3B2F2A', maxHeight: 100 },
   sendBtn:       { width: 40, height: 40, borderRadius: 20, backgroundColor: '#C9A24D', justifyContent: 'center', alignItems: 'center' },
   sendBtnDisabled: { backgroundColor: '#C8BFB6' },
@@ -401,4 +496,17 @@ const em = StyleSheet.create({
   cancelText: { color: '#C8BFB6', fontWeight: '600' },
   saveBtn:    { flex: 1, backgroundColor: '#C9A24D', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   saveText:   { color: '#fff', fontWeight: '700' },
+});
+
+const rx = StyleSheet.create({
+  row:         { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
+  pill:        { backgroundColor: '#F6F3EE', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: '#C8BFB6' },
+  pillActive:  { backgroundColor: 'rgba(201,162,77,0.15)', borderColor: '#C9A24D' },
+  pillText:    { fontSize: 13, color: '#3B2F2A' },
+  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  picker:      { backgroundColor: '#fff', borderRadius: 20, padding: 20, alignItems: 'center', width: 300 },
+  pickerTitle: { fontSize: 14, fontWeight: '700', color: '#3B2F2A', marginBottom: 14 },
+  pickerRow:   { flexDirection: 'row', gap: 8 },
+  pickerBtn:   { width: 44, height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F6F3EE', borderRadius: 22 },
+  pickerEmoji: { fontSize: 24 },
 });

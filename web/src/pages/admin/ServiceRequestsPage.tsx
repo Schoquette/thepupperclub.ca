@@ -23,6 +23,7 @@ export default function AdminServiceRequestsPage() {
   const [adminResponse, setAdminResponse] = useState('');
   const [counterBlock, setCounterBlock] = useState('morning');
   const [counterDate, setCounterDate] = useState('');
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-service-requests'],
@@ -35,7 +36,10 @@ export default function AdminServiceRequestsPage() {
       api.patch(`/admin/service-requests/${selected.id}`, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-service-requests'] });
-      setSelected(null); setAction(null);
+      setSelected(null); setAction(null); setApiError(null);
+    },
+    onError: (err: any) => {
+      setApiError(err.response?.data?.message || 'Something went wrong. Please try again.');
     },
   });
 
@@ -84,7 +88,7 @@ export default function AdminServiceRequestsPage() {
         )}
       </div>
 
-      <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); }} title="Respond to Request">
+      <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); }} title="Respond to Request">
         {selected && (
           <div className="space-y-4">
             <div className="bg-cream rounded-lg p-4 text-sm">
@@ -136,11 +140,15 @@ export default function AdminServiceRequestsPage() {
               onChange={e => setAdminResponse(e.target.value)}
               placeholder="Any notes for the client..."
             />
+            {apiError && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>
+            )}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setSelected(null); setAction(null); }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setSelected(null); setAction(null); setApiError(null); }}>Cancel</Button>
               <Button
                 loading={respond.isPending}
                 variant={action === 'decline' ? 'danger' : 'primary'}
+                disabled={action === 'approve' && !scheduledTime}
                 onClick={handleAction}
               >
                 {action === 'approve' ? 'Approve & Create Appointment' : action === 'decline' ? 'Decline Request' : 'Send Counter Offer'}

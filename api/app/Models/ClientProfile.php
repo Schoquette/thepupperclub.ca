@@ -34,9 +34,13 @@ class ClientProfile extends Model
         'referral_source',
         'additional_notes',
         'subscription_tier',
+        'subscription_plan',
+        'subscription_amount',
         'subscription_start_date',
+        'next_billing_date',
         'subscription_end_date',
         'stripe_customer_id',
+        'stripe_payment_method_id',
         'notes',
         'onboarding_completed_at',
         'intake_submitted_at',
@@ -46,7 +50,9 @@ class ClientProfile extends Model
     {
         return [
             'subscription_start_date'       => 'date',
+            'next_billing_date'             => 'date',
             'subscription_end_date'         => 'date',
+            'subscription_amount'           => 'decimal:2',
             'onboarding_completed_at'       => 'datetime',
             'intake_submitted_at'           => 'datetime',
             'customized_care_options'       => 'array',
