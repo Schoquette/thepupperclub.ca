@@ -22,7 +22,7 @@ jobs:
         run: npm install --workspace=web --workspace=shared --include-workspace-root
 
       - name: Build web app
-        run: npm run build:web
+        run: npx --workspace=web vite build
 
       - name: Deploy to GoDaddy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
