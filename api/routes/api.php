@@ -115,10 +115,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/dogs/{dog}/vaccinations',             [Admin\VaccinationController::class, 'store']);
         Route::delete('/dogs/{dog}/vaccinations/{record}',  [Admin\VaccinationController::class, 'destroy']);
 
-        // Team members (admin users)
-        Route::get('/team', fn() => response()->json([
-            'data' => \App\Models\User::where('role', 'admin')->select('id', 'name', 'email')->get(),
-        ]));
+        // Team members
+        Route::get('/team',                         [Admin\TeamController::class, 'index']);
+        Route::post('/team',                        [Admin\TeamController::class, 'store'])->middleware('role:superadmin');
+        Route::patch('/team/{user}',                [Admin\TeamController::class, 'update'])->middleware('role:superadmin');
+        Route::delete('/team/{user}',               [Admin\TeamController::class, 'destroy'])->middleware('role:superadmin');
+        Route::post('/team/{user}/reset-password',  [Admin\TeamController::class, 'resetPassword'])->middleware('role:superadmin');
 
         // Time & Mileage
         Route::get('/time-mileage',              [Admin\TimeMileageController::class, 'report']);

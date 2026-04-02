@@ -13,6 +13,7 @@ const NAV = [
   { to: '/admin/report-cards',     label: 'Reports',    icon: '📝' },
   { to: '/admin/invoices',         label: 'Invoices',   icon: '💰' },
   { to: '/admin/time-mileage',     label: 'Time & km',  icon: '🚗' },
+  { to: '/admin/team',             label: 'Team',       icon: '👤' },
   { to: '/admin/broadcast',        label: 'Broadcast',  icon: '📣' },
   { to: '/admin/audit-logs',       label: 'Audit Log',  icon: '🔍' },
 ];

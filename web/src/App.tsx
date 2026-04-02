@@ -24,6 +24,7 @@ import AdminIntakeFormPage from './pages/admin/IntakeFormPage';
 import AdminReportCardsPage from './pages/admin/ReportCardsPage';
 import AdminReportCardFormPage from './pages/admin/ReportCardFormPage';
 import AdminTimeMileagePage from './pages/admin/TimeMileagePage';
+import AdminTeamPage from './pages/admin/TeamPage';
 import AdminBroadcastPage from './pages/admin/BroadcastPage';
 import AdminAuditLogsPage from './pages/admin/AuditLogsPage';
 import SigningPage from './pages/SigningPage';
@@ -44,7 +45,8 @@ import ClientDocumentsPage from './pages/client/DocumentsPage';
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'admin' | 'client' }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to="/" replace />;
+  if (role === 'admin' && !['admin', 'superadmin'].includes(user.role)) return <Navigate to="/" replace />;
+  if (role === 'client' && user.role !== 'client') return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -66,7 +68,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          user?.role === 'admin'
+          (user?.role === 'admin' || user?.role === 'superadmin')
             ? <Navigate to="/admin" replace />
             : user?.role === 'client'
             ? <Navigate to="/client" replace />
@@ -91,6 +93,7 @@ export default function App() {
         <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
         <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
         <Route path="time-mileage" element={<AdminTimeMileagePage />} />
+        <Route path="team" element={<AdminTeamPage />} />
         <Route path="broadcast" element={<AdminBroadcastPage />} />
         <Route path="audit-logs" element={<AdminAuditLogsPage />} />
       </Route>

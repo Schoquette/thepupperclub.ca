@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
         User::firstOrCreate(['email' => 'sophie@thepupperclub.ca'], [
             'name'     => 'Sophie Choquette',
             'password' => Hash::make('changeme123'),
-            'role'     => 'admin',
+            'role'     => 'superadmin',
             'status'   => 'active',
         ]);
 

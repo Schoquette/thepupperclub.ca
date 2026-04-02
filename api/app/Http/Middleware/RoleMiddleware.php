@@ -10,7 +10,15 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!$request->user() || !in_array($request->user()->role, $roles)) {
+        $userRole = $request->user()?->role;
+
+        // Superadmin inherits admin access
+        $effectiveRoles = $roles;
+        if (in_array('admin', $roles)) {
+            $effectiveRoles[] = 'superadmin';
+        }
+
+        if (!$userRole || !in_array($userRole, $effectiveRoles)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
