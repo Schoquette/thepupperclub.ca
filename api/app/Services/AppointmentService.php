@@ -20,6 +20,7 @@ class AppointmentService
 
         $appointment = Appointment::create([
             'user_id'           => $data['user_id'],
+            'assigned_to'       => $data['assigned_to'] ?? null,
             'service_type'      => $data['service_type'],
             'scheduled_time'    => $scheduledTime,
             'client_time_block' => $data['client_time_block'],
@@ -111,6 +112,7 @@ class AppointmentService
 
             $child = Appointment::create([
                 'user_id'              => $parent->user_id,
+                'assigned_to'          => $parent->assigned_to,
                 'service_type'         => $parent->service_type,
                 'scheduled_time'       => $current,
                 'client_time_block'    => $parent->client_time_block,

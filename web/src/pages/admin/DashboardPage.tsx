@@ -94,7 +94,7 @@ export default function AdminDashboardPage() {
           { label: "Today's Walks",    value: data?.todays_appointments.length ?? 0, icon: '🐕', color: 'text-gold' },
           { label: 'Pending Requests', value: data?.pending_service_requests ?? 0,    icon: '📋', color: 'text-blue' },
           { label: 'Unread Messages',  value: data?.unread_messages ?? 0,             icon: '💬', color: 'text-espresso' },
-          { label: 'Outstanding',      value: `$${(data?.outstanding_total ?? 0).toFixed(0)}`, icon: '💰', color: 'text-gold' },
+          { label: 'Outstanding',      value: `$${Number(data?.outstanding_total ?? 0).toFixed(0)}`, icon: '💰', color: 'text-gold' },
         ].map(stat => (
           <Card key={stat.label} padding="sm">
             <div className="text-2xl mb-1">{stat.icon}</div>
@@ -109,15 +109,15 @@ export default function AdminDashboardPage() {
         <CardHeader title="Revenue This Month" />
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-xl font-bold text-espresso">${(data?.revenue_this_month.billed_this_month ?? 0).toFixed(0)}</div>
+            <div className="text-xl font-bold text-espresso">${Number(data?.revenue_this_month?.billed_this_month ?? 0).toFixed(0)}</div>
             <div className="text-xs text-taupe mt-0.5">Billed</div>
           </div>
           <div>
-            <div className="text-xl font-bold text-green-600">${(data?.revenue_this_month.collected_this_month ?? 0).toFixed(0)}</div>
+            <div className="text-xl font-bold text-green-600">${Number(data?.revenue_this_month?.collected_this_month ?? 0).toFixed(0)}</div>
             <div className="text-xs text-taupe mt-0.5">Collected</div>
           </div>
           <div>
-            <div className="text-xl font-bold text-red-500">${(data?.revenue_this_month.outstanding ?? 0).toFixed(0)}</div>
+            <div className="text-xl font-bold text-red-500">${Number(data?.revenue_this_month?.outstanding ?? 0).toFixed(0)}</div>
             <div className="text-xs text-taupe mt-0.5">Outstanding</div>
           </div>
         </div>

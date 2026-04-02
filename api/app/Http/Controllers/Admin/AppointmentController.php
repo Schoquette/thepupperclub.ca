@@ -15,11 +15,12 @@ class AppointmentController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Appointment::with(['user.clientProfile', 'dogs', 'visitReport'])
+        $query = Appointment::with(['user.clientProfile', 'dogs', 'visitReport', 'assignedAdmin:id,name'])
             ->when($request->date, fn($q) => $q->whereDate('scheduled_time', $request->date))
             ->when($request->start, fn($q) => $q->where('scheduled_time', '>=', $request->start))
             ->when($request->end, fn($q) => $q->where('scheduled_time', '<=', $request->end))
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
+            ->when($request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->orderBy('scheduled_time');
 
@@ -30,6 +31,7 @@ class AppointmentController extends Controller
     {
         $data = $request->validate([
             'user_id'          => 'required|exists:users,id',
+            'assigned_to'      => 'nullable|exists:users,id',
             'dog_ids'          => 'required|array|min:1',
             'dog_ids.*'        => 'exists:dogs,id',
             'service_type'     => 'required|in:walk_30,walk_60,drop_in,overnight,day_boarding',
@@ -57,6 +59,7 @@ class AppointmentController extends Controller
         $data = $request->validate([
             'scheduled_time'   => 'sometimes|date',
             'client_time_block'=> 'sometimes|in:early_morning,morning,midday,afternoon,evening',
+            'assigned_to'      => 'sometimes|nullable|exists:users,id',
             'status'           => 'sometimes|in:scheduled,checked_in,completed,cancelled',
             'notes'            => 'sometimes|nullable|string',
             'scope'            => 'sometimes|in:single,future_all',
@@ -121,8 +124,6 @@ class AppointmentController extends Controller
             $data,
             ['photo_paths' => $photoPaths]
         ));
-
-        app(\App\Services\VisitNotificationService::class)->sendVisitComplete($appointment, $report);
 
         return response()->json(['data' => $report]);
     }

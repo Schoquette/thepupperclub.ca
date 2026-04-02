@@ -36,9 +36,9 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
         onClick={onClose}
       />
       {/* Dialog */}
-      <div className={clsx('relative w-full bg-white rounded-2xl shadow-lg', sizes[size])}>
+      <div className={clsx('relative w-full bg-white rounded-2xl shadow-lg max-h-[90vh] flex flex-col', sizes[size])}>
         {title && (
-          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-cream">
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-cream shrink-0">
             <h3 className="text-lg font-display text-espresso">{title}</h3>
             <button
               onClick={onClose}
@@ -50,7 +50,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
             </button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

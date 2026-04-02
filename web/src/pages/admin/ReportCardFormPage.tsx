@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
@@ -23,7 +23,7 @@ function buildFormData(fields: {
   checks?: Record<string, boolean>;
   specialTripDetails?: string;
   notes?: string;
-  photo?: File | null;
+  photos?: File[];
 }) {
   const fd = new FormData();
   if (fields.userId) fd.append('user_id', fields.userId);
@@ -37,12 +37,15 @@ function buildFormData(fields: {
   }
   if (fields.specialTripDetails) fd.append('special_trip_details', fields.specialTripDetails);
   if (fields.notes) fd.append('notes', fields.notes);
-  if (fields.photo) fd.append('photo', fields.photo);
+  if (fields.photos?.length) {
+    fields.photos.forEach(p => fd.append('photos[]', p));
+  }
   return fd;
 }
 
 export default function AdminReportCardFormPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const isNew = id === 'new';
@@ -50,18 +53,37 @@ export default function AdminReportCardFormPage() {
 
   const [clientId, setClientId] = useState('');
   const [appointmentId, setAppointmentId] = useState('');
+  const [saved, setSaved] = useState(false);
   const [arrivalTime, setArrivalTime] = useState('');
   const [departureTime, setDepartureTime] = useState('');
   const [checks, setChecks] = useState<Record<string, boolean>>({});
   const [specialTripDetails, setSpecialTripDetails] = useState('');
   const [notes, setNotes] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+  const [newPhotos, setNewPhotos] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
+  const [existingPhotoCount, setExistingPhotoCount] = useState(0);
   const [templateItems, setTemplateItems] = useState<TemplateItem[]>([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateDraft, setTemplateDraft] = useState<TemplateItem[]>([]);
   const [error, setError] = useState('');
+
+  // Pre-fill from query params (e.g. ?appointment_id=5 from calendar)
+  const qsAppointmentId = searchParams.get('appointment_id');
+  const { data: qsAppointment } = useQuery({
+    queryKey: ['admin-appointment', qsAppointmentId],
+    queryFn: () => api.get(`/admin/appointments/${qsAppointmentId}`).then(r => r.data.data),
+    enabled: isNew && !!qsAppointmentId,
+  });
+
+  useEffect(() => {
+    if (!qsAppointment || !isNew) return;
+    setClientId(String(qsAppointment.user_id));
+    setAppointmentId(String(qsAppointment.id));
+    if (qsAppointment.scheduled_time) {
+      setArrivalTime(format(new Date(qsAppointment.scheduled_time), "yyyy-MM-dd'T'HH:mm"));
+    }
+  }, [qsAppointment?.id]); // eslint-disable-line
 
   const { data: clientsData } = useQuery({
     queryKey: ['admin-clients-list'],
@@ -78,10 +100,24 @@ export default function AdminReportCardFormPage() {
     enabled: !!clientId,
   });
 
+  const DEFAULT_CHECKLIST = [
+    { key: 'no_1', label: 'No. 1', enabled: true },
+    { key: 'no_2', label: 'No. 2', enabled: true },
+    { key: 'grooming', label: 'Grooming', enabled: true },
+    { key: 'indoor_play', label: 'Indoor Play', enabled: true },
+    { key: 'outdoor_play', label: 'Outdoor Play', enabled: true },
+    { key: 'long_walk', label: 'Long Walk', enabled: true },
+    { key: 'socialization', label: 'Socialization', enabled: true },
+    { key: 'training', label: 'Training', enabled: true },
+    { key: 'water_refill', label: 'Water Refill', enabled: true },
+    { key: 'feeding', label: 'Feeding', enabled: true },
+    { key: 'medication', label: 'Medication Administration', enabled: true },
+  ];
+
   const { data: templateData } = useQuery({
     queryKey: ['report-template', clientId],
     queryFn: () =>
-      api.get(`/admin/clients/${clientId}/report-template`).then((r) => r.data.data),
+      api.get(`/admin/clients/${clientId}/report-template`).then((r) => r.data.data).catch(() => DEFAULT_CHECKLIST),
     enabled: !!clientId,
   });
 
@@ -112,44 +148,49 @@ export default function AdminReportCardFormPage() {
 
   // Init template items + checks when template or report changes
   useEffect(() => {
-    if (!templateData) return;
-    setTemplateItems(templateData);
-    setTemplateDraft(templateData);
+    const items = templateData ?? DEFAULT_CHECKLIST;
+    setTemplateItems(items);
+    setTemplateDraft(items);
     const initial: Record<string, boolean> = {};
-    templateData.forEach((item: TemplateItem) => {
+    items.forEach((item: TemplateItem) => {
       initial[item.key] = !!(report?.checklist?.[item.key]);
     });
     setChecks(initial);
   }, [templateData, report?.id]); // eslint-disable-line
 
-  // Load existing photo
+  // Load existing photos
   useEffect(() => {
-    if (isNew || !report?.report_photo_path) return;
-    let url = '';
-    api
-      .get(`/admin/report-cards/${id}/photo`, { responseType: 'blob' })
-      .then((r) => {
-        url = URL.createObjectURL(r.data);
-        setExistingPhotoUrl(url);
-      })
-      .catch(() => {});
-    return () => {
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [id, report?.report_photo_path]); // eslint-disable-line
+    if (isNew) return;
+    const paths = report?.photo_paths ?? [];
+    // Backward compat: also check legacy single photo field
+    const count = paths.length || (report?.report_photo_path ? 1 : 0);
+    if (count === 0) return;
+    setExistingPhotoCount(count);
+    const urls: string[] = [];
+    let cancelled = false;
+    Promise.all(
+      Array.from({ length: count }, (_, i) =>
+        api.get(`/admin/report-cards/${id}/photos/${i}`, { responseType: 'blob' })
+          .then(r => { if (!cancelled) urls[i] = URL.createObjectURL(r.data); })
+          .catch(() => {})
+      )
+    ).then(() => { if (!cancelled) setExistingPhotoUrls(urls.filter(Boolean)); });
+    return () => { cancelled = true; urls.forEach(u => u && URL.revokeObjectURL(u)); };
+  }, [id, report?.photo_paths?.length, report?.report_photo_path]); // eslint-disable-line
 
-  // Photo preview blob
+  // New photo previews
   useEffect(() => {
-    if (!photo) { setPhotoPreview(null); return; }
-    const url = URL.createObjectURL(photo);
-    setPhotoPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
+    const urls = newPhotos.map(f => URL.createObjectURL(f));
+    setNewPreviews(urls);
+    return () => urls.forEach(u => URL.revokeObjectURL(u));
+  }, [newPhotos]);
 
-  const activePhoto = photoPreview ?? existingPhotoUrl;
+  const allPhotos = [...existingPhotoUrls, ...newPreviews];
 
   const enabledItems = templateItems.filter((i) => i.enabled);
   const isSent = !isNew && !!report?.sent_at;
+
+  const fdHeaders = { headers: { 'Content-Type': 'multipart/form-data' } };
 
   const createReport = useMutation({
     mutationFn: () => {
@@ -161,9 +202,9 @@ export default function AdminReportCardFormPage() {
         checks,
         specialTripDetails: specialTripDetails || undefined,
         notes: notes || undefined,
-        photo,
+        photos: newPhotos,
       });
-      return api.post('/admin/report-cards', fd);
+      return api.post('/admin/report-cards', fd, fdHeaders);
     },
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
@@ -180,12 +221,14 @@ export default function AdminReportCardFormPage() {
         checks,
         specialTripDetails: specialTripDetails || undefined,
         notes: notes || undefined,
-        photo,
+        photos: newPhotos,
       });
-      return api.post(`/admin/report-cards/${id}`, fd);
+      return api.post(`/admin/report-cards/${id}`, fd, fdHeaders);
     },
     onSuccess: () => {
-      setPhoto(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      setNewPhotos([]);
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
       qc.invalidateQueries({ queryKey: ['admin-report-card', id] });
     },
@@ -194,14 +237,16 @@ export default function AdminReportCardFormPage() {
 
   const sendReport = useMutation({
     mutationFn: async () => {
-      if (photo) {
-        const fd = buildFormData({ photo });
-        await api.post(`/admin/report-cards/${id}`, fd);
+      if (newPhotos.length > 0) {
+        const fd = buildFormData({ photos: newPhotos });
+        await api.post(`/admin/report-cards/${id}`, fd, fdHeaders);
       }
       return api.post(`/admin/report-cards/${id}/send`);
     },
     onSuccess: () => {
-      setPhoto(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      setNewPhotos([]);
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
       qc.invalidateQueries({ queryKey: ['admin-report-card', id] });
     },
@@ -217,9 +262,8 @@ export default function AdminReportCardFormPage() {
   });
 
   const deletePhoto = useMutation({
-    mutationFn: () => api.delete(`/admin/report-cards/${id}/photo`),
+    mutationFn: (index: number) => api.delete(`/admin/report-cards/${id}/photos?index=${index}`),
     onSuccess: () => {
-      setExistingPhotoUrl(null);
       qc.invalidateQueries({ queryKey: ['admin-report-card', id] });
     },
   });
@@ -272,6 +316,9 @@ export default function AdminReportCardFormPage() {
 
       {error && (
         <div className="bg-red-50 text-red-600 text-sm px-4 py-2.5 rounded-lg">{error}</div>
+      )}
+      {saved && (
+        <div className="bg-green-50 text-green-700 text-sm px-4 py-2.5 rounded-lg">Saved successfully!</div>
       )}
 
       <Card>
@@ -356,44 +403,61 @@ export default function AdminReportCardFormPage() {
           </div>
         )}
 
-        {/* Photo */}
+        {/* Photos */}
         <div className="mb-5">
-          <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">Photo</div>
-          {activePhoto ? (
-            <div className="relative">
-              <img
-                src={activePhoto}
-                alt="Visit photo"
-                className="w-full max-h-64 object-cover rounded-xl"
-              />
-              {!isSent && (
-                <button
-                  onClick={() => {
-                    setPhoto(null);
-                    if (!isNew && existingPhotoUrl) deletePhoto.mutate();
-                  }}
-                  className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-black/80"
-                >
-                  ×
-                </button>
-              )}
+          <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">
+            Photos {allPhotos.length > 0 && `(${allPhotos.length})`}
+          </div>
+          {allPhotos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+              {existingPhotoUrls.map((url, i) => (
+                <div key={`existing-${i}`} className="relative group">
+                  <img src={url} alt={`Visit photo ${i + 1}`} className="w-full h-32 object-cover rounded-xl" />
+                  {!isSent && (
+                    <button
+                      onClick={() => {
+                        deletePhoto.mutate(i);
+                        setExistingPhotoUrls(prev => prev.filter((_, idx) => idx !== i));
+                      }}
+                      className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              {newPreviews.map((url, i) => (
+                <div key={`new-${i}`} className="relative group">
+                  <img src={url} alt={`New photo ${i + 1}`} className="w-full h-32 object-cover rounded-xl ring-2 ring-gold/40" />
+                  <button
+                    onClick={() => setNewPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                    className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
-          ) : (
-            !isSent && (
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-taupe/30 rounded-xl py-10 text-taupe text-sm hover:border-gold hover:text-gold transition-colors"
-              >
-                📷 Add visit photo
-              </button>
-            )
+          )}
+          {!isSent && (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-full border-2 border-dashed border-taupe/30 rounded-xl py-6 text-taupe text-sm hover:border-gold hover:text-gold transition-colors"
+            >
+              📷 {allPhotos.length > 0 ? 'Add more photos' : 'Add visit photos'}
+            </button>
           )}
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
-            onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (files.length) setNewPhotos(prev => [...prev, ...files]);
+              e.target.value = '';
+            }}
           />
         </div>
 
@@ -468,9 +532,7 @@ export default function AdminReportCardFormPage() {
             )}
           </div>
         ) : (
-          clientId && !templateData && (
-            <div className="text-sm text-taupe mb-5 italic">Loading checklist…</div>
-          )
+          <div className="text-sm text-taupe mb-5 italic">Loading checklist…</div>
         )}
 
         {/* Notes */}

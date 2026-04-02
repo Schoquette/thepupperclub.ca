@@ -46,7 +46,8 @@ class ReportCardController extends Controller
             'checklist'            => 'nullable|array',
             'special_trip_details' => 'nullable|string|max:255',
             'notes'                => 'nullable|string|max:5000',
-            'photo'                => 'nullable|file|image|max:10240',
+            'photos'               => 'nullable|array',
+            'photos.*'             => 'file|image|max:10240',
         ]);
 
         $checklist = isset($data['checklist'])
@@ -63,9 +64,11 @@ class ReportCardController extends Controller
             'notes'                => $data['notes'] ?? null,
         ], fn($v) => $v !== null));
 
-        if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store("report_cards/{$report->id}", 'local');
-            $report->update(['report_photo_path' => $path]);
+        if ($request->hasFile('photos')) {
+            $paths = collect($request->file('photos'))
+                ->map(fn($file) => $file->store("report_cards/{$report->id}", 'local'))
+                ->all();
+            $report->update(['photo_paths' => $paths]);
         }
 
         return response()->json(['data' => $report->fresh(['user', 'appointment'])], 201);
@@ -81,21 +84,24 @@ class ReportCardController extends Controller
             'checklist'            => 'sometimes|nullable|array',
             'special_trip_details' => 'sometimes|nullable|string|max:255',
             'notes'                => 'sometimes|nullable|string|max:5000',
+            'photos'               => 'sometimes|array',
+            'photos.*'             => 'file|image|max:10240',
         ]);
 
         if (isset($data['checklist'])) {
             $data['checklist'] = array_map('boolval', $data['checklist']);
         }
 
+        unset($data['photos']);
         $reportCard->update($data);
 
-        // Photo replacement
-        if ($request->hasFile('photo')) {
-            if ($reportCard->report_photo_path) {
-                Storage::disk('local')->delete($reportCard->report_photo_path);
-            }
-            $path = $request->file('photo')->store("report_cards/{$reportCard->id}", 'local');
-            $reportCard->update(['report_photo_path' => $path]);
+        // Append new photos
+        if ($request->hasFile('photos')) {
+            $existing = $reportCard->photo_paths ?? [];
+            $newPaths = collect($request->file('photos'))
+                ->map(fn($file) => $file->store("report_cards/{$reportCard->id}", 'local'))
+                ->all();
+            $reportCard->update(['photo_paths' => array_merge($existing, $newPaths)]);
         }
 
         return response()->json(['data' => $reportCard->fresh(['user', 'appointment'])]);
@@ -105,6 +111,10 @@ class ReportCardController extends Controller
     {
         abort_unless(!$reportCard->sent_at, 422, 'Cannot delete a sent report card.');
 
+        // Delete all photos from storage
+        foreach ($reportCard->photo_paths ?? [] as $path) {
+            Storage::disk('local')->delete($path);
+        }
         if ($reportCard->report_photo_path) {
             Storage::disk('local')->delete($reportCard->report_photo_path);
         }
@@ -124,22 +134,34 @@ class ReportCardController extends Controller
         return response()->json(['message' => 'Report card sent.', 'data' => $reportCard->fresh()]);
     }
 
-    // ── Photo ─────────────────────────────────────────────────────────────────
+    // ── Photos ────────────────────────────────────────────────────────────────
 
-    public function servePhoto(VisitReport $reportCard): StreamedResponse
+    public function servePhoto(VisitReport $reportCard, int $index = 0): StreamedResponse
     {
-        abort_unless($reportCard->report_photo_path, 404);
-        abort_unless(Storage::disk('local')->exists($reportCard->report_photo_path), 404);
+        $paths = $reportCard->photo_paths ?? [];
 
-        return Storage::disk('local')->response($reportCard->report_photo_path);
+        // Backward compat: fall back to legacy single-photo field
+        if (empty($paths) && $reportCard->report_photo_path) {
+            $paths = [$reportCard->report_photo_path];
+        }
+
+        abort_if($index < 0 || $index >= count($paths), 404);
+        abort_unless(Storage::disk('local')->exists($paths[$index]), 404);
+
+        return Storage::disk('local')->response($paths[$index]);
     }
 
-    public function deletePhoto(VisitReport $reportCard): JsonResponse
+    public function deletePhoto(Request $request, VisitReport $reportCard): JsonResponse
     {
-        if ($reportCard->report_photo_path) {
-            Storage::disk('local')->delete($reportCard->report_photo_path);
-            $reportCard->update(['report_photo_path' => null]);
+        $index = (int) $request->query('index', 0);
+        $paths = $reportCard->photo_paths ?? [];
+
+        if ($index >= 0 && $index < count($paths)) {
+            Storage::disk('local')->delete($paths[$index]);
+            array_splice($paths, $index, 1);
+            $reportCard->update(['photo_paths' => $paths]);
         }
+
         return response()->json(['message' => 'Photo removed.']);
     }
 

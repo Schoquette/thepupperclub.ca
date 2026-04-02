@@ -23,6 +23,7 @@ import AdminInvoiceCreatePage from './pages/admin/InvoiceCreatePage';
 import AdminIntakeFormPage from './pages/admin/IntakeFormPage';
 import AdminReportCardsPage from './pages/admin/ReportCardsPage';
 import AdminReportCardFormPage from './pages/admin/ReportCardFormPage';
+import AdminTimeMileagePage from './pages/admin/TimeMileagePage';
 import AdminBroadcastPage from './pages/admin/BroadcastPage';
 import AdminAuditLogsPage from './pages/admin/AuditLogsPage';
 import SigningPage from './pages/SigningPage';
@@ -89,6 +90,7 @@ export default function App() {
         <Route path="report-cards" element={<AdminReportCardsPage />} />
         <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
         <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
+        <Route path="time-mileage" element={<AdminTimeMileagePage />} />
         <Route path="broadcast" element={<AdminBroadcastPage />} />
         <Route path="audit-logs" element={<AdminAuditLogsPage />} />
       </Route>

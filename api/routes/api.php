@@ -100,8 +100,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/report-cards/{reportCard}',                  [AdminReportCardController::class, 'update']); // POST for multipart
         Route::delete('/report-cards/{reportCard}',                [AdminReportCardController::class, 'destroy']);
         Route::post('/report-cards/{reportCard}/send',             [AdminReportCardController::class, 'send']);
-        Route::get('/report-cards/{reportCard}/photo',             [AdminReportCardController::class, 'servePhoto']);
-        Route::delete('/report-cards/{reportCard}/photo',          [AdminReportCardController::class, 'deletePhoto']);
+        Route::get('/report-cards/{reportCard}/photos/{index}',      [AdminReportCardController::class, 'servePhoto']);
+        Route::delete('/report-cards/{reportCard}/photos',         [AdminReportCardController::class, 'deletePhoto']);
         Route::get('/clients/{client}/report-template',            [AdminReportCardController::class, 'getTemplate']);
         Route::put('/clients/{client}/report-template',            [AdminReportCardController::class, 'saveTemplate']);
         Route::delete('/clients/{client}/report-template',         [AdminReportCardController::class, 'resetTemplate']);
@@ -114,6 +114,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dogs/{dog}/vaccinations',              [Admin\VaccinationController::class, 'index']);
         Route::post('/dogs/{dog}/vaccinations',             [Admin\VaccinationController::class, 'store']);
         Route::delete('/dogs/{dog}/vaccinations/{record}',  [Admin\VaccinationController::class, 'destroy']);
+
+        // Team members (admin users)
+        Route::get('/team', fn() => response()->json([
+            'data' => \App\Models\User::where('role', 'admin')->select('id', 'name', 'email')->get(),
+        ]));
+
+        // Time & Mileage
+        Route::get('/time-mileage',              [Admin\TimeMileageController::class, 'report']);
+        Route::post('/time-mileage/estimate',    [Admin\TimeMileageController::class, 'mileageEstimate']);
 
         // Audit logs
         Route::get('/audit-logs', [Admin\AuditLogController::class, 'index']);
@@ -150,7 +159,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Report cards
         Route::get('/report-cards',                          [ClientReportCardController::class, 'index']);
         Route::get('/report-cards/{reportCard}',             [ClientReportCardController::class, 'show']);
-        Route::get('/report-cards/{reportCard}/photo',       [ClientReportCardController::class, 'servePhoto']);
+        Route::get('/report-cards/{reportCard}/photos/{index}', [ClientReportCardController::class, 'servePhoto']);
 
         // Invoices
         Route::get('/invoices',                      [Client\InvoiceController::class, 'index']);

@@ -25,20 +25,17 @@ class ReportCardTemplate extends Model
     public static function defaultItems(): array
     {
         return [
-            ['key' => 'outdoor_walk',   'label' => 'Outdoor Walk',            'enabled' => true],
-            ['key' => 'indoor_play',    'label' => 'Indoor Play',             'enabled' => true],
-            ['key' => 'grooming',       'label' => 'Grooming',                'enabled' => true],
-            ['key' => 'fed',            'label' => 'Fed',                     'enabled' => true],
-            ['key' => 'water_refresh',  'label' => 'Water Refresh',           'enabled' => true],
-            ['key' => 'bathed',         'label' => 'Bathed',                  'enabled' => true],
-            ['key' => 'training',       'label' => 'Training',                'enabled' => true],
-            ['key' => 'massage',        'label' => 'Massage',                 'enabled' => true],
-            ['key' => 'ear_cleaning',   'label' => 'Ear Cleaning',            'enabled' => true],
-            ['key' => 'teeth_cleaning', 'label' => 'Teeth Cleaning',          'enabled' => true],
-            ['key' => 'nail_trim',      'label' => 'Nail Trim',               'enabled' => true],
-            ['key' => 'cuddle_time',    'label' => 'Cuddle Time',             'enabled' => true],
-            ['key' => 'medication',     'label' => 'Medication Administered', 'enabled' => true],
-            ['key' => 'special_trip',   'label' => 'Special Trip',            'enabled' => true],
+            ['key' => 'no_1',           'label' => 'No. 1',                     'enabled' => true],
+            ['key' => 'no_2',           'label' => 'No. 2',                     'enabled' => true],
+            ['key' => 'grooming',       'label' => 'Grooming',                  'enabled' => true],
+            ['key' => 'indoor_play',    'label' => 'Indoor Play',               'enabled' => true],
+            ['key' => 'outdoor_play',   'label' => 'Outdoor Play',              'enabled' => true],
+            ['key' => 'long_walk',      'label' => 'Long Walk',                 'enabled' => true],
+            ['key' => 'socialization',  'label' => 'Socialization',             'enabled' => true],
+            ['key' => 'training',       'label' => 'Training',                  'enabled' => true],
+            ['key' => 'water_refill',   'label' => 'Water Refill',              'enabled' => true],
+            ['key' => 'feeding',        'label' => 'Feeding',                   'enabled' => true],
+            ['key' => 'medication',     'label' => 'Medication Administration', 'enabled' => true],
         ];
     }
 
