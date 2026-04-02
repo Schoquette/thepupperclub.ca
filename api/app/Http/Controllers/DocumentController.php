@@ -20,6 +20,14 @@ class DocumentController extends Controller
 
         abort_unless(Storage::disk('local')->exists($document->storage_path), 404);
 
+        if ($request->boolean('inline')) {
+            return Storage::disk('local')->response(
+                $document->storage_path,
+                $document->filename,
+                ['Content-Type' => $document->mime_type, 'Content-Disposition' => 'inline']
+            );
+        }
+
         return Storage::disk('local')->download(
             $document->storage_path,
             $document->filename,

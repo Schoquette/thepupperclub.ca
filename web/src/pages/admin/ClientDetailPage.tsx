@@ -663,6 +663,14 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
     URL.revokeObjectURL(url);
   };
 
+  const handleView = async (doc: any) => {
+    const res = await api.get(`/documents/${doc.id}`, { responseType: 'blob', params: { inline: 1 } });
+    const url = URL.createObjectURL(new Blob([res.data], { type: doc.mime_type }));
+    window.open(url, '_blank');
+    // Revoke after a short delay to give the new tab time to load
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  };
+
   return (
     <div className="space-y-4">
       {/* Document list */}
@@ -738,6 +746,12 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
                       Certificate
                     </button>
                   )}
+                  <button
+                    onClick={() => handleView(doc)}
+                    className="text-blue text-sm hover:underline"
+                  >
+                    View
+                  </button>
                   <button
                     onClick={() => handleDownload(doc)}
                     className="text-blue text-sm hover:underline"
