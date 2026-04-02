@@ -18,6 +18,7 @@ yarn-error.log
 /.idea
 /.vscode
 storage/app/private/
+storage/app/photos/
 storage/framework/cache/
 storage/framework/sessions/
 storage/framework/views/

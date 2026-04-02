@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Client;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\IntakeController;
@@ -16,6 +17,7 @@ Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 Route::post('/webhooks/stripe',     [StripeWebhookController::class, 'handle']);
+Route::post('/contact',             [ContactController::class, 'submit']);
 
 // Document signing (token-based, no auth required)
 Route::get('/signing/{token}',          [\App\Http\Controllers\SigningController::class, 'show']);
