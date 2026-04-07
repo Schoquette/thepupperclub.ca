@@ -264,7 +264,7 @@ export default function AdminReportCardFormPage() {
     }));
   };
 
-  const fdHeaders = { headers: { 'Content-Type': 'multipart/form-data' } };
+  const fdConfig = { headers: { 'Content-Type': 'multipart/form-data' } };
 
   const makePayload = (includeCreate = false) => {
     const base: Parameters<typeof buildFormData>[0] = {
@@ -283,7 +283,7 @@ export default function AdminReportCardFormPage() {
   };
 
   const createReport = useMutation({
-    mutationFn: () => api.post('/admin/report-cards', makePayload(true), fdHeaders),
+    mutationFn: () => api.post('/admin/report-cards', makePayload(true), fdConfig),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
       navigate(`/admin/report-cards/${res.data.data.id}`);
@@ -293,7 +293,7 @@ export default function AdminReportCardFormPage() {
 
   const createAndSend = useMutation({
     mutationFn: async () => {
-      const res = await api.post('/admin/report-cards', makePayload(true), fdHeaders);
+      const res = await api.post('/admin/report-cards', makePayload(true), fdConfig);
       const newId = res.data.data.id;
       await api.post(`/admin/report-cards/${newId}/send`);
       return newId;
@@ -306,7 +306,7 @@ export default function AdminReportCardFormPage() {
   });
 
   const updateReport = useMutation({
-    mutationFn: () => api.post(`/admin/report-cards/${id}`, makePayload(), fdHeaders),
+    mutationFn: () => api.post(`/admin/report-cards/${id}`, makePayload(), fdConfig),
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -321,7 +321,7 @@ export default function AdminReportCardFormPage() {
     mutationFn: async () => {
       if (newPhotos.length > 0) {
         const fd = buildFormData({ photos: newPhotos });
-        await api.post(`/admin/report-cards/${id}`, fd, fdHeaders);
+        await api.post(`/admin/report-cards/${id}`, fd, fdConfig);
       }
       return api.post(`/admin/report-cards/${id}/send`);
     },

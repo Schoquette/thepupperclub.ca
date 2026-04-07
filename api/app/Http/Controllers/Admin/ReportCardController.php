@@ -9,6 +9,7 @@ use App\Models\VisitReport;
 use App\Services\ReportCardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -59,17 +60,25 @@ class ReportCardController extends Controller
 
         $dogData = isset($data['dog_data']) ? json_decode($data['dog_data'], true) : null;
 
-        $report = VisitReport::create(array_filter([
+        $fields = [
             'user_id'              => $data['user_id'],
-            'dog_ids'              => $data['dog_ids'] ?? null,
             'appointment_id'       => $data['appointment_id'] ?? null,
             'arrival_time'         => $data['arrival_time'] ?? null,
             'departure_time'       => $data['departure_time'] ?? null,
             'checklist'            => $checklist,
             'special_trip_details' => $data['special_trip_details'] ?? null,
             'notes'                => $data['notes'] ?? null,
-            'dog_data'             => $dogData,
-        ], fn($v) => $v !== null));
+        ];
+
+        // Only include columns that exist (migrations may not have run yet)
+        if (Schema::hasColumn('visit_reports', 'dog_ids')) {
+            $fields['dog_ids'] = $data['dog_ids'] ?? null;
+        }
+        if (Schema::hasColumn('visit_reports', 'dog_data')) {
+            $fields['dog_data'] = $dogData;
+        }
+
+        $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
 
         if ($request->hasFile('photos')) {
             $paths = collect($request->file('photos'))
@@ -100,7 +109,11 @@ class ReportCardController extends Controller
             $data['checklist'] = array_map('boolval', $data['checklist']);
         }
         if (isset($data['dog_data'])) {
-            $data['dog_data'] = json_decode($data['dog_data'], true);
+            if (Schema::hasColumn('visit_reports', 'dog_data')) {
+                $data['dog_data'] = json_decode($data['dog_data'], true);
+            } else {
+                unset($data['dog_data']);
+            }
         }
 
         unset($data['photos']);
