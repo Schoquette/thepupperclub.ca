@@ -25,6 +25,10 @@ interface ProfileForm {
   emergency_contact_phone: string;
   secondary_contact_name: string;
   secondary_contact_email: string;
+  secondary_notify_messages: boolean;
+  secondary_notify_report_cards: boolean;
+  secondary_notify_billing: boolean;
+  secondary_notify_appointments: boolean;
   billing_method: string;
   subscription_tier: string;
   subscription_start_date: string;
@@ -45,8 +49,12 @@ function buildProfileForm(client: any): ProfileForm {
     postal_code:             p.postal_code ?? '',
     emergency_contact_name:  p.emergency_contact_name ?? '',
     emergency_contact_phone: p.emergency_contact_phone ?? '',
-    secondary_contact_name:  p.secondary_contact_name ?? '',
-    secondary_contact_email: p.secondary_contact_email ?? '',
+    secondary_contact_name:          p.secondary_contact_name ?? '',
+    secondary_contact_email:         p.secondary_contact_email ?? '',
+    secondary_notify_messages:       !!p.secondary_notify_messages,
+    secondary_notify_report_cards:   !!p.secondary_notify_report_cards,
+    secondary_notify_billing:        !!p.secondary_notify_billing,
+    secondary_notify_appointments:   !!p.secondary_notify_appointments,
     billing_method:          p.billing_method ?? 'credit_card',
     subscription_tier:       p.subscription_tier ?? '',
     subscription_start_date: p.subscription_start_date?.split('T')[0] ?? '',
@@ -143,7 +151,7 @@ function FormField({
   label: string;
   name: keyof ProfileForm;
   form: ProfileForm;
-  onChange: (n: keyof ProfileForm, v: string) => void;
+  onChange: (n: keyof ProfileForm, v: string | boolean) => void;
   type?: string;
 }) {
   return (
@@ -903,8 +911,12 @@ export default function AdminClientDetailPage() {
         postal_code:             f.postal_code || null,
         emergency_contact_name:  f.emergency_contact_name || null,
         emergency_contact_phone: f.emergency_contact_phone || null,
-        secondary_contact_name:  f.secondary_contact_name || null,
-        secondary_contact_email: f.secondary_contact_email || null,
+        secondary_contact_name:        f.secondary_contact_name || null,
+        secondary_contact_email:       f.secondary_contact_email || null,
+        secondary_notify_messages:     f.secondary_notify_messages,
+        secondary_notify_report_cards: f.secondary_notify_report_cards,
+        secondary_notify_billing:      f.secondary_notify_billing,
+        secondary_notify_appointments: f.secondary_notify_appointments,
         billing_method:          f.billing_method || null,
         subscription_tier:       f.subscription_tier || null,
         subscription_start_date: f.subscription_start_date || null,
@@ -923,7 +935,7 @@ export default function AdminClientDetailPage() {
     },
   });
 
-  const handleProfileChange = (name: keyof ProfileForm, value: string) =>
+  const handleProfileChange = (name: keyof ProfileForm, value: string | boolean) =>
     setForm(prev => prev ? { ...prev, [name]: value } : prev);
 
   const handleProfileCancel = () => { setForm(buildProfileForm(client)); setEditing(false); };
@@ -1047,6 +1059,29 @@ export default function AdminClientDetailPage() {
                 <div className="space-y-4">
                   <FormField label="Name" name="secondary_contact_name" form={form} onChange={handleProfileChange} />
                   <FormField label="Email" name="secondary_contact_email" form={form} onChange={handleProfileChange} type="email" />
+                  {form.secondary_contact_email && (
+                    <div>
+                      <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">Also notify for</div>
+                      <div className="space-y-2">
+                        {([
+                          ['secondary_notify_messages', 'Messages'],
+                          ['secondary_notify_report_cards', 'Report Cards'],
+                          ['secondary_notify_billing', 'Billing & Invoices'],
+                          ['secondary_notify_appointments', 'Appointments'],
+                        ] as const).map(([key, label]) => (
+                          <label key={key} className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!form[key]}
+                              onChange={e => handleProfileChange(key, e.target.checked)}
+                              className="accent-gold"
+                            />
+                            <span className="text-sm text-espresso">{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Card>
 
@@ -1116,6 +1151,17 @@ export default function AdminClientDetailPage() {
                     <Field label="Name" value={p.secondary_contact_name} />
                     <Field label="Email" value={p.secondary_contact_email} />
                   </dl>
+                  {(p.secondary_notify_messages || p.secondary_notify_report_cards || p.secondary_notify_billing || p.secondary_notify_appointments) && (
+                    <div className="mt-3 pt-3 border-t border-cream">
+                      <div className="text-xs text-taupe mb-1.5">Also receives:</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.secondary_notify_messages && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Messages</span>}
+                        {p.secondary_notify_report_cards && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Report Cards</span>}
+                        {p.secondary_notify_billing && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Billing</span>}
+                        {p.secondary_notify_appointments && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Appointments</span>}
+                      </div>
+                    </div>
+                  )}
                 </Card>
               )}
 

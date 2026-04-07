@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\InviteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -68,8 +69,12 @@ class ClientController extends Controller
             'profile.postal_code'              => 'sometimes|nullable|string|max:7',
             'profile.emergency_contact_name'   => 'sometimes|nullable|string',
             'profile.emergency_contact_phone'  => 'sometimes|nullable|string',
-            'profile.secondary_contact_name'   => 'sometimes|nullable|string|max:255',
-            'profile.secondary_contact_email'  => 'sometimes|nullable|email|max:255',
+            'profile.secondary_contact_name'           => 'sometimes|nullable|string|max:255',
+            'profile.secondary_contact_email'          => 'sometimes|nullable|email|max:255',
+            'profile.secondary_notify_messages'        => 'sometimes|boolean',
+            'profile.secondary_notify_report_cards'    => 'sometimes|boolean',
+            'profile.secondary_notify_billing'         => 'sometimes|boolean',
+            'profile.secondary_notify_appointments'    => 'sometimes|boolean',
             'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,cash,ach',
             'profile.subscription_tier'       => 'sometimes|nullable|string',
             'profile.subscription_plan'       => 'sometimes|nullable|string',
@@ -87,7 +92,11 @@ class ClientController extends Controller
         ]));
 
         if (isset($data['profile'])) {
-            $client->clientProfile()->updateOrCreate(['user_id' => $client->id], $data['profile']);
+            // Strip columns that don't exist yet (migrations may not have run)
+            $profileData = collect($data['profile'])->filter(function ($value, $key) {
+                return Schema::hasColumn('client_profiles', $key);
+            })->all();
+            $client->clientProfile()->updateOrCreate(['user_id' => $client->id], $profileData);
         }
 
         return response()->json(['data' => $client->fresh('clientProfile')]);

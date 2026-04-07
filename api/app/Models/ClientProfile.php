@@ -19,6 +19,10 @@ class ClientProfile extends Model
         'emergency_contact_relationship',
         'secondary_contact_name',
         'secondary_contact_email',
+        'secondary_notify_messages',
+        'secondary_notify_report_cards',
+        'secondary_notify_billing',
+        'secondary_notify_appointments',
         'vet_clinic_name',
         'vet_phone',
         'vet_address',
@@ -61,6 +65,10 @@ class ClientProfile extends Model
             'preferred_update_method'       => 'array',
             'preferred_walk_days'           => 'array',
             'preferred_walk_times'          => 'array',
+            'secondary_notify_messages'     => 'boolean',
+            'secondary_notify_report_cards' => 'boolean',
+            'secondary_notify_billing'      => 'boolean',
+            'secondary_notify_appointments' => 'boolean',
         ];
     }
 
