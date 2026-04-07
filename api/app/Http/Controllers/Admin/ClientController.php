@@ -92,7 +92,19 @@ class ClientController extends Controller
         ]));
 
         if (isset($data['profile'])) {
-            // Strip columns that don't exist yet (migrations may not have run)
+            // Auto-add secondary contact columns if they don't exist yet
+            if (!Schema::hasColumn('client_profiles', 'secondary_contact_name')) {
+                Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('secondary_contact_name')->nullable();
+                    $table->string('secondary_contact_email')->nullable();
+                    $table->boolean('secondary_notify_messages')->default(false);
+                    $table->boolean('secondary_notify_report_cards')->default(false);
+                    $table->boolean('secondary_notify_billing')->default(false);
+                    $table->boolean('secondary_notify_appointments')->default(false);
+                });
+            }
+
+            // Strip any remaining columns that don't exist
             $profileData = collect($data['profile'])->filter(function ($value, $key) {
                 return Schema::hasColumn('client_profiles', $key);
             })->all();

@@ -19,7 +19,12 @@ class AppointmentService
         $this->validateBuffer($scheduledTime, null);
         $this->validateBlockCapacity($data['client_time_block'], $scheduledTime->toDateString());
 
-        $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
+        if (!Schema::hasColumn('appointments', 'assigned_to')) {
+            Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->unsignedBigInteger('assigned_to')->nullable();
+            });
+        }
+        $hasAssignedTo = true;
 
         $fields = [
             'user_id'           => $data['user_id'],

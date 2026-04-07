@@ -70,13 +70,15 @@ class ReportCardController extends Controller
             'notes'                => $data['notes'] ?? null,
         ];
 
-        // Only include columns that exist (migrations may not have run yet)
-        if (Schema::hasColumn('visit_reports', 'dog_ids')) {
-            $fields['dog_ids'] = $data['dog_ids'] ?? null;
+        // Auto-add columns if they don't exist yet
+        if (!Schema::hasColumn('visit_reports', 'dog_ids')) {
+            Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->json('dog_ids')->nullable();
+                $table->json('dog_data')->nullable();
+            });
         }
-        if (Schema::hasColumn('visit_reports', 'dog_data')) {
-            $fields['dog_data'] = $dogData;
-        }
+        $fields['dog_ids'] = $data['dog_ids'] ?? null;
+        $fields['dog_data'] = $dogData;
 
         $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
 
@@ -109,11 +111,13 @@ class ReportCardController extends Controller
             $data['checklist'] = array_map('boolval', $data['checklist']);
         }
         if (isset($data['dog_data'])) {
-            if (Schema::hasColumn('visit_reports', 'dog_data')) {
-                $data['dog_data'] = json_decode($data['dog_data'], true);
-            } else {
-                unset($data['dog_data']);
+            if (!Schema::hasColumn('visit_reports', 'dog_data')) {
+                Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->json('dog_ids')->nullable();
+                    $table->json('dog_data')->nullable();
+                });
             }
+            $data['dog_data'] = json_decode($data['dog_data'], true);
         }
 
         unset($data['photos']);
