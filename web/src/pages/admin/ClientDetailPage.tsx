@@ -1144,34 +1144,38 @@ export default function AdminClientDetailPage() {
                 </dl>
               </Card>
 
-              {(p.secondary_contact_name || p.secondary_contact_email) && (
-                <Card>
-                  <CardHeader title="Secondary Contact" />
-                  <dl className="space-y-1 text-sm">
-                    <Field label="Name" value={p.secondary_contact_name} />
-                    <Field label="Email" value={p.secondary_contact_email} />
-                  </dl>
-                  {(p.secondary_notify_messages || p.secondary_notify_report_cards || p.secondary_notify_billing || p.secondary_notify_appointments) && (
-                    <div className="mt-3 pt-3 border-t border-cream">
-                      <div className="text-xs text-taupe mb-1.5">Also receives:</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {p.secondary_notify_messages && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Messages</span>}
-                        {p.secondary_notify_report_cards && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Report Cards</span>}
-                        {p.secondary_notify_billing && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Billing</span>}
-                        {p.secondary_notify_appointments && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Appointments</span>}
+              <Card>
+                <CardHeader title="Secondary Contact" />
+                {p.secondary_contact_name || p.secondary_contact_email ? (
+                  <>
+                    <dl className="space-y-1 text-sm">
+                      <Field label="Name" value={p.secondary_contact_name} />
+                      <Field label="Email" value={p.secondary_contact_email} />
+                    </dl>
+                    {(p.secondary_notify_messages || p.secondary_notify_report_cards || p.secondary_notify_billing || p.secondary_notify_appointments) && (
+                      <div className="mt-3 pt-3 border-t border-cream">
+                        <div className="text-xs text-taupe mb-1.5">Also receives:</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.secondary_notify_messages && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Messages</span>}
+                          {p.secondary_notify_report_cards && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Report Cards</span>}
+                          {p.secondary_notify_billing && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Billing</span>}
+                          {p.secondary_notify_appointments && <span className="text-xs bg-gold/10 text-gold px-2 py-0.5 rounded-full">Appointments</span>}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </Card>
-              )}
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-taupe italic">No secondary contact added yet.</p>
+                )}
+              </Card>
 
               <Card>
                 <CardHeader title="Billing & Subscription" />
                 <dl className="space-y-1 text-sm">
                   <Field label="Billing Method" value={p.billing_method?.replace('_', ' ')} />
                   <Field label="Subscription Tier" value={p.subscription_tier} />
-                  <Field label="Start Date" value={p.subscription_start_date} />
-                  <Field label="End Date" value={p.subscription_end_date} />
+                  <Field label="Start Date" value={p.subscription_start_date?.split('T')[0]} />
+                  <Field label="End Date" value={p.subscription_end_date?.split('T')[0]} />
                 </dl>
               </Card>
 
