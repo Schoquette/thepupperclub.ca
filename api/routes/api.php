@@ -62,8 +62,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Dogs
         Route::get('/dogs',         [Admin\DogController::class, 'index']);
         Route::post('/dogs',        [Admin\DogController::class, 'store']);
-        Route::get('/dogs/{dog}',   [Admin\DogController::class, 'show']);
-        Route::patch('/dogs/{dog}', [Admin\DogController::class, 'update']);
+        Route::get('/dogs/{dog}',          [Admin\DogController::class, 'show']);
+        Route::patch('/dogs/{dog}',        [Admin\DogController::class, 'update']);
+        Route::post('/dogs/{dog}/photo',   [Admin\DogController::class, 'uploadPhoto']);
+        Route::get('/dogs/{dog}/photo',    [Admin\DogController::class, 'servePhoto']);
+        Route::delete('/dogs/{dog}/photo', [Admin\DogController::class, 'deletePhoto']);
 
         // Appointments
         Route::get('/appointments',                          [Admin\AppointmentController::class, 'index']);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -448,6 +448,94 @@ function VaccinationSection({ dogId }: { dogId: number }) {
 
 // ── Dog card (read + inline edit) ─────────────────────────────────────────────
 
+function DogPhoto({ dogId, hasPhoto }: { dogId: number; hasPhoto: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasPhoto) { setUrl(null); return; }
+    let cancelled = false;
+    api.get(`/admin/dogs/${dogId}/photo`, { responseType: 'blob' })
+      .then(r => { if (!cancelled) setUrl(URL.createObjectURL(r.data)); })
+      .catch(() => {});
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [dogId, hasPhoto]); // eslint-disable-line
+
+  if (url) {
+    return <img src={url} alt="Dog" className="h-12 w-12 rounded-full object-cover flex-shrink-0" />;
+  }
+  return <div className="h-12 w-12 rounded-full bg-cream flex items-center justify-center text-2xl flex-shrink-0">🐕</div>;
+}
+
+function DogPhotoUpload({ dogId, hasPhoto, onChanged }: { dogId: number; hasPhoto: boolean; onChanged: () => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasPhoto) { setPreview(null); return; }
+    let cancelled = false;
+    api.get(`/admin/dogs/${dogId}/photo`, { responseType: 'blob' })
+      .then(r => { if (!cancelled) setPreview(URL.createObjectURL(r.data)); })
+      .catch(() => {});
+    return () => { cancelled = true; if (preview) URL.revokeObjectURL(preview); };
+  }, [dogId, hasPhoto]); // eslint-disable-line
+
+  const upload = useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append('photo', file);
+      return api.post(`/admin/dogs/${dogId}/photo`, fd);
+    },
+    onSuccess: () => onChanged(),
+  });
+
+  const remove = useMutation({
+    mutationFn: () => api.delete(`/admin/dogs/${dogId}/photo`),
+    onSuccess: () => { setPreview(null); onChanged(); },
+  });
+
+  return (
+    <div className="flex items-center gap-4 mb-4">
+      {preview ? (
+        <img src={preview} alt="Dog" className="h-20 w-20 rounded-xl object-cover" />
+      ) : (
+        <div className="h-20 w-20 rounded-xl bg-cream flex items-center justify-center text-3xl">🐕</div>
+      )}
+      <div className="flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="text-xs text-blue hover:underline text-left"
+        >
+          {preview ? 'Change photo' : 'Upload photo'}
+        </button>
+        {preview && (
+          <button
+            type="button"
+            onClick={() => remove.mutate()}
+            className="text-xs text-red-400 hover:text-red-600 text-left"
+          >
+            Remove photo
+          </button>
+        )}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) {
+            setPreview(URL.createObjectURL(file));
+            upload.mutate(file);
+          }
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+}
+
 function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<DogForm>(buildDogForm(dog));
@@ -486,6 +574,7 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
             {(update.error as any)?.response?.data?.message ?? 'Save failed.'}
           </p>
         )}
+        <DogPhotoUpload dogId={dog.id} hasPhoto={!!dog.photo_path} onChanged={onSaved} />
         <DogEditForm
           form={form}
           onChange={handleChange}
@@ -501,7 +590,7 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
   return (
     <Card>
       <div className="flex items-start gap-3">
-        <div className="h-12 w-12 rounded-full bg-cream flex items-center justify-center text-2xl flex-shrink-0">🐕</div>
+        <DogPhoto dogId={dog.id} hasPhoto={!!dog.photo_path} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>

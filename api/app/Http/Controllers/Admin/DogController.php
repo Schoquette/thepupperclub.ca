@@ -7,6 +7,8 @@ use App\Models\Dog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DogController extends Controller
 {
@@ -38,6 +40,38 @@ class DogController extends Controller
         $dog->update($data);
 
         return response()->json(['data' => $dog->fresh('vaccinationRecords')]);
+    }
+
+    public function uploadPhoto(Request $request, Dog $dog): JsonResponse
+    {
+        $request->validate([
+            'photo' => 'required|file|image|max:10240',
+        ]);
+
+        // Delete old photo if exists
+        if ($dog->photo_path) {
+            Storage::disk('local')->delete($dog->photo_path);
+        }
+
+        $path = $request->file('photo')->store("dogs/{$dog->id}", 'local');
+        $dog->update(['photo_path' => $path]);
+
+        return response()->json(['data' => $dog->fresh(), 'message' => 'Photo uploaded.']);
+    }
+
+    public function servePhoto(Dog $dog): StreamedResponse
+    {
+        abort_unless($dog->photo_path && Storage::disk('local')->exists($dog->photo_path), 404);
+        return Storage::disk('local')->response($dog->photo_path);
+    }
+
+    public function deletePhoto(Dog $dog): JsonResponse
+    {
+        if ($dog->photo_path) {
+            Storage::disk('local')->delete($dog->photo_path);
+            $dog->update(['photo_path' => null]);
+        }
+        return response()->json(['message' => 'Photo removed.']);
     }
 
     private function validated(Request $request): array
