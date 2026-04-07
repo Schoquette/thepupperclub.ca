@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Services\AppointmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class AppointmentController extends Controller
 {
@@ -15,12 +16,16 @@ class AppointmentController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Appointment::with(['user.clientProfile', 'dogs', 'visitReport', 'assignedAdmin:id,name'])
+        $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
+        $eagerLoads = ['user.clientProfile', 'dogs', 'visitReport'];
+        if ($hasAssignedTo) $eagerLoads[] = 'assignedAdmin:id,name';
+
+        $query = Appointment::with($eagerLoads)
             ->when($request->date, fn($q) => $q->whereDate('scheduled_time', $request->date))
             ->when($request->start, fn($q) => $q->where('scheduled_time', '>=', $request->start))
             ->when($request->end, fn($q) => $q->where('scheduled_time', '<=', $request->end))
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
-            ->when($request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
+            ->when($hasAssignedTo && $request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->orderBy('scheduled_time');
 
@@ -29,9 +34,8 @@ class AppointmentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate([
+        $rules = [
             'user_id'          => 'required|exists:users,id',
-            'assigned_to'      => 'nullable|exists:users,id',
             'dog_ids'          => 'required|array|min:1',
             'dog_ids.*'        => 'exists:dogs,id',
             'service_type'     => 'required|in:walk_30,walk_60,drop_in,overnight,day_boarding',
@@ -40,7 +44,13 @@ class AppointmentController extends Controller
             'duration_minutes' => 'required|integer|min:15',
             'notes'            => 'nullable|string',
             'recurrence_rule'  => 'nullable|array',
-        ]);
+        ];
+
+        if (Schema::hasColumn('appointments', 'assigned_to')) {
+            $rules['assigned_to'] = 'nullable|exists:users,id';
+        }
+
+        $data = $request->validate($rules);
 
         $appointment = $this->service->create($data);
 
@@ -56,14 +66,19 @@ class AppointmentController extends Controller
 
     public function update(Request $request, Appointment $appointment): JsonResponse
     {
-        $data = $request->validate([
+        $rules = [
             'scheduled_time'   => 'sometimes|date',
             'client_time_block'=> 'sometimes|in:early_morning,morning,midday,afternoon,evening',
-            'assigned_to'      => 'sometimes|nullable|exists:users,id',
             'status'           => 'sometimes|in:scheduled,checked_in,completed,cancelled',
             'notes'            => 'sometimes|nullable|string',
             'scope'            => 'sometimes|in:single,future_all',
-        ]);
+        ];
+
+        if (Schema::hasColumn('appointments', 'assigned_to')) {
+            $rules['assigned_to'] = 'sometimes|nullable|exists:users,id';
+        }
+
+        $data = $request->validate($rules);
 
         $scope = $data['scope'] ?? 'single';
         unset($data['scope']);

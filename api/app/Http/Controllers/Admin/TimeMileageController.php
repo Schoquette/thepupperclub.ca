@@ -7,24 +7,33 @@ use App\Models\Appointment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class TimeMileageController extends Controller
 {
     public function report(Request $request): JsonResponse
     {
-        $request->validate([
-            'start'       => 'required|date',
-            'end'         => 'required|date|after_or_equal:start',
-            'assigned_to' => 'nullable|integer|exists:users,id',
-        ]);
+        $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
+
+        $rules = [
+            'start' => 'required|date',
+            'end'   => 'required|date|after_or_equal:start',
+        ];
+        if ($hasAssignedTo) {
+            $rules['assigned_to'] = 'nullable|integer|exists:users,id';
+        }
+        $request->validate($rules);
 
         $start = Carbon::parse($request->start)->startOfDay();
         $end   = Carbon::parse($request->end)->endOfDay();
 
-        $appointments = Appointment::with(['user.clientProfile', 'dogs', 'visitReport', 'assignedAdmin:id,name'])
+        $eagerLoads = ['user.clientProfile', 'dogs', 'visitReport'];
+        if ($hasAssignedTo) $eagerLoads[] = 'assignedAdmin:id,name';
+
+        $appointments = Appointment::with($eagerLoads)
             ->where('status', 'completed')
             ->whereBetween('scheduled_time', [$start, $end])
-            ->when($request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
+            ->when($hasAssignedTo && $request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->orderBy('scheduled_time')
             ->get();
 

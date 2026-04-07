@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Appointment;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class AppointmentService
 {
@@ -18,16 +19,23 @@ class AppointmentService
         $this->validateBuffer($scheduledTime, null);
         $this->validateBlockCapacity($data['client_time_block'], $scheduledTime->toDateString());
 
-        $appointment = Appointment::create([
+        $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
+
+        $fields = [
             'user_id'           => $data['user_id'],
-            'assigned_to'       => $data['assigned_to'] ?? null,
             'service_type'      => $data['service_type'],
             'scheduled_time'    => $scheduledTime,
             'client_time_block' => $data['client_time_block'],
             'duration_minutes'  => $data['duration_minutes'] ?? 30,
             'notes'             => $data['notes'] ?? null,
             'recurrence_rule'   => $data['recurrence_rule'] ?? null,
-        ]);
+        ];
+
+        if ($hasAssignedTo) {
+            $fields['assigned_to'] = $data['assigned_to'] ?? null;
+        }
+
+        $appointment = Appointment::create($fields);
 
         $appointment->dogs()->attach($data['dog_ids']);
 
@@ -110,9 +118,8 @@ class AppointmentService
 
             if ($current->gt($upTo) || $current->gt($endDate)) break;
 
-            $child = Appointment::create([
+            $childFields = [
                 'user_id'              => $parent->user_id,
-                'assigned_to'          => $parent->assigned_to,
                 'service_type'         => $parent->service_type,
                 'scheduled_time'       => $current,
                 'client_time_block'    => $parent->client_time_block,
@@ -120,7 +127,13 @@ class AppointmentService
                 'notes'                => $parent->notes,
                 'recurrence_rule'      => null,
                 'recurrence_parent_id' => $parent->id,
-            ]);
+            ];
+
+            if (Schema::hasColumn('appointments', 'assigned_to')) {
+                $childFields['assigned_to'] = $parent->assigned_to;
+            }
+
+            $child = Appointment::create($childFields);
 
             $child->dogs()->attach($dogIds);
             $generated++;
