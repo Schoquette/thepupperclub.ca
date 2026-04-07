@@ -59,14 +59,17 @@ class ClientController extends Controller
 
         $data = $request->validate([
             'name'   => 'sometimes|string|max:255',
+            'email'  => 'sometimes|email|unique:users,email,' . $client->id,
             'status' => 'sometimes|in:active,inactive,pending',
-            'profile.phone'                   => 'sometimes|nullable|string',
-            'profile.address'                 => 'sometimes|nullable|string',
-            'profile.city'                    => 'sometimes|nullable|string',
-            'profile.province'                => 'sometimes|nullable|string|max:2',
-            'profile.postal_code'             => 'sometimes|nullable|string|max:7',
-            'profile.emergency_contact_name'  => 'sometimes|nullable|string',
-            'profile.emergency_contact_phone' => 'sometimes|nullable|string',
+            'profile.phone'                    => 'sometimes|nullable|string',
+            'profile.address'                  => 'sometimes|nullable|string',
+            'profile.city'                     => 'sometimes|nullable|string',
+            'profile.province'                 => 'sometimes|nullable|string|max:2',
+            'profile.postal_code'              => 'sometimes|nullable|string|max:7',
+            'profile.emergency_contact_name'   => 'sometimes|nullable|string',
+            'profile.emergency_contact_phone'  => 'sometimes|nullable|string',
+            'profile.secondary_contact_name'   => 'sometimes|nullable|string|max:255',
+            'profile.secondary_contact_email'  => 'sometimes|nullable|email|max:255',
             'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,cash,ach',
             'profile.subscription_tier'       => 'sometimes|nullable|string',
             'profile.subscription_plan'       => 'sometimes|nullable|string',
@@ -77,7 +80,11 @@ class ClientController extends Controller
             'profile.notes'                   => 'sometimes|nullable|string',
         ]);
 
-        $client->update(array_filter(['name' => $data['name'] ?? null, 'status' => $data['status'] ?? null]));
+        $client->update(array_filter([
+            'name'   => $data['name'] ?? null,
+            'email'  => $data['email'] ?? null,
+            'status' => $data['status'] ?? null,
+        ]));
 
         if (isset($data['profile'])) {
             $client->clientProfile()->updateOrCreate(['user_id' => $client->id], $data['profile']);

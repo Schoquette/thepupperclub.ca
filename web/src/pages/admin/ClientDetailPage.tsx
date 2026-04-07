@@ -14,6 +14,7 @@ type Tab = 'profile' | 'dogs' | 'documents' | 'access';
 
 interface ProfileForm {
   name: string;
+  email: string;
   status: string;
   phone: string;
   address: string;
@@ -22,6 +23,8 @@ interface ProfileForm {
   postal_code: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
+  secondary_contact_name: string;
+  secondary_contact_email: string;
   billing_method: string;
   subscription_tier: string;
   subscription_start_date: string;
@@ -33,6 +36,7 @@ function buildProfileForm(client: any): ProfileForm {
   const p = client?.client_profile ?? {};
   return {
     name:                    client?.name ?? '',
+    email:                   client?.email ?? '',
     status:                  client?.status ?? 'active',
     phone:                   p.phone ?? '',
     address:                 p.address ?? '',
@@ -41,6 +45,8 @@ function buildProfileForm(client: any): ProfileForm {
     postal_code:             p.postal_code ?? '',
     emergency_contact_name:  p.emergency_contact_name ?? '',
     emergency_contact_phone: p.emergency_contact_phone ?? '',
+    secondary_contact_name:  p.secondary_contact_name ?? '',
+    secondary_contact_email: p.secondary_contact_email ?? '',
     billing_method:          p.billing_method ?? 'credit_card',
     subscription_tier:       p.subscription_tier ?? '',
     subscription_start_date: p.subscription_start_date?.split('T')[0] ?? '',
@@ -887,6 +893,7 @@ export default function AdminClientDetailPage() {
   const saveProfile = useMutation({
     mutationFn: (f: ProfileForm) => api.patch(`/admin/clients/${id}`, {
       name:   f.name,
+      email:  f.email,
       status: f.status,
       profile: {
         phone:                   f.phone || null,
@@ -896,6 +903,8 @@ export default function AdminClientDetailPage() {
         postal_code:             f.postal_code || null,
         emergency_contact_name:  f.emergency_contact_name || null,
         emergency_contact_phone: f.emergency_contact_phone || null,
+        secondary_contact_name:  f.secondary_contact_name || null,
+        secondary_contact_email: f.secondary_contact_email || null,
         billing_method:          f.billing_method || null,
         subscription_tier:       f.subscription_tier || null,
         subscription_start_date: f.subscription_start_date || null,
@@ -1000,6 +1009,7 @@ export default function AdminClientDetailPage() {
                 <CardHeader title="Account" />
                 <div className="space-y-4">
                   <FormField label="Full Name" name="name" form={form} onChange={handleProfileChange} />
+                  <FormField label="Email" name="email" form={form} onChange={handleProfileChange} type="email" />
                   <div>
                     <label className="label">Status</label>
                     <select className="input" value={form.status} onChange={e => handleProfileChange('status', e.target.value)}>
@@ -1029,6 +1039,14 @@ export default function AdminClientDetailPage() {
                 <div className="space-y-4">
                   <FormField label="Name" name="emergency_contact_name" form={form} onChange={handleProfileChange} />
                   <FormField label="Phone" name="emergency_contact_phone" form={form} onChange={handleProfileChange} type="tel" />
+                </div>
+              </Card>
+
+              <Card>
+                <CardHeader title="Secondary Contact" />
+                <div className="space-y-4">
+                  <FormField label="Name" name="secondary_contact_name" form={form} onChange={handleProfileChange} />
+                  <FormField label="Email" name="secondary_contact_email" form={form} onChange={handleProfileChange} type="email" />
                 </div>
               </Card>
 
@@ -1074,6 +1092,7 @@ export default function AdminClientDetailPage() {
               <Card>
                 <CardHeader title="Contact Info" />
                 <dl className="space-y-1 text-sm">
+                  <Field label="Email" value={client.email} />
                   <Field label="Phone" value={p.phone} />
                   <Field label="Address" value={p.address} />
                   <Field label="City" value={p.city} />
@@ -1089,6 +1108,16 @@ export default function AdminClientDetailPage() {
                   <Field label="Phone" value={p.emergency_contact_phone} />
                 </dl>
               </Card>
+
+              {(p.secondary_contact_name || p.secondary_contact_email) && (
+                <Card>
+                  <CardHeader title="Secondary Contact" />
+                  <dl className="space-y-1 text-sm">
+                    <Field label="Name" value={p.secondary_contact_name} />
+                    <Field label="Email" value={p.secondary_contact_email} />
+                  </dl>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader title="Billing & Subscription" />

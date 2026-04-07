@@ -17,6 +17,8 @@ class ClientProfile extends Model
         'emergency_contact_name',
         'emergency_contact_phone',
         'emergency_contact_relationship',
+        'secondary_contact_name',
+        'secondary_contact_email',
         'vet_clinic_name',
         'vet_phone',
         'vet_address',
