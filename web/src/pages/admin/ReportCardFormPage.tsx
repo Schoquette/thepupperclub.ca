@@ -15,28 +15,50 @@ interface TemplateItem {
   enabled: boolean;
 }
 
+interface DogSection {
+  checklist: Record<string, boolean>;
+  notes: string;
+}
+
+// Key used when no specific dogs are selected (single-section mode)
+const GENERAL_KEY = '_general';
+
 function buildFormData(fields: {
   userId?: string;
+  dogIds?: number[];
   appointmentId?: string;
   arrivalTime?: string;
   departureTime?: string;
-  checks?: Record<string, boolean>;
+  dogData?: Record<string, DogSection>;
   specialTripDetails?: string;
-  notes?: string;
   photos?: File[];
 }) {
   const fd = new FormData();
   if (fields.userId) fd.append('user_id', fields.userId);
+  if (fields.dogIds?.length) {
+    fields.dogIds.forEach(id => fd.append('dog_ids[]', String(id)));
+  }
   if (fields.appointmentId) fd.append('appointment_id', fields.appointmentId);
   if (fields.arrivalTime) fd.append('arrival_time', fields.arrivalTime);
   if (fields.departureTime) fd.append('departure_time', fields.departureTime);
-  if (fields.checks) {
-    Object.entries(fields.checks).forEach(([key, val]) => {
+  if (fields.specialTripDetails) fd.append('special_trip_details', fields.specialTripDetails);
+  if (fields.dogData) {
+    // Send per-dog data as JSON string
+    fd.append('dog_data', JSON.stringify(fields.dogData));
+    // Also send flat checklist + notes for backward compat (merge all dogs)
+    const mergedChecklist: Record<string, boolean> = {};
+    const mergedNotes: string[] = [];
+    Object.values(fields.dogData).forEach(section => {
+      Object.entries(section.checklist).forEach(([k, v]) => {
+        if (v) mergedChecklist[k] = true;
+      });
+      if (section.notes.trim()) mergedNotes.push(section.notes.trim());
+    });
+    Object.entries(mergedChecklist).forEach(([key, val]) => {
       fd.append(`checklist[${key}]`, val ? '1' : '0');
     });
+    if (mergedNotes.length) fd.append('notes', mergedNotes.join('\n\n'));
   }
-  if (fields.specialTripDetails) fd.append('special_trip_details', fields.specialTripDetails);
-  if (fields.notes) fd.append('notes', fields.notes);
   if (fields.photos?.length) {
     fields.photos.forEach(p => fd.append('photos[]', p));
   }
@@ -48,17 +70,17 @@ export default function AdminReportCardFormPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const isNew = id === 'new';
+  const isNew = !id;
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [clientId, setClientId] = useState('');
+  const [dogIds, setDogIds] = useState<number[]>([]);
   const [appointmentId, setAppointmentId] = useState('');
   const [saved, setSaved] = useState(false);
   const [arrivalTime, setArrivalTime] = useState('');
   const [departureTime, setDepartureTime] = useState('');
-  const [checks, setChecks] = useState<Record<string, boolean>>({});
+  const [dogData, setDogData] = useState<Record<string, DogSection>>({});
   const [specialTripDetails, setSpecialTripDetails] = useState('');
-  const [notes, setNotes] = useState('');
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
   const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
@@ -83,6 +105,9 @@ export default function AdminReportCardFormPage() {
     if (qsAppointment.scheduled_time) {
       setArrivalTime(format(new Date(qsAppointment.scheduled_time), "yyyy-MM-dd'T'HH:mm"));
     }
+    if (qsAppointment.dogs?.length) {
+      setDogIds(qsAppointment.dogs.map((d: any) => d.id));
+    }
   }, [qsAppointment?.id]); // eslint-disable-line
 
   const { data: clientsData } = useQuery({
@@ -90,17 +115,21 @@ export default function AdminReportCardFormPage() {
     queryFn: () => api.get('/admin/clients').then((r) => r.data.data ?? []),
   });
 
-  // Load appointments for the selected client so we can link one report per visit
   const { data: appointmentsData } = useQuery({
     queryKey: ['admin-appointments-for-client', clientId],
     queryFn: () =>
-      api
-        .get('/admin/appointments', { params: { user_id: clientId } })
-        .then((r) => r.data.data ?? []),
+      api.get('/admin/appointments', { params: { user_id: clientId } }).then((r) => r.data.data ?? []),
     enabled: !!clientId,
   });
 
-  const DEFAULT_CHECKLIST = [
+  const { data: clientDetail } = useQuery({
+    queryKey: ['admin-client-detail', clientId],
+    queryFn: () => api.get(`/admin/clients/${clientId}`).then(r => r.data.data),
+    enabled: !!clientId,
+  });
+  const clientDogs: { id: number; name: string }[] = clientDetail?.dogs ?? [];
+
+  const DEFAULT_CHECKLIST: TemplateItem[] = [
     { key: 'no_1', label: 'No. 1', enabled: true },
     { key: 'no_2', label: 'No. 2', enabled: true },
     { key: 'grooming', label: 'Grooming', enabled: true },
@@ -133,36 +162,52 @@ export default function AdminReportCardFormPage() {
     setClientId(String(report.user_id ?? ''));
     setAppointmentId(report.appointment_id ? String(report.appointment_id) : '');
     setArrivalTime(
-      report.arrival_time
-        ? format(new Date(report.arrival_time), "yyyy-MM-dd'T'HH:mm")
-        : ''
+      report.arrival_time ? format(new Date(report.arrival_time), "yyyy-MM-dd'T'HH:mm") : ''
     );
     setDepartureTime(
-      report.departure_time
-        ? format(new Date(report.departure_time), "yyyy-MM-dd'T'HH:mm")
-        : ''
+      report.departure_time ? format(new Date(report.departure_time), "yyyy-MM-dd'T'HH:mm") : ''
     );
     setSpecialTripDetails(report.special_trip_details ?? '');
-    setNotes(report.notes ?? '');
+    if (report.dog_ids?.length) setDogIds(report.dog_ids);
   }, [report?.id]); // eslint-disable-line
 
-  // Init template items + checks when template or report changes
+  // Build initial per-dog sections from template + existing report data
   useEffect(() => {
     const items = templateData ?? DEFAULT_CHECKLIST;
     setTemplateItems(items);
     setTemplateDraft(items);
-    const initial: Record<string, boolean> = {};
-    items.forEach((item: TemplateItem) => {
-      initial[item.key] = !!(report?.checklist?.[item.key]);
+
+    const enabledKeys = items.filter((i: TemplateItem) => i.enabled).map((i: TemplateItem) => i.key);
+
+    // Determine which section keys to use
+    const sectionKeys = dogIds.length > 0 ? dogIds.map(String) : [GENERAL_KEY];
+
+    const newDogData: Record<string, DogSection> = {};
+    sectionKeys.forEach(key => {
+      const existingSection = report?.dog_data?.[key];
+      const checklist: Record<string, boolean> = {};
+      enabledKeys.forEach((k: string) => {
+        if (existingSection) {
+          checklist[k] = !!existingSection.checklist?.[k];
+        } else if (key === GENERAL_KEY && report?.checklist) {
+          // Backward compat: load from flat checklist
+          checklist[k] = !!report.checklist[k];
+        } else {
+          checklist[k] = false;
+        }
+      });
+      newDogData[key] = {
+        checklist,
+        notes: existingSection?.notes ?? (key === GENERAL_KEY ? (report?.notes ?? '') : ''),
+      };
     });
-    setChecks(initial);
-  }, [templateData, report?.id]); // eslint-disable-line
+    setDogData(newDogData);
+  }, [templateData, report?.id, dogIds.join(',')]); // eslint-disable-line
 
   // Load existing photos
   useEffect(() => {
     if (isNew) return;
     const paths = report?.photo_paths ?? [];
-    // Backward compat: also check legacy single photo field
     const count = paths.length || (report?.report_photo_path ? 1 : 0);
     if (count === 0) return;
     setExistingPhotoCount(count);
@@ -186,26 +231,59 @@ export default function AdminReportCardFormPage() {
   }, [newPhotos]);
 
   const allPhotos = [...existingPhotoUrls, ...newPreviews];
-
   const enabledItems = templateItems.filter((i) => i.enabled);
   const isSent = !isNew && !!report?.sent_at;
 
+  // Determine section keys for rendering
+  const sectionKeys = dogIds.length > 0 ? dogIds.map(String) : [GENERAL_KEY];
+  const dogNameMap: Record<string, string> = {};
+  clientDogs.forEach(d => { dogNameMap[String(d.id)] = d.name; });
+
+  // Helpers to update per-dog state
+  const toggleCheck = (sectionKey: string, checkKey: string) => {
+    if (isSent) return;
+    setDogData(prev => ({
+      ...prev,
+      [sectionKey]: {
+        ...prev[sectionKey],
+        checklist: {
+          ...prev[sectionKey]?.checklist,
+          [checkKey]: !prev[sectionKey]?.checklist?.[checkKey],
+        },
+      },
+    }));
+  };
+
+  const setDogNotes = (sectionKey: string, value: string) => {
+    setDogData(prev => ({
+      ...prev,
+      [sectionKey]: {
+        ...prev[sectionKey],
+        notes: value,
+      },
+    }));
+  };
+
   const fdHeaders = { headers: { 'Content-Type': 'multipart/form-data' } };
 
+  const makePayload = (includeCreate = false) => {
+    const base: Parameters<typeof buildFormData>[0] = {
+      arrivalTime: arrivalTime || undefined,
+      departureTime: departureTime || undefined,
+      dogData,
+      specialTripDetails: specialTripDetails || undefined,
+      photos: newPhotos,
+    };
+    if (includeCreate) {
+      base.userId = clientId;
+      base.dogIds = dogIds.length ? dogIds : undefined;
+      base.appointmentId = appointmentId || undefined;
+    }
+    return buildFormData(base);
+  };
+
   const createReport = useMutation({
-    mutationFn: () => {
-      const fd = buildFormData({
-        userId: clientId,
-        appointmentId: appointmentId || undefined,
-        arrivalTime: arrivalTime || undefined,
-        departureTime: departureTime || undefined,
-        checks,
-        specialTripDetails: specialTripDetails || undefined,
-        notes: notes || undefined,
-        photos: newPhotos,
-      });
-      return api.post('/admin/report-cards', fd, fdHeaders);
-    },
+    mutationFn: () => api.post('/admin/report-cards', makePayload(true), fdHeaders),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
       navigate(`/admin/report-cards/${res.data.data.id}`);
@@ -213,18 +291,22 @@ export default function AdminReportCardFormPage() {
     onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to save.'),
   });
 
-  const updateReport = useMutation({
-    mutationFn: () => {
-      const fd = buildFormData({
-        arrivalTime: arrivalTime || undefined,
-        departureTime: departureTime || undefined,
-        checks,
-        specialTripDetails: specialTripDetails || undefined,
-        notes: notes || undefined,
-        photos: newPhotos,
-      });
-      return api.post(`/admin/report-cards/${id}`, fd, fdHeaders);
+  const createAndSend = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/admin/report-cards', makePayload(true), fdHeaders);
+      const newId = res.data.data.id;
+      await api.post(`/admin/report-cards/${newId}/send`);
+      return newId;
     },
+    onSuccess: (newId) => {
+      qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
+      navigate(`/admin/report-cards/${newId}`);
+    },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to send.'),
+  });
+
+  const updateReport = useMutation({
+    mutationFn: () => api.post(`/admin/report-cards/${id}`, makePayload(), fdHeaders),
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -295,6 +377,8 @@ export default function AdminReportCardFormPage() {
       prev.map((i) => (i.key === key ? { ...i, enabled: !i.enabled } : i))
     );
 
+  const isMultiDog = dogIds.length > 1;
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3">
@@ -328,7 +412,7 @@ export default function AdminReportCardFormPage() {
             <Select
               label="Client"
               value={clientId}
-              onChange={(e) => { setClientId(e.target.value); setAppointmentId(''); setArrivalTime(''); setDepartureTime(''); }}
+              onChange={(e) => { setClientId(e.target.value); setAppointmentId(''); setArrivalTime(''); setDepartureTime(''); setDogIds([]); }}
               options={[
                 { value: '', label: 'Select a client…' },
                 ...(clientsData ?? []).map((c: any) => ({
@@ -340,7 +424,40 @@ export default function AdminReportCardFormPage() {
           </div>
         )}
 
-        {/* Appointment picker — one report card per visit */}
+        {/* Dog picker */}
+        {clientId && clientDogs.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">
+              Dog{clientDogs.length > 1 ? 's' : ''}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {clientDogs.map((dog) => {
+                const selected = dogIds.includes(dog.id);
+                return (
+                  <button
+                    key={dog.id}
+                    type="button"
+                    disabled={isSent}
+                    onClick={() =>
+                      setDogIds((prev) =>
+                        selected ? prev.filter((did) => did !== dog.id) : [...prev, dog.id]
+                      )
+                    }
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      selected
+                        ? 'bg-gold text-white'
+                        : 'bg-cream text-espresso hover:bg-gold/20'
+                    } ${isSent ? 'cursor-default' : 'cursor-pointer'}`}
+                  >
+                    {dog.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Appointment picker */}
         {isNew && clientId && (
           <div className="mb-5">
             <Select
@@ -348,7 +465,6 @@ export default function AdminReportCardFormPage() {
               value={appointmentId}
               onChange={(e) => {
                 setAppointmentId(e.target.value);
-                // Auto-fill arrival time from the appointment's scheduled time
                 if (e.target.value) {
                   const appt = (appointmentsData ?? []).find(
                     (a: any) => String(a.id) === e.target.value
@@ -444,7 +560,7 @@ export default function AdminReportCardFormPage() {
               onClick={() => fileRef.current?.click()}
               className="w-full border-2 border-dashed border-taupe/30 rounded-xl py-6 text-taupe text-sm hover:border-gold hover:text-gold transition-colors"
             >
-              📷 {allPhotos.length > 0 ? 'Add more photos' : 'Add visit photos'}
+              {allPhotos.length > 0 ? 'Add more photos' : 'Add visit photos'}
             </button>
           )}
           <input
@@ -481,83 +597,112 @@ export default function AdminReportCardFormPage() {
           />
         </div>
 
-        {/* Checklist */}
-        {enabledItems.length > 0 ? (
+        {/* Per-dog checklist & notes sections */}
+        {sectionKeys.map((sectionKey) => {
+          const section = dogData[sectionKey] ?? { checklist: {}, notes: '' };
+          const dogName = sectionKey === GENERAL_KEY ? null : dogNameMap[sectionKey];
+
+          return (
+            <div
+              key={sectionKey}
+              className={`mb-5 ${isMultiDog ? 'border border-taupe/20 rounded-xl p-4' : ''}`}
+            >
+              {/* Dog name header (only in multi-dog mode) */}
+              {isMultiDog && dogName && (
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-7 w-7 rounded-full bg-gold flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {dogName.charAt(0)}
+                  </div>
+                  <h3 className="font-semibold text-espresso">{dogName}</h3>
+                </div>
+              )}
+
+              {/* Checklist */}
+              {enabledItems.length > 0 ? (
+                <div className="mb-4">
+                  <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-3">
+                    Activities & Care{dogName && !isMultiDog ? ` — ${dogName}` : ''}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {enabledItems.map((item) => (
+                      <label
+                        key={item.key}
+                        className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-colors ${
+                          isSent ? 'cursor-default' : 'cursor-pointer hover:bg-gold/5'
+                        } ${
+                          section.checklist[item.key]
+                            ? 'bg-gold/10 border border-gold/30'
+                            : 'bg-cream border border-transparent'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!section.checklist[item.key]}
+                          onChange={() => toggleCheck(sectionKey, item.key)}
+                          className="accent-gold"
+                          disabled={isSent}
+                        />
+                        <span className="text-sm text-espresso">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-taupe mb-4 italic">Loading checklist…</div>
+              )}
+
+              {/* Per-dog notes */}
+              <Textarea
+                label={isMultiDog ? `Notes for ${dogName ?? 'this dog'}` : 'Notes'}
+                value={section.notes}
+                onChange={(e) => setDogNotes(sectionKey, e.target.value)}
+                rows={3}
+                placeholder={isMultiDog ? `How was ${dogName}'s visit?` : 'How did the visit go? Any observations for the client…'}
+                disabled={isSent}
+              />
+            </div>
+          );
+        })}
+
+        {/* Special trip details (shared across all dogs) */}
+        {enabledItems.find((i) => i.key === 'special_trip') && !isSent && (
           <div className="mb-5">
-            <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-3">
-              Activities & Care
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {enabledItems.map((item) => (
-                <label
-                  key={item.key}
-                  className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-colors ${
-                    isSent ? 'cursor-default' : 'cursor-pointer hover:bg-gold/5'
-                  } ${
-                    checks[item.key]
-                      ? 'bg-gold/10 border border-gold/30'
-                      : 'bg-cream border border-transparent'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!checks[item.key]}
-                    onChange={() =>
-                      !isSent && setChecks((p) => ({ ...p, [item.key]: !p[item.key] }))
-                    }
-                    className="accent-gold"
-                    disabled={isSent}
-                  />
-                  <span className="text-sm text-espresso">{item.label}</span>
-                </label>
-              ))}
-            </div>
-
-            {/* Special trip text */}
-            {enabledItems.find((i) => i.key === 'special_trip') && checks.special_trip && !isSent && (
-              <div className="mt-3">
-                <Input
-                  label="Special trip details"
-                  value={specialTripDetails}
-                  onChange={(e) => setSpecialTripDetails(e.target.value)}
-                  placeholder="e.g. Off-leash park, beach visit…"
-                />
-              </div>
-            )}
-            {isSent && report?.special_trip_details && (
-              <div className="mt-3 text-sm text-taupe bg-gold/5 border border-gold/20 rounded-lg px-3 py-2">
-                <span className="font-semibold text-gold">Special Trip: </span>
-                {report.special_trip_details}
-              </div>
-            )}
+            <Input
+              label="Special trip details"
+              value={specialTripDetails}
+              onChange={(e) => setSpecialTripDetails(e.target.value)}
+              placeholder="e.g. Off-leash park, beach visit…"
+            />
           </div>
-        ) : (
-          <div className="text-sm text-taupe mb-5 italic">Loading checklist…</div>
         )}
-
-        {/* Notes */}
-        <div className="mb-5">
-          <Textarea
-            label="Notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={4}
-            placeholder="How did the visit go? Any observations for the client…"
-            disabled={isSent}
-          />
-        </div>
+        {isSent && report?.special_trip_details && (
+          <div className="mb-5 text-sm text-taupe bg-gold/5 border border-gold/20 rounded-lg px-3 py-2">
+            <span className="font-semibold text-gold">Special Trip: </span>
+            {report.special_trip_details}
+          </div>
+        )}
 
         {/* Action buttons */}
         {!isSent && (
           <div className="flex gap-3 justify-end pt-2 border-t border-cream">
             {isNew ? (
-              <Button
-                loading={createReport.isPending}
-                disabled={!clientId}
-                onClick={() => { setError(''); createReport.mutate(); }}
-              >
-                Save Draft
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  loading={createReport.isPending}
+                  disabled={!clientId || createAndSend.isPending}
+                  onClick={() => { setError(''); createReport.mutate(); }}
+                >
+                  Save Draft
+                </Button>
+                <Button
+                  loading={createAndSend.isPending}
+                  disabled={!clientId || createReport.isPending}
+                  onClick={() => { setError(''); createAndSend.mutate(); }}
+                >
+                  Send to Client
+                </Button>
+              </>
             ) : (
               <>
                 <Button

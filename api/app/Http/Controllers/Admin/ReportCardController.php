@@ -40,12 +40,15 @@ class ReportCardController extends Controller
     {
         $data = $request->validate([
             'user_id'              => 'required|exists:users,id',
+            'dog_ids'              => 'nullable|array',
+            'dog_ids.*'            => 'integer|exists:dogs,id',
             'appointment_id'       => 'nullable|exists:appointments,id',
             'arrival_time'         => 'nullable|date',
             'departure_time'       => 'nullable|date',
             'checklist'            => 'nullable|array',
             'special_trip_details' => 'nullable|string|max:255',
             'notes'                => 'nullable|string|max:5000',
+            'dog_data'             => 'nullable|json',
             'photos'               => 'nullable|array',
             'photos.*'             => 'file|image|max:10240',
         ]);
@@ -54,14 +57,18 @@ class ReportCardController extends Controller
             ? array_map('boolval', $data['checklist'])
             : null;
 
+        $dogData = isset($data['dog_data']) ? json_decode($data['dog_data'], true) : null;
+
         $report = VisitReport::create(array_filter([
             'user_id'              => $data['user_id'],
+            'dog_ids'              => $data['dog_ids'] ?? null,
             'appointment_id'       => $data['appointment_id'] ?? null,
             'arrival_time'         => $data['arrival_time'] ?? null,
             'departure_time'       => $data['departure_time'] ?? null,
             'checklist'            => $checklist,
             'special_trip_details' => $data['special_trip_details'] ?? null,
             'notes'                => $data['notes'] ?? null,
+            'dog_data'             => $dogData,
         ], fn($v) => $v !== null));
 
         if ($request->hasFile('photos')) {
@@ -84,12 +91,16 @@ class ReportCardController extends Controller
             'checklist'            => 'sometimes|nullable|array',
             'special_trip_details' => 'sometimes|nullable|string|max:255',
             'notes'                => 'sometimes|nullable|string|max:5000',
+            'dog_data'             => 'sometimes|nullable|json',
             'photos'               => 'sometimes|array',
             'photos.*'             => 'file|image|max:10240',
         ]);
 
         if (isset($data['checklist'])) {
             $data['checklist'] = array_map('boolval', $data['checklist']);
+        }
+        if (isset($data['dog_data'])) {
+            $data['dog_data'] = json_decode($data['dog_data'], true);
         }
 
         unset($data['photos']);

@@ -21,7 +21,7 @@ interface TeamMember {
 export default function TeamPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const isSuperAdmin = user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin' || user?.email === 'sophie@thepupperclub.ca';
 
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');

@@ -11,6 +11,7 @@ class VisitReport extends Model
     protected $fillable = [
         'appointment_id',
         'user_id',
+        'dog_ids',
         'arrival_time',
         'departure_time',
         'checklist',
@@ -27,6 +28,7 @@ class VisitReport extends Model
         'energy_level',
         'distance_km',
         'photo_paths',
+        'dog_data',
     ];
 
     protected function casts(): array
@@ -34,6 +36,7 @@ class VisitReport extends Model
         return [
             'arrival_time'   => 'datetime',
             'departure_time' => 'datetime',
+            'dog_ids'        => 'array',
             'checklist'      => 'array',
             'sent_at'        => 'datetime',
             'email_sent_at'  => 'datetime',
@@ -43,6 +46,7 @@ class VisitReport extends Model
             'drank_water'    => 'boolean',
             'distance_km'    => 'decimal:2',
             'photo_paths'    => 'array',
+            'dog_data'       => 'array',
         ];
     }
 

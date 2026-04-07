@@ -3,14 +3,27 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TeamInvitationMail;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 class TeamController extends Controller
 {
+    private function ensureCanManageTeam(): void
+    {
+        $user = auth()->user();
+        abort_unless(
+            $user->role === 'superadmin' || $user->email === 'sophie@thepupperclub.ca',
+            403,
+            'Only the super admin can manage team members.'
+        );
+    }
+
     public function index(): JsonResponse
     {
         $team = User::whereIn('role', ['admin', 'superadmin'])
@@ -23,6 +36,8 @@ class TeamController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->ensureCanManageTeam();
+
         $data = $request->validate([
             'name'  => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
@@ -39,15 +54,20 @@ class TeamController extends Controller
             'status'   => 'active',
         ]);
 
+        // Send invitation email with set-password link
+        $token = Password::createToken($user);
+        Mail::to($user->email)->send(new TeamInvitationMail($user, $token, $tempPassword));
+
         return response()->json([
             'data' => $user->only('id', 'name', 'email', 'role', 'status'),
             'temp_password' => $tempPassword,
-            'message' => "Admin created. Temporary password: {$tempPassword}",
+            'message' => "Invite sent to {$user->email}.",
         ], 201);
     }
 
     public function update(Request $request, User $user): JsonResponse
     {
+        $this->ensureCanManageTeam();
         abort_if($user->role === 'superadmin', 422, 'Cannot modify a superadmin account.');
         abort_unless(in_array($user->role, ['admin', 'superadmin']), 404);
 
@@ -64,6 +84,7 @@ class TeamController extends Controller
 
     public function destroy(User $user): JsonResponse
     {
+        $this->ensureCanManageTeam();
         abort_if($user->role === 'superadmin', 422, 'Cannot delete a superadmin account.');
         abort_unless($user->role === 'admin', 404);
 
@@ -74,6 +95,7 @@ class TeamController extends Controller
 
     public function resetPassword(User $user): JsonResponse
     {
+        $this->ensureCanManageTeam();
         abort_if($user->role === 'superadmin', 422, 'Cannot reset superadmin password here.');
         abort_unless(in_array($user->role, ['admin', 'superadmin']), 404);
 

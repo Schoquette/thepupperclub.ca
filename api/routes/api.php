@@ -117,10 +117,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Team members
         Route::get('/team',                         [Admin\TeamController::class, 'index']);
-        Route::post('/team',                        [Admin\TeamController::class, 'store'])->middleware('role:superadmin');
-        Route::patch('/team/{user}',                [Admin\TeamController::class, 'update'])->middleware('role:superadmin');
-        Route::delete('/team/{user}',               [Admin\TeamController::class, 'destroy'])->middleware('role:superadmin');
-        Route::post('/team/{user}/reset-password',  [Admin\TeamController::class, 'resetPassword'])->middleware('role:superadmin');
+        Route::post('/team',                        [Admin\TeamController::class, 'store']);
+        Route::patch('/team/{user}',                [Admin\TeamController::class, 'update']);
+        Route::delete('/team/{user}',               [Admin\TeamController::class, 'destroy']);
+        Route::post('/team/{user}/reset-password',  [Admin\TeamController::class, 'resetPassword']);
 
         // Time & Mileage
         Route::get('/time-mileage',              [Admin\TimeMileageController::class, 'report']);
