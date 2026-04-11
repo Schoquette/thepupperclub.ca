@@ -148,6 +148,22 @@ The `/shared` package (`@pupper/shared`) provides TypeScript interfaces used by 
 
 ## Hosting & Deployment
 
+### Live URLs
+
+| URL | What |
+|-----|------|
+| `www.thepupperclub.ca` | Public marketing website (GitHub Pages) |
+| `thepupperclub.ca` | Web portal — admin dashboard & client portal (GoDaddy) |
+| `thepupperclub.ca/login` | Portal login page |
+| `thepupperclub.ca/admin` | Admin dashboard |
+| `thepupperclub.ca/client` | Client dashboard |
+| `thepupperclub.ca/sign/:token` | Public document signing page (no auth required) |
+| `thepupperclub.ca/api/` | Laravel REST API |
+| `thepupperclub.ca/api/webhooks/stripe` | Stripe payment webhook |
+| `thepupperclub.ca/api/webhooks/email` | Inbound email webhook (Resend) |
+
+### Infrastructure
+
 | Component | Host | Details |
 |-----------|------|---------|
 | **Marketing Site** | GitHub Pages | Auto-deploys from `site/` on push to `main` |
