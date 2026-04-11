@@ -4,6 +4,11 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      input: path.resolve(__dirname, 'app.html'),
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
