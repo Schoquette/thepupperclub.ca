@@ -1,6 +1,14 @@
 <?php
-// SPA fallback for portal routes — serve app.html for React Router paths
+// SPA fallback for portal routes
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+// Don't intercept API routes — let them pass through to Laravel
+if (str_starts_with($uri, '/api/') || str_starts_with($uri, '/api')) {
+    http_response_code(404);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'API not configured. Run composer install and php artisan migrate.']);
+    exit;
+}
 
 // Marketing site pages (static HTML)
 $pages = [
