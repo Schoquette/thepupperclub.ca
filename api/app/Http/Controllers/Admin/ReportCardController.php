@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ReportCardTemplate;
 use App\Models\User;
 use App\Models\VisitReport;
+use App\Models\VisitReportComment;
 use App\Services\ReportCardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -221,5 +222,12 @@ class ReportCardController extends Controller
     {
         ReportCardTemplate::where('user_id', $client->id)->delete();
         return response()->json(['data' => ReportCardTemplate::defaultItems(), 'message' => 'Template reset to default.']);
+    }
+
+    public function deleteComment(VisitReport $reportCard, VisitReportComment $comment): JsonResponse
+    {
+        abort_unless($comment->visit_report_id === $reportCard->id, 404);
+        $comment->delete();
+        return response()->json(['message' => 'Comment deleted.']);
     }
 }

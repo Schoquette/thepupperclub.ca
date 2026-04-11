@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClientDocument;
 use App\Models\Conversation;
+use App\Services\NotificationDispatcher;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,6 +44,30 @@ class SigningController extends Controller
             'metadata'  => ['signing_url' => $signingUrl, 'document_id' => $document->id],
         ]);
 
+        // Send branded email notification with signing link
+        $client = $document->user;
+        if ($client) {
+            $tokens = [
+                '{client_name}'   => $client->name,
+                '{document_name}' => $document->filename,
+                '{signing_url}'   => $signingUrl,
+            ];
+
+            $customSubject = Admin\NotificationController::getSystemSubject('signature_request', $tokens);
+            $customHtml    = Admin\NotificationController::renderSystemTemplate('signature_request', $tokens);
+
+            $title = $customSubject ?? "Document for Signature — The Pupper Club";
+            $body  = "Please review and sign \"{$document->filename}\". Open the link in your portal to sign.";
+
+            $htmlBody = $customHtml ?? view('emails.signature_request', [
+                'userName'     => $client->name,
+                'documentName' => $document->filename,
+                'signingUrl'   => $signingUrl,
+            ])->render();
+
+            app(NotificationDispatcher::class)->notify($client, $title, $body, $htmlBody);
+        }
+
         return response()->json([
             'signing_url' => $signingUrl,
             'token'       => $token,
@@ -55,17 +80,42 @@ class SigningController extends Controller
      */
     public function show(string $token): JsonResponse
     {
-        $document = ClientDocument::where('signature_token', $token)->firstOrFail();
+        $document = ClientDocument::where('signature_token', $token)
+            ->with('template.fields')
+            ->firstOrFail();
 
         abort_if($document->signed_at, 410, 'This document has already been signed.');
 
+        $fields = [];
+        if ($document->template) {
+            foreach ($document->template->fields as $field) {
+                $fields[] = [
+                    'id'            => $field->id,
+                    'label'         => $field->label,
+                    'field_type'    => $field->field_type,
+                    'page'          => $field->page,
+                    'x'             => $field->x,
+                    'y'             => $field->y,
+                    'width'         => $field->width,
+                    'height'        => $field->height,
+                    'required'      => $field->required,
+                    'sort_order'    => $field->sort_order,
+                    'default_value' => $field->default_value,
+                    'value'         => $document->field_values[$field->id] ?? '',
+                ];
+            }
+        }
+
         return response()->json([
             'data' => [
-                'id'         => $document->id,
-                'filename'   => $document->filename,
-                'client'     => $document->user?->name,
-                'requested'  => $document->signature_requested_at,
-                'signed'     => $document->signed_at,
+                'id'           => $document->id,
+                'filename'     => $document->filename,
+                'client'       => $document->user?->name,
+                'requested'    => $document->signature_requested_at,
+                'signed'       => $document->signed_at,
+                'has_fields'   => count($fields) > 0,
+                'fields'       => $fields,
+                'field_values' => $document->field_values ?? [],
             ],
         ]);
     }
@@ -103,6 +153,7 @@ class SigningController extends Controller
         $data = $request->validate([
             'signer_name'    => 'required|string|max:255',
             'signature_data' => 'required|string',   // base64 PNG data URL
+            'field_values'   => 'nullable|array',     // field_id => value
         ]);
 
         // Strip the data: prefix to get raw base64
@@ -111,12 +162,20 @@ class SigningController extends Controller
             $base64 = explode(',', $base64, 2)[1];
         }
 
-        $document->update([
+        $updateData = [
             'signed_at'      => now(),
             'signer_name'    => $data['signer_name'],
             'signer_ip'      => $request->ip(),
             'signature_data' => $base64,
-        ]);
+            'status'         => 'signed',
+        ];
+
+        // Store field values if provided
+        if (!empty($data['field_values'])) {
+            $updateData['field_values'] = $data['field_values'];
+        }
+
+        $document->update($updateData);
 
         // Generate certificate PDF
         $pdf  = Pdf::loadView('pdfs.signature_certificate', [

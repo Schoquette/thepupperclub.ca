@@ -8,6 +8,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   email_verified_at: string | null;
+  client_profile?: ClientProfile | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,6 +30,8 @@ export interface ClientProfile {
   stripe_customer_id: string | null;
   notes: string | null;
   onboarding_completed_at: string | null;
+  intake_submitted_at: string | null;
+  profile_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
 }

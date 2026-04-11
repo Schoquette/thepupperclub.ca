@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { CheckCircle } from 'lucide-react';
 
 export default function SetPasswordPage() {
   const [params] = useSearchParams();
@@ -42,7 +43,7 @@ export default function SetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-cream px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <div className="text-4xl mb-3">🐾</div>
+          <img src="/logo.png" alt="The Pupper Club" className="w-16 h-16 object-contain mx-auto mb-3" />
           <h1 className="font-display text-3xl text-espresso tracking-wide">THE PUPPER CLUB</h1>
           <p className="text-taupe mt-1 text-sm">Set your password</p>
         </div>
@@ -50,7 +51,7 @@ export default function SetPasswordPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8">
           {done ? (
             <div className="text-center">
-              <div className="text-4xl mb-3">✅</div>
+              <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-3" />
               <p className="font-semibold text-espresso">Password set! Redirecting to login...</p>
             </div>
           ) : (

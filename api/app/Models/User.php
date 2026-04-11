@@ -21,6 +21,11 @@ class User extends Authenticatable
         'role',
         'status',
         'expo_push_token',
+        'home_address',
+        'home_street',
+        'home_city',
+        'home_province',
+        'home_postal_code',
     ];
 
     protected $hidden = [
@@ -66,6 +71,11 @@ class User extends Authenticatable
     public function dogs(): HasMany
     {
         return $this->hasMany(Dog::class);
+    }
+
+    public function subscriptionChanges(): HasMany
+    {
+        return $this->hasMany(SubscriptionChange::class);
     }
 
     public function appointments(): HasMany

@@ -98,7 +98,16 @@
       <tr><td class="lbl">Report Detail Level</td><td class="val">{{ $profile->report_detail_level }}</td></tr>
       @endif
       @if($profile->billing_method)
-      <tr><td class="lbl">Billing Method</td><td class="val">{{ ucfirst(str_replace('_', ' ', $profile->billing_method)) }}</td></tr>
+      @php
+      $billingLabel = match($profile->billing_method) {
+        'credit_card' => 'Credit Card',
+        'e_transfer' => 'E-Transfer',
+        'interac_pad' => 'Interac/PAD',
+        'cash' => 'Cash',
+        default => ucfirst(str_replace('_', ' ', $profile->billing_method)),
+      };
+      @endphp
+      <tr><td class="lbl">Billing Method</td><td class="val">{{ $billingLabel }}</td></tr>
       @endif
       @if($profile->food_storage_location)
       <tr><td class="lbl">Food Storage</td><td class="val">{{ $profile->food_storage_location }}</td></tr>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -6,6 +7,22 @@ import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/contexts/AuthContext';
 import MessageBubble from '@/components/shared/MessageBubble';
+import { format, isToday, isYesterday } from 'date-fns';
+
+function DateSeparator({ date }: { date: Date }) {
+  let label: string;
+  if (isToday(date)) label = 'Today';
+  else if (isYesterday(date)) label = 'Yesterday';
+  else label = format(date, 'EEEE, MMMM d, yyyy');
+
+  return (
+    <div className="flex justify-center my-2">
+      <span className="text-[11px] text-taupe bg-cream/70 px-3 py-0.5 rounded-full">
+        {label}
+      </span>
+    </div>
+  );
+}
 
 const QUICK_EMOJIS = [
   '😊', '😂', '❤️', '🥰', '😢', '😮', '🙏', '👍',
@@ -20,13 +37,22 @@ export default function AdminConversationPage() {
   const [text, setText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const emojiPickerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Search state
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchIndex, setSearchIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const msgContainerRef = useRef<HTMLDivElement>(null);
 
   // Edit state
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editBody, setEditBody] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Reply state
+  const [replyTo, setReplyTo] = useState<{ id: number; sender?: { name: string }; body: string | null; type: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['conversation', clientId],
@@ -35,25 +61,45 @@ export default function AdminConversationPage() {
   });
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [data]);
+    if (!searchOpen) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [data, searchOpen]);
 
-  // Close emoji picker on outside click
+  // Compute search matches
+  const searchMatches: number[] = React.useMemo(() => {
+    if (!searchQuery.trim() || !data?.data) return [];
+    const q = searchQuery.toLowerCase();
+    return data.data
+      .map((msg: any, i: number) => (msg.body?.toLowerCase().includes(q) ? i : -1))
+      .filter((i: number) => i >= 0);
+  }, [searchQuery, data]);
+
   useEffect(() => {
-    if (!showEmojiPicker) return;
-    const handler = (e: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
-        setShowEmojiPicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showEmojiPicker]);
+    if (searchMatches.length > 0 && msgContainerRef.current) {
+      const idx = searchMatches[searchIndex] ?? searchMatches[0];
+      const el = msgContainerRef.current.querySelector(`[data-msg-index="${idx}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [searchIndex, searchMatches]);
+
+  const toggleSearch = () => {
+    if (searchOpen) {
+      setSearchOpen(false);
+      setSearchQuery('');
+      setSearchIndex(0);
+    } else {
+      setSearchOpen(true);
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  };
 
   const send = useMutation({
-    mutationFn: () => api.post(`/conversations/${clientId}/messages`, { body: text }),
+    mutationFn: () => api.post(`/conversations/${clientId}/messages`, {
+      body: text,
+      reply_to_id: replyTo?.id ?? null,
+    }),
     onSuccess: () => {
       setText('');
+      setReplyTo(null);
       qc.invalidateQueries({ queryKey: ['conversation', clientId] });
       qc.invalidateQueries({ queryKey: ['admin-inbox'] });
     },
@@ -131,6 +177,15 @@ export default function AdminConversationPage() {
     if (window.confirm('Delete this message?')) deleteMsg.mutate(msg.id);
   };
 
+  const confirmUnsend = (msg: any) => {
+    if (window.confirm('Unsend this message? It will be removed for everyone.')) deleteMsg.mutate(msg.id);
+  };
+
+  const startReply = (msg: any) => {
+    setReplyTo({ id: msg.id, sender: msg.sender, body: msg.body, type: msg.type });
+    textareaRef.current?.focus();
+  };
+
   if (isLoading) return <PageLoader />;
 
   return (
@@ -140,57 +195,142 @@ export default function AdminConversationPage() {
         <button onClick={() => navigate('/admin/inbox')} className="text-taupe hover:text-espresso">
           ←
         </button>
-        <div>
-          <h1 className="page-title text-lg">Conversation</h1>
-        </div>
+        <h1 className="page-title text-lg flex-1">Conversation</h1>
+        <button
+          onClick={toggleSearch}
+          className={`p-1.5 rounded-lg transition-colors ${searchOpen ? 'bg-gold/10 text-gold' : 'text-taupe hover:text-espresso hover:bg-cream'}`}
+          title="Search messages"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+        </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
-        {data?.data?.map((msg: any) =>
-          editingId === msg.id ? (
-            <div key={msg.id} className="flex justify-end">
-              <div className="max-w-[75%] w-full space-y-1">
-                <textarea
-                  rows={2}
-                  className="w-full border border-gold rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gold/30"
-                  value={editBody}
-                  onChange={(e) => setEditBody(e.target.value)}
-                  autoFocus
-                />
-                <div className="flex gap-2 justify-end">
-                  <button
-                    className="text-xs text-taupe hover:text-espresso"
-                    onClick={() => setEditingId(null)}
-                  >
-                    Cancel
-                  </button>
-                  <Button
-                    size="sm"
-                    loading={editMsg.isPending}
-                    onClick={() => editMsg.mutate({ id: msg.id, body: editBody })}
-                  >
-                    Save
-                  </Button>
-                </div>
-              </div>
+      {searchOpen && (
+        <div className="flex items-center gap-2 bg-white shadow-card rounded-xl px-3 py-2 mb-3">
+          <svg className="w-4 h-4 text-taupe flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            ref={searchInputRef}
+            type="text"
+            className="flex-1 text-sm border-0 focus:outline-none text-espresso placeholder-taupe"
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setSearchIndex(0); }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && searchMatches.length > 1) {
+                setSearchIndex(i => (i + 1) % searchMatches.length);
+              } else if (e.key === 'Escape') {
+                toggleSearch();
+              }
+            }}
+          />
+          {searchQuery && (
+            <span className="text-xs text-taupe whitespace-nowrap">
+              {searchMatches.length > 0 ? `${searchIndex + 1} of ${searchMatches.length}` : 'No results'}
+            </span>
+          )}
+          {searchMatches.length > 1 && (
+            <div className="flex gap-0.5">
+              <button onClick={() => setSearchIndex(i => (i - 1 + searchMatches.length) % searchMatches.length)} className="text-taupe hover:text-espresso p-0.5">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+              </button>
+              <button onClick={() => setSearchIndex(i => (i + 1) % searchMatches.length)} className="text-taupe hover:text-espresso p-0.5">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+              </button>
             </div>
-          ) : (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              currentUserId={user?.id ?? 0}
-              onEdit={startEdit}
-              onDelete={confirmDelete}
-              onReact={(id, emoji) => reactMsg.mutate({ id, emoji })}
-            />
-          )
-        )}
+          )}
+          <button onClick={toggleSearch} className="text-taupe hover:text-espresso p-0.5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+      )}
+
+      {/* Messages */}
+      <div ref={msgContainerRef} className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
+        {data?.data?.map((msg: any, i: number) => {
+          const msgDate = new Date(msg.created_at);
+          const prevDate = i > 0 ? new Date(data.data[i - 1].created_at) : null;
+          const showDate = !prevDate || msgDate.toDateString() !== prevDate.toDateString();
+          const isMatch = searchQuery && searchMatches.includes(i);
+          const isCurrentMatch = isMatch && searchMatches[searchIndex] === i;
+
+          return (
+            <React.Fragment key={msg.id}>
+              {showDate && <DateSeparator date={msgDate} />}
+              {editingId === msg.id ? (
+                <div className="flex justify-end">
+                  <div className="max-w-[75%] w-full space-y-1">
+                    <textarea
+                      rows={2}
+                      className="w-full border border-gold rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gold/30"
+                      value={editBody}
+                      onChange={(e) => setEditBody(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        className="text-xs text-taupe hover:text-espresso"
+                        onClick={() => setEditingId(null)}
+                      >
+                        Cancel
+                      </button>
+                      <Button
+                        size="sm"
+                        loading={editMsg.isPending}
+                        onClick={() => editMsg.mutate({ id: msg.id, body: editBody })}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  data-msg-index={i}
+                  className={`transition-colors rounded-xl ${isCurrentMatch ? 'bg-gold/20 ring-2 ring-gold/40' : isMatch ? 'bg-gold/10' : ''}`}
+                >
+                  <MessageBubble
+                    message={msg}
+                    currentUserId={user?.id ?? 0}
+                    onEdit={startEdit}
+                    onDelete={confirmDelete}
+                    onUnsend={confirmUnsend}
+                    onReact={(id, emoji) => reactMsg.mutate({ id, emoji })}
+                    onReply={startReply}
+                  />
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
         <div ref={bottomRef} />
       </div>
 
+      {/* Reply preview banner */}
+      {replyTo && (
+        <div className="flex items-center gap-2 bg-cream/60 border-l-2 border-gold rounded-t-xl px-4 py-2 -mb-1">
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-espresso truncate">
+              Replying to {replyTo.sender?.name ?? 'message'}
+            </div>
+            <div className="text-xs text-taupe truncate">
+              {replyTo.type === 'photo' ? '📷 Photo' : (replyTo.body ?? '').slice(0, 60)}
+            </div>
+          </div>
+          <button
+            onClick={() => setReplyTo(null)}
+            className="text-taupe hover:text-espresso text-lg leading-none"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Input */}
-      <div className="flex gap-3 bg-white rounded-xl shadow-card p-3 mt-2">
+      <div className={`flex items-center gap-2 bg-white shadow-card p-3 ${replyTo ? 'rounded-b-xl' : 'rounded-xl mt-2'}`}>
         <input
           ref={fileInputRef}
           type="file"
@@ -199,42 +339,58 @@ export default function AdminConversationPage() {
           onChange={handleFileChange}
         />
         <button
-          className="text-taupe hover:text-gold transition-colors text-xl px-1"
+          className="text-taupe hover:text-gold transition-colors p-1.5 rounded hover:bg-cream"
           title="Send a photo"
           onClick={() => fileInputRef.current?.click()}
           disabled={sendPhoto.isPending}
         >
-          {sendPhoto.isPending ? '⏳' : '📷'}
+          {sendPhoto.isPending ? (
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21zM10.5 8.25a1.125 1.125 0 11-2.25 0 1.125 1.125 0 012.25 0z" />
+            </svg>
+          )}
         </button>
 
         {/* Emoji picker */}
-        <div className="relative" ref={emojiPickerRef}>
-          <button
-            className="text-taupe hover:text-gold transition-colors text-xl px-1"
-            title="Emoji"
-            onClick={() => setShowEmojiPicker(v => !v)}
+        <button
+          className="text-taupe hover:text-gold transition-colors p-1.5 rounded hover:bg-cream"
+          title="Emoji"
+          onClick={() => setShowEmojiPicker(v => !v)}
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+          </svg>
+        </button>
+        {showEmojiPicker && ReactDOM.createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center pb-24 sm:items-center sm:pb-0"
+            onClick={() => setShowEmojiPicker(false)}
           >
-            😊
-          </button>
-          {showEmojiPicker && (
-            <div className="absolute bottom-full left-0 mb-1 bg-white rounded-xl shadow-lg border border-cream p-2 grid grid-cols-8 gap-0.5 z-20">
+            <div className="absolute inset-0 bg-black/20" />
+            <div
+              className="relative bg-white rounded-2xl shadow-2xl border border-cream p-3 grid grid-cols-8 gap-1"
+              onClick={e => e.stopPropagation()}
+            >
               {QUICK_EMOJIS.map(e => (
                 <button
                   key={e}
-                  className="text-xl hover:bg-cream rounded p-1 transition-colors"
+                  className="text-2xl hover:scale-110 active:scale-95 rounded p-1.5 hover:bg-cream transition-all"
                   onClick={() => insertEmoji(e)}
                 >
                   {e}
                 </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>,
+          document.body,
+        )}
 
         <textarea
           ref={textareaRef}
-          rows={2}
-          className="flex-1 resize-none border-0 focus:outline-none text-sm text-espresso placeholder-taupe"
+          rows={1}
+          className="flex-1 resize-none border-0 focus:outline-none text-sm text-espresso placeholder-taupe self-center"
           placeholder="Type a message..."
           value={text}
           onChange={(e) => setText(e.target.value)}

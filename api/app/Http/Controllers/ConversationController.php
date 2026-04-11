@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\NotificationDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -22,9 +24,11 @@ class ConversationController extends Controller
 
         $conversation = Conversation::firstOrCreate(['user_id' => $clientId]);
 
+        $this->ensureReplyColumn();
+
         $currentUserId = $user->id;
         $messages = $conversation->messages()
-            ->with(['sender:id,name,role', 'reactions'])
+            ->with(['sender:id,name,role', 'reactions', 'replyTo:id,sender_id,type,body', 'replyTo.sender:id,name'])
             ->orderBy('id')
             ->paginate(50);
 
@@ -69,21 +73,33 @@ class ConversationController extends Controller
         }
 
         $request->validate([
-            'body' => 'required|string|max:5000',
+            'body'        => 'required|string|max:5000',
+            'reply_to_id' => 'nullable|integer|exists:messages,id',
         ]);
 
         $conversation = Conversation::firstOrCreate(['user_id' => $clientId]);
 
         $message = $conversation->messages()->create([
-            'sender_id' => $user->id,
-            'type'      => 'text',
-            'body'      => $request->body,
+            'sender_id'   => $user->id,
+            'type'        => 'text',
+            'body'        => $request->body,
+            'reply_to_id' => $request->reply_to_id,
         ]);
 
         if ($user->isClient()) {
             $conversation->increment('unread_count_admin');
         } else {
             $conversation->increment('unread_count_client');
+
+            // Notify client via their preferred channels
+            $client = User::find($clientId);
+            if ($client) {
+                app(NotificationDispatcher::class)->notify(
+                    $client,
+                    'New message from The Pupper Club',
+                    $request->body,
+                );
+            }
         }
 
         $conversation->update(['last_message_at' => now()]);
@@ -123,6 +139,16 @@ class ConversationController extends Controller
             $conversation->increment('unread_count_admin');
         } else {
             $conversation->increment('unread_count_client');
+
+            // Notify client via their preferred channels
+            $client = User::find($clientId);
+            if ($client) {
+                app(NotificationDispatcher::class)->notify(
+                    $client,
+                    'New photo from The Pupper Club',
+                    'You received a new photo message. Open the app to view it.',
+                );
+            }
         }
 
         $conversation->update(['last_message_at' => now()]);
@@ -150,6 +176,29 @@ class ConversationController extends Controller
             $path,
             $meta['original_name'] ?? 'photo.jpg',
             ['Content-Type' => $meta['mime_type'] ?? 'image/jpeg']
+        );
+    }
+
+    public function serveMessageAttachment(Request $request, Message $message, int $index): StreamedResponse
+    {
+        $user         = $request->user();
+        $conversation = $message->conversation;
+
+        if ($user->isClient()) {
+            abort_unless($conversation->user_id === $user->id, 403);
+        }
+
+        $attachments = $message->metadata['attachments'] ?? [];
+        abort_unless(isset($attachments[$index]), 404);
+
+        $att  = $attachments[$index];
+        $path = $att['storage_path'] ?? null;
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response(
+            $path,
+            $att['original_name'] ?? 'file',
+            ['Content-Type' => $att['mime_type'] ?? 'application/octet-stream']
         );
     }
 
@@ -248,5 +297,15 @@ class ConversationController extends Controller
         $request->validate(['status' => 'required|in:open,resolved,needs_follow_up']);
         $conversation->update(['status' => $request->status]);
         return response()->json(['data' => $conversation->fresh()]);
+    }
+
+    private function ensureReplyColumn(): void
+    {
+        if (!Schema::hasColumn('messages', 'reply_to_id')) {
+            Schema::table('messages', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->unsignedBigInteger('reply_to_id')->nullable()->after('metadata');
+                $table->foreign('reply_to_id')->references('id')->on('messages')->nullOnDelete();
+            });
+        }
     }
 }

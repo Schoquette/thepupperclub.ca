@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\ClientDocument;
 use App\Models\HomeAccess;
 use App\Models\OnboardingStep;
+use App\Models\SubscriptionChange;
 use App\Models\User;
 use App\Services\InviteService;
+use App\Services\StripeSubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -16,18 +19,23 @@ use Illuminate\Support\Str;
 
 class ClientController extends Controller
 {
-    public function __construct(private InviteService $inviteService) {}
+    public function __construct(
+        private InviteService $inviteService,
+        private StripeSubscriptionService $subscriptionService,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
         $query = User::where('role', 'client')
-            ->with('clientProfile')
+            ->with(['clientProfile', 'dogs:id,user_id,name'])
             ->withCount(['dogs', 'appointments']);
 
         if ($request->filter === 'pending') {
             $query->where('status', 'pending');
         } elseif ($request->filter === 'active') {
             $query->where('status', 'active');
+        } elseif ($request->filter === 'inactive') {
+            $query->where('status', 'inactive');
         }
 
         if ($request->search) {
@@ -36,6 +44,8 @@ class ClientController extends Controller
                   ->orWhere('email', 'like', "%{$request->search}%");
             });
         }
+
+        $query->orderBy('name', 'asc');
 
         return response()->json($query->paginate(20));
     }
@@ -75,7 +85,10 @@ class ClientController extends Controller
             'profile.secondary_notify_report_cards'    => 'sometimes|boolean',
             'profile.secondary_notify_billing'         => 'sometimes|boolean',
             'profile.secondary_notify_appointments'    => 'sometimes|boolean',
-            'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,cash,ach',
+            'profile.notify_app'              => 'sometimes|boolean',
+            'profile.notify_email'            => 'sometimes|boolean',
+            'profile.notify_sms'              => 'sometimes|boolean',
+            'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,interac_pad,cash',
             'profile.subscription_tier'       => 'sometimes|nullable|string',
             'profile.subscription_plan'       => 'sometimes|nullable|string',
             'profile.subscription_amount'     => 'sometimes|nullable|numeric|min:0',
@@ -104,6 +117,15 @@ class ClientController extends Controller
                 });
             }
 
+            // Auto-add notification preference columns if they don't exist yet
+            if (!Schema::hasColumn('client_profiles', 'notify_app')) {
+                Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->boolean('notify_app')->default(true);
+                    $table->boolean('notify_email')->default(false);
+                    $table->boolean('notify_sms')->default(false);
+                });
+            }
+
             // Strip any remaining columns that don't exist
             $profileData = collect($data['profile'])->filter(function ($value, $key) {
                 return Schema::hasColumn('client_profiles', $key);
@@ -122,6 +144,11 @@ class ClientController extends Controller
         ]);
 
         $user = $this->inviteService->invite($request->name, $request->email);
+
+        AuditLog::recordEvent($request->user(), 'invite_sent', [
+            'invited_user' => $user->name,
+            'email'        => $user->email,
+        ]);
 
         return response()->json(['data' => $user, 'message' => 'Invitation sent.'], 201);
     }
@@ -151,9 +178,23 @@ class ClientController extends Controller
         return response()->json(['message' => 'Invitation resent.']);
     }
 
-    public function resetPassword(User $client): JsonResponse
+    public function resetPassword(Request $request, User $client): JsonResponse
     {
         $this->ensureIsClient($client);
+
+        // If a password is provided, set it directly (useful when email isn't configured)
+        if ($request->filled('password')) {
+            $request->validate([
+                'password' => 'required|string|min:8',
+            ]);
+            $client->update([
+                'password' => Hash::make($request->password),
+                'status'   => 'active',
+            ]);
+            return response()->json(['message' => 'Password set successfully.']);
+        }
+
+        // Otherwise send reset email
         $this->inviteService->resetPassword($client);
         return response()->json(['message' => 'Password reset email sent.']);
     }
@@ -237,6 +278,248 @@ class ClientController extends Controller
         $document->delete();
 
         return response()->json(['message' => 'Document deleted.']);
+    }
+
+    // ── Subscriptions ─────────────────────────────────────────────────────
+
+    public function subscribe(Request $request, User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+
+        $request->validate([
+            'stripe_price_id' => 'required|string',
+            'effective_date'  => 'sometimes|nullable|date',
+        ]);
+
+        try {
+            $result = $this->subscriptionService->subscribe(
+                $client,
+                $request->stripe_price_id,
+                $request->effective_date
+            );
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Subscription error: ' . $e->getMessage()], 422);
+        }
+
+        // Log the plan change
+        $profile = $client->fresh('clientProfile')->clientProfile;
+        $action = $result['action'] === 'created' ? 'created' : (
+            ($result['proration'] ?? 0) > 0 ? 'upgraded' : (
+                ($result['proration'] ?? 0) < 0 ? 'downgraded' : 'updated'
+            )
+        );
+        SubscriptionChange::create([
+            'user_id'           => $client->id,
+            'changed_by'        => $request->user()->id,
+            'action'            => $action,
+            'old_plan'          => $result['old_plan'] ?? null,
+            'old_amount'        => $result['old_amount'] ?? null,
+            'new_plan'          => $profile->subscription_plan,
+            'new_amount'        => $profile->subscription_amount,
+            'effective_date'    => $request->effective_date ?? now()->toDateString(),
+            'proration_amount'  => $result['proration'] ?? null,
+            'created_at'        => now(),
+        ]);
+
+        // Generate proration invoice for mid-cycle plan changes (local billing only)
+        if (!empty($result['proration']) && $result['proration'] != 0) {
+            try {
+                $invoiceService = app(\App\Services\InvoiceService::class);
+                $profile = $client->clientProfile;
+                $nextBilling = \Carbon\Carbon::parse($profile->next_billing_date);
+                $effectiveDate = $request->effective_date
+                    ? \Carbon\Carbon::parse($request->effective_date)
+                    : now();
+
+                $lineItems = [];
+                $proAmount = $result['proration'];
+
+                if ($proAmount > 0) {
+                    $lineItems[] = [
+                        'description'  => "Plan upgrade adjustment: {$result['old_plan']} → {$profile->subscription_plan} ({$effectiveDate->format('M j')} – {$nextBilling->copy()->subDay()->format('M j, Y')})",
+                        'quantity'     => 1,
+                        'unit_price'   => $proAmount,
+                    ];
+                } else {
+                    $lineItems[] = [
+                        'description'  => "Plan change credit: {$result['old_plan']} → {$profile->subscription_plan} ({$effectiveDate->format('M j')} – {$nextBilling->copy()->subDay()->format('M j, Y')})",
+                        'quantity'     => 1,
+                        'unit_price'   => $proAmount,
+                    ];
+                }
+
+                $invoice = $invoiceService->create(
+                    $client,
+                    $lineItems,
+                    $effectiveDate->toDateString(),
+                    'Pro-rated adjustment for plan change.',
+                    null,
+                    $effectiveDate->toDateString(),
+                    $nextBilling->copy()->subDay()->toDateString(),
+                );
+
+                $invoiceService->send($invoice);
+            } catch (\Exception $e) {
+                \Log::warning("Failed to create proration invoice for client {$client->id}: {$e->getMessage()}");
+            }
+        }
+
+        return response()->json([
+            'data'    => $client->fresh('clientProfile'),
+            'message' => 'Subscription ' . $result['action'] . '.',
+        ]);
+    }
+
+    public function cancelSubscription(Request $request, User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+
+        $profile = $client->clientProfile;
+        $immediate = $request->boolean('immediate', false);
+
+        // Log cancellation before it happens
+        SubscriptionChange::create([
+            'user_id'        => $client->id,
+            'changed_by'     => $request->user()->id,
+            'action'         => $immediate ? 'canceled_immediate' : 'canceled',
+            'old_plan'       => $profile?->subscription_plan,
+            'old_amount'     => $profile?->subscription_amount,
+            'effective_date'  => $immediate ? now()->toDateString() : $profile?->next_billing_date,
+            'created_at'     => now(),
+        ]);
+
+        if ($immediate) {
+            $this->subscriptionService->cancelImmediately($client);
+        } else {
+            $this->subscriptionService->cancel($client);
+        }
+
+        return response()->json([
+            'data'    => $client->fresh('clientProfile'),
+            'message' => $immediate ? 'Subscription canceled.' : 'Subscription will cancel at period end.',
+        ]);
+    }
+
+    public function pauseSubscription(Request $request, User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+
+        $data = $request->validate([
+            'paused_from'      => 'required|date',
+            'paused_until'     => 'required|date|after:paused_from',
+            'pause_billing'    => 'required|boolean',
+            'prorate_on_resume' => 'required|boolean',
+        ]);
+
+        $profile = $client->clientProfile;
+        abort_unless($profile && ($profile->subscription_plan || $profile->stripe_subscription_id), 422, 'No active subscription to pause.');
+
+        $profile->update([
+            'subscription_paused_from'  => $data['paused_from'],
+            'subscription_paused_until' => $data['paused_until'],
+            'pause_billing'             => $data['pause_billing'],
+            'prorate_on_resume'         => $data['prorate_on_resume'],
+        ]);
+
+        SubscriptionChange::create([
+            'user_id'        => $client->id,
+            'changed_by'     => $request->user()->id,
+            'action'         => 'paused',
+            'old_plan'       => $profile->subscription_plan,
+            'new_plan'       => $profile->subscription_plan,
+            'old_amount'     => $profile->subscription_amount,
+            'new_amount'     => $profile->subscription_amount,
+            'effective_date' => $data['paused_from'],
+            'notes'          => 'Paused until ' . $data['paused_until']
+                . ($data['pause_billing'] ? ' (billing paused)' : ' (billing continues)')
+                . ($data['prorate_on_resume'] ? ', prorate on resume' : ''),
+            'created_at'     => now(),
+        ]);
+
+        return response()->json([
+            'data'    => $client->fresh('clientProfile'),
+            'message' => 'Subscription paused.',
+        ]);
+    }
+
+    public function resumeSubscription(Request $request, User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+
+        $profile = $client->clientProfile;
+        abort_unless($profile && $profile->subscription_paused_from, 422, 'Subscription is not paused.');
+
+        $pausedFrom = \Carbon\Carbon::parse($profile->subscription_paused_from);
+        $pausedUntil = \Carbon\Carbon::parse($profile->subscription_paused_until);
+        $pausedDays = $pausedFrom->diffInDays(min($pausedUntil, now()));
+
+        // If billing was paused, push next_billing_date forward by paused days
+        if ($profile->pause_billing && $profile->next_billing_date) {
+            $newBillingDate = \Carbon\Carbon::parse($profile->next_billing_date)->addDays($pausedDays);
+            $profile->update(['next_billing_date' => $newBillingDate]);
+        }
+
+        $prorationCredit = null;
+        if ($profile->prorate_on_resume && !$profile->pause_billing && $profile->subscription_amount > 0) {
+            // Calculate credit for paused days where billing continued
+            $dailyRate = (float) $profile->subscription_amount / 30;
+            $prorationCredit = round($pausedDays * $dailyRate, 2);
+        }
+
+        $profile->update([
+            'subscription_paused_from'  => null,
+            'subscription_paused_until' => null,
+            'pause_billing'             => true,
+            'prorate_on_resume'         => false,
+        ]);
+
+        SubscriptionChange::create([
+            'user_id'          => $client->id,
+            'changed_by'       => $request->user()->id,
+            'action'           => 'resumed',
+            'old_plan'         => $profile->subscription_plan,
+            'new_plan'         => $profile->subscription_plan,
+            'old_amount'       => $profile->subscription_amount,
+            'new_amount'       => $profile->subscription_amount,
+            'effective_date'   => now()->toDateString(),
+            'proration_amount' => $prorationCredit ? -$prorationCredit : null,
+            'notes'            => 'Resumed' . ($prorationCredit ? " with \${$prorationCredit} proration credit" : ''),
+            'created_at'       => now(),
+        ]);
+
+        // Create proration credit invoice if applicable
+        if ($prorationCredit && $prorationCredit > 0) {
+            $invoiceService = app(\App\Services\InvoiceService::class);
+            $invoice = $invoiceService->create(
+                $client,
+                [[
+                    'description' => "Subscription pause credit ({$pausedDays} days paused)",
+                    'quantity'    => 1,
+                    'unit_price'  => -$prorationCredit,
+                ]],
+                now()->toDateString(),
+                'Proration credit for subscription pause period.',
+            );
+            $invoiceService->send($invoice);
+        }
+
+        return response()->json([
+            'data'             => $client->fresh('clientProfile'),
+            'proration_credit' => $prorationCredit,
+            'message'          => 'Subscription resumed.' . ($prorationCredit ? " A \${$prorationCredit} credit has been applied." : ''),
+        ]);
+    }
+
+    public function subscriptionHistory(User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+
+        $changes = SubscriptionChange::where('user_id', $client->id)
+            ->with('changedByUser:id,name')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(['data' => $changes]);
     }
 
     private function ensureIsClient(User $user): void

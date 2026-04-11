@@ -7,18 +7,33 @@ use App\Models\HomeAccess;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ProfileController extends Controller
 {
     public function __construct(private AdminNotificationService $adminNotifications) {}
 
+    private function ensureNotifyColumns(): void
+    {
+        if (!Schema::hasColumn('client_profiles', 'notify_app')) {
+            Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->boolean('notify_app')->default(true);
+                $table->boolean('notify_email')->default(false);
+                $table->boolean('notify_sms')->default(false);
+            });
+        }
+    }
+
     public function show(Request $request): JsonResponse
     {
+        $this->ensureNotifyColumns();
         return response()->json(['data' => $request->user()->load('clientProfile')]);
     }
 
     public function update(Request $request): JsonResponse
     {
+        $this->ensureNotifyColumns();
+
         $data = $request->validate([
             'name'                     => 'sometimes|string|max:255',
             'phone'                    => 'sometimes|nullable|string',
@@ -28,22 +43,106 @@ class ProfileController extends Controller
             'postal_code'              => 'sometimes|nullable|string|max:7',
             'emergency_contact_name'   => 'sometimes|nullable|string',
             'emergency_contact_phone'  => 'sometimes|nullable|string',
+            'secondary_contact_name'   => 'sometimes|nullable|string',
+            'secondary_contact_email'  => 'sometimes|nullable|string|email',
+            'secondary_contact_phone'  => 'sometimes|nullable|string',
+            'notify_app'               => 'sometimes|boolean',
+            'notify_email'             => 'sometimes|boolean',
+            'notify_sms'               => 'sometimes|boolean',
+            'secondary_notify_app'     => 'sometimes|boolean',
+            'secondary_notify_email'   => 'sometimes|boolean',
+            'secondary_notify_sms'     => 'sometimes|boolean',
+            'billing_method'           => 'sometimes|in:credit_card,e_transfer,interac_pad,cash',
         ]);
 
         $user = $request->user();
+        $profile = $user->clientProfile;
+
+        // Track old values for change detection
+        $oldValues = [];
+        $fieldLabels = [
+            'name' => 'Name', 'phone' => 'Phone', 'address' => 'Address',
+            'city' => 'City', 'province' => 'Province', 'postal_code' => 'Postal Code',
+            'emergency_contact_name' => 'Emergency Contact', 'emergency_contact_phone' => 'Emergency Phone',
+            'secondary_contact_name' => 'Secondary Contact', 'secondary_contact_email' => 'Secondary Email',
+            'secondary_contact_phone' => 'Secondary Phone', 'billing_method' => 'Billing Method',
+        ];
+        foreach ($fieldLabels as $field => $label) {
+            if (!isset($data[$field])) continue;
+            $old = $field === 'name' ? $user->name : ($profile?->$field ?? '');
+            $oldValues[$field] = $old;
+        }
+
+        // Track billing method change for notification
+        $oldBillingMethod = $profile?->billing_method;
 
         if (isset($data['name'])) {
             $user->update(['name' => $data['name']]);
         }
 
-        $profileData = array_filter(array_diff_key($data, ['name' => true]));
-        if ($profileData) {
-            $user->clientProfile()->updateOrCreate(['user_id' => $user->id], $profileData);
+        $profileFields = array_diff_key($data, ['name' => true]);
+        if ($profileFields) {
+            $user->clientProfile()->updateOrCreate(['user_id' => $user->id], $profileFields);
         }
 
-        $this->adminNotifications->profileUpdated($user);
+        // Build change summary for chat
+        $changes = [];
+        foreach ($fieldLabels as $field => $label) {
+            if (!isset($data[$field])) continue;
+            $oldVal = (string) ($oldValues[$field] ?? '');
+            $newVal = (string) $data[$field];
+            if ($oldVal !== $newVal) {
+                if ($field === 'billing_method') {
+                    $methodLabels = ['credit_card' => 'Credit Card', 'e_transfer' => 'E-Transfer', 'interac_pad' => 'Interac/PAD', 'cash' => 'Cash'];
+                    $oldVal = $methodLabels[$oldVal] ?? $oldVal ?: 'Not set';
+                    $newVal = $methodLabels[$newVal] ?? $newVal;
+                }
+                $changes[] = "{$label}: " . ($oldVal ? "{$oldVal} → {$newVal}" : $newVal);
+            }
+        }
+
+        // Post changes in chat
+        if (!empty($changes)) {
+            $body = "{$user->name} updated their profile:\n• " . implode("\n• ", $changes);
+            $this->adminNotifications->notifyWithMessage($user, 'Profile Updated', $body);
+        } else {
+            $this->adminNotifications->profileUpdated($user);
+        }
+
+        // Notify admin if billing method changed (separate billing-specific notification)
+        if (isset($data['billing_method']) && $data['billing_method'] !== $oldBillingMethod && !empty($oldBillingMethod)) {
+            $labels = ['credit_card' => 'Credit Card', 'e_transfer' => 'E-Transfer', 'interac_pad' => 'Interac/PAD', 'cash' => 'Cash'];
+            $newLabel = $labels[$data['billing_method']] ?? $data['billing_method'];
+            // Already posted in the changes message above, no need to double-post
+        }
 
         return response()->json(['data' => $user->fresh('clientProfile')]);
+    }
+
+    /**
+     * Client confirms their profile is accurate.
+     */
+    public function confirm(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Mark profile as confirmed
+        $user->clientProfile()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['profile_confirmed_at' => now()]
+        );
+
+        // Post approval message in chat
+        $this->adminNotifications->notifyWithMessage(
+            $user,
+            'Profile Confirmed',
+            "{$user->name} has approved their profile."
+        );
+
+        return response()->json([
+            'message' => 'Profile confirmed.',
+            'data'    => $user->fresh('clientProfile'),
+        ]);
     }
 
     public function homeAccess(Request $request): JsonResponse

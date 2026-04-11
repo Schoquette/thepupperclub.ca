@@ -37,7 +37,7 @@ const emptyLine = (): LineItem => ({
 });
 
 const GST_RATE = 0.05;
-const CC_SURCHARGE = 0.029;
+const CC_SURCHARGE = 0.02;
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate();
@@ -46,12 +46,17 @@ export default function InvoiceCreatePage() {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
+  const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
   const [error, setError] = useState('');
 
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
     queryFn: () => api.get('/admin/clients').then(r => r.data.data),
   });
+
+  // Auto-set CC surcharge based on selected client's billing method
+  const selectedClient = clients?.find((c: any) => String(c.id) === userId);
+  const clientBillingMethod = selectedClient?.client_profile?.billing_method ?? 'credit_card';
 
   const { data: stripeProducts } = useQuery<StripeProduct[]>({
     queryKey: ['stripe-products'],
@@ -88,7 +93,7 @@ export default function InvoiceCreatePage() {
     return sum + qty * price;
   }, 0);
   const gst = subtotal * GST_RATE;
-  const surcharge = subtotal > 0 ? (subtotal + gst) * CC_SURCHARGE : 0;
+  const surcharge = applyCcSurcharge && subtotal > 0 ? (subtotal + gst) * CC_SURCHARGE : 0;
   const total = subtotal + gst + surcharge;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -102,6 +107,7 @@ export default function InvoiceCreatePage() {
       user_id: Number(userId),
       due_date: dueDate || undefined,
       notes: notes || undefined,
+      apply_cc_surcharge: applyCcSurcharge,
       line_items: validLines.map(l => ({
         description:  l.description,
         quantity:     Number(l.quantity),
@@ -130,7 +136,12 @@ export default function InvoiceCreatePage() {
               <select
                 className="input"
                 value={userId}
-                onChange={e => setUserId(e.target.value)}
+                onChange={e => {
+                  setUserId(e.target.value);
+                  const client = clients?.find((c: any) => String(c.id) === e.target.value);
+                  const method = client?.client_profile?.billing_method ?? 'credit_card';
+                  setApplyCcSurcharge(method === 'credit_card');
+                }}
                 required
               >
                 <option value="">Select client…</option>
@@ -245,6 +256,24 @@ export default function InvoiceCreatePage() {
           </div>
         </Card>
 
+        {/* CC Surcharge checkbox */}
+        <Card padding="sm">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={applyCcSurcharge}
+              onChange={e => setApplyCcSurcharge(e.target.checked)}
+              className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+            />
+            <span className="text-sm text-espresso font-medium">Apply credit card surcharge (2%)</span>
+          </label>
+          {userId && (
+            <p className="text-xs text-taupe mt-2">
+              Client billing method: <span className="font-semibold">{{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[clientBillingMethod] ?? clientBillingMethod}</span>
+            </p>
+          )}
+        </Card>
+
         {/* Totals preview */}
         {subtotal > 0 && (
           <Card padding="sm">
@@ -252,7 +281,7 @@ export default function InvoiceCreatePage() {
               {[
                 { label: 'Subtotal',   value: subtotal },
                 { label: 'GST (5%)',   value: gst },
-                { label: 'CC Fee (2.9%)', value: surcharge },
+                ...(applyCcSurcharge ? [{ label: 'CC Surcharge (2%)', value: surcharge }] : []),
               ].map(row => (
                 <div key={row.label} className="flex justify-between text-taupe">
                   <span>{row.label}</span>

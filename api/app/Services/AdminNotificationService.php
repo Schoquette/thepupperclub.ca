@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ClientDocument;
+use App\Models\Conversation;
 use App\Models\Dog;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,23 @@ class AdminNotificationService
     public function invoicePaymentFailed(object $invoice): void
     {
         $this->notifyAdmin("Payment Failed", "Payment failed for invoice #{$invoice->invoice_number}.");
+    }
+
+    /**
+     * Notify admin AND send a notification message in the client's conversation thread.
+     */
+    public function notifyWithMessage(User $client, string $title, string $body): void
+    {
+        $this->notifyAdmin($title, $body);
+
+        // Also post a notification-type message in the conversation
+        $conversation = Conversation::firstOrCreate(['user_id' => $client->id]);
+        $conversation->messages()->create([
+            'sender_id' => $client->id,
+            'type'      => 'notification',
+            'body'      => $body,
+            'metadata'  => ['title' => $title],
+        ]);
     }
 
     private function notifyAdmin(string $title, string $body): void

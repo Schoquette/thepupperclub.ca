@@ -24,8 +24,25 @@ class ClientInvitationMail extends Mailable
 
     public function build(): static
     {
-        return $this
+        $mailable = $this
             ->subject("Welcome to The Pupper Club! Set your password")
             ->view('emails.client-invitation');
+
+        // Embed logo as CID inline attachment (same as broadcast emails)
+        $logoPath = public_path('images/logo-cream-stacked.png');
+        if (file_exists($logoPath)) {
+            $mailable->withSymfonyMessage(function ($message) use ($logoPath) {
+                $logoPart = new \Symfony\Component\Mime\Part\DataPart(
+                    file_get_contents($logoPath),
+                    'logo.png',
+                    'image/png'
+                );
+                $logoPart->asInline();
+                $logoPart->setContentId('logo');
+                $message->attachPart($logoPart);
+            });
+        }
+
+        return $mailable;
     }
 }

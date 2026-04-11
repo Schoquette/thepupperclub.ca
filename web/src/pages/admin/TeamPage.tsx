@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+import AddressAutocomplete, { type AddressFields } from '@/components/ui/AddressAutocomplete';
 
 interface TeamMember {
   id: number;
@@ -16,6 +17,29 @@ interface TeamMember {
   role: 'superadmin' | 'admin';
   status: 'active' | 'inactive';
   created_at: string;
+  home_address?: string | null;
+  home_street?: string | null;
+  home_city?: string | null;
+  home_province?: string | null;
+  home_postal_code?: string | null;
+}
+
+const emptyAddress: AddressFields = { street: '', city: '', province: '', postal_code: '' };
+
+function memberToAddress(m: TeamMember): AddressFields {
+  return {
+    street: m.home_street || '',
+    city: m.home_city || '',
+    province: m.home_province || '',
+    postal_code: m.home_postal_code || '',
+  };
+}
+
+function formatAddress(m: TeamMember): string {
+  if (m.home_street) {
+    return [m.home_street, m.home_city, m.home_province, m.home_postal_code].filter(Boolean).join(', ');
+  }
+  return m.home_address || '';
 }
 
 export default function TeamPage() {
@@ -26,8 +50,11 @@ export default function TeamPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newAddress, setNewAddress] = useState<AddressFields>(emptyAddress);
   const [tempPassword, setTempPassword] = useState('');
   const [error, setError] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editAddress, setEditAddress] = useState<AddressFields>(emptyAddress);
 
   const { data: team, isLoading } = useQuery<TeamMember[]>({
     queryKey: ['admin-team'],
@@ -35,14 +62,36 @@ export default function TeamPage() {
   });
 
   const addMember = useMutation({
-    mutationFn: () => api.post('/admin/team', { name: newName, email: newEmail }),
+    mutationFn: () => api.post('/admin/team', {
+      name: newName,
+      email: newEmail,
+      home_street: newAddress.street || null,
+      home_city: newAddress.city || null,
+      home_province: newAddress.province || null,
+      home_postal_code: newAddress.postal_code || null,
+    }),
     onSuccess: (res) => {
       setTempPassword(res.data.temp_password);
       setNewName('');
       setNewEmail('');
+      setNewAddress(emptyAddress);
       qc.invalidateQueries({ queryKey: ['admin-team'] });
     },
     onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to add team member.'),
+  });
+
+  const updateAddress = useMutation({
+    mutationFn: ({ id, address }: { id: number; address: AddressFields }) =>
+      api.patch(`/admin/team/${id}`, {
+        home_street: address.street || null,
+        home_city: address.city || null,
+        home_province: address.province || null,
+        home_postal_code: address.postal_code || null,
+      }),
+    onSuccess: () => {
+      setEditingId(null);
+      qc.invalidateQueries({ queryKey: ['admin-team'] });
+    },
   });
 
   const toggleStatus = useMutation({
@@ -97,45 +146,89 @@ export default function TeamPage() {
       <Card>
         <div className="divide-y divide-cream">
           {(team ?? []).map(member => (
-            <div key={member.id} className="flex items-center justify-between py-4 px-2">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-gold flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                  {member.name.charAt(0)}
-                </div>
-                <div>
-                  <div className="font-semibold text-espresso">
-                    {member.name}
-                    {member.role === 'superadmin' && (
-                      <span className="ml-2 text-xs font-normal text-gold">Super Admin</span>
-                    )}
+            <div key={member.id} className="py-4 px-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-full bg-gold flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    {member.name.charAt(0)}
                   </div>
-                  <div className="text-sm text-taupe">{member.email}</div>
+                  <div>
+                    <div className="font-semibold text-espresso">
+                      {member.name}
+                      {member.role === 'superadmin' && (
+                        <span className="ml-2 text-xs font-normal text-gold">Super Admin</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-taupe">{member.email}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant={member.status === 'active' ? 'success' : 'neutral'}>
+                    {member.status}
+                  </Badge>
+                  {isSuperAdmin && member.role !== 'superadmin' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => toggleStatus.mutate({ id: member.id, status: member.status })}
+                        className="text-xs text-taupe hover:text-espresso underline"
+                      >
+                        {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => resetPassword.mutate(member.id)}
+                        className="text-xs text-taupe hover:text-espresso underline"
+                      >
+                        Reset Password
+                      </button>
+                      <button
+                        onClick={() => { if (confirm('Remove this team member?')) removeMember.mutate(member.id); }}
+                        className="text-xs text-red-400 hover:text-red-600 underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge variant={member.status === 'active' ? 'success' : 'neutral'}>
-                  {member.status}
-                </Badge>
-                {isSuperAdmin && member.role !== 'superadmin' && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => toggleStatus.mutate({ id: member.id, status: member.status })}
-                      className="text-xs text-taupe hover:text-espresso underline"
-                    >
-                      {member.status === 'active' ? 'Deactivate' : 'Activate'}
-                    </button>
-                    <button
-                      onClick={() => resetPassword.mutate(member.id)}
-                      className="text-xs text-taupe hover:text-espresso underline"
-                    >
-                      Reset Password
-                    </button>
-                    <button
-                      onClick={() => { if (confirm('Remove this team member?')) removeMember.mutate(member.id); }}
-                      className="text-xs text-red-400 hover:text-red-600 underline"
-                    >
-                      Remove
-                    </button>
+              {/* Home address */}
+              <div className="ml-14 mt-2">
+                {editingId === member.id ? (
+                  <div className="space-y-3">
+                    <AddressAutocomplete
+                      value={editAddress}
+                      onChange={setEditAddress}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateAddress.mutate({ id: member.id, address: editAddress })}
+                        className="text-xs text-gold hover:text-gold/80 font-medium"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-xs text-taupe hover:text-espresso"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-taupe">
+                      {formatAddress(member) || 'No home address set'}
+                    </span>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => {
+                          setEditingId(member.id);
+                          setEditAddress(memberToAddress(member));
+                        }}
+                        className="text-xs text-gold hover:text-gold/80 underline"
+                      >
+                        {formatAddress(member) ? 'Edit' : 'Add'}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -166,8 +259,13 @@ export default function TeamPage() {
             onChange={e => setNewEmail(e.target.value)}
             placeholder="email@example.com"
           />
+          <AddressAutocomplete
+            label="Home Address"
+            value={newAddress}
+            onChange={setNewAddress}
+          />
           <p className="text-xs text-taupe">
-            A temporary password will be generated. Share it with the team member so they can log in.
+            Home address is used for automatic mileage calculation. Start typing to search Canadian addresses.
           </p>
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>

@@ -8,7 +8,10 @@ use App\Models\VisitReport;
 
 class VisitNotificationService
 {
-    public function __construct(private ExpoNotificationService $expo) {}
+    public function __construct(
+        private ExpoNotificationService $expo,
+        private NotificationDispatcher $dispatcher,
+    ) {}
 
     public function sendArrival(Appointment $appointment): void
     {
@@ -28,7 +31,11 @@ class VisitNotificationService
         $conversation->increment('unread_count_client');
         $conversation->update(['last_message_at' => now()]);
 
-        $this->expo->send($user, "Your walker has arrived! 🐾", "Your walk is starting now.");
+        $this->dispatcher->notify(
+            $user,
+            "Your walker has arrived! 🐾",
+            "Your walk is starting now."
+        );
     }
 
     public function sendVisitComplete(Appointment $appointment, VisitReport $report): void
@@ -55,13 +62,20 @@ class VisitNotificationService
         $conversation->increment('unread_count_client');
         $conversation->update(['last_message_at' => now()]);
 
-        $this->expo->send($user, "Walk complete! 🐕", "Your visit report is ready.");
+        $this->dispatcher->notify(
+            $user,
+            "Walk complete! 🐕",
+            "Your visit report is ready."
+        );
     }
 
     public function sendInvoicePaid(Invoice $invoice): void
     {
-        $user = $invoice->user;
-        $this->expo->send($user, "Payment confirmed 🎉", "Invoice #{$invoice->invoice_number} has been paid.");
+        $this->dispatcher->notify(
+            $invoice->user,
+            "Payment confirmed 🎉",
+            "Invoice #{$invoice->invoice_number} has been paid."
+        );
     }
 
     public function sendPreVisitPrompt(Appointment $appointment): void
@@ -69,6 +83,8 @@ class VisitNotificationService
         $user         = $appointment->user;
         $conversation = $user->conversation()->firstOrCreate(['user_id' => $user->id]);
         $adminUser    = \App\Models\User::where('role', 'admin')->first();
+
+        $dogNames = $appointment->dogs->pluck('name')->join(' & ');
 
         $conversation->messages()->create([
             'sender_id' => $adminUser?->id,
@@ -83,7 +99,11 @@ class VisitNotificationService
         $conversation->increment('unread_count_client');
         $conversation->update(['last_message_at' => now()]);
 
-        $this->expo->send($user, "Walk tomorrow! 🐾", "Your walk is scheduled for tomorrow. Make sure {$appointment->dogs->pluck('name')->join(' & ')} is ready!");
+        $this->dispatcher->notify(
+            $user,
+            "Walk tomorrow! 🐾",
+            "Your walk is scheduled for tomorrow. Make sure {$dogNames} is ready!"
+        );
 
         $appointment->update(['pre_visit_notification_sent' => true]);
     }

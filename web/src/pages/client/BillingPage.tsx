@@ -7,6 +7,7 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { CreditCard, Banknote, ArrowRightLeft, Building2 } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_KEY ?? '');
 
@@ -21,23 +22,16 @@ function AddCardForm({ onSuccess }: { onSuccess: () => void }) {
     setLoading(true);
     setError('');
     try {
-      // Step 1: Get setup intent from backend
       const { data } = await api.post('/client/billing/setup-intent');
       const clientSecret = data.client_secret;
-
-      // Step 2: Confirm card setup with Stripe
       const card = elements.getElement(CardElement);
       const { setupIntent, error: setupError } = await stripe.confirmCardSetup(clientSecret, {
         payment_method: { card: card! },
       });
-
       if (setupError) throw new Error(setupError.message);
-
-      // Step 3: Save payment method to backend
       await api.post('/client/billing/payment-method', {
         payment_method_id: setupIntent!.payment_method,
       });
-
       onSuccess();
     } catch (e: any) {
       setError(e.message || 'Failed to save card.');
@@ -69,6 +63,13 @@ function AddCardForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+const METHOD_OPTIONS = [
+  { value: 'credit_card', label: 'Credit Card (2% fee)', icon: CreditCard },
+  { value: 'e_transfer', label: 'E-Transfer (no fee)', icon: ArrowRightLeft },
+  { value: 'interac_pad', label: 'Interac / PAD (no fee)', icon: Building2 },
+  { value: 'cash', label: 'Cash (no fee)', icon: Banknote },
+];
+
 export default function ClientBillingPage() {
   const qc = useQueryClient();
   const [addingCard, setAddingCard] = useState(false);
@@ -83,9 +84,17 @@ export default function ClientBillingPage() {
     queryFn: () => api.get('/client/billing/payment-method').then(r => r.data.data),
   });
 
+  const updateMethod = useMutation({
+    mutationFn: (method: string) => api.patch('/client/profile', { billing_method: method }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-profile'] });
+    },
+  });
+
   if (profileLoading || pmLoading) return <PageLoader />;
 
   const cp = profile?.client_profile;
+  const currentMethod = cp?.billing_method ?? 'credit_card';
 
   return (
     <div className="space-y-6 max-w-lg">
@@ -114,59 +123,179 @@ export default function ClientBillingPage() {
                 </span>
               </div>
             )}
-            <div className="flex justify-between">
-              <span className="text-taupe">Payment method</span>
-              <span className="font-semibold text-espresso capitalize">
-                {cp.billing_method?.replace('_', ' ') ?? 'Not set'}
-              </span>
-            </div>
           </div>
         </Card>
       )}
 
-      {/* Saved card */}
+      {/* Payment method selection */}
       <Card>
         <CardHeader title="Payment Method" />
-        {pm ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 bg-cream/40 rounded-xl p-4">
-              <div className="text-3xl">💳</div>
-              <div>
-                <div className="font-semibold text-espresso capitalize">{pm.brand} ending in {pm.last4}</div>
-                <div className="text-xs text-taupe">Expires {pm.exp_month}/{pm.exp_year}</div>
-              </div>
-            </div>
-            {!addingCard && (
+        <div className="space-y-3">
+          {METHOD_OPTIONS.map(opt => {
+            const Icon = opt.icon;
+            const selected = currentMethod === opt.value;
+            return (
               <button
-                className="text-sm text-gold hover:text-espresso font-medium transition-colors"
-                onClick={() => setAddingCard(true)}
+                key={opt.value}
+                onClick={() => !selected && updateMethod.mutate(opt.value)}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all text-left ${
+                  selected
+                    ? 'border-gold bg-gold/5'
+                    : 'border-taupe/20 hover:border-taupe/40'
+                }`}
               >
-                Replace card
+                <Icon className={`w-5 h-5 ${selected ? 'text-gold' : 'text-taupe'}`} />
+                <div className="flex-1">
+                  <div className={`text-sm font-semibold ${selected ? 'text-espresso' : 'text-taupe'}`}>
+                    {opt.label}
+                  </div>
+                  {opt.value === 'credit_card' && (
+                    <div className="text-xs text-taupe mt-0.5">A 2% transaction fee applies to credit card payments</div>
+                  )}
+                  {opt.value === 'e_transfer' && selected && (
+                    <div className="text-xs text-taupe mt-0.5">Send to sophie@thepupperclub.ca before your billing date</div>
+                  )}
+                  {opt.value === 'interac_pad' && selected && (
+                    <div className="text-xs text-taupe mt-0.5">Set up Interac/Visa Debit or Bank Debit (PAD) through Stripe</div>
+                  )}
+                  {opt.value === 'cash' && selected && (
+                    <div className="text-xs text-taupe mt-0.5">Leave at your service address before your billing date</div>
+                  )}
+                </div>
+                {selected && (
+                  <span className="text-xs font-semibold text-gold bg-gold/10 px-2 py-1 rounded-full">Selected</span>
+                )}
               </button>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-taupe mb-4">No card on file. Add one to enable auto-pay.</p>
-        )}
-
-        {(!pm || addingCard) && (
-          <div className="mt-4">
-            <Elements stripe={stripePromise}>
-              <AddCardForm
-                onSuccess={() => {
-                  setAddingCard(false);
-                  qc.invalidateQueries({ queryKey: ['client-payment-method'] });
-                }}
-              />
-            </Elements>
-          </div>
-        )}
+            );
+          })}
+        </div>
       </Card>
 
-      <p className="text-xs text-taupe">
-        Your payment information is securely stored by Stripe and never touches our servers.
-        Monthly invoices are generated automatically and charged on your billing date.
-      </p>
+      {/* Card on file — show for Credit Card */}
+      {currentMethod === 'credit_card' && (
+        <Card>
+          <CardHeader title="Card on File" />
+          {pm ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 bg-cream/40 rounded-xl p-4">
+                <CreditCard className="w-8 h-8 text-taupe" />
+                <div>
+                  <div className="font-semibold text-espresso capitalize">{pm.brand} ending in {pm.last4}</div>
+                  <div className="text-xs text-taupe">Expires {pm.exp_month}/{pm.exp_year}</div>
+                </div>
+              </div>
+              {!addingCard && (
+                <button
+                  className="text-sm text-gold hover:text-espresso font-medium transition-colors"
+                  onClick={() => setAddingCard(true)}
+                >
+                  Replace card
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-taupe mb-4">Add a card to enable automatic payments.</p>
+          )}
+
+          {(!pm || addingCard) && (
+            <div className="mt-4">
+              <Elements stripe={stripePromise}>
+                <AddCardForm
+                  onSuccess={() => {
+                    setAddingCard(false);
+                    qc.invalidateQueries({ queryKey: ['client-payment-method'] });
+                  }}
+                />
+              </Elements>
+            </div>
+          )}
+
+          <div className="mt-4 p-3 bg-gold/5 border border-gold/20 rounded-lg">
+            <p className="text-xs text-espresso">
+              A 2% credit card surcharge will be added to all invoices paid by credit card.
+              Your payment information is securely stored by Stripe and never touches our servers.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Interac / PAD setup — Stripe debit setup */}
+      {currentMethod === 'interac_pad' && (
+        <Card>
+          <CardHeader title="Interac / PAD Setup" />
+          {pm ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 bg-cream/40 rounded-xl p-4">
+                <Building2 className="w-8 h-8 text-taupe" />
+                <div>
+                  <div className="font-semibold text-espresso capitalize">{pm.brand} ending in {pm.last4}</div>
+                  <div className="text-xs text-taupe">Expires {pm.exp_month}/{pm.exp_year}</div>
+                </div>
+              </div>
+              {!addingCard && (
+                <button
+                  className="text-sm text-gold hover:text-espresso font-medium transition-colors"
+                  onClick={() => setAddingCard(true)}
+                >
+                  Replace payment method
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-taupe mb-4">Set up your Interac/Visa Debit or bank account for automatic payments.</p>
+          )}
+
+          {(!pm || addingCard) && (
+            <div className="mt-4">
+              <Elements stripe={stripePromise}>
+                <AddCardForm
+                  onSuccess={() => {
+                    setAddingCard(false);
+                    qc.invalidateQueries({ queryKey: ['client-payment-method'] });
+                  }}
+                />
+              </Elements>
+            </div>
+          )}
+
+          <div className="mt-4 p-3 bg-gold/5 border border-gold/20 rounded-lg">
+            <p className="text-xs text-espresso">
+              No additional fees for Interac/PAD payments.
+              Your payment information is securely stored by Stripe and never touches our servers.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* E-Transfer instructions */}
+      {currentMethod === 'e_transfer' && (
+        <Card>
+          <CardHeader title="E-Transfer Instructions" />
+          <div className="space-y-2 text-sm">
+            <p className="text-espresso">
+              Please send your e-Transfer to <strong>sophie@thepupperclub.ca</strong> before the <strong>first day of your service month</strong>.
+            </p>
+            <p className="text-taupe text-xs">
+              Auto-deposit is enabled — no security question required.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Cash instructions */}
+      {currentMethod === 'cash' && (
+        <Card>
+          <CardHeader title="Cash / Cheque Instructions" />
+          <div className="space-y-2 text-sm">
+            <p className="text-espresso">
+              Cash or cheque can be left at your service address on the <strong>first visit of your service month</strong>.
+            </p>
+            <p className="text-taupe text-xs">
+              Please ensure payment is in an envelope labelled with your name.
+            </p>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

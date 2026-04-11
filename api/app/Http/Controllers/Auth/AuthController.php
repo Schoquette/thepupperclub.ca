@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,6 +34,10 @@ class AuthController extends Controller
 
         $token = $user->createToken('api')->plainTextToken;
 
+        AuditLog::recordEvent($user, 'login');
+
+        $user->load('clientProfile');
+
         return response()->json([
             'token' => $token,
             'user'  => $user,
@@ -41,6 +46,8 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        AuditLog::recordEvent($request->user(), 'logout');
+
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out.']);
@@ -98,6 +105,10 @@ class AuthController extends Controller
         );
 
         if ($status === Password::PASSWORD_RESET) {
+            $resetUser = User::where('email', $request->email)->first();
+            if ($resetUser) {
+                AuditLog::recordEvent($resetUser, 'password_reset');
+            }
             return response()->json(['message' => 'Password reset successfully.']);
         }
 

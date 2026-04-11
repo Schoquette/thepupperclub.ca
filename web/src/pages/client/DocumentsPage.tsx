@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
+import { FileText, Image, Paperclip, FolderOpen, Clock, CheckCircle } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, string> = {
   vaccination_record: 'Vaccination Record',
@@ -12,10 +13,10 @@ const TYPE_LABELS: Record<string, string> = {
   other:              'Other',
 };
 
-function fileIcon(mime: string) {
-  if (mime === 'application/pdf') return '📄';
-  if (mime.startsWith('image/')) return '🖼️';
-  return '📎';
+function FileIcon({ mime }: { mime: string }) {
+  if (mime === 'application/pdf') return <FileText className="w-6 h-6 text-taupe" />;
+  if (mime.startsWith('image/')) return <Image className="w-6 h-6 text-taupe" />;
+  return <Paperclip className="w-6 h-6 text-taupe" />;
 }
 
 function formatBytes(bytes: number) {
@@ -57,24 +58,36 @@ export default function DocumentsPage() {
     },
   });
 
-  const handleView = async (doc: any) => {
-    const res = await api.get(`/documents/${doc.id}`, {
+  const fetchBlob = async (doc: any, inline = false) => {
+    const res = await api.get(`/documents/${doc.id}${inline ? '?inline=1' : ''}`, {
       responseType: 'blob',
-      params: { inline: 1 },
     });
-    const url = URL.createObjectURL(new Blob([res.data], { type: doc.mime_type }));
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return res.data;
+  };
+
+  const handleView = async (doc: any) => {
+    try {
+      const blob = await fetchBlob(doc, true);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (e) {
+      alert('Failed to load document. It may have been moved or deleted.');
+    }
   };
 
   const handleDownload = async (doc: any) => {
-    const res = await api.get(`/documents/${doc.id}`, { responseType: 'blob' });
-    const url = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = doc.filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = await fetchBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Failed to download document.');
+    }
   };
 
   return (
@@ -142,14 +155,14 @@ export default function DocumentsPage() {
           <p className="text-center py-8 text-taupe">Loading…</p>
         ) : docs.length === 0 ? (
           <div className="text-center py-10">
-            <div className="text-4xl mb-3">📂</div>
+            <FolderOpen className="w-10 h-10 text-taupe mx-auto mb-3" />
             <p className="text-taupe text-sm">No documents on file yet.</p>
           </div>
         ) : (
           <div className="space-y-1">
             {docs.map((doc: any) => (
               <div key={doc.id} className="flex items-center gap-3 py-3 border-b border-cream last:border-0">
-                <div className="text-2xl flex-shrink-0">{fileIcon(doc.mime_type)}</div>
+                <div className="flex-shrink-0"><FileIcon mime={doc.mime_type} /></div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-espresso truncate">{doc.filename}</div>
                   <div className="text-xs text-taupe mt-0.5">
@@ -159,12 +172,12 @@ export default function DocumentsPage() {
                   </div>
                   {/* Signature status */}
                   {doc.signed_at ? (
-                    <div className="text-xs text-green-700 font-medium mt-0.5">
-                      ✓ Signed {new Date(doc.signed_at).toLocaleDateString('en-CA')}
+                    <div className="text-xs text-green-700 font-medium mt-0.5 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> Signed {new Date(doc.signed_at).toLocaleDateString('en-CA')}
                     </div>
                   ) : doc.signature_requested_at ? (
-                    <div className="text-xs text-gold font-medium mt-0.5">
-                      ⏳ Awaiting your signature
+                    <div className="text-xs text-gold font-medium mt-0.5 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Awaiting your signature
                     </div>
                   ) : null}
                 </div>

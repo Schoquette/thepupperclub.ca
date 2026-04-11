@@ -22,6 +22,10 @@ class Invoice extends Model
         'stripe_payment_intent_id',
         'stripe_invoice_id',
         'notes',
+        'apply_cc_surcharge',
+        'billing_method',
+        'billing_period_start',
+        'billing_period_end',
     ];
 
     protected function casts(): array
@@ -34,6 +38,9 @@ class Invoice extends Model
             'total'                  => 'decimal:2',
             'due_date'               => 'date',
             'paid_at'                => 'datetime',
+            'apply_cc_surcharge'     => 'boolean',
+            'billing_period_start'   => 'date',
+            'billing_period_end'     => 'date',
         ];
     }
 

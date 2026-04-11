@@ -16,6 +16,8 @@ class AppointmentService
     {
         $scheduledTime = Carbon::parse($data['scheduled_time']);
 
+        abort_if($scheduledTime->isPast(), 422, 'Cannot schedule appointments in the past.');
+
         $this->validateBuffer($scheduledTime, null);
         $this->validateBlockCapacity($data['client_time_block'], $scheduledTime->toDateString());
 

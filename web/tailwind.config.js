@@ -6,13 +6,13 @@ export default {
       colors: {
         cream:    '#F6F3EE',
         espresso: '#3B2F2A',
-        taupe:    '#C8BFB6',
+        taupe:    '#5C524A',
         gold:     '#C9A24D',
         blue:     '#6492D8',
         // Semantic aliases
         primary:    '#3B2F2A',
         accent:     '#C9A24D',
-        muted:      '#C8BFB6',
+        muted:      '#5C524A',
         background: '#F6F3EE',
       },
       fontFamily: {

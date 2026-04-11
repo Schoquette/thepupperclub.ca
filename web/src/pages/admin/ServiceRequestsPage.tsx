@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 const TIME_BLOCK_LABELS = {
   early_morning: '7–10 AM', morning: '9–12 PM', midday: '11 AM–2 PM',
@@ -24,14 +24,124 @@ const TIME_BLOCK_DEFAULTS: Record<string, string> = {
   evening:       '17:00',
 };
 
+// Generate 15-minute increment time options from 6:00 AM to 9:00 PM
+const TIME_OPTIONS: { value: string; label: string }[] = [];
+for (let h = 6; h <= 21; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    if (h === 21 && m > 0) break; // stop at 9:00 PM
+    const hh = String(h).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    const value = `${hh}:${mm}`;
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const label = `${hour12}:${mm} ${ampm}`;
+    TIME_OPTIONS.push({ value, label });
+  }
+}
+
+// Service type durations (minutes) for display
+const SERVICE_DURATIONS: Record<string, number> = {
+  walk_30: 30, walk_60: 60, custom: 30, day_boarding: 480, overnight: 1440,
+};
+
+// Mini availability timeline for a given date
+function AvailabilityTimeline({ date, selectedTime, serviceDuration }: { date: string; selectedTime?: string; serviceDuration?: number }) {
+  const { data } = useQuery({
+    queryKey: ['day-appointments', date],
+    queryFn: () => api.get(`/admin/appointments?date=${date}`).then(r => r.data),
+    enabled: !!date,
+  });
+
+  const appointments = data?.data ?? [];
+  const START_HOUR = 6;
+  const END_HOUR = 21;
+  const totalMinutes = (END_HOUR - START_HOUR) * 60;
+
+  const toPercent = (h: number, m: number) => {
+    const mins = (h - START_HOUR) * 60 + m;
+    return Math.max(0, Math.min(100, (mins / totalMinutes) * 100));
+  };
+
+  const hourMarkers = [];
+  for (let h = START_HOUR; h <= END_HOUR; h++) {
+    hourMarkers.push(h);
+  }
+
+  // Parse selected time for the "proposed" indicator
+  const proposedStart = selectedTime ? (() => {
+    const [hh, mm] = selectedTime.split(':').map(Number);
+    return { h: hh, m: mm };
+  })() : null;
+
+  const duration = serviceDuration ?? 30;
+
+  return (
+    <div className="mt-3">
+      <label className="label text-xs">Schedule for {format(parseISO(date), 'EEEE, MMM d')}</label>
+      <div className="relative h-12 bg-cream rounded-lg mt-1 overflow-hidden border border-taupe/30">
+        {/* Hour markers */}
+        {hourMarkers.map(h => (
+          <div key={h} className="absolute top-0 bottom-0 border-l border-taupe/20" style={{ left: `${toPercent(h, 0)}%` }}>
+            <span className="absolute top-0.5 left-0.5 text-[9px] text-taupe leading-none">
+              {h > 12 ? h - 12 : h}{h >= 12 ? 'p' : 'a'}
+            </span>
+          </div>
+        ))}
+
+        {/* Existing appointments */}
+        {appointments.map((apt: any) => {
+          if (!apt.scheduled_time || apt.status === 'cancelled') return null;
+          const dt = new Date(apt.scheduled_time);
+          const h = dt.getHours();
+          const m = dt.getMinutes();
+          const aptDuration = SERVICE_DURATIONS[apt.service_type] ?? 30;
+          const left = toPercent(h, m);
+          const width = (aptDuration / totalMinutes) * 100;
+          return (
+            <div
+              key={apt.id}
+              className="absolute top-4 bottom-1 rounded bg-blue/60 flex items-center justify-center overflow-hidden"
+              style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }}
+              title={`${apt.user?.name ?? 'Appointment'} · ${format(dt, 'h:mm a')} · ${apt.service_type.replace(/_/g, ' ')}`}
+            >
+              <span className="text-[8px] text-white font-medium truncate px-0.5">
+                {apt.user?.name?.split(' ')[0] ?? ''}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Proposed time indicator */}
+        {proposedStart && (
+          <div
+            className="absolute top-3.5 bottom-0.5 rounded border-2 border-gold bg-gold/20"
+            style={{
+              left: `${toPercent(proposedStart.h, proposedStart.m)}%`,
+              width: `${Math.max((duration / totalMinutes) * 100, 1)}%`,
+            }}
+            title={`Proposed: ${selectedTime}`}
+          />
+        )}
+      </div>
+      {appointments.length === 0 && (
+        <p className="text-[10px] text-taupe mt-0.5">No existing appointments this day</p>
+      )}
+      {appointments.length > 0 && (
+        <p className="text-[10px] text-taupe mt-0.5">{appointments.filter((a: any) => a.status !== 'cancelled').length} appointment{appointments.filter((a: any) => a.status !== 'cancelled').length !== 1 ? 's' : ''} scheduled</p>
+      )}
+    </div>
+  );
+}
+
 export default function AdminServiceRequestsPage() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<any>(null);
   const [action, setAction] = useState<'approve' | 'decline' | 'counter' | null>(null);
+  const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [adminResponse, setAdminResponse] = useState('');
-  const [counterBlock, setCounterBlock] = useState('morning');
   const [counterDate, setCounterDate] = useState('');
+  const [counterTime, setCounterTime] = useState('');
   const [apiError, setApiError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -54,11 +164,11 @@ export default function AdminServiceRequestsPage() {
 
   const handleAction = () => {
     if (action === 'approve') {
-      respond.mutate({ action: 'approve', admin_response: adminResponse, scheduled_time: scheduledTime });
+      respond.mutate({ action: 'approve', admin_response: adminResponse, scheduled_time: `${scheduledDate}T${scheduledTime}` });
     } else if (action === 'decline') {
       respond.mutate({ action: 'decline', admin_response: adminResponse });
     } else if (action === 'counter') {
-      respond.mutate({ action: 'counter', admin_response: adminResponse, counter_time_block: counterBlock, counter_date: counterDate });
+      respond.mutate({ action: 'counter', admin_response: adminResponse, counter_date: counterDate, counter_time: counterTime });
     }
   };
 
@@ -87,10 +197,12 @@ export default function AdminServiceRequestsPage() {
                     setAction('approve');
                     setAdminResponse('');
                     setApiError(null);
-                    // Pre-fill with requested date + start of their preferred time block
                     const date = sr.preferred_date ? String(sr.preferred_date).substring(0, 10) : '';
                     const time = TIME_BLOCK_DEFAULTS[sr.preferred_time_block] ?? '09:00';
-                    setScheduledTime(date ? `${date}T${time}` : '');
+                    setScheduledDate(date);
+                    setScheduledTime(time);
+                    setCounterDate(date);
+                    setCounterTime(time);
                   }}>
                     Review
                   </Button>
@@ -106,7 +218,7 @@ export default function AdminServiceRequestsPage() {
         )}
       </div>
 
-      <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); setScheduledTime(''); setAdminResponse(''); }} title="Respond to Request">
+      <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); setScheduledDate(''); setScheduledTime(''); setAdminResponse(''); setCounterDate(''); setCounterTime(''); }} title="Respond to Request">
         {selected && (
           <div className="space-y-4">
             <div className="bg-cream rounded-lg p-4 text-sm">
@@ -133,23 +245,43 @@ export default function AdminServiceRequestsPage() {
             </div>
 
             {action === 'approve' && (
-              <Input
-                label="Scheduled date & time"
-                type="datetime-local"
-                step={900}
-                value={scheduledTime}
-                onChange={e => setScheduledTime(e.target.value)}
-              />
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Date" type="date" min={new Date().toISOString().substring(0, 10)} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+                  <div>
+                    <label className="label">Time</label>
+                    <select className="input" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)}>
+                      {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {scheduledDate && (
+                  <AvailabilityTimeline
+                    date={scheduledDate}
+                    selectedTime={scheduledTime}
+                    serviceDuration={SERVICE_DURATIONS[selected?.service_type] ?? 30}
+                  />
+                )}
+              </div>
             )}
             {action === 'counter' && (
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Counter date" type="date" value={counterDate} onChange={e => setCounterDate(e.target.value)} />
-                <div>
-                  <label className="label">Time block</label>
-                  <select className="input" value={counterBlock} onChange={e => setCounterBlock(e.target.value)}>
-                    {Object.entries(TIME_BLOCK_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Counter date" type="date" min={new Date().toISOString().substring(0, 10)} value={counterDate} onChange={e => setCounterDate(e.target.value)} />
+                  <div>
+                    <label className="label">Counter time</label>
+                    <select className="input" value={counterTime} onChange={e => setCounterTime(e.target.value)}>
+                      {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
                 </div>
+                {counterDate && (
+                  <AvailabilityTimeline
+                    date={counterDate}
+                    selectedTime={counterTime}
+                    serviceDuration={SERVICE_DURATIONS[selected?.service_type] ?? 30}
+                  />
+                )}
               </div>
             )}
             <Textarea
@@ -163,11 +295,11 @@ export default function AdminServiceRequestsPage() {
               <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{apiError}</p>
             )}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setSelected(null); setAction(null); setApiError(null); setScheduledTime(''); setAdminResponse(''); }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setSelected(null); setAction(null); setApiError(null); setScheduledDate(''); setScheduledTime(''); setAdminResponse(''); setCounterDate(''); setCounterTime(''); }}>Cancel</Button>
               <Button
                 loading={respond.isPending}
                 variant={action === 'decline' ? 'danger' : 'primary'}
-                disabled={action === 'approve' && !scheduledTime}
+                disabled={(action === 'approve' && (!scheduledDate || !scheduledTime)) || (action === 'counter' && (!counterDate || !counterTime))}
                 onClick={handleAction}
               >
                 {action === 'approve' ? 'Approve & Create Appointment' : action === 'decline' ? 'Decline Request' : 'Send Counter Offer'}

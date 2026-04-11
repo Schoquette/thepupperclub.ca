@@ -1,5 +1,6 @@
 export type MessageType =
   | 'text'
+  | 'photo'
   | 'pre_visit_prompt'
   | 'arrival'
   | 'visit_report'

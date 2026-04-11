@@ -17,6 +17,7 @@ class Message extends Model
         'read_at',
         'edited_at',
         'deleted_at',
+        'reply_to_id',
     ];
 
     protected function casts(): array
@@ -42,5 +43,10 @@ class Message extends Model
     public function reactions(): HasMany
     {
         return $this->hasMany(MessageReaction::class);
+    }
+
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'reply_to_id');
     }
 }

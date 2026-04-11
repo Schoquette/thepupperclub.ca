@@ -31,14 +31,14 @@ export default function AdminInvoicesPage() {
 
       {/* Summary cards */}
       {dashboard && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: 'Billed This Month',    value: dashboard.billed_this_month,    color: 'text-espresso' },
             { label: 'Collected',            value: dashboard.collected_this_month, color: 'text-green-600' },
             { label: 'Outstanding',          value: dashboard.outstanding,           color: 'text-red-500' },
           ].map(s => (
             <Card key={s.label} padding="sm">
-              <div className={`text-2xl font-bold ${s.color}`}>${s.value.toFixed(0)}</div>
+              <div className={`text-2xl font-bold ${s.color}`}>${Number(s.value ?? 0).toFixed(0)}</div>
               <div className="text-xs text-taupe mt-0.5">{s.label}</div>
             </Card>
           ))}
@@ -46,7 +46,7 @@ export default function AdminInvoicesPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex rounded-lg border border-taupe/50 overflow-hidden text-sm w-fit">
+      <div className="flex rounded-lg border border-taupe/50 overflow-hidden text-sm w-fit overflow-x-auto">
         {['', 'draft', 'sent', 'paid', 'overdue'].map(f => (
           <button
             key={f}
@@ -63,6 +63,7 @@ export default function AdminInvoicesPage() {
       {/* Table */}
       {isLoading ? <PageLoader /> : (
         <Card padding="none">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-cream text-left">
@@ -96,6 +97,7 @@ export default function AdminInvoicesPage() {
               ))}
             </tbody>
           </table>
+          </div>
           {!data?.data?.length && (
             <div className="text-center py-12 text-taupe">No invoices found.</div>
           )}

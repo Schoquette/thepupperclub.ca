@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Message } from '@pupper/shared';
 import { format } from 'date-fns';
@@ -10,16 +10,27 @@ interface Reaction {
   reacted_by_me: boolean;
 }
 
+interface ReplyTo {
+  id: number;
+  sender_id: number;
+  type: string;
+  body: string | null;
+  sender?: { id: number; name: string };
+}
+
 interface Props {
   message: Message & {
     sender?: { id: number; name: string; role: string };
     edited_at?: string | null;
     reactions?: Reaction[];
+    reply_to?: ReplyTo | null;
   };
   currentUserId: number;
   onEdit?: (message: any) => void;
   onDelete?: (message: any) => void;
+  onUnsend?: (message: any) => void;
   onReact?: (messageId: number, emoji: string) => void;
+  onReply?: (message: any) => void;
 }
 
 const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
@@ -29,7 +40,7 @@ const REACTION_EMOJIS = ['👍', '👎', '❤️', '😂', '😢', '🙏', '🎉
 function isEmojiOnly(text: unknown): boolean {
   if (typeof text !== 'string' || !text.trim()) return false;
   const t = text.trim();
-  if (t.length > 12) return false; // rough guard: most 1-5 emojis are ≤ 12 chars
+  if (t.length > 12) return false;
   const stripped = t.replace(/\p{Extended_Pictographic}/gu, '').trim();
   return stripped.length === 0;
 }
@@ -125,6 +136,7 @@ function PhotoBubble({
           )}
           <div className={`text-xs mt-1 text-taupe ${isOwn ? 'text-right' : ''}`}>
             {format(new Date(message.created_at), 'h:mm a')}
+            {isOwn && message.read_at && ' · Read'}
           </div>
         </div>
       </div>
@@ -167,39 +179,153 @@ function PhotoBubble({
   );
 }
 
-// Inline reaction picker shown on hover
-function ReactionPicker({ onReact }: { onReact: (emoji: string) => void }) {
+// Reaction picker — full-screen overlay with centered pill
+function ReactionPicker({ onReact, onClose }: { onReact: (emoji: string) => void; onClose: () => void }) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center pb-24 sm:items-center sm:pb-0"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/20" />
+      {/* Picker pill */}
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl border border-cream px-4 py-3 flex gap-2"
+        onClick={e => e.stopPropagation()}
+      >
+        {REACTION_EMOJIS.map((emoji) => (
+          <button
+            key={emoji}
+            onClick={() => onReact(emoji)}
+            className="text-2xl hover:scale-125 active:scale-95 transition-transform p-1"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// Reply preview shown above a message bubble
+function ReplyPreview({ replyTo, isOwn }: { replyTo: ReplyTo; isOwn: boolean }) {
+  const senderName = replyTo.sender?.name ?? 'Unknown';
+  const bodyPreview = replyTo.type === 'photo'
+    ? '📷 Photo'
+    : (replyTo.body ?? '').slice(0, 80) + ((replyTo.body ?? '').length > 80 ? '...' : '');
+
   return (
-    <div className="absolute bottom-full mb-1 bg-white rounded-2xl shadow-lg border border-cream px-2 py-1.5 flex gap-1 z-20">
-      {REACTION_EMOJIS.map((emoji) => (
-        <button
-          key={emoji}
-          onClick={() => onReact(emoji)}
-          className="text-lg hover:scale-125 transition-transform px-0.5"
-        >
-          {emoji}
-        </button>
-      ))}
+    <div className={`flex items-start gap-1.5 mb-1.5 text-xs rounded-lg px-2.5 py-1.5 border-l-2 ${
+      isOwn
+        ? 'bg-white/20 border-white/50 text-white/80'
+        : 'bg-cream/60 border-blue text-espresso/70'
+    }`}>
+      <div className="min-w-0">
+        <div className="font-semibold truncate">{senderName}</div>
+        <div className="truncate">{bodyPreview}</div>
+      </div>
     </div>
   );
 }
 
-export default function MessageBubble({ message, currentUserId, onEdit, onDelete, onReact }: Props) {
+// Action menu for messages (hover or long-press)
+function ActionBar({
+  isOwn,
+  canMutate,
+  showPicker,
+  setShowPicker,
+  onEdit,
+  onDelete,
+  onUnsend,
+  onReact,
+  onReply,
+}: {
+  isOwn: boolean;
+  canMutate: boolean;
+  showPicker: boolean;
+  setShowPicker: (v: boolean | ((p: boolean) => boolean)) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onUnsend?: () => void;
+  onReact?: (emoji: string) => void;
+  onReply?: () => void;
+}) {
+  return (
+    <div className={`self-center opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 ${isOwn ? 'order-first mr-1' : 'ml-1'}`}>
+      {/* Reply — available for all messages */}
+      {onReply && (
+        <button
+          onClick={onReply}
+          className="p-1 rounded hover:bg-cream transition-colors opacity-60 hover:opacity-100"
+          title="Reply"
+        >
+          <img src="/icons/reply.png" alt="Reply" className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* React — available for received messages */}
+      {!isOwn && onReact && (
+        <>
+          <button
+            onClick={() => setShowPicker(v => !v)}
+            className="text-taupe hover:text-gold p-1 rounded hover:bg-cream transition-colors"
+            title="React"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          {showPicker && (
+            <ReactionPicker
+              onReact={(emoji) => { onReact(emoji); setShowPicker(false); }}
+              onClose={() => setShowPicker(false)}
+            />
+          )}
+        </>
+      )}
+
+      {/* Own-message actions */}
+      {isOwn && canMutate && onEdit && (
+        <button
+          onClick={onEdit}
+          className="text-taupe hover:text-espresso p-1 rounded hover:bg-cream transition-colors"
+          title="Edit"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+      )}
+      {isOwn && canMutate && onUnsend && (
+        <button
+          onClick={onUnsend}
+          className="text-taupe hover:text-orange-500 p-1 rounded hover:bg-cream transition-colors"
+          title="Unsend"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+          </svg>
+        </button>
+      )}
+      {isOwn && onDelete && (
+        <button
+          onClick={onDelete}
+          className="text-taupe hover:text-red-500 p-1 rounded hover:bg-cream transition-colors"
+          title="Delete"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function MessageBubble({ message, currentUserId, onEdit, onDelete, onUnsend, onReact, onReply }: Props) {
   const isOwn = message.sender_id === currentUserId;
   const [showPicker, setShowPicker] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
-
-  // Close picker on outside click
-  useEffect(() => {
-    if (!showPicker) return;
-    const handler = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setShowPicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showPicker]);
 
   if (message.type === 'photo') {
     return <PhotoBubble message={message} isOwn={isOwn} />;
@@ -214,7 +340,6 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
 
     return (
       <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-card overflow-hidden border-l-4 border-gold">
-        {/* Header */}
         <div className="bg-espresso px-4 py-3">
           <div className="font-display text-cream text-sm tracking-wide">Visit Report Card 🐾</div>
           {(meta.arrival_time || meta.departure_time) && (
@@ -239,7 +364,6 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
           )}
         </div>
 
-        {/* Body */}
         <div className="p-4">
           {checkedItems.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -302,10 +426,42 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
 
   if (message.type === 'notification') {
     const meta = message.metadata as any;
+    const hasHtml = !!meta?.html_body;
+
     return (
-      <div className="mx-auto max-w-sm bg-espresso/5 rounded-xl p-4 text-center">
-        <div className="font-semibold text-espresso text-sm">{meta?.title}</div>
+      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-card border border-cream">
+        <div className="bg-blue px-4 py-2.5 flex items-center gap-2">
+          <span className="text-white text-sm">🐾</span>
+          <span className="font-display text-white text-sm tracking-wide flex-1">{meta?.title || 'The Pupper Club'}</span>
+        </div>
+
+        <div className="bg-white p-4">
+          {hasHtml ? (
+            <div
+              className="text-sm text-espresso leading-relaxed [&_a]:text-blue [&_a]:underline [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:pl-5 [&_ol]:mb-2 [&_li]:mb-0.5 [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2"
+              dangerouslySetInnerHTML={{ __html: meta.html_body }}
+            />
+          ) : (
+            <p className="text-sm text-espresso leading-relaxed">{message.body}</p>
+          )}
+          <div className="text-xs text-taupe mt-3">{format(new Date(message.created_at), 'h:mm a')}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (message.type === 'pre_visit_prompt') {
+    const meta = message.metadata as any;
+    return (
+      <div className="mx-auto max-w-sm bg-gold/5 border border-gold/20 rounded-2xl p-4 text-center">
+        <div className="text-lg mb-1">🐾</div>
+        <div className="font-semibold text-espresso text-sm">Walk Tomorrow!</div>
         <p className="text-sm text-taupe mt-1">{message.body}</p>
+        {meta?.time_block && (
+          <div className="mt-2 inline-block bg-gold/10 text-gold text-xs font-medium px-2.5 py-1 rounded-full">
+            {meta.time_block}
+          </div>
+        )}
         <div className="text-xs text-taupe mt-2">{format(new Date(message.created_at), 'h:mm a')}</div>
       </div>
     );
@@ -317,57 +473,29 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
 
   const reactions = message.reactions ?? [];
   const emojiOnly = message.type === 'text' && isEmojiOnly(message.body);
+  const replyTo = (message as any).reply_to as ReplyTo | null | undefined;
 
   return (
     <div className={`group flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} w-full`}>
-        {/* Edit/Delete controls — appear on hover for own messages within 2h */}
-        {canMutate && (
-          <div className="self-center mr-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-            {onEdit && (
-              <button
-                onClick={() => onEdit(message)}
-                className="text-taupe hover:text-espresso text-xs px-2 py-1 rounded bg-cream"
-                title="Edit"
-              >
-                ✏️
-              </button>
-            )}
-            {onDelete && (
-              <button
-                onClick={() => onDelete(message)}
-                className="text-taupe hover:text-red-500 text-xs px-2 py-1 rounded bg-cream"
-                title="Delete"
-              >
-                🗑️
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Reaction picker trigger */}
-        {onReact && (
-          <div ref={pickerRef} className="relative self-center mr-1">
-            <button
-              onClick={() => setShowPicker(v => !v)}
-              className={`opacity-0 group-hover:opacity-100 transition-opacity text-taupe hover:text-gold text-xs px-1.5 py-1 rounded bg-cream ${isOwn ? 'order-first mr-2' : ''}`}
-              title="React"
-            >
-              😊
-            </button>
-            {showPicker && (
-              <ReactionPicker
-                onReact={(emoji) => {
-                  onReact(message.id, emoji);
-                  setShowPicker(false);
-                }}
-              />
-            )}
-          </div>
+      <div className={`flex items-end ${isOwn ? 'justify-end' : 'justify-start'} w-full`}>
+        {/* Action bar — left of own messages, right of received messages */}
+        {isOwn && (
+          <ActionBar
+            isOwn={isOwn}
+            canMutate={canMutate}
+            showPicker={showPicker}
+            setShowPicker={setShowPicker}
+            onEdit={onEdit ? () => onEdit(message) : undefined}
+            onDelete={onDelete ? () => onDelete(message) : undefined}
+            onUnsend={onUnsend ? () => onUnsend(message) : undefined}
+            onReply={onReply ? () => onReply(message) : undefined}
+            onReact={onReact ? (emoji) => onReact(message.id, emoji) : undefined}
+          />
         )}
 
         {emojiOnly ? (
           <div className="px-1 py-0.5">
+            {replyTo && <ReplyPreview replyTo={replyTo} isOwn={isOwn} />}
             <p className="text-5xl leading-none select-none">{message.body}</p>
             <div className={`text-xs mt-1 ${isOwn ? 'text-taupe text-right' : 'text-taupe'}`}>
               {format(new Date(message.created_at), 'h:mm a')}
@@ -378,10 +506,11 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
           <div
             className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
               isOwn
-                ? 'bg-gold text-white rounded-br-sm'
+                ? 'bg-blue text-white rounded-br-sm'
                 : 'bg-white shadow-card text-espresso rounded-bl-sm'
             }`}
           >
+            {replyTo && <ReplyPreview replyTo={replyTo} isOwn={isOwn} />}
             {!isOwn && (
               <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
             )}
@@ -389,9 +518,22 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
             <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
               {format(new Date(message.created_at), 'h:mm a')}
               {(message as any).edited_at && ' · Edited'}
-              {isOwn && message.read_at && !((message as any).edited_at) && ' · Read'}
+              {isOwn && message.read_at && ' · Read'}
+              {(message.metadata as any)?.source === 'email' && ' · via email'}
             </div>
           </div>
+        )}
+
+        {/* Action bar — right of received messages */}
+        {!isOwn && (
+          <ActionBar
+            isOwn={isOwn}
+            canMutate={false}
+            showPicker={showPicker}
+            setShowPicker={setShowPicker}
+            onReply={onReply ? () => onReply(message) : undefined}
+            onReact={onReact ? (emoji) => onReact(message.id, emoji) : undefined}
+          />
         )}
       </div>
 
@@ -404,7 +546,7 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
               onClick={() => onReact?.(message.id, r.emoji)}
               className={`flex items-center gap-0.5 text-xs rounded-full px-2 py-0.5 border transition-colors ${
                 r.reacted_by_me
-                  ? 'bg-gold/15 border-gold/40 text-espresso'
+                  ? 'bg-blue/15 border-blue/40 text-espresso'
                   : 'bg-cream border-cream hover:border-taupe text-espresso'
               }`}
             >

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, endOfWeek, addDays } from 'date-fns';
+import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
+import { format, parse, startOfWeek, getDay, endOfWeek, addDays, isBefore, startOfDay } from 'date-fns';
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { enCA } from 'date-fns/locale';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
@@ -19,7 +21,7 @@ const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales
 const STATUS_COLORS: Record<string, string> = {
   scheduled:  '#6492D8',
   checked_in: '#C9A24D',
-  completed:  '#22c55e',
+  completed:  '#9CA3AF',
   cancelled:  '#C8BFB6',
 };
 
@@ -134,6 +136,8 @@ function blankForm(): NewApptForm {
   };
 }
 
+const DnDCalendar = withDragAndDrop(Calendar);
+
 export default function AdminCalendarPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -146,6 +150,17 @@ export default function AdminCalendarPage() {
   const [creatingAppt, setCreatingAppt] = useState(false);
   const [newForm, setNewForm] = useState<NewApptForm>(blankForm());
   const [createError, setCreateError] = useState('');
+
+  // Drag-and-drop confirm
+  const [dragPending, setDragPending] = useState<{ appointment: any; newStart: Date; newEnd: Date } | null>(null);
+
+  // Edit appointment
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<any>(null);
+  const [editError, setEditError] = useState('');
+
+  // "Send Update?" prompt after save
+  const [notifyPrompt, setNotifyPrompt] = useState<{ appointmentId: number; payload: any } | null>(null);
 
   // Visit completion report form (legacy – still used for check-out)
   const [completing, setCompleting] = useState(false);
@@ -222,6 +237,68 @@ export default function AdminCalendarPage() {
     },
   });
 
+  const updateAppointment = useMutation({
+    mutationFn: ({ id, ...payload }: any) => api.patch(`/admin/appointments/${id}`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-appointments'] });
+      setEditing(false);
+      setEditForm(null);
+      setEditError('');
+      setDragPending(null);
+    },
+    onError: (err: any) => {
+      setEditError(err.response?.data?.message ?? 'Failed to update appointment.');
+    },
+  });
+
+  const handleDragDrop = useCallback(({ event, start, end }: any) => {
+    const appt = event.resource;
+    if (appt.status === 'completed' || appt.status === 'cancelled') return;
+    if (isBefore(start, new Date())) return; // don't allow moving to the past
+    setDragPending({ appointment: appt, newStart: start, newEnd: end });
+  }, []);
+
+  const confirmDrag = () => {
+    if (!dragPending) return;
+    const { appointment, newStart, newEnd } = dragPending;
+    const durationMin = Math.round((newEnd.getTime() - newStart.getTime()) / 60_000);
+    const payload: any = {
+      id: appointment.id,
+      scheduled_time: newStart.toISOString(),
+      client_time_block: getTimeBlock(newStart.toISOString()),
+      duration_minutes: durationMin,
+    };
+    // Show notify prompt instead of saving directly
+    setNotifyPrompt({ appointmentId: appointment.id, payload });
+    setDragPending(null);
+  };
+
+  const handleEditSave = () => {
+    if (!editForm) return;
+    const payload: any = {
+      id: editForm.id,
+      service_type: editForm.service_type,
+      duration_minutes: editForm.duration_minutes,
+      scheduled_time: editForm.scheduled_time,
+      client_time_block: getTimeBlock(editForm.scheduled_time),
+      notes: editForm.notes || null,
+      dog_ids: editForm.dog_ids,
+    };
+    if (editForm.assigned_to !== undefined) {
+      payload.assigned_to = editForm.assigned_to || null;
+    }
+    // Show notify prompt
+    setNotifyPrompt({ appointmentId: editForm.id, payload });
+    setEditing(false);
+  };
+
+  const handleNotifyDecision = (sendNotification: boolean) => {
+    if (!notifyPrompt) return;
+    const { appointmentId, payload } = notifyPrompt;
+    updateAppointment.mutate({ ...payload, id: appointmentId, notify_client: sendNotification });
+    setNotifyPrompt(null);
+  };
+
   const handleCreate = () => {
     setCreateError('');
     const payload: any = {
@@ -264,6 +341,15 @@ export default function AdminCalendarPage() {
     resource: appt,
   }));
 
+  const today = startOfDay(new Date());
+
+  const dayPropGetter = useCallback((date: Date) => {
+    if (isBefore(date, today)) {
+      return { style: { backgroundColor: '#f0ede8', opacity: 0.6 } };
+    }
+    return {};
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -275,11 +361,11 @@ export default function AdminCalendarPage() {
 
       {isLoading ? <PageLoader /> : (
         <Card padding="none" className="overflow-hidden">
-          <Calendar
+          <DnDCalendar
             localizer={localizer}
             events={events}
             date={currentDate}
-            onNavigate={(newDate) => {
+            onNavigate={(newDate: Date) => {
               setCurrentDate(newDate);
               const weekStart = startOfWeek(newDate, { locale: enCA });
               const weekEnd = addDays(endOfWeek(newDate, { locale: enCA }), 1);
@@ -299,6 +385,11 @@ export default function AdminCalendarPage() {
               }
             }}
             onSelectEvent={(e: any) => setSelected(e.resource)}
+            onEventDrop={handleDragDrop}
+            onEventResize={handleDragDrop}
+            resizable
+            draggableAccessor={(event: any) => !isBefore(event.start, today)}
+            dayPropGetter={dayPropGetter}
             eventPropGetter={(e: any) => {
               let bg = '#6492D8'; // blue for regular visits
               let textColor = 'white';
@@ -324,7 +415,7 @@ export default function AdminCalendarPage() {
       )}
 
       {/* Appointment detail modal */}
-      <Modal open={!!selected && !completing} onClose={() => setSelected(null)} title="Appointment" size="lg">
+      <Modal open={!!selected && !completing && !editing} onClose={() => setSelected(null)} title="Appointment" size="lg">
         {selected && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -339,7 +430,42 @@ export default function AdminCalendarPage() {
                   ))}
                 </div>
               </div>
-              <Badge variant={statusBadge(selected.status)}>{selected.status.replace('_', ' ')}</Badge>
+              <div className="flex items-center gap-2">
+                {selected.status !== 'completed' && selected.status !== 'cancelled' && (
+                  <button
+                    onClick={() => {
+                      // Format scheduled_time to YYYY-MM-DDTHH:mm for the form
+                      const dt = new Date(selected.scheduled_time);
+                      const yyyy = dt.getFullYear();
+                      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+                      const dd = String(dt.getDate()).padStart(2, '0');
+                      const hh = String(dt.getHours()).padStart(2, '0');
+                      const min = String(dt.getMinutes()).padStart(2, '0');
+                      const formattedTime = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+
+                      setEditForm({
+                        id: selected.id,
+                        user_id: selected.user_id,
+                        service_type: selected.service_type,
+                        duration_minutes: selected.duration_minutes,
+                        scheduled_time: formattedTime,
+                        notes: selected.notes || '',
+                        dog_ids: selected.dogs?.map((d: any) => d.id) ?? [],
+                        assigned_to: selected.assigned_admin?.id?.toString() ?? '',
+                      });
+                      setEditing(true);
+                      setEditError('');
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-cream transition-colors"
+                    title="Edit appointment"
+                  >
+                    <svg className="w-4 h-4 text-taupe hover:text-espresso" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                )}
+                <Badge variant={statusBadge(selected.status)}>{selected.status.replace('_', ' ')}</Badge>
+              </div>
             </div>
             {selected.user?.client_profile?.address && (
               <div className="text-sm">
@@ -557,6 +683,7 @@ export default function AdminCalendarPage() {
               <input
                 type="date"
                 className="input"
+                min={format(new Date(), 'yyyy-MM-dd')}
                 value={newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : ''}
                 onChange={e => {
                   const time = newForm.scheduled_time ? newForm.scheduled_time.split('T')[1] || '09:00' : '09:00';
@@ -728,7 +855,7 @@ export default function AdminCalendarPage() {
             </Button>
             <Button
               loading={createAppointment.isPending}
-              disabled={!newForm.user_id || newForm.dog_ids.length === 0 || !newForm.scheduled_time}
+              disabled={!newForm.user_id || newForm.dog_ids.length === 0 || !newForm.scheduled_time || isBefore(new Date(newForm.scheduled_time), new Date())}
               onClick={handleCreate}
             >
               Create Appointment
@@ -736,6 +863,230 @@ export default function AdminCalendarPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Edit appointment modal */}
+      <Modal
+        open={editing && !!editForm}
+        onClose={() => { setEditing(false); setEditForm(null); setEditError(''); }}
+        title="Edit Appointment"
+        size="lg"
+      >
+        {editForm && (
+          <EditAppointmentForm
+            editForm={editForm}
+            setEditForm={setEditForm}
+            editError={editError}
+            teamMembers={teamMembers}
+            onCancel={() => { setEditing(false); setEditForm(null); setEditError(''); }}
+            onSave={handleEditSave}
+            isPending={updateAppointment.isPending}
+          />
+        )}
+      </Modal>
+
+      {/* Drag confirm modal */}
+      <Modal open={!!dragPending} onClose={() => setDragPending(null)} title="Move Appointment">
+        {dragPending && (
+          <div className="space-y-4">
+            <p className="text-sm text-espresso">
+              Move <span className="font-semibold">{dragPending.appointment.user?.name}</span>'s appointment to{' '}
+              <span className="font-semibold">{format(dragPending.newStart, 'EEEE, MMM d · h:mm a')}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setDragPending(null)}>Cancel</Button>
+              <Button onClick={confirmDrag}>Confirm</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Send Update prompt */}
+      <Modal open={!!notifyPrompt} onClose={() => setNotifyPrompt(null)} title="Send Update to Client?">
+        <div className="space-y-4">
+          <p className="text-sm text-espresso">
+            Would you like to notify the client about this change? They will be notified through their preferred channel (app, email, or SMS).
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => handleNotifyDecision(false)} loading={updateAppointment.isPending}>
+              Do Not Send Update
+            </Button>
+            <Button onClick={() => handleNotifyDecision(true)} loading={updateAppointment.isPending}>
+              Send Update
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, onCancel, onSave, isPending }: {
+  editForm: any;
+  setEditForm: (fn: any) => void;
+  editError: string;
+  teamMembers: any;
+  onCancel: () => void;
+  onSave: () => void;
+  isPending: boolean;
+}) {
+  // Load dogs for the client
+  const { data: clientDetail } = useQuery({
+    queryKey: ['admin-client-dogs', editForm.user_id],
+    queryFn: () => api.get(`/admin/clients/${editForm.user_id}`).then(r => r.data.data),
+    enabled: !!editForm.user_id,
+  });
+  const clientDogs: any[] = (clientDetail?.dogs ?? []).filter((d: any) => d.is_active);
+
+  const toggleDog = (dogId: number) => {
+    setEditForm((f: any) => ({
+      ...f,
+      dog_ids: f.dog_ids.includes(dogId)
+        ? f.dog_ids.filter((id: number) => id !== dogId)
+        : [...f.dog_ids, dogId],
+    }));
+  };
+
+  const dateStr = editForm.scheduled_time ? editForm.scheduled_time.substring(0, 10) : '';
+  const timeStr = editForm.scheduled_time ? editForm.scheduled_time.substring(11, 16) || '' : '';
+
+  return (
+    <div className="space-y-4">
+      {/* Dogs */}
+      {clientDogs.length > 0 && (
+        <div>
+          <label className="label">Dogs</label>
+          <div className="flex gap-2 flex-wrap">
+            {clientDogs.map((d: any) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => toggleDog(d.id)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                  editForm.dog_ids.includes(d.id)
+                    ? 'bg-espresso text-cream border-espresso'
+                    : 'border-taupe text-espresso hover:bg-cream'
+                }`}
+              >
+                {d.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Team member */}
+      <div>
+        <label className="label">Team Member</label>
+        <select
+          className="input"
+          value={editForm.assigned_to}
+          onChange={e => setEditForm((f: any) => ({ ...f, assigned_to: e.target.value }))}
+        >
+          <option value="">— Unassigned —</option>
+          {(teamMembers ?? []).map((m: any) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Service type */}
+        <div>
+          <label className="label">Service</label>
+          <select
+            className="input"
+            value={editForm.service_type}
+            onChange={e => {
+              const svc = SERVICE_TYPES.find(s => s.value === e.target.value)!;
+              setEditForm((f: any) => ({ ...f, service_type: e.target.value, duration_minutes: svc.defaultDuration || f.duration_minutes }));
+            }}
+          >
+            {SERVICE_TYPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
+
+        {/* Duration */}
+        <div>
+          <label className="label">Duration</label>
+          {(() => {
+            const svc = SERVICE_TYPES.find(s => s.value === editForm.service_type)!;
+            const durations = svc.durations;
+            const isFixed = durations.length === 1 && svc.value !== 'custom';
+            return (
+              <select
+                className="input"
+                value={editForm.duration_minutes}
+                disabled={isFixed}
+                onChange={e => setEditForm((f: any) => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
+              >
+                {durations.map((d: number) => (
+                  <option key={d} value={d}>{formatDuration(d)}</option>
+                ))}
+              </select>
+            );
+          })()}
+        </div>
+
+        {/* Date */}
+        <div>
+          <label className="label">Date</label>
+          <input
+            type="date"
+            className="input"
+            min={format(new Date(), 'yyyy-MM-dd')}
+            value={dateStr}
+            onChange={e => {
+              const time = timeStr || '09:00';
+              setEditForm((f: any) => ({ ...f, scheduled_time: `${e.target.value}T${time}` }));
+            }}
+          />
+        </div>
+
+        {/* Time */}
+        <div>
+          <label className="label">Time</label>
+          <select
+            className="input"
+            value={timeStr}
+            onChange={e => {
+              const date = dateStr;
+              setEditForm((f: any) => ({ ...f, scheduled_time: `${date}T${e.target.value}` }));
+            }}
+          >
+            <option value="" disabled>Select time</option>
+            {TIME_SLOTS.map(t => (
+              <option key={t} value={t}>{formatTime12(t)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="label">Notes</label>
+        <textarea
+          rows={2}
+          className="input resize-none"
+          value={editForm.notes}
+          onChange={e => setEditForm((f: any) => ({ ...f, notes: e.target.value }))}
+          placeholder="Any special instructions…"
+        />
+      </div>
+
+      {editError && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{editError}</p>
+      )}
+
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button
+          loading={isPending}
+          disabled={editForm.dog_ids.length === 0 || !editForm.scheduled_time || isBefore(new Date(editForm.scheduled_time), new Date())}
+          onClick={onSave}
+        >
+          Save Changes
+        </Button>
+      </div>
     </div>
   );
 }

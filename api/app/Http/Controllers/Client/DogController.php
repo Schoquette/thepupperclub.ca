@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Models\Conversation;
 use App\Models\Dog;
+use App\Models\User;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DogController extends Controller
 {
@@ -45,7 +49,46 @@ class DogController extends Controller
         $diff = $this->computeDiff($oldData, $dog->fresh()->toArray());
         $this->adminNotifications->dogUpdated($request->user(), $dog, $diff);
 
+        // Send a notification message in the conversation so the walker sees the changes
+        if (!empty($diff)) {
+            $this->sendChangeNotification($request->user(), $dog, $diff);
+        }
+
         return response()->json(['data' => $dog->fresh()]);
+    }
+
+    public function uploadPhoto(Request $request, Dog $dog): JsonResponse
+    {
+        abort_unless($dog->user_id === $request->user()->id, 403);
+
+        $request->validate(['photo' => 'required|image|max:10240']);
+
+        if ($dog->photo_path) {
+            Storage::disk('local')->delete($dog->photo_path);
+        }
+
+        $path = $request->file('photo')->store("dogs/{$dog->id}", 'local');
+        $dog->update(['photo_path' => $path]);
+
+        return response()->json(['data' => $dog->fresh(), 'message' => 'Photo uploaded.']);
+    }
+
+    public function servePhoto(Dog $dog): StreamedResponse
+    {
+        abort_unless($dog->photo_path && Storage::disk('local')->exists($dog->photo_path), 404);
+        return Storage::disk('local')->response($dog->photo_path);
+    }
+
+    public function deletePhoto(Request $request, Dog $dog): JsonResponse
+    {
+        abort_unless($dog->user_id === $request->user()->id, 403);
+
+        if ($dog->photo_path) {
+            Storage::disk('local')->delete($dog->photo_path);
+            $dog->update(['photo_path' => null]);
+        }
+
+        return response()->json(['message' => 'Photo removed.']);
     }
 
     public function documents(Request $request): JsonResponse
@@ -105,6 +148,49 @@ class DogController extends Controller
             'vet_address'        => 'sometimes|nullable|string',
             'medications'        => 'sometimes|nullable|array',
             'special_instructions' => 'sometimes|nullable|string',
+        ]);
+    }
+
+    private function sendChangeNotification(User $client, Dog $dog, array $diff): void
+    {
+        $lines = [];
+        $fieldLabels = [
+            'name' => 'Name', 'breed' => 'Breed', 'size' => 'Size', 'sex' => 'Sex',
+            'weight_kg' => 'Weight', 'colour' => 'Colour', 'date_of_birth' => 'Date of Birth',
+            'microchip_number' => 'Microchip', 'spayed_neutered' => 'Spayed/Neutered',
+            'vet_name' => 'Vet Name', 'vet_phone' => 'Vet Phone', 'vet_address' => 'Vet Address',
+            'special_instructions' => 'Special Instructions', 'medications' => 'Medications',
+            'bite_history' => 'Bite History', 'bite_history_notes' => 'Bite History Notes',
+            'aggression_notes' => 'Aggression Notes',
+        ];
+
+        foreach ($diff as $field => $change) {
+            $label = $fieldLabels[$field] ?? str_replace('_', ' ', ucfirst($field));
+            $from  = $change['from'];
+            $to    = $change['to'];
+
+            if (is_bool($from) || is_bool($to)) {
+                $from = $from ? 'Yes' : 'No';
+                $to   = $to   ? 'Yes' : 'No';
+            } elseif (is_array($from) || is_array($to)) {
+                $from = is_array($from) ? implode(', ', array_column($from, 'name')) : ($from ?? '—');
+                $to   = is_array($to)   ? implode(', ', array_column($to, 'name'))   : ($to ?? '—');
+            }
+
+            $lines[] = "{$label}: " . ($from ?: '—') . " → " . ($to ?: '—');
+        }
+
+        $body = "{$client->name} updated {$dog->name}'s profile:\n" . implode("\n", $lines);
+
+        $conversation = Conversation::firstOrCreate(['user_id' => $client->id]);
+        $conversation->messages()->create([
+            'sender_id' => $client->id,
+            'type'      => 'notification',
+            'body'      => $body,
+            'metadata'  => [
+                'title'      => "Dog Profile Updated — {$dog->name}",
+                'dog_update' => true,
+            ],
         ]);
     }
 

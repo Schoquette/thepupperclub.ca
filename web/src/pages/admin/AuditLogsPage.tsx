@@ -6,26 +6,30 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 
 const MODEL_LABELS: Record<string, string> = {
-  'App\\Models\\User':              'User',
-  'App\\Models\\Dog':               'Dog',
-  'App\\Models\\ClientProfile':     'Profile',
-  'App\\Models\\HomeAccess':        'Home Access',
-  'App\\Models\\Appointment':       'Appointment',
-  'App\\Models\\Invoice':           'Invoice',
-  'App\\Models\\ServiceRequest':    'Service Request',
-  'App\\Models\\VaccinationRecord': 'Vaccination',
+  'User':              'User',
+  'Dog':               'Dog',
+  'ClientProfile':     'Profile',
+  'HomeAccess':        'Home Access',
+  'Appointment':       'Appointment',
+  'Invoice':           'Invoice',
+  'ServiceRequest':    'Service Request',
+  'VaccinationRecord': 'Vaccination',
 };
 
 function modelLabel(type: string): string {
-  return MODEL_LABELS[type] ?? type.split('\\').pop() ?? type;
+  // Handle both short names and full namespaces
+  const short = type.includes('\\') ? type.split('\\').pop()! : type;
+  return MODEL_LABELS[short] ?? short;
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  created:  'bg-green-50 text-green-700',
-  updated:  'bg-blue-50 text-blue-700',
-  deleted:  'bg-red-50 text-red-600',
-  login:    'bg-cream text-taupe',
-  logout:   'bg-cream text-taupe',
+  created:        'bg-green-50 text-green-700',
+  updated:        'bg-blue-50 text-blue-700',
+  deleted:        'bg-red-50 text-red-600',
+  login:          'bg-cream text-taupe',
+  logout:         'bg-cream text-taupe',
+  password_reset: 'bg-amber-50 text-amber-700',
+  invite_sent:    'bg-purple-50 text-purple-700',
 };
 
 export default function AdminAuditLogsPage() {
@@ -73,7 +77,7 @@ export default function AdminAuditLogsPage() {
         >
           <option value="">All models</option>
           {Object.entries(MODEL_LABELS).map(([k, v]) => (
-            <option key={k} value={v}>{v}</option>
+            <option key={k} value={k}>{v}</option>
           ))}
         </select>
       </div>
@@ -122,10 +126,16 @@ export default function AdminAuditLogsPage() {
                         <div className="text-xs text-taupe space-y-0.5">
                           {Object.entries(log.changed_fields).slice(0, 4).map(([k, v]: any) => (
                             <div key={k}>
-                              <span className="font-medium text-espresso">{k}:</span>{' '}
-                              <span className="text-taupe/80">
-                                {typeof v === 'object' ? JSON.stringify(v) : String(v ?? '—')}
-                              </span>
+                              <span className="font-medium text-espresso">{k.replace(/_/g, ' ')}:</span>{' '}
+                              {v && typeof v === 'object' && 'from' in v ? (
+                                <span className="text-taupe/80">
+                                  <span className="line-through">{String(v.from ?? '—')}</span>
+                                  {' → '}
+                                  <span className="font-medium">{String(v.to ?? '—')}</span>
+                                </span>
+                              ) : (
+                                <span className="text-taupe/80">{String(v ?? '—')}</span>
+                              )}
                             </div>
                           ))}
                           {Object.keys(log.changed_fields).length > 4 && (

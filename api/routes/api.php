@@ -17,7 +17,12 @@ Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 Route::post('/webhooks/stripe',     [StripeWebhookController::class, 'handle']);
+Route::post('/webhooks/email',      [\App\Http\Controllers\InboundEmailController::class, 'handle']);
 Route::post('/contact',             [ContactController::class, 'submit']);
+
+// Public inline images (must be accessible for emails)
+Route::get('/admin/broadcast-images/{filename}', [Admin\NotificationController::class, 'serveInlineImage'])
+    ->where('filename', '[a-zA-Z0-9_\-\.]+');
 
 // Document signing (token-based, no auth required)
 Route::get('/signing/{token}',          [\App\Http\Controllers\SigningController::class, 'show']);
@@ -49,6 +54,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/clients/{client}/documents',       [Admin\ClientController::class, 'documents']);
         Route::post('/clients/{client}/documents',      [Admin\ClientController::class, 'uploadDocument']);
         Route::delete('/clients/{client}/documents/{document}', [Admin\ClientController::class, 'deleteDocument']);
+        Route::post('/clients/{client}/subscribe',            [Admin\ClientController::class, 'subscribe']);
+        Route::post('/clients/{client}/cancel-subscription',  [Admin\ClientController::class, 'cancelSubscription']);
+        Route::post('/clients/{client}/pause-subscription',  [Admin\ClientController::class, 'pauseSubscription']);
+        Route::post('/clients/{client}/resume-subscription', [Admin\ClientController::class, 'resumeSubscription']);
+        Route::get('/clients/{client}/subscription-history', [Admin\ClientController::class, 'subscriptionHistory']);
 
         // Intake form
         Route::get('/clients/{client}/intake',           [IntakeController::class, 'show']);
@@ -58,6 +68,21 @@ Route::middleware('auth:sanctum')->group(function () {
         // Document signing
         Route::post('/clients/{client}/documents/{document}/request-signature', [\App\Http\Controllers\SigningController::class, 'request']);
         Route::get('/clients/{client}/documents/{document}/certificate',         [\App\Http\Controllers\SigningController::class, 'certificate']);
+
+        // Document Templates
+        Route::get('/document-templates',                        [Admin\DocumentTemplateController::class, 'index']);
+        Route::post('/document-templates',                       [Admin\DocumentTemplateController::class, 'store']);
+        Route::get('/document-templates/{template}',             [Admin\DocumentTemplateController::class, 'show']);
+        Route::patch('/document-templates/{template}',           [Admin\DocumentTemplateController::class, 'update']);
+        Route::delete('/document-templates/{template}',          [Admin\DocumentTemplateController::class, 'destroy']);
+        Route::get('/document-templates/{template}/pdf',         [Admin\DocumentTemplateController::class, 'servePdf']);
+        Route::put('/document-templates/{template}/fields',      [Admin\DocumentTemplateController::class, 'saveFields']);
+        Route::post('/document-templates/{template}/use',        [Admin\DocumentTemplateController::class, 'useTemplate']);
+
+        // Admin document management
+        Route::get('/documents',                                 [Admin\DocumentTemplateController::class, 'adminIndex']);
+        Route::patch('/documents/{document}/field-values',       [Admin\DocumentTemplateController::class, 'updateFieldValues']);
+        Route::post('/documents/{document}/send',                [Admin\DocumentTemplateController::class, 'sendForSigning']);
 
         // Dogs
         Route::get('/dogs',         [Admin\DogController::class, 'index']);
@@ -81,7 +106,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Service requests
         Route::get('/service-requests',               [Admin\ServiceRequestController::class, 'index']);
-        Route::patch('/service-requests/{request}',   [Admin\ServiceRequestController::class, 'update']);
+        Route::patch('/service-requests/{serviceRequest}', [Admin\ServiceRequestController::class, 'update']);
 
         // Invoices
         // Stripe
@@ -92,9 +117,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/invoices',                  [Admin\InvoiceController::class, 'store']);
         Route::get('/invoices/{invoice}',         [Admin\InvoiceController::class, 'show']);
         Route::patch('/invoices/{invoice}',       [Admin\InvoiceController::class, 'update']);
-        Route::post('/invoices/{invoice}/mark-paid', [Admin\InvoiceController::class, 'markPaid']);
-        Route::post('/invoices/{invoice}/send',   [Admin\InvoiceController::class, 'send']);
-        Route::get('/invoices/{invoice}/pdf',     [Admin\InvoiceController::class, 'pdf']);
+        Route::post('/invoices/{invoice}/mark-paid',  [Admin\InvoiceController::class, 'markPaid']);
+        Route::post('/invoices/{invoice}/void',      [Admin\InvoiceController::class, 'void']);
+        Route::post('/invoices/{invoice}/discount',  [Admin\InvoiceController::class, 'applyDiscount']);
+        Route::post('/invoices/{invoice}/send',      [Admin\InvoiceController::class, 'send']);
+        Route::post('/invoices/{invoice}/resend',   [Admin\InvoiceController::class, 'resend']);
+        Route::post('/invoices/{invoice}/reminder', [Admin\InvoiceController::class, 'sendReminder']);
+        Route::get('/invoices/{invoice}/pdf',       [Admin\InvoiceController::class, 'pdf']);
 
         // Report cards
         Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
@@ -104,14 +133,26 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/report-cards/{reportCard}',                [AdminReportCardController::class, 'destroy']);
         Route::post('/report-cards/{reportCard}/send',             [AdminReportCardController::class, 'send']);
         Route::get('/report-cards/{reportCard}/photos/{index}',      [AdminReportCardController::class, 'servePhoto']);
-        Route::delete('/report-cards/{reportCard}/photos',         [AdminReportCardController::class, 'deletePhoto']);
+        Route::delete('/report-cards/{reportCard}/photos',                  [AdminReportCardController::class, 'deletePhoto']);
+        Route::delete('/report-cards/{reportCard}/comments/{comment}',     [AdminReportCardController::class, 'deleteComment']);
         Route::get('/clients/{client}/report-template',            [AdminReportCardController::class, 'getTemplate']);
         Route::put('/clients/{client}/report-template',            [AdminReportCardController::class, 'saveTemplate']);
         Route::delete('/clients/{client}/report-template',         [AdminReportCardController::class, 'resetTemplate']);
 
-        // Notifications
-        Route::post('/notifications/broadcast',   [Admin\NotificationController::class, 'broadcast']);
+        // Notifications & Broadcast
+        Route::post('/notifications/broadcast',       [Admin\NotificationController::class, 'broadcast']);
+        Route::post('/notifications/preview',        [Admin\NotificationController::class, 'preview']);
+        Route::post('/notifications/inline-image',   [Admin\NotificationController::class, 'uploadInlineImage']);
         Route::get('/notifications/history',      [Admin\NotificationController::class, 'history']);
+        Route::get('/system-templates',                [Admin\NotificationController::class, 'systemTemplates']);
+        Route::get('/system-templates/{key}/preview',  [Admin\NotificationController::class, 'systemTemplatePreview']);
+        Route::put('/system-templates/{key}',          [Admin\NotificationController::class, 'updateSystemTemplate']);
+        Route::delete('/system-templates/{key}',       [Admin\NotificationController::class, 'resetSystemTemplate']);
+        Route::get('/broadcast-templates',        [Admin\NotificationController::class, 'templates']);
+        Route::post('/broadcast-templates',       [Admin\NotificationController::class, 'storeTemplate']);
+        Route::patch('/broadcast-templates/{id}', [Admin\NotificationController::class, 'updateTemplate']);
+        Route::delete('/broadcast-templates/{id}',[Admin\NotificationController::class, 'destroyTemplate']);
+        Route::get('/broadcast-attachments/{path}', [Admin\NotificationController::class, 'serveAttachment'])->where('path', '.*');
 
         // Vaccination records
         Route::get('/dogs/{dog}/vaccinations',              [Admin\VaccinationController::class, 'index']);
@@ -128,6 +169,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Time & Mileage
         Route::get('/time-mileage',              [Admin\TimeMileageController::class, 'report']);
         Route::post('/time-mileage/estimate',    [Admin\TimeMileageController::class, 'mileageEstimate']);
+
+        // Report exports
+        Route::get('/reports/export',        [Admin\ReportExportController::class, 'export']);
+        Route::get('/reports/walk-history',  [Admin\ReportExportController::class, 'walkHistory']);
+        Route::get('/reports/billing',       [Admin\ReportExportController::class, 'billingHistory']);
 
         // Audit logs
         Route::get('/audit-logs', [Admin\AuditLogController::class, 'index']);
@@ -146,6 +192,12 @@ Route::middleware('auth:sanctum')->group(function () {
         // Profile
         Route::get('/profile',                       [Client\ProfileController::class, 'show']);
         Route::patch('/profile',                     [Client\ProfileController::class, 'update']);
+        Route::post('/profile/confirm',              [Client\ProfileController::class, 'confirm']);
+
+        // Client-side intake form
+        Route::get('/intake',                        [Client\IntakeController::class, 'show']);
+        Route::put('/intake',                        [Client\IntakeController::class, 'save']);
+        Route::post('/intake/submit',                [Client\IntakeController::class, 'submit']);
         Route::get('/home-access',                   [Client\ProfileController::class, 'homeAccess']);
         Route::patch('/home-access',                 [Client\ProfileController::class, 'updateHomeAccess']);
 
@@ -153,18 +205,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dogs',                          [Client\DogController::class, 'index']);
         Route::post('/dogs',                         [Client\DogController::class, 'store']);
         Route::patch('/dogs/{dog}',                  [Client\DogController::class, 'update']);
+        Route::post('/dogs/{dog}/photo',             [Client\DogController::class, 'uploadPhoto']);
+        Route::get('/dogs/{dog}/photo',              [Client\DogController::class, 'servePhoto']);
+        Route::delete('/dogs/{dog}/photo',           [Client\DogController::class, 'deletePhoto']);
         Route::get('/documents',                     [Client\DogController::class, 'documents']);
         Route::post('/documents',                    [Client\DogController::class, 'uploadDocument']);
 
         // Appointments & Service Requests
-        Route::get('/appointments',                  [Client\AppointmentController::class, 'index']);
+        Route::get('/appointments',                                      [Client\AppointmentController::class, 'index']);
+        Route::post('/appointments/{appointment}/cancel',                [Client\AppointmentController::class, 'cancel']);
+        Route::post('/appointments/{appointment}/request-time-change',   [Client\AppointmentController::class, 'requestTimeChange']);
+        Route::post('/appointments/{appointment}/request-extension',     [Client\AppointmentController::class, 'requestExtension']);
+        Route::post('/appointments/{appointment}/request-special-service', [Client\AppointmentController::class, 'requestSpecialService']);
         Route::get('/service-requests',              [Client\AppointmentController::class, 'serviceRequests']);
         Route::post('/service-requests',             [Client\AppointmentController::class, 'storeServiceRequest']);
 
         // Report cards
         Route::get('/report-cards',                          [ClientReportCardController::class, 'index']);
         Route::get('/report-cards/{reportCard}',             [ClientReportCardController::class, 'show']);
-        Route::get('/report-cards/{reportCard}/photos/{index}', [ClientReportCardController::class, 'servePhoto']);
+        Route::get('/report-cards/{reportCard}/photos/{index}',              [ClientReportCardController::class, 'servePhoto']);
+        Route::post('/report-cards/{reportCard}/comments',                   [ClientReportCardController::class, 'postComment']);
+        Route::delete('/report-cards/{reportCard}/comments/{comment}',       [ClientReportCardController::class, 'deleteComment']);
+        Route::post('/report-cards/{reportCard}/change-request',             [ClientReportCardController::class, 'submitChangeRequest']);
 
         // Invoices
         Route::get('/invoices',                      [Client\InvoiceController::class, 'index']);
@@ -186,5 +248,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/messages/{message}',                                  [ConversationController::class, 'editMessage']);
     Route::delete('/messages/{message}',                                 [ConversationController::class, 'deleteMessage']);
     Route::get('/messages/{message}/photo',                              [ConversationController::class, 'servePhoto']);
+    Route::get('/messages/{message}/attachment/{index}',                  [ConversationController::class, 'serveMessageAttachment']);
     Route::post('/messages/{message}/reactions',                         [ConversationController::class, 'toggleReaction']);
 });

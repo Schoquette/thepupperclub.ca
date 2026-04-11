@@ -17,6 +17,11 @@ class ClientDocument extends Model
         'size_bytes',
         'storage_path',
         'uploaded_by',
+        'template_id',
+        'status',
+        'field_values',
+        'sent_at',
+        'expires_at',
         'signature_requested_at',
         'signature_token',
         'signed_at',
@@ -31,6 +36,9 @@ class ClientDocument extends Model
         return [
             'signature_requested_at' => 'datetime',
             'signed_at'              => 'datetime',
+            'sent_at'                => 'datetime',
+            'expires_at'             => 'datetime',
+            'field_values'           => 'array',
         ];
     }
 
@@ -47,5 +55,10 @@ class ClientDocument extends Model
     public function dog(): BelongsTo
     {
         return $this->belongsTo(Dog::class);
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(DocumentTemplate::class, 'template_id');
     }
 }

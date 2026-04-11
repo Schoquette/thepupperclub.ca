@@ -8,13 +8,13 @@ import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import type { DashboardSummary, Appointment } from '@pupper/shared';
 import { format } from 'date-fns';
+import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle } from 'lucide-react';
+import { PawIcon } from '@/components/ui/PawIcon';
 
 const TIME_BLOCK_LABELS = {
   early_morning: '7–10 AM', morning: '9–12 PM', midday: '11 AM–2 PM',
   afternoon: '2–5 PM', evening: '5–8 PM',
 };
-
-const MOOD_EMOJI = { great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒' };
 
 function WalkCard({ appointment }: { appointment: Appointment }) {
   const navigate = useNavigate();
@@ -35,8 +35,8 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
         <Badge variant={statusBadge(appointment.status)}>{appointment.status.replace('_', ' ')}</Badge>
       </div>
       <div className="flex items-center gap-4 text-sm text-taupe">
-        <span>⏰ {TIME_BLOCK_LABELS[appointment.client_time_block]}</span>
-        <span>🐕 {appointment.service_type.replace('_', ' ')}</span>
+        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {TIME_BLOCK_LABELS[appointment.client_time_block]}</span>
+        <span className="flex items-center gap-1"><Dog className="w-3.5 h-3.5" /> {appointment.service_type.replace('_', ' ')}</span>
       </div>
       {!isDone && (
         <div className="flex gap-2 mt-1">
@@ -62,7 +62,7 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
       )}
       {isDone && appointment.visitReport && (
         <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg px-3 py-1.5">
-          <span>{MOOD_EMOJI[(appointment as any).visitReport?.mood || 'good']}</span>
+          <CheckCircle className="w-4 h-4" />
           <span>Visit complete</span>
         </div>
       )}
@@ -91,13 +91,13 @@ export default function AdminDashboardPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Today's Walks",    value: data?.todays_appointments.length ?? 0, icon: '🐕', color: 'text-gold' },
-          { label: 'Pending Requests', value: data?.pending_service_requests ?? 0,    icon: '📋', color: 'text-blue' },
-          { label: 'Unread Messages',  value: data?.unread_messages ?? 0,             icon: '💬', color: 'text-espresso' },
-          { label: 'Outstanding',      value: `$${Number(data?.outstanding_total ?? 0).toFixed(0)}`, icon: '💰', color: 'text-gold' },
+          { label: "Today's Walks",    value: data?.todays_appointments.length ?? 0, Icon: PawIcon,       color: 'text-gold' },
+          { label: 'Pending Requests', value: data?.pending_service_requests ?? 0,    Icon: ClipboardList, color: 'text-blue' },
+          { label: 'Unread Messages',  value: data?.unread_messages ?? 0,             Icon: MessageCircle, color: 'text-espresso' },
+          { label: 'Outstanding',      value: `$${Number(data?.outstanding_total ?? 0).toFixed(0)}`, Icon: DollarSign, color: 'text-gold' },
         ].map(stat => (
           <Card key={stat.label} padding="sm">
-            <div className="text-2xl mb-1">{stat.icon}</div>
+            <stat.Icon className="w-6 h-6 text-taupe mb-1" />
             <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
             <div className="text-xs text-taupe mt-0.5">{stat.label}</div>
           </Card>
@@ -128,7 +128,7 @@ export default function AdminDashboardPage() {
         <h2 className="font-display text-lg text-espresso mb-4">Today's Walks</h2>
         {data?.todays_appointments.length === 0 ? (
           <Card>
-            <p className="text-center text-taupe py-8">No walks scheduled for today 🌟</p>
+            <p className="text-center text-taupe py-8">No walks scheduled for today.</p>
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">

@@ -31,7 +31,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="text-center mb-10">
-          <div className="text-4xl mb-3">🐾</div>
+          <img src="/logo.png" alt="The Pupper Club" className="w-16 h-16 object-contain mx-auto mb-3" />
           <h1 className="font-display text-3xl text-espresso tracking-wide">THE PUPPER CLUB</h1>
           <p className="text-taupe mt-1 text-sm">Sign in to your account</p>
         </div>

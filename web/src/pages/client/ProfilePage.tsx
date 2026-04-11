@@ -5,17 +5,19 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+import { CheckCircle } from 'lucide-react';
 
 export default function ClientProfilePage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['client-profile'],
     queryFn: () => api.get('/client/profile').then(r => r.data.data),
   });
 
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<Record<string, any>>({});
 
   const update = useMutation({
     mutationFn: () => api.patch('/client/profile', form),
@@ -25,13 +27,44 @@ export default function ClientProfilePage() {
     },
   });
 
+  const confirmProfile = useMutation({
+    mutationFn: () => api.post('/client/profile/confirm'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-profile'] });
+      setConfirmed(true);
+    },
+  });
+
   if (isLoading) return <PageLoader />;
 
   const p = profile?.client_profile ?? {};
+  const needsConfirmation = !p.profile_confirmed_at;
+  const hasIntake = !!p.intake_submitted_at;
+  const needsReview = needsConfirmation && hasIntake;
+
+  if (confirmed) {
+    return (
+      <div className="text-center py-16 space-y-4">
+        <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+        <h1 className="font-display text-2xl text-espresso">Profile Confirmed!</h1>
+        <p className="text-taupe">Thank you for reviewing your profile. You're all set!</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <h1 className="font-display text-xl text-espresso">My Profile</h1>
+
+      {/* Review banner — shown when admin has submitted intake but client hasn't confirmed */}
+      {needsReview && (
+        <div className="bg-gold/5 border border-gold/20 rounded-xl p-4">
+          <div className="font-semibold text-espresso text-sm">Please review your profile</div>
+          <p className="text-xs text-taupe mt-1">
+            Sophie has filled out your profile based on your intake form. Please review the information below, make any corrections, and click Confirm when everything looks good.
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader
@@ -53,6 +86,15 @@ export default function ClientProfilePage() {
                   postal_code: p.postal_code ?? '',
                   emergency_contact_name: p.emergency_contact_name ?? '',
                   emergency_contact_phone: p.emergency_contact_phone ?? '',
+                  secondary_contact_name: p.secondary_contact_name ?? '',
+                  secondary_contact_email: p.secondary_contact_email ?? '',
+                  secondary_contact_phone: p.secondary_contact_phone ?? '',
+                  notify_app: p.notify_app ?? true,
+                  notify_email: p.notify_email ?? false,
+                  notify_sms: p.notify_sms ?? false,
+                  secondary_notify_app: p.secondary_notify_app ?? false,
+                  secondary_notify_email: p.secondary_notify_email ?? false,
+                  secondary_notify_sms: p.secondary_notify_sms ?? false,
                 });
                 setEditing(true);
               }}>
@@ -78,27 +120,164 @@ export default function ClientProfilePage() {
                 <Input label="Phone" value={form.emergency_contact_phone} onChange={e => setForm(f => ({ ...f, emergency_contact_phone: e.target.value }))} />
               </div>
             </div>
+
+            <div className="pt-2 border-t border-cream">
+              <p className="text-sm font-semibold text-espresso mb-3">Secondary Contact</p>
+              <div className="space-y-3">
+                <Input label="Name" value={form.secondary_contact_name} onChange={e => setForm(f => ({ ...f, secondary_contact_name: e.target.value }))} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Phone" value={form.secondary_contact_phone} onChange={e => setForm(f => ({ ...f, secondary_contact_phone: e.target.value }))} />
+                  <Input label="Email" type="email" value={form.secondary_contact_email} onChange={e => setForm(f => ({ ...f, secondary_contact_email: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+
+            {/* Notification Preferences */}
+            <div className="pt-2 border-t border-cream">
+              <p className="text-sm font-semibold text-espresso mb-1">Notification Preferences</p>
+              <p className="text-xs text-taupe mb-4">Choose how each contact receives updates about appointments, messages, and more.</p>
+
+              <div className="grid grid-cols-2 gap-6">
+                {/* Primary */}
+                <div>
+                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Primary Contact</p>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'notify_app', label: 'App notifications' },
+                      { key: 'notify_email', label: 'Email' },
+                      { key: 'notify_sms', label: 'Text message (SMS)' },
+                    ].map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
+                        <input
+                          type="checkbox"
+                          checked={!!form[key]}
+                          onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
+                          className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                        />
+                        <span className="text-sm text-espresso">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Secondary */}
+                <div>
+                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Secondary Contact</p>
+                  <div className="space-y-2">
+                    {[
+                      { key: 'secondary_notify_app', label: 'App notifications' },
+                      { key: 'secondary_notify_email', label: 'Email' },
+                      { key: 'secondary_notify_sms', label: 'Text message (SMS)' },
+                    ].map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
+                        <input
+                          type="checkbox"
+                          checked={!!form[key]}
+                          onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
+                          className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                        />
+                        <span className="text-sm text-espresso">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
-          <dl className="space-y-3 text-sm">
-            {[
-              ['Name', profile?.name],
-              ['Phone', p.phone],
-              ['Address', p.address],
-              ['City', p.city],
-              ['Province', p.province],
-              ['Postal Code', p.postal_code],
-              ['Emergency Contact', p.emergency_contact_name],
-              ['Emergency Phone', p.emergency_contact_phone],
-            ].map(([label, value]) => (
-              <div key={String(label)} className="flex justify-between">
-                <dt className="text-taupe">{label}</dt>
-                <dd className="text-espresso font-medium">{value || '—'}</dd>
+          <div className="space-y-4">
+            <dl className="space-y-3 text-sm">
+              {[
+                ['Name', profile?.name],
+                ['Phone', p.phone],
+                ['Address', p.address],
+                ['City', p.city],
+                ['Province', p.province],
+                ['Postal Code', p.postal_code],
+                ['Emergency Contact', p.emergency_contact_name],
+                ['Emergency Phone', p.emergency_contact_phone],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="flex justify-between">
+                  <dt className="text-taupe">{label}</dt>
+                  <dd className="text-espresso font-medium">{value || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {/* Secondary contact */}
+            {(p.secondary_contact_name || p.secondary_contact_phone || p.secondary_contact_email) && (
+              <div className="pt-3 border-t border-cream">
+                <p className="text-sm font-semibold text-espresso mb-2">Secondary Contact</p>
+                <dl className="space-y-3 text-sm">
+                  {[
+                    ['Name', p.secondary_contact_name],
+                    ['Phone', p.secondary_contact_phone],
+                    ['Email', p.secondary_contact_email],
+                  ].map(([label, value]) => value ? (
+                    <div key={String(label)} className="flex justify-between">
+                      <dt className="text-taupe">{label}</dt>
+                      <dd className="text-espresso font-medium">{value}</dd>
+                    </div>
+                  ) : null)}
+                </dl>
               </div>
-            ))}
-          </dl>
+            )}
+
+            {/* Read-only notification preferences */}
+            <div className="pt-3 border-t border-cream">
+              <p className="text-sm font-semibold text-espresso mb-3">Notification Preferences</p>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Primary Contact</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(p.notify_app ?? true) && (
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>
+                    )}
+                    {!!p.notify_email && (
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>
+                    )}
+                    {!!p.notify_sms && (
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>
+                    )}
+                    {!(p.notify_app ?? true) && !p.notify_email && !p.notify_sms && (
+                      <span className="text-xs text-taupe">None selected</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Secondary Contact</p>
+                  <div className="flex flex-wrap gap-2">
+                    {!!p.secondary_notify_app && (
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>
+                    )}
+                    {!!p.secondary_notify_email && (
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>
+                    )}
+                    {!!p.secondary_notify_sms && (
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>
+                    )}
+                    {!p.secondary_notify_app && !p.secondary_notify_email && !p.secondary_notify_sms && (
+                      <span className="text-xs text-taupe">None selected</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </Card>
+
+      {/* Confirm button — shown when admin submitted intake but client hasn't confirmed */}
+      {needsReview && !editing && (
+        <div className="flex justify-end gap-3">
+          <Button
+            loading={confirmProfile.isPending}
+            onClick={() => confirmProfile.mutate()}
+          >
+            Confirm Profile
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

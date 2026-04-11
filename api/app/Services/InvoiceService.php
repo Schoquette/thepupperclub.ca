@@ -10,17 +10,41 @@ use Stripe\Stripe;
 
 class InvoiceService
 {
+    private const METHOD_LABELS = [
+        'credit_card' => 'Credit Card',
+        'e_transfer'  => 'E-Transfer',
+        'interac_pad' => 'Interac/PAD',
+        'cash'        => 'Cash',
+    ];
     private const GST_RATE       = 0.05;
-    private const CC_SURCHARGE   = 0.029;
+    private const CC_SURCHARGE   = 0.02;
 
-    public function create(User $client, array $lineItems, ?string $dueDate = null, ?string $notes = null): Invoice
-    {
+    public function create(
+        User $client,
+        array $lineItems,
+        ?string $dueDate = null,
+        ?string $notes = null,
+        ?bool $applyCcSurcharge = null,
+        ?string $billingPeriodStart = null,
+        ?string $billingPeriodEnd = null,
+    ): Invoice {
+        $billingMethod = $client->clientProfile?->billing_method ?? 'credit_card';
+
+        // Auto-apply CC surcharge if billing method is credit_card (unless explicitly overridden)
+        if ($applyCcSurcharge === null) {
+            $applyCcSurcharge = $billingMethod === 'credit_card';
+        }
+
         $invoice = Invoice::create([
-            'user_id'        => $client->id,
-            'invoice_number' => Invoice::generateNumber(),
-            'status'         => 'draft',
-            'due_date'       => $dueDate,
-            'notes'          => $notes,
+            'user_id'              => $client->id,
+            'invoice_number'       => Invoice::generateNumber(),
+            'status'               => 'draft',
+            'due_date'             => $dueDate,
+            'notes'                => $notes,
+            'apply_cc_surcharge'   => $applyCcSurcharge,
+            'billing_method'       => $billingMethod,
+            'billing_period_start' => $billingPeriodStart,
+            'billing_period_end'   => $billingPeriodEnd,
         ]);
 
         $this->attachLineItems($invoice, $lineItems);
@@ -43,8 +67,7 @@ class InvoiceService
         $subtotal  = $invoice->lineItems->sum('total');
         $gst       = round($subtotal * self::GST_RATE, 2);
 
-        $billingMethod = $invoice->user->clientProfile?->billing_method ?? 'credit_card';
-        $surcharge = $billingMethod === 'credit_card'
+        $surcharge = $invoice->apply_cc_surcharge
             ? round(($subtotal + $gst) * self::CC_SURCHARGE, 2)
             : 0;
 
@@ -56,20 +79,52 @@ class InvoiceService
     public function send(Invoice $invoice): void
     {
         $invoice->update(['status' => 'sent']);
+        $this->sendConversationMessage($invoice);
+        $this->sendInvoiceEmail($invoice, 'invoice');
+    }
 
+    public function resend(Invoice $invoice, ?string $customMessage = null): void
+    {
+        $this->sendConversationMessage($invoice, '', $customMessage);
+        $this->sendInvoiceEmail($invoice, 'invoice', $customMessage);
+    }
+
+    public function sendReminder(Invoice $invoice, ?string $customMessage = null): void
+    {
+        $this->sendConversationMessage($invoice, 'Reminder: ', $customMessage);
+        $this->sendInvoiceEmail($invoice, 'reminder', $customMessage);
+    }
+
+    public function sendPaidNotification(Invoice $invoice): void
+    {
+        $this->sendInvoiceEmail($invoice, 'paid');
+    }
+
+    private function sendConversationMessage(Invoice $invoice, string $prefix = '', ?string $customMessage = null): void
+    {
         $adminId = \App\Models\User::where('role', 'admin')->value('id') ?? 1;
-
-        // Send invoice message in conversation thread
         $conversation = $invoice->user->conversation()->firstOrCreate(['user_id' => $invoice->user_id]);
+
+        if ($customMessage) {
+            $body = $customMessage;
+        } else {
+            $body = "{$prefix}Invoice #{$invoice->invoice_number} for \${$invoice->total} is ready.";
+            if ($invoice->billing_period_start && $invoice->billing_period_end) {
+                $body .= " Service period: {$invoice->billing_period_start->format('F j, Y')} - {$invoice->billing_period_end->format('F j, Y')}.";
+            }
+        }
+
         $conversation->messages()->create([
             'sender_id' => $adminId,
             'type'      => 'invoice',
-            'body'      => "Invoice #{$invoice->invoice_number} for \${$invoice->total} is ready.",
+            'body'      => $body,
             'metadata'  => [
-                'invoice_id'     => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'total'          => $invoice->total,
-                'due_date'       => $invoice->due_date?->toDateString(),
+                'invoice_id'            => $invoice->id,
+                'invoice_number'        => $invoice->invoice_number,
+                'total'                 => $invoice->total,
+                'due_date'              => $invoice->due_date?->toDateString(),
+                'billing_period_start'  => $invoice->billing_period_start?->toDateString(),
+                'billing_period_end'    => $invoice->billing_period_end?->toDateString(),
             ],
         ]);
 
@@ -77,18 +132,93 @@ class InvoiceService
         $conversation->update(['last_message_at' => now()]);
     }
 
+    private function sendInvoiceEmail(Invoice $invoice, string $type, ?string $customMessage = null): void
+    {
+        $client = $invoice->user;
+        $billingPeriod = null;
+        if ($invoice->billing_period_start && $invoice->billing_period_end) {
+            $billingPeriod = $invoice->billing_period_start->format('F j, Y') . ' - ' . $invoice->billing_period_end->format('F j, Y');
+        }
+
+        $titles = [
+            'invoice'  => "Invoice #{$invoice->invoice_number} — The Pupper Club",
+            'reminder' => "Payment Reminder — Invoice #{$invoice->invoice_number}",
+            'paid'     => "Payment Received — Invoice #{$invoice->invoice_number}",
+        ];
+
+        $portalUrls = [
+            'invoice'  => config('app.frontend_url') . '/client/invoices',
+            'reminder' => config('app.frontend_url') . '/client/billing',
+            'paid'     => config('app.frontend_url') . '/client/invoices',
+        ];
+
+        $title = $titles[$type] ?? $titles['invoice'];
+        $methodLabel = self::METHOD_LABELS[$invoice->billing_method] ?? $invoice->billing_method;
+
+        $htmlBody = view('emails.invoice', [
+            'title'         => $title,
+            'userName'      => $client->name,
+            'type'          => $type,
+            'invoiceNumber' => $invoice->invoice_number,
+            'total'         => number_format($invoice->total, 2),
+            'dueDate'       => $invoice->due_date?->format('F j, Y'),
+            'billingPeriod' => $billingPeriod,
+            'paymentMethod' => $methodLabel,
+            'portalUrl'     => $portalUrls[$type] ?? $portalUrls['invoice'],
+            'customMessage' => $customMessage,
+        ])->render();
+
+        $plainBody = $customMessage
+            ?? "Invoice #{$invoice->invoice_number} for \${$invoice->total} CAD.";
+        if (!$customMessage && $billingPeriod) {
+            $plainBody .= " Service period: {$billingPeriod}.";
+        }
+
+        app(NotificationDispatcher::class)->notify($client, $title, $plainBody, $htmlBody);
+    }
+
     public function markPaid(Invoice $invoice): void
     {
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
 
-        // Notify client via push + thread message
-        app(VisitNotificationService::class)->sendInvoicePaid($invoice);
+        // Send thank-you message in conversation
+        $adminId = \App\Models\User::where('role', 'admin')->value('id') ?? 1;
+        $conversation = $invoice->user->conversation()->firstOrCreate(['user_id' => $invoice->user_id]);
+        $conversation->messages()->create([
+            'sender_id' => $adminId,
+            'type'      => 'text',
+            'body'      => "Thank you for your payment, and being an awesome client!",
+        ]);
+        $conversation->increment('unread_count_client');
+        $conversation->update(['last_message_at' => now()]);
+
+        $this->sendPaidNotification($invoice);
     }
 
     public function chargeCard(Invoice $invoice, string $paymentMethodId): array
     {
         Stripe::setApiKey(config('services.stripe.secret'));
 
+        // If this invoice came from Stripe (subscription), pay via Stripe Invoice API
+        if ($invoice->stripe_invoice_id) {
+            $stripeInvoice = \Stripe\Invoice::retrieve($invoice->stripe_invoice_id);
+
+            if ($stripeInvoice->status === 'open') {
+                $result = $stripeInvoice->pay(['payment_method' => $paymentMethodId]);
+                if ($result->status === 'paid') {
+                    $this->markPaid($invoice);
+                }
+                return ['status' => $result->status === 'paid' ? 'succeeded' : 'pending'];
+            }
+
+            // Already paid in Stripe
+            if ($stripeInvoice->status === 'paid') {
+                $this->markPaid($invoice);
+                return ['status' => 'succeeded'];
+            }
+        }
+
+        // For ad-hoc invoices, use PaymentIntent
         $stripeCustomerId = $invoice->user->clientProfile?->stripe_customer_id;
 
         $intent = PaymentIntent::create([

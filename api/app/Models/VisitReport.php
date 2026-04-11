@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 class VisitReport extends Model
@@ -18,6 +19,7 @@ class VisitReport extends Model
         'special_trip_details',
         'report_photo_path',
         'notes',
+        'change_request',
         'sent_at',
         'email_sent_at',
         // Legacy fields (kept for backward compat)
@@ -65,5 +67,10 @@ class VisitReport extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(VisitReportComment::class)->orderBy('created_at');
     }
 }

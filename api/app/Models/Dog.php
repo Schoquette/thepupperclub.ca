@@ -12,6 +12,8 @@ class Dog extends Model
 {
     use SoftDeletes;
 
+    protected $appends = ['has_expired_vaccinations'];
+
     protected $fillable = [
         'user_id',
         'name',
@@ -33,6 +35,9 @@ class Dog extends Model
         'special_instructions',
         'photo_path',
         'is_active',
+        'off_leash_approved',
+        'media_consent',
+        'buddy_walks_ok',
         // Intake fields
         'personality_description',
         'energy_level',
@@ -61,6 +66,9 @@ class Dog extends Model
             'spayed_neutered'                   => 'boolean',
             'bite_history'                      => 'boolean',
             'is_active'                         => 'boolean',
+            'off_leash_approved'                => 'boolean',
+            'media_consent'                     => 'boolean',
+            'buddy_walks_ok'                    => 'boolean',
             'medications'                       => 'array',
             'preferred_walk_style'              => 'array',
             'preferred_gear'                    => 'array',

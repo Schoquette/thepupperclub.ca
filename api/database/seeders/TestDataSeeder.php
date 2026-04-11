@@ -12,6 +12,7 @@ use App\Models\Message;
 use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Models\VaccinationRecord;
+use App\Models\VisitReport;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -300,10 +301,154 @@ class TestDataSeeder extends Seeder
             ['description' => '60-min Walk × 3', 'quantity' => 3, 'unit_price' => 40.00, 'total' => 120.00],
         ]);
 
-        $this->command->info('Test data seeded: 3 clients, 5 dogs, appointments, messages, invoices.');
+        // ── Maya's Mum ─────────────────────────────────────────────────────────
+
+        $mayasMum = User::firstOrCreate(['email' => 'mayasmum@test.com'], [
+            'name'     => "Maya's Mum",
+            'password' => Hash::make('password123'),
+            'role'     => 'client',
+            'status'   => 'active',
+        ]);
+
+        ClientProfile::firstOrCreate(['user_id' => $mayasMum->id], [
+            'phone'                   => '604-555-0401',
+            'address'                 => '42 Cedar Drive',
+            'city'                    => 'North Vancouver',
+            'province'                => 'BC',
+            'postal_code'             => 'V7M 1L3',
+            'emergency_contact_name'  => 'David',
+            'emergency_contact_phone' => '604-555-0402',
+            'billing_method'          => 'e_transfer',
+            'subscription_tier'       => 'standard',
+            'subscription_start_date' => now()->subMonths(2),
+            'notes'                   => 'Prefers afternoon visits. Maya is reactive to large dogs.',
+        ]);
+
+        $maya = Dog::firstOrCreate(['user_id' => $mayasMum->id, 'name' => 'Maya'], [
+            'breed'                => 'Australian Shepherd',
+            'date_of_birth'        => '2021-04-12',
+            'size'                 => 'medium',
+            'sex'                  => 'female',
+            'weight_kg'            => 22.0,
+            'colour'               => 'Blue Merle',
+            'spayed_neutered'      => true,
+            'is_active'            => true,
+            'vet_name'             => 'Dr. Karen Lee',
+            'vet_phone'            => '604-555-7010',
+            'vet_address'          => '500 Mountain Vet, North Vancouver',
+            'special_instructions' => 'Reactive to large dogs — keep distance. Loves fetch and frisbee. High energy.',
+        ]);
+
+        VaccinationRecord::firstOrCreate(['dog_id' => $maya->id, 'vaccine_name' => 'Rabies'], [
+            'administered_date' => now()->subMonths(4),
+            'expiry_date'       => now()->addMonths(20),
+        ]);
+        VaccinationRecord::firstOrCreate(['dog_id' => $maya->id, 'vaccine_name' => 'DHPP'], [
+            'administered_date' => now()->subMonths(6),
+            'expiry_date'       => now()->addMonths(6),
+        ]);
+        VaccinationRecord::firstOrCreate(['dog_id' => $maya->id, 'vaccine_name' => 'Bordetella'], [
+            'administered_date' => now()->subMonths(3),
+            'expiry_date'       => now()->addMonths(9),
+        ]);
+
+        // Past appointments with report cards
+        $pastAppt1 = $this->makeAppointmentReturn($mayasMum, [$maya->id], 'walk_30', 'afternoon', now()->subWeeks(3)->setTime(14, 0), 'completed', 30);
+        $pastAppt2 = $this->makeAppointmentReturn($mayasMum, [$maya->id], 'walk_60', 'afternoon', now()->subWeeks(2)->setTime(14, 30), 'completed', 60);
+        $pastAppt3 = $this->makeAppointmentReturn($mayasMum, [$maya->id], 'walk_30', 'morning', now()->subWeek()->setTime(10, 0), 'completed', 30);
+
+        // Report cards for past visits
+        if ($pastAppt1) {
+            VisitReport::firstOrCreate(['appointment_id' => $pastAppt1->id], [
+                'user_id'      => $mayasMum->id,
+                'dog_ids'      => [$maya->id],
+                'arrival_time' => now()->subWeeks(3)->setTime(14, 0),
+                'departure_time' => now()->subWeeks(3)->setTime(14, 30),
+                'checklist'    => [
+                    'outdoor_play' => true, 'long_walk' => true, 'water_refill' => true,
+                    'no_1' => true, 'no_2' => false, 'socialization' => false,
+                ],
+                'notes'   => 'Maya was full of energy today! We did a great loop around the neighbourhood. She spotted a squirrel and wanted to chase it but recalled nicely.',
+                'sent_at' => now()->subWeeks(3)->setTime(15, 0),
+            ]);
+        }
+        if ($pastAppt2) {
+            VisitReport::firstOrCreate(['appointment_id' => $pastAppt2->id], [
+                'user_id'      => $mayasMum->id,
+                'dog_ids'      => [$maya->id],
+                'arrival_time' => now()->subWeeks(2)->setTime(14, 30),
+                'departure_time' => now()->subWeeks(2)->setTime(15, 30),
+                'checklist'    => [
+                    'outdoor_play' => true, 'long_walk' => true, 'water_refill' => true,
+                    'no_1' => true, 'no_2' => true, 'socialization' => true, 'training' => true,
+                ],
+                'notes'   => 'Fantastic 60-minute session! Maya played fetch at the park and we practised her recall. She met a friendly small dog and did well. Great progress on reactivity!',
+                'sent_at' => now()->subWeeks(2)->setTime(16, 0),
+            ]);
+        }
+        if ($pastAppt3) {
+            VisitReport::firstOrCreate(['appointment_id' => $pastAppt3->id], [
+                'user_id'      => $mayasMum->id,
+                'dog_ids'      => [$maya->id],
+                'arrival_time' => now()->subWeek()->setTime(10, 0),
+                'departure_time' => now()->subWeek()->setTime(10, 30),
+                'checklist'    => [
+                    'outdoor_play' => true, 'long_walk' => false, 'water_refill' => true,
+                    'no_1' => true, 'no_2' => false, 'grooming' => true,
+                ],
+                'notes'   => 'Quick morning visit. Maya was a bit sleepy but perked up for her walk. Gave her a good brush — she was shedding quite a bit!',
+                'sent_at' => now()->subWeek()->setTime(11, 0),
+            ]);
+        }
+
+        // Future appointments
+        $this->makeAppointment($mayasMum, [$maya->id], 'walk_30', 'afternoon', now()->addDays(1)->setTime(14, 0),  'scheduled', 30);
+        $this->makeAppointment($mayasMum, [$maya->id], 'walk_60', 'afternoon', now()->addDays(3)->setTime(14, 30), 'scheduled', 60);
+        $this->makeAppointment($mayasMum, [$maya->id], 'walk_30', 'morning',   now()->addDays(5)->setTime(10, 0),  'scheduled', 30);
+        $this->makeAppointment($mayasMum, [$maya->id], 'walk_60', 'afternoon', now()->addWeek()->setTime(15, 0),   'scheduled', 60);
+        $this->makeAppointment($mayasMum, [$maya->id], 'drop_in', 'midday',    now()->addDays(10)->setTime(12, 0), 'scheduled', 30);
+
+        if ($admin) {
+            $this->seedConversation($mayasMum, $admin, [
+                ['sender' => $admin,    'body' => "Hi! Welcome to The Pupper Club. We can't wait to meet Maya!", 'hours_ago' => 168],
+                ['sender' => $mayasMum, 'body' => "Thank you! She's a handful but so sweet. Just a heads up — she can be reactive to big dogs.", 'hours_ago' => 167],
+                ['sender' => $admin,    'body' => "Noted! We'll keep our distance from large dogs. Does she do well off-leash at parks?", 'hours_ago' => 166],
+                ['sender' => $mayasMum, 'body' => "Her recall is getting better. I'd say on-leash for now to be safe.", 'hours_ago' => 165],
+                ['sender' => $admin,    'body' => "Maya did so well on today's walk! She's making great progress 🐾", 'hours_ago' => 24],
+                ['sender' => $mayasMum, 'body' => "That's wonderful to hear! She seems so much happier since you started coming 😊", 'hours_ago' => 23],
+            ]);
+        }
+
+        $this->command->info('Test data seeded: 4 clients, 6 dogs, appointments, messages, invoices, report cards.');
         $this->command->info('Login: emma@test.com / password123');
         $this->command->info('Login: marcus@test.com / password123');
         $this->command->info('Login: sarah@test.com / password123');
+        $this->command->info("Login: mayasmum@test.com / password123");
+    }
+
+    private function makeAppointmentReturn(User $user, array $dogIds, string $serviceType, string $timeBlock, \Carbon\Carbon $time, string $status, int $duration): ?Appointment
+    {
+        $existing = Appointment::where('user_id', $user->id)
+            ->where('service_type', $serviceType)
+            ->whereDate('scheduled_time', $time->toDateString())
+            ->first();
+
+        if ($existing) return $existing;
+
+        $appt = Appointment::create([
+            'user_id'          => $user->id,
+            'service_type'     => $serviceType,
+            'scheduled_time'   => $time,
+            'client_time_block'=> $timeBlock,
+            'duration_minutes' => $duration,
+            'status'           => $status,
+            'check_in_time'    => in_array($status, ['checked_in', 'completed']) ? $time : null,
+            'check_out_time'   => $status === 'completed' ? $time->copy()->addMinutes($duration) : null,
+        ]);
+
+        $appt->dogs()->attach($dogIds);
+
+        return $appt;
     }
 
     private function makeAppointment(User $user, array $dogIds, string $serviceType, string $timeBlock, \Carbon\Carbon $time, string $status, int $duration): void

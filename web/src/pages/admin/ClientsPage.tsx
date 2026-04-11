@@ -12,7 +12,7 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 export default function AdminClientsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState('active');
   const [search, setSearch] = useState('');
 
   // Create dropdown
@@ -103,12 +103,12 @@ export default function AdminClientsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Input
           placeholder="Search name or email..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="max-w-xs"
+          className="sm:max-w-xs"
         />
         <div className="flex rounded-lg border border-taupe overflow-hidden text-sm">
           {['', 'active', 'pending', 'inactive'].map(f => (
@@ -128,14 +128,15 @@ export default function AdminClientsPage() {
       {/* Table */}
       {isLoading ? <PageLoader /> : (
         <Card padding="none">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-cream text-left">
                 <th className="px-6 py-4 font-semibold text-espresso">Client</th>
-                <th className="px-6 py-4 font-semibold text-espresso">Status</th>
                 <th className="px-6 py-4 font-semibold text-espresso">Dogs</th>
                 <th className="px-6 py-4 font-semibold text-espresso">Tier</th>
                 <th className="px-6 py-4 font-semibold text-espresso">Intake</th>
+                <th className="px-6 py-4 font-semibold text-espresso">Status</th>
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
@@ -150,12 +151,13 @@ export default function AdminClientsPage() {
                     <div className="font-medium text-espresso">{client.name}</div>
                     <div className="text-taupe text-xs">{client.email}</div>
                   </td>
-                  <td className="px-6 py-4">
-                    <Badge variant={statusBadge(client.status)}>{client.status}</Badge>
+                  <td className="px-6 py-4 text-espresso text-sm font-semibold">
+                    {client.dogs?.length > 0
+                      ? client.dogs.map((d: any) => d.name).join(', ')
+                      : '—'}
                   </td>
-                  <td className="px-6 py-4 text-taupe">{client.dogs_count ?? 0}</td>
                   <td className="px-6 py-4 text-taupe text-xs">
-                    {client.client_profile?.subscription_tier || '—'}
+                    {client.client_profile?.subscription_plan || '—'}
                   </td>
                   <td className="px-6 py-4">
                     {client.client_profile?.intake_submitted_at ? (
@@ -170,12 +172,16 @@ export default function AdminClientsPage() {
                     )}
                   </td>
                   <td className="px-6 py-4">
+                    <Badge variant={statusBadge(client.status)}>{client.status}</Badge>
+                  </td>
+                  <td className="px-6 py-4">
                     <button className="text-blue hover:underline text-sm">View →</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
           {data?.data?.length === 0 && (
             <div className="text-center py-12 text-taupe">No clients found.</div>
           )}

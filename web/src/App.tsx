@@ -12,6 +12,7 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboardPage from './pages/admin/DashboardPage';
 import AdminClientsPage from './pages/admin/ClientsPage';
+import AdminDogsPage from './pages/admin/DogsPage';
 import AdminClientDetailPage from './pages/admin/ClientDetailPage';
 import AdminCalendarPage from './pages/admin/CalendarPage';
 import AdminServiceRequestsPage from './pages/admin/ServiceRequestsPage';
@@ -27,6 +28,9 @@ import AdminTimeMileagePage from './pages/admin/TimeMileagePage';
 import AdminTeamPage from './pages/admin/TeamPage';
 import AdminBroadcastPage from './pages/admin/BroadcastPage';
 import AdminAuditLogsPage from './pages/admin/AuditLogsPage';
+import AdminReportsPage from './pages/admin/ReportsPage';
+import AdminDocumentsPage from './pages/admin/DocumentsPage';
+import AdminTemplateEditorPage from './pages/admin/TemplateEditorPage';
 import SigningPage from './pages/SigningPage';
 
 // Client pages
@@ -41,6 +45,7 @@ import ClientInvoicesPage from './pages/client/InvoicesPage';
 import ClientBillingPage from './pages/client/BillingPage';
 import ClientReportCardsPage from './pages/client/ReportCardsPage';
 import ClientDocumentsPage from './pages/client/DocumentsPage';
+import ClientIntakeFormPage from './pages/client/IntakeFormPage';
 
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'admin' | 'client' }) {
   const { user } = useAuth();
@@ -81,6 +86,7 @@ export default function App() {
         <Route index element={<AdminDashboardPage />} />
         <Route path="clients" element={<AdminClientsPage />} />
         <Route path="clients/:id" element={<AdminClientDetailPage />} />
+        <Route path="dogs" element={<AdminDogsPage />} />
         <Route path="clients/:id/intake" element={<AdminIntakeFormPage />} />
         <Route path="calendar" element={<AdminCalendarPage />} />
         <Route path="service-requests" element={<AdminServiceRequestsPage />} />
@@ -93,7 +99,10 @@ export default function App() {
         <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
         <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
         <Route path="time-mileage" element={<AdminTimeMileagePage />} />
+        <Route path="reports" element={<AdminReportsPage />} />
         <Route path="team" element={<AdminTeamPage />} />
+        <Route path="documents" element={<AdminDocumentsPage />} />
+        <Route path="documents/templates/:id/edit" element={<AdminTemplateEditorPage />} />
         <Route path="broadcast" element={<AdminBroadcastPage />} />
         <Route path="audit-logs" element={<AdminAuditLogsPage />} />
       </Route>
@@ -110,6 +119,7 @@ export default function App() {
         <Route path="billing" element={<ClientBillingPage />} />
         <Route path="report-cards" element={<ClientReportCardsPage />} />
         <Route path="documents" element={<ClientDocumentsPage />} />
+        <Route path="intake" element={<ClientIntakeFormPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

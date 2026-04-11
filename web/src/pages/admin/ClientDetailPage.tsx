@@ -6,6 +6,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge, statusBadge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 
 type Tab = 'profile' | 'dogs' | 'documents' | 'access';
@@ -29,6 +30,9 @@ interface ProfileForm {
   secondary_notify_report_cards: boolean;
   secondary_notify_billing: boolean;
   secondary_notify_appointments: boolean;
+  notify_app: boolean;
+  notify_email: boolean;
+  notify_sms: boolean;
   billing_method: string;
   subscription_tier: string;
   subscription_start_date: string;
@@ -55,6 +59,9 @@ function buildProfileForm(client: any): ProfileForm {
     secondary_notify_report_cards:   !!p.secondary_notify_report_cards,
     secondary_notify_billing:        !!p.secondary_notify_billing,
     secondary_notify_appointments:   !!p.secondary_notify_appointments,
+    notify_app:              p.notify_app ?? true,
+    notify_email:            !!p.notify_email,
+    notify_sms:              !!p.notify_sms,
     billing_method:          p.billing_method ?? 'credit_card',
     subscription_tier:       p.subscription_tier ?? '',
     subscription_start_date: p.subscription_start_date?.split('T')[0] ?? '',
@@ -85,6 +92,9 @@ interface DogForm {
   medications: Medication[];
   special_instructions: string;
   is_active: boolean;
+  off_leash_approved: boolean;
+  media_consent: boolean;
+  buddy_walks_ok: boolean;
 }
 
 function buildDogForm(dog?: any): DogForm {
@@ -107,6 +117,9 @@ function buildDogForm(dog?: any): DogForm {
     medications:        dog?.medications ?? [],
     special_instructions: dog?.special_instructions ?? '',
     is_active:          dog?.is_active ?? true,
+    off_leash_approved: dog?.off_leash_approved ?? false,
+    media_consent:      dog?.media_consent ?? false,
+    buddy_walks_ok:     dog?.buddy_walks_ok ?? false,
   };
 }
 
@@ -131,6 +144,9 @@ function dogPayload(f: DogForm, userId: number) {
     medications:        f.medications.length ? f.medications : null,
     special_instructions: f.special_instructions || null,
     is_active:          f.is_active,
+    off_leash_approved: f.off_leash_approved,
+    media_consent:      f.media_consent,
+    buddy_walks_ok:     f.buddy_walks_ok,
   };
 }
 
@@ -247,6 +263,9 @@ function DogEditForm({
       {/* Status */}
       <div>
         <Checkbox label="Active (approved for walks)" checked={form.is_active} onChange={v => onBoolChange('is_active', v)} />
+        <Checkbox label="Off-Leash Approved" checked={form.off_leash_approved} onChange={v => onBoolChange('off_leash_approved', v)} />
+        <Checkbox label="Buddy Walks OK" checked={form.buddy_walks_ok} onChange={v => onBoolChange('buddy_walks_ok', v)} />
+        <Checkbox label="Media Consent" checked={form.media_consent} onChange={v => onBoolChange('media_consent', v)} />
       </div>
 
       {/* Behaviour */}
@@ -536,8 +555,384 @@ function DogPhotoUpload({ dogId, hasPhoto, onChanged }: { dogId: number; hasPhot
   );
 }
 
+// ── Subscription Card (Stripe-connected) ─────────────────────────────────────
+
+function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: number; clientProfile: any; onChanged: () => void }) {
+  const qc = useQueryClient();
+  const [selectedPrice, setSelectedPrice] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState('');
+  const [error, setError] = useState('');
+
+  // Pause state
+  const [showPause, setShowPause] = useState(false);
+  const [pauseFrom, setPauseFrom] = useState('');
+  const [pauseUntil, setPauseUntil] = useState('');
+  const [pauseBilling, setPauseBilling] = useState(true);
+  const [prorateOnResume, setProrateOnResume] = useState(false);
+
+  const { data: stripeProducts } = useQuery({
+    queryKey: ['stripe-products'],
+    queryFn: () => api.get('/admin/stripe/products').then(r => r.data.data),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: history } = useQuery({
+    queryKey: ['subscription-history', clientId],
+    queryFn: () => api.get(`/admin/clients/${clientId}/subscription-history`).then(r => r.data.data),
+  });
+
+  const subscribe = useMutation({
+    mutationFn: ({ priceId, effective }: { priceId: string; effective?: string }) =>
+      api.post(`/admin/clients/${clientId}/subscribe`, {
+        stripe_price_id: priceId,
+        effective_date: effective || undefined,
+      }),
+    onSuccess: () => { onChanged(); setError(''); setSelectedPrice(''); setEffectiveDate(''); qc.invalidateQueries({ queryKey: ['subscription-history', clientId] }); },
+    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to subscribe.'),
+  });
+
+  const cancelSub = useMutation({
+    mutationFn: (immediate: boolean) => api.post(`/admin/clients/${clientId}/cancel-subscription`, { immediate }),
+    onSuccess: () => { onChanged(); setError(''); qc.invalidateQueries({ queryKey: ['subscription-history', clientId] }); },
+    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to cancel.'),
+  });
+
+  const pauseSub = useMutation({
+    mutationFn: () => api.post(`/admin/clients/${clientId}/pause-subscription`, {
+      paused_from: pauseFrom,
+      paused_until: pauseUntil,
+      pause_billing: pauseBilling,
+      prorate_on_resume: prorateOnResume,
+    }),
+    onSuccess: () => {
+      onChanged(); setError(''); setShowPause(false);
+      setPauseFrom(''); setPauseUntil(''); setPauseBilling(true); setProrateOnResume(false);
+      qc.invalidateQueries({ queryKey: ['subscription-history', clientId] });
+    },
+    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to pause.'),
+  });
+
+  const resumeSub = useMutation({
+    mutationFn: () => api.post(`/admin/clients/${clientId}/resume-subscription`),
+    onSuccess: (res) => {
+      onChanged(); setError('');
+      qc.invalidateQueries({ queryKey: ['subscription-history', clientId] });
+      const credit = res.data?.proration_credit;
+      if (credit) alert(`Subscription resumed. A $${credit} proration credit invoice has been created.`);
+    },
+    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to resume.'),
+  });
+
+  const cp = clientProfile ?? {};
+  const billingMethod = cp.billing_method ?? 'credit_card';
+  const hasSubscription = !!cp.stripe_subscription_id || !!cp.subscription_plan;
+
+  // Build flat list of recurring prices from products (exclude one-time prices)
+  const allPrices: { priceId: string; label: string; amount: number }[] = [];
+  stripeProducts?.forEach((product: any) => {
+    product.prices?.forEach((price: any) => {
+      if (!price.interval) return; // skip one-time prices
+      allPrices.push({
+        priceId: price.id,
+        label: `${product.name}${price.nickname ? ` — ${price.nickname}` : ''} ($${price.amount}/${price.interval})`,
+        amount: price.amount,
+      });
+    });
+  });
+
+  return (
+    <Card>
+      <CardHeader title="Subscription" />
+      {hasSubscription ? (
+        <div className="space-y-3">
+          <div className="text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-taupe">Plan</span>
+              <span className="font-semibold text-espresso">{cp.subscription_plan}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-taupe">Amount</span>
+              <span className="font-semibold text-espresso">${Number(cp.subscription_amount).toFixed(2)}/mo</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-taupe">Billing</span>
+              <span className="font-semibold text-espresso">
+                {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
+                {!cp.stripe_subscription_id && <span className="text-xs text-taupe ml-1">(local)</span>}
+              </span>
+            </div>
+            {cp.next_billing_date && (
+              <div className="flex justify-between">
+                <span className="text-taupe">Next billing</span>
+                <span className="text-espresso">{new Date(cp.next_billing_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              </div>
+            )}
+            {cp.subscription_end_date && (
+              <div className="flex justify-between">
+                <span className="text-taupe">Cancels on</span>
+                <span className="text-red-500 font-medium">{cp.subscription_end_date?.split('T')[0]}</span>
+              </div>
+            )}
+            {cp.subscription_paused_from && (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-taupe">Paused</span>
+                  <span className="text-orange-500 font-medium">
+                    {new Date(cp.subscription_paused_from).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {' — '}
+                    {new Date(cp.subscription_paused_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-taupe">Billing</span>
+                  <span className={`font-medium ${cp.pause_billing ? 'text-orange-500' : 'text-green-600'}`}>
+                    {cp.pause_billing ? 'Paused' : 'Continues (prorate on resume)'}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Resume button if paused */}
+          {cp.subscription_paused_from && (
+            <div className="pt-3 border-t border-cream">
+              <Button
+                size="sm"
+                loading={resumeSub.isPending}
+                onClick={() => { if (confirm('Resume this subscription now?')) resumeSub.mutate(); }}
+              >
+                Resume Subscription Now
+              </Button>
+            </div>
+          )}
+
+          {/* Change plan */}
+          <div className="pt-3 border-t border-cream space-y-2">
+            <label className="label">Change Plan</label>
+            <select
+              className="input"
+              value={selectedPrice}
+              onChange={e => setSelectedPrice(e.target.value)}
+            >
+              <option value="">Select a plan…</option>
+              {allPrices.map(p => (
+                <option key={p.priceId} value={p.priceId}>{p.label}</option>
+              ))}
+            </select>
+            {selectedPrice && (
+              <div>
+                <label className="label">Effective Date</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={effectiveDate}
+                  onChange={e => setEffectiveDate(e.target.value)}
+                />
+                <p className="text-xs text-taupe mt-1">
+                  Leave blank for immediate. If set, the next invoice will include a pro-rated adjustment.
+                </p>
+              </div>
+            )}
+            <Button
+              size="sm"
+              disabled={!selectedPrice}
+              loading={subscribe.isPending}
+              onClick={() => selectedPrice && subscribe.mutate({ priceId: selectedPrice, effective: effectiveDate })}
+            >
+              Update Plan
+            </Button>
+          </div>
+
+          {/* Pause subscription */}
+          {!cp.subscription_paused_from && (
+            <div className="pt-3 border-t border-cream">
+              {showPause ? (
+                <div className="space-y-3 bg-cream/50 rounded-lg p-3 border border-cream">
+                  <p className="text-xs font-semibold text-taupe uppercase tracking-wide">Pause Subscription</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Pause From</label>
+                      <input type="date" className="input" value={pauseFrom} onChange={e => setPauseFrom(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label">Resume On</label>
+                      <input type="date" className="input" value={pauseUntil} onChange={e => setPauseUntil(e.target.value)} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={pauseBilling} onChange={e => setPauseBilling(e.target.checked)} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
+                    <span className="text-sm text-espresso">Pause billing during this period</span>
+                  </label>
+                  {!pauseBilling && (
+                    <label className="flex items-center gap-2 cursor-pointer ml-6">
+                      <input type="checkbox" checked={prorateOnResume} onChange={e => setProrateOnResume(e.target.checked)} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
+                      <span className="text-sm text-espresso">Prorate next bill (credit for paused days)</span>
+                    </label>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" loading={pauseSub.isPending} disabled={!pauseFrom || !pauseUntil} onClick={() => pauseSub.mutate()}>
+                      Confirm Pause
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowPause(false)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => { setShowPause(true); setPauseFrom(new Date().toISOString().split('T')[0]); }}>
+                  Pause Subscription
+                </Button>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button size="sm" variant="outline" loading={cancelSub.isPending} onClick={() => {
+              if (confirm('Cancel subscription at the end of the current billing period?')) cancelSub.mutate(false);
+            }}>
+              Cancel at Period End
+            </Button>
+            <Button size="sm" variant="outline" className="text-red-500 border-red-300 hover:bg-red-50" loading={cancelSub.isPending} onClick={() => {
+              if (confirm('Cancel subscription immediately? This cannot be undone.')) cancelSub.mutate(true);
+            }}>
+              Cancel Now
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-taupe">No active subscription.</p>
+          {billingMethod === 'credit_card' && !cp.stripe_payment_method_id && (
+            <p className="text-xs text-red-500">Client must add a card on file before subscribing via credit card.</p>
+          )}
+          <p className="text-xs text-taupe">
+            Billing method: <span className="font-semibold text-espresso">
+              {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
+            </span>
+          </p>
+          <div className="space-y-2">
+            <label className="label">Start Subscription</label>
+            <select
+              className="input"
+              value={selectedPrice}
+              onChange={e => setSelectedPrice(e.target.value)}
+            >
+              <option value="">Select a plan…</option>
+              {allPrices.map(p => (
+                <option key={p.priceId} value={p.priceId}>{p.label}</option>
+              ))}
+            </select>
+            {selectedPrice && (
+              <div>
+                <label className="label">Start Date</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={effectiveDate}
+                  onChange={e => setEffectiveDate(e.target.value)}
+                />
+                <p className="text-xs text-taupe mt-1">
+                  Leave blank to start today. The billing cycle will repeat monthly from this date.
+                </p>
+              </div>
+            )}
+            <div>
+              <Button
+                size="sm"
+                disabled={!selectedPrice || (billingMethod === 'credit_card' && !cp.stripe_payment_method_id)}
+                loading={subscribe.isPending}
+                onClick={() => selectedPrice && subscribe.mutate({ priceId: selectedPrice, effective: effectiveDate })}
+              >
+                Subscribe
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+
+      {/* Plan change history */}
+      {history && history.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-cream">
+          <p className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">Plan History</p>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {history.map((h: any) => {
+              const actionLabels: Record<string, string> = {
+                created: 'Started',
+                upgraded: 'Upgraded',
+                downgraded: 'Downgraded',
+                updated: 'Changed',
+                paused: 'Paused',
+                resumed: 'Resumed',
+                canceled: 'Canceled (end of period)',
+                canceled_immediate: 'Canceled (immediate)',
+              };
+              const actionColors: Record<string, string> = {
+                created: 'text-green-600',
+                upgraded: 'text-blue-600',
+                downgraded: 'text-orange-600',
+                updated: 'text-espresso',
+                paused: 'text-orange-500',
+                resumed: 'text-green-600',
+                canceled: 'text-red-500',
+                canceled_immediate: 'text-red-600',
+              };
+              return (
+                <div key={h.id} className="flex items-start gap-2 text-xs">
+                  <div className="w-20 flex-shrink-0 text-taupe">
+                    {new Date(h.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                  </div>
+                  <div className="flex-1">
+                    <span className={`font-semibold ${actionColors[h.action] ?? 'text-espresso'}`}>
+                      {actionLabels[h.action] ?? h.action}
+                    </span>
+                    {h.old_plan && h.new_plan ? (
+                      <span className="text-taupe"> {h.old_plan} → {h.new_plan}</span>
+                    ) : h.new_plan ? (
+                      <span className="text-taupe"> {h.new_plan}</span>
+                    ) : h.old_plan ? (
+                      <span className="text-taupe"> {h.old_plan}</span>
+                    ) : null}
+                    {h.new_amount && <span className="text-taupe"> · ${Number(h.new_amount).toFixed(2)}/mo</span>}
+                    {h.proration_amount && Number(h.proration_amount) !== 0 && (
+                      <span className={`ml-1 ${Number(h.proration_amount) > 0 ? 'text-blue-600' : 'text-green-600'}`}>
+                        ({Number(h.proration_amount) > 0 ? '+' : ''}${Number(h.proration_amount).toFixed(2)} adjustment)
+                      </span>
+                    )}
+                    {h.effective_date && (
+                      <span className="text-taupe/60 ml-1">
+                        eff. {new Date(h.effective_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
+                  {h.changed_by_user && (
+                    <div className="text-taupe/60 flex-shrink-0">by {h.changed_by_user.name.split(' ')[0]}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const SIZE_LABELS: Record<string, string> = {
+  small: 'Small', medium: 'Medium', large: 'Large', extra_large: 'Extra Large',
+};
+
+function ProfileRow({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="flex gap-2 py-0.5">
+      <span className="text-taupe flex-shrink-0">{label}:</span>
+      <span className="text-espresso">{value}</span>
+    </div>
+  );
+}
+
 function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [form, setForm] = useState<DogForm>(buildDogForm(dog));
 
   useEffect(() => { setForm(buildDogForm(dog)); }, [dog]);
@@ -605,13 +1000,17 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
                   Activate
                 </Button>
               )}
+              <Button size="sm" variant="outline" onClick={() => setShowProfile(true)}>Full Profile</Button>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>
             </div>
           </div>
           <div className="flex gap-2 mt-2 flex-wrap">
             {!dog.is_active && <Badge variant="red">Pending Review</Badge>}
-            {dog.bite_history && <Badge variant="red">⚠️ Bite History</Badge>}
+            {dog.bite_history && <Badge variant="red">Bite History</Badge>}
             {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
+            {dog.off_leash_approved && <Badge variant="green">Off-Leash Approved</Badge>}
+            {dog.buddy_walks_ok && <Badge variant="green">Buddy Walks OK</Badge>}
+            {dog.media_consent && <Badge variant="blue">Media Consent</Badge>}
           </div>
           {dog.special_instructions && (
             <p className="text-xs text-taupe mt-2 line-clamp-2">{dog.special_instructions}</p>
@@ -622,6 +1021,117 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
           <VaccinationSection dogId={dog.id} />
         </div>
       </div>
+
+      {/* Full Profile Modal */}
+      <Modal open={showProfile} onClose={() => setShowProfile(false)} title={`${dog.name} — Full Profile`}>
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Tags */}
+          <div className="flex gap-2 flex-wrap">
+            {dog.is_active ? <Badge variant="green">Active</Badge> : <Badge variant="red">Pending Review</Badge>}
+            {dog.bite_history && <Badge variant="red">Bite History</Badge>}
+            {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
+            {dog.off_leash_approved && <Badge variant="green">Off-Leash Approved</Badge>}
+            {dog.buddy_walks_ok && <Badge variant="green">Buddy Walks OK</Badge>}
+            {dog.media_consent && <Badge variant="blue">Media Consent</Badge>}
+          </div>
+
+          {/* Basic info */}
+          <div>
+            <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Basic Info</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+              <ProfileRow label="Breed" value={dog.breed} />
+              <ProfileRow label="Size" value={SIZE_LABELS[dog.size] ?? dog.size} />
+              <ProfileRow label="Sex" value={dog.sex === 'male' ? 'Male' : dog.sex === 'female' ? 'Female' : null} />
+              <ProfileRow label="Date of Birth" value={dog.date_of_birth ? new Date(dog.date_of_birth).toLocaleDateString('en-CA') : null} />
+              <ProfileRow label="Weight" value={dog.weight_kg ? `${dog.weight_kg} kg` : null} />
+              <ProfileRow label="Colour" value={dog.colour} />
+              <ProfileRow label="Microchip" value={dog.microchip_number} />
+              <ProfileRow label="Spayed/Neutered" value={dog.spayed_neutered ? 'Yes' : 'No'} />
+            </div>
+          </div>
+
+          {/* Behaviour */}
+          {(dog.bite_history || dog.bite_history_notes || dog.aggression_notes) && (
+            <div>
+              <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Behaviour</h4>
+              <div className="text-sm space-y-1">
+                {dog.bite_history_notes && <ProfileRow label="Bite History Notes" value={dog.bite_history_notes} />}
+                {dog.aggression_notes && <ProfileRow label="Aggression Notes" value={dog.aggression_notes} />}
+              </div>
+            </div>
+          )}
+
+          {/* Personality & Walk Preferences (intake fields) */}
+          {(dog.personality_description || dog.energy_level || dog.interaction_dogs || dog.triggers) && (
+            <div>
+              <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Personality & Preferences</h4>
+              <div className="text-sm space-y-1">
+                <ProfileRow label="Personality" value={dog.personality_description} />
+                <ProfileRow label="Energy Level" value={dog.energy_level} />
+                <ProfileRow label="With Dogs" value={dog.interaction_dogs} />
+                <ProfileRow label="With Strangers" value={dog.interaction_strangers} />
+                <ProfileRow label="With Children" value={dog.interaction_children} />
+                <ProfileRow label="Triggers" value={dog.triggers} />
+                <ProfileRow label="Walk Style" value={Array.isArray(dog.preferred_walk_style) ? dog.preferred_walk_style.join(', ') : dog.preferred_walk_style} />
+                <ProfileRow label="Gear" value={Array.isArray(dog.preferred_gear) ? dog.preferred_gear.join(', ') : dog.preferred_gear} />
+                <ProfileRow label="Treats Allowed" value={dog.treats_allowed} />
+                <ProfileRow label="Treats Notes" value={dog.treats_notes} />
+                <ProfileRow label="Training Commands" value={dog.training_commands} />
+                <ProfileRow label="Avoid on Walks" value={dog.avoid_on_walks} />
+              </div>
+            </div>
+          )}
+
+          {/* Health */}
+          {(dog.medical_conditions || dog.allergies || dog.medications?.length > 0 || dog.recent_surgeries) && (
+            <div>
+              <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Health</h4>
+              <div className="text-sm space-y-1">
+                <ProfileRow label="Medical Conditions" value={dog.medical_conditions} />
+                <ProfileRow label="Allergies" value={dog.allergies} />
+                <ProfileRow label="Mobility Limitations" value={dog.mobility_limitations ? 'Yes' : null} />
+                <ProfileRow label="Recent Surgeries" value={dog.recent_surgeries} />
+                <ProfileRow label="Administer Meds on Visits" value={dog.administer_medication_on_visits ? 'Yes' : null} />
+              </div>
+              {dog.medications?.length > 0 && (
+                <div className="mt-2">
+                  <div className="text-xs font-medium text-taupe mb-1">Medications</div>
+                  <div className="space-y-1">
+                    {dog.medications.map((m: any, i: number) => (
+                      <div key={i} className="bg-cream rounded-lg p-2 text-xs">
+                        <span className="font-medium text-espresso">{m.name}</span>
+                        {m.dosage && <span className="text-taupe"> — {m.dosage}</span>}
+                        {m.frequency && <span className="text-taupe"> ({m.frequency})</span>}
+                        {m.notes && <div className="text-taupe mt-0.5">{m.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Vet */}
+          {(dog.vet_name || dog.vet_phone) && (
+            <div>
+              <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Veterinarian</h4>
+              <div className="text-sm space-y-1">
+                <ProfileRow label="Clinic" value={dog.vet_name} />
+                <ProfileRow label="Phone" value={dog.vet_phone} />
+                <ProfileRow label="Address" value={dog.vet_address} />
+              </div>
+            </div>
+          )}
+
+          {/* Special instructions */}
+          {dog.special_instructions && (
+            <div>
+              <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Special Instructions</h4>
+              <p className="text-sm text-espresso whitespace-pre-wrap">{dog.special_instructions}</p>
+            </div>
+          )}
+        </div>
+      </Modal>
     </Card>
   );
 }
@@ -756,22 +1266,36 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
     deleteDoc.mutate(doc.id);
   };
 
+  const fetchDocBlob = async (doc: any, inline = false) => {
+    const res = await api.get(`/documents/${doc.id}${inline ? '?inline=1' : ''}`, {
+      responseType: 'blob',
+    });
+    return res.data;
+  };
+
   const handleDownload = async (doc: any) => {
-    const res = await api.get(`/documents/${doc.id}`, { responseType: 'blob' });
-    const url = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = doc.filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = await fetchDocBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Failed to download document. It may have been moved or deleted.');
+    }
   };
 
   const handleView = async (doc: any) => {
-    const res = await api.get(`/documents/${doc.id}`, { responseType: 'blob', params: { inline: 1 } });
-    const url = URL.createObjectURL(new Blob([res.data], { type: doc.mime_type }));
-    window.open(url, '_blank');
-    // Revoke after a short delay to give the new tab time to load
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    try {
+      const blob = await fetchDocBlob(doc, true);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (e) {
+      alert('Failed to load document.');
+    }
   };
 
   return (
@@ -987,6 +1511,22 @@ export default function AdminClientDetailPage() {
     mutationFn: () => api.post(`/admin/clients/${id}/resend-invite`),
   });
 
+  const [showSetPassword, setShowSetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
+
+  const setPasswordMut = useMutation({
+    mutationFn: (pw: string) => api.post(`/admin/clients/${id}/reset-password`, { password: pw }),
+    onSuccess: (res: any) => {
+      setPasswordMsg(res.data?.message || 'Password set.');
+      setNewPassword('');
+      qc.invalidateQueries({ queryKey: ['admin-client', id] });
+    },
+    onError: (err: any) => {
+      setPasswordMsg(err.response?.data?.message || 'Failed to set password.');
+    },
+  });
+
   const saveProfile = useMutation({
     mutationFn: (f: ProfileForm) => api.patch(`/admin/clients/${id}`, {
       name:   f.name,
@@ -1006,6 +1546,9 @@ export default function AdminClientDetailPage() {
         secondary_notify_report_cards: f.secondary_notify_report_cards,
         secondary_notify_billing:      f.secondary_notify_billing,
         secondary_notify_appointments: f.secondary_notify_appointments,
+        notify_app:              f.notify_app,
+        notify_email:            f.notify_email,
+        notify_sms:              f.notify_sms,
         billing_method:          f.billing_method || null,
         subscription_tier:       f.subscription_tier || null,
         subscription_start_date: f.subscription_start_date || null,
@@ -1059,6 +1602,9 @@ export default function AdminClientDetailPage() {
           >
             {client.client_profile?.intake_submitted_at ? '📋 View Intake' : '📋 Intake Form'}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => { setShowSetPassword(!showSetPassword); setPasswordMsg(''); setNewPassword(''); }}>
+            Set Password
+          </Button>
           {client.status === 'pending' && (
             <Button variant="outline" size="sm" loading={resend.isPending} onClick={() => resend.mutate()}>
               Resend Invite
@@ -1066,6 +1612,37 @@ export default function AdminClientDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Set password inline form */}
+      {showSetPassword && (
+        <Card padding="sm">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <Input
+                label="New password for this client"
+                type="text"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Min 8 characters"
+              />
+            </div>
+            <Button
+              size="sm"
+              loading={setPasswordMut.isPending}
+              disabled={newPassword.length < 8}
+              onClick={() => setPasswordMut.mutate(newPassword)}
+            >
+              Set Password
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowSetPassword(false)}>
+              Cancel
+            </Button>
+          </div>
+          {passwordMsg && (
+            <p className={`text-sm mt-2 ${passwordMsg.includes('Failed') ? 'text-red-600' : 'text-green-600'}`}>{passwordMsg}</p>
+          )}
+        </Card>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-taupe/30">
@@ -1175,29 +1752,43 @@ export default function AdminClientDetailPage() {
               </Card>
 
               <Card>
-                <CardHeader title="Billing & Subscription" />
-                <div className="space-y-4">
-                  <div>
-                    <label className="label">Billing Method</label>
-                    <select className="input" value={form.billing_method} onChange={e => handleProfileChange('billing_method', e.target.value)}>
-                      <option value="credit_card">Credit Card</option>
-                      <option value="e_transfer">E-Transfer</option>
-                      <option value="cash">Cash</option>
-                    </select>
+                <CardHeader title="Notification Preferences" />
+                <div>
+                  <p className="text-xs text-taupe mb-3">How this client receives updates about appointments, messages, and more.</p>
+                  <div className="space-y-2">
+                    {([
+                      ['notify_app', 'App notifications', 'Push notifications on their phone'],
+                      ['notify_email', 'Email', 'Receive updates at their email address'],
+                      ['notify_sms', 'Text message (SMS)', 'Receive updates via text to their phone number'],
+                    ] as const).map(([key, label, desc]) => (
+                      <label key={key} className="flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
+                        <input
+                          type="checkbox"
+                          checked={!!form[key]}
+                          onChange={e => handleProfileChange(key, e.target.checked)}
+                          className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold mt-0.5"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-espresso">{label}</span>
+                          <span className="block text-xs text-taupe">{desc}</span>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                  <div>
-                    <label className="label">Subscription Tier</label>
-                    <select className="input" value={form.subscription_tier} onChange={e => handleProfileChange('subscription_tier', e.target.value)}>
-                      <option value="">None</option>
-                      <option value="basic">Basic</option>
-                      <option value="standard">Standard</option>
-                      <option value="premium">Premium</option>
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField label="Start Date" name="subscription_start_date" form={form} onChange={handleProfileChange} type="date" />
-                    <FormField label="End Date" name="subscription_end_date" form={form} onChange={handleProfileChange} type="date" />
-                  </div>
+                </div>
+              </Card>
+
+              <SubscriptionCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
+
+              <Card>
+                <CardHeader title="Billing Method" />
+                <div>
+                  <select className="input" value={form.billing_method} onChange={e => handleProfileChange('billing_method', e.target.value)}>
+                    <option value="credit_card">Credit Card</option>
+                    <option value="e_transfer">E-Transfer</option>
+                    <option value="interac_pad">Interac/PAD</option>
+                    <option value="cash">Cash</option>
+                  </select>
                 </div>
               </Card>
 
@@ -1259,12 +1850,29 @@ export default function AdminClientDetailPage() {
               </Card>
 
               <Card>
-                <CardHeader title="Billing & Subscription" />
+                <CardHeader title="Notification Preferences" />
+                <div className="flex flex-wrap gap-2">
+                  {(p.notify_app ?? true) && (
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>
+                  )}
+                  {p.notify_email && (
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>
+                  )}
+                  {p.notify_sms && (
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>
+                  )}
+                  {!(p.notify_app ?? true) && !p.notify_email && !p.notify_sms && (
+                    <span className="text-xs text-taupe italic">No channels selected</span>
+                  )}
+                </div>
+              </Card>
+
+              <SubscriptionCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
+
+              <Card>
+                <CardHeader title="Billing Method" />
                 <dl className="space-y-1 text-sm">
-                  <Field label="Billing Method" value={p.billing_method?.replace('_', ' ')} />
-                  <Field label="Subscription Tier" value={p.subscription_tier} />
-                  <Field label="Start Date" value={p.subscription_start_date?.split('T')[0]} />
-                  <Field label="End Date" value={p.subscription_end_date?.split('T')[0]} />
+                  <Field label="Method" value={p.billing_method?.replace('_', ' ')} />
                 </dl>
               </Card>
 

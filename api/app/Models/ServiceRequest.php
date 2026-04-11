@@ -17,6 +17,7 @@ class ServiceRequest extends Model
         'status',
         'admin_response',
         'counter_time_block',
+        'counter_time',
         'counter_date',
     ];
 

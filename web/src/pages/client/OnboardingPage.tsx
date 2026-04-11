@@ -4,16 +4,28 @@ import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+import { PartyPopper, User, Home, Dog, CreditCard, FileText, CheckCircle, Key } from 'lucide-react';
+
+const STEP_ICONS: Record<string, React.ReactNode> = {
+  set_password:  <Key className="w-5 h-5" />,
+  welcome:       <PartyPopper className="w-5 h-5" />,
+  profile:       <User className="w-5 h-5" />,
+  home_access:   <Home className="w-5 h-5" />,
+  dog_profiles:  <Dog className="w-5 h-5" />,
+  payment:       <CreditCard className="w-5 h-5" />,
+  agreement:     <FileText className="w-5 h-5" />,
+  confirmation:  <CheckCircle className="w-5 h-5" />,
+};
 
 const STEP_INFO = {
-  set_password:  { title: 'Set Your Password',    icon: '🔑', description: 'Create a secure password for your account.' },
-  welcome:       { title: 'Welcome to the Club',  icon: '🎉', description: 'Learn about what to expect from The Pupper Club.' },
-  profile:       { title: 'Your Profile',         icon: '👤', description: 'Fill in your contact and emergency info.' },
-  home_access:   { title: 'Home Access',          icon: '🏠', description: 'Provide entry instructions for your walker.' },
-  dog_profiles:  { title: 'Dog Profile(s)',       icon: '🐕', description: 'Tell us about your furry family member(s).' },
-  payment:       { title: 'Payment Method',       icon: '💳', description: 'Set up your billing preferences.' },
-  agreement:     { title: 'Service Agreement',    icon: '📄', description: 'Review and sign the service agreement.' },
-  confirmation:  { title: 'All Done!',            icon: '✅', description: 'Your account is fully set up.' },
+  set_password:  { title: 'Set Your Password',    description: 'Create a secure password for your account.' },
+  welcome:       { title: 'Welcome to the Club',  description: 'Learn about what to expect from The Pupper Club.' },
+  profile:       { title: 'Your Profile',         description: 'Fill in your contact and emergency info.' },
+  home_access:   { title: 'Home Access',          description: 'Provide entry instructions for your walker.' },
+  dog_profiles:  { title: 'Dog Profile(s)',       description: 'Tell us about your furry family member(s).' },
+  payment:       { title: 'Payment Method',       description: 'Set up your billing preferences.' },
+  agreement:     { title: 'Service Agreement',    description: 'Review and sign the service agreement.' },
+  confirmation:  { title: 'All Done!',            description: 'Your account is fully set up.' },
 };
 
 const STEP_ORDER = Object.keys(STEP_INFO) as (keyof typeof STEP_INFO)[];
@@ -42,7 +54,7 @@ export default function ClientOnboardingPage() {
   if (data?.completed) {
     return (
       <div className="text-center py-16 space-y-4">
-        <div className="text-5xl">🎉</div>
+        <PartyPopper className="w-12 h-12 text-gold mx-auto" />
         <h1 className="font-display text-2xl text-espresso">You're all set!</h1>
         <p className="text-taupe">Your account is fully set up. Welcome to The Pupper Club!</p>
         <Button onClick={() => navigate('/client')}>Go to Dashboard</Button>
@@ -78,7 +90,7 @@ export default function ClientOnboardingPage() {
                 <div className={`h-10 w-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 ${
                   isComplete ? 'bg-green-100' : isCurrent ? 'bg-gold/10' : 'bg-cream'
                 }`}>
-                  {isComplete ? '✅' : info.icon}
+                  {isComplete ? <CheckCircle className="w-5 h-5 text-green-600" /> : STEP_ICONS[step]}
                 </div>
                 <div className="flex-1">
                   <div className={`font-semibold text-sm ${isComplete ? 'text-green-700' : 'text-espresso'}`}>

@@ -9,6 +9,19 @@ const publicApi = axios.create({
   withCredentials: false,
 });
 
+interface TemplateField {
+  id: number;
+  label: string;
+  field_type: string;
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  required: boolean;
+  value: string;
+}
+
 export default function SigningPage() {
   const { token } = useParams<{ token: string }>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,12 +33,37 @@ export default function SigningPage() {
   const [typedName, setTypedName] = useState('');
   const [signed, setSigned] = useState(false);
   const [error, setError] = useState('');
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['signing', token],
     queryFn: () => publicApi.get(`/api/signing/${token}`).then(r => r.data.data),
     retry: false,
   });
+
+  const hasFields = data?.has_fields && data?.fields?.length > 0;
+  const fields: TemplateField[] = data?.fields ?? [];
+
+  // Initialize field values from server data
+  useEffect(() => {
+    if (data?.field_values) {
+      setFieldValues(data.field_values);
+    } else if (fields.length > 0) {
+      const initial: Record<string, string> = {};
+      fields.forEach(f => { initial[f.id] = f.value || ''; });
+      setFieldValues(initial);
+    }
+  }, [data]);
+
+  // Pre-fill signer name from name field
+  useEffect(() => {
+    if (hasFields && !signerName) {
+      const nameField = fields.find(f => f.field_type === 'name');
+      if (nameField && fieldValues[nameField.id]) {
+        setSignerName(fieldValues[nameField.id]);
+      }
+    }
+  }, [fieldValues, hasFields]);
 
   // Canvas drawing setup
   const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
@@ -103,11 +141,16 @@ export default function SigningPage() {
     return canvasRef.current?.toDataURL('image/png') ?? '';
   };
 
+  const updateFieldValue = (fieldId: number | string, value: string) => {
+    setFieldValues(prev => ({ ...prev, [fieldId]: value }));
+  };
+
   const submit = useMutation({
     mutationFn: () =>
       publicApi.post(`/api/signing/${token}/sign`, {
         signer_name:    signerName.trim(),
         signature_data: getSignatureData(),
+        field_values:   hasFields ? fieldValues : undefined,
       }),
     onSuccess: () => setSigned(true),
     onError: (err: any) => {
@@ -115,12 +158,21 @@ export default function SigningPage() {
     },
   });
 
+  // Check if required fields are filled
+  const requiredFieldsFilled = !hasFields || fields
+    .filter(f => f.required && f.field_type !== 'signature')
+    .every(f => {
+      const val = fieldValues[f.id];
+      if (f.field_type === 'checkbox') return val === 'true' || val === '1';
+      return val && val.trim().length > 0;
+    });
+
   // ── States ──────────────────────────────────────────────────────────────────
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <p className="text-taupe">Loading document…</p>
+        <p className="text-taupe">Loading document...</p>
       </div>
     );
   }
@@ -152,7 +204,7 @@ export default function SigningPage() {
     );
   }
 
-  const canSubmit = signerName.trim() && hasSignature && agreed;
+  const canSubmit = signerName.trim() && hasSignature && agreed && requiredFieldsFilled;
   const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
   const docUrl  = `${apiBase}/api/signing/${token}/document`;
 
@@ -161,7 +213,7 @@ export default function SigningPage() {
       {/* Header */}
       <div className="bg-white border-b border-cream px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <span className="text-2xl">🐾</span>
+          <img src="/logo.png" alt="The Pupper Club" className="w-6 h-6 object-contain" />
           <div>
             <div className="font-display text-espresso text-sm tracking-wide">THE PUPPER CLUB</div>
             <div className="text-xs text-taupe">Document Signing</div>
@@ -189,6 +241,58 @@ export default function SigningPage() {
             title="Document to sign"
           />
         </div>
+
+        {/* Template form fields */}
+        {hasFields && (
+          <div className="bg-white rounded-xl shadow-sm p-5 space-y-4">
+            <h2 className="font-display text-espresso text-base">Required Information</h2>
+            <p className="text-xs text-taupe">Please fill in the following fields:</p>
+            {fields
+              .filter(f => f.field_type !== 'signature')
+              .sort((a, b) => (a as any).sort_order - (b as any).sort_order)
+              .map(field => (
+                <div key={field.id}>
+                  <label className="block text-sm font-medium text-espresso mb-1">
+                    {field.label} {field.required && <span className="text-red-400">*</span>}
+                  </label>
+                  {field.field_type === 'checkbox' ? (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={fieldValues[field.id] === 'true' || fieldValues[field.id] === '1'}
+                        onChange={e => updateFieldValue(field.id, e.target.checked ? 'true' : 'false')}
+                        className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                      />
+                      <span className="text-sm text-espresso">{field.label}</span>
+                    </label>
+                  ) : field.field_type === 'date' ? (
+                    <input
+                      type="date"
+                      value={fieldValues[field.id] || ''}
+                      onChange={e => updateFieldValue(field.id, e.target.value)}
+                      className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    />
+                  ) : field.field_type === 'open_text' ? (
+                    <textarea
+                      value={fieldValues[field.id] || ''}
+                      onChange={e => updateFieldValue(field.id, e.target.value)}
+                      rows={3}
+                      className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
+                      placeholder={`Enter ${field.label.toLowerCase()}...`}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={fieldValues[field.id] || ''}
+                      onChange={e => updateFieldValue(field.id, e.target.value)}
+                      className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
+                      placeholder={`Enter ${field.label.toLowerCase()}...`}
+                    />
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
 
         {/* Signature pad */}
         <div className="bg-white rounded-xl shadow-sm p-5 space-y-4">
@@ -290,7 +394,7 @@ export default function SigningPage() {
                 : 'bg-taupe/20 text-taupe cursor-not-allowed'
             }`}
           >
-            {submit.isPending ? 'Submitting…' : 'Sign Document'}
+            {submit.isPending ? 'Submitting...' : 'Sign Document'}
           </button>
         </div>
 

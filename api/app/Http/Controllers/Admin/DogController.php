@@ -16,7 +16,11 @@ class DogController extends Controller
     {
         $query = Dog::with(['user', 'vaccinationRecords'])
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
-            ->when($request->active !== null, fn($q) => $q->where('is_active', $request->boolean('active')));
+            ->when($request->active !== null, fn($q) => $q->where('is_active', $request->boolean('active')))
+            ->when($request->search, function ($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%");
+            })
+            ->orderBy('name');
 
         return response()->json($query->paginate(50));
     }
@@ -86,8 +90,8 @@ class DogController extends Controller
             'weight_kg'          => 'nullable|numeric|min:0',
             'colour'             => 'nullable|string|max:100',
             'microchip_number'   => 'nullable|string|max:50',
-            'spayed_neutered'    => 'boolean',
-            'bite_history'       => 'boolean',
+            'spayed_neutered'    => 'sometimes|boolean',
+            'bite_history'       => 'sometimes|boolean',
             'bite_history_notes' => 'nullable|string',
             'aggression_notes'   => 'nullable|string',
             'vet_name'           => 'nullable|string|max:255',
@@ -99,7 +103,10 @@ class DogController extends Controller
             'medications.*.frequency' => 'required|string',
             'medications.*.notes'     => 'nullable|string',
             'special_instructions'   => 'nullable|string',
-            'is_active'          => 'boolean',
+            'is_active'          => 'sometimes|boolean',
+            'off_leash_approved' => 'sometimes|boolean',
+            'media_consent'      => 'sometimes|boolean',
+            'buddy_walks_ok'     => 'sometimes|boolean',
         ]);
     }
 }

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Invoice;
 use App\Services\AppointmentService;
+use App\Services\MileageService;
+use App\Services\NotificationDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -67,11 +69,16 @@ class AppointmentController extends Controller
     public function update(Request $request, Appointment $appointment): JsonResponse
     {
         $rules = [
-            'scheduled_time'   => 'sometimes|date',
-            'client_time_block'=> 'sometimes|in:early_morning,morning,midday,afternoon,evening',
-            'status'           => 'sometimes|in:scheduled,checked_in,completed,cancelled',
-            'notes'            => 'sometimes|nullable|string',
-            'scope'            => 'sometimes|in:single,future_all',
+            'scheduled_time'    => 'sometimes|date',
+            'client_time_block' => 'sometimes|in:early_morning,morning,midday,afternoon,evening',
+            'service_type'      => 'sometimes|in:walk_30,walk_60,drop_in,overnight,day_boarding',
+            'duration_minutes'  => 'sometimes|integer|min:15',
+            'dog_ids'           => 'sometimes|array|min:1',
+            'dog_ids.*'         => 'exists:dogs,id',
+            'status'            => 'sometimes|in:scheduled,checked_in,completed,cancelled',
+            'notes'             => 'sometimes|nullable|string',
+            'scope'             => 'sometimes|in:single,future_all',
+            'notify_client'     => 'sometimes|boolean',
         ];
 
         if (Schema::hasColumn('appointments', 'assigned_to')) {
@@ -81,11 +88,46 @@ class AppointmentController extends Controller
         $data = $request->validate($rules);
 
         $scope = $data['scope'] ?? 'single';
-        unset($data['scope']);
+        $notifyClient = filter_var($data['notify_client'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $dogIds = $data['dog_ids'] ?? null;
+        unset($data['scope'], $data['notify_client'], $data['dog_ids']);
+
+        // Track what changed for the notification message
+        $changes = [];
+        if (isset($data['scheduled_time']) && $data['scheduled_time'] !== $appointment->scheduled_time?->toIso8601String()) {
+            $changes[] = 'time updated to ' . \Carbon\Carbon::parse($data['scheduled_time'])->format('l, M j \a\t g:i A');
+        }
+        if (isset($data['service_type']) && $data['service_type'] !== $appointment->service_type) {
+            $changes[] = 'service changed to ' . str_replace('_', ' ', $data['service_type']);
+        }
+        if (isset($data['status']) && $data['status'] === 'cancelled') {
+            $changes[] = 'appointment cancelled';
+        }
 
         $this->service->update($appointment, $data, $scope);
 
-        return response()->json(['data' => $appointment->fresh(['dogs', 'user'])]);
+        // Sync dogs if provided
+        if ($dogIds !== null) {
+            $appointment->dogs()->sync($dogIds);
+        }
+
+        $appointment = $appointment->fresh(['dogs', 'user.clientProfile']);
+
+        // Send notification to client if requested
+        if ($notifyClient && $appointment->user) {
+            $dogNames = $appointment->dogs->pluck('name')->join(' & ');
+            $changeSummary = count($changes) ? implode(', ', $changes) : 'appointment details updated';
+            $title = 'Appointment Updated';
+            $body = "Hi {$appointment->user->name}, your appointment for {$dogNames} has been updated: {$changeSummary}.";
+
+            app(NotificationDispatcher::class)->notify(
+                $appointment->user,
+                $title,
+                $body,
+            );
+        }
+
+        return response()->json(['data' => $appointment]);
     }
 
     public function destroy(Request $request, Appointment $appointment): JsonResponse
@@ -139,6 +181,21 @@ class AppointmentController extends Controller
             $data,
             ['photo_paths' => $photoPaths]
         ));
+
+        // Auto-calculate mileage for the day using Google Maps
+        try {
+            $teamMemberId = Schema::hasColumn('appointments', 'assigned_to')
+                ? $appointment->assigned_to
+                : null;
+            app(MileageService::class)->recalculateDay(
+                $appointment->scheduled_time->copy()->startOfDay(),
+                $teamMemberId
+            );
+            $report->refresh();
+        } catch (\Throwable $e) {
+            // Don't fail completion if mileage calc fails
+            \Illuminate\Support\Facades\Log::warning('Auto-mileage calculation failed', ['error' => $e->getMessage()]);
+        }
 
         return response()->json(['data' => $report]);
     }
