@@ -63,7 +63,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
           local-dir: ./api/
-          server-dir: thepupperclub.ca/api/
+          server-dir: api/
           exclude: |
             **/.git*
             **/.git*/**
@@ -82,4 +82,4 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
           local-dir: ./web/dist/
-          server-dir: thepupperclub.ca/
+          server-dir: ./
