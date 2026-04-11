@@ -46,7 +46,7 @@ jobs:
           cache: npm
 
       - name: Install web dependencies
-        run: npm ci --workspace=web --workspace=shared
+        run: npm install --workspace=web --workspace=shared
 
       - name: Build web portal
         run: npm run build:web
