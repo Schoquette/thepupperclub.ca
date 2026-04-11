@@ -83,3 +83,4 @@ jobs:
           protocol: ftp
           local-dir: ./web/dist/
           server-dir: thepupperclub.ca/
+          dangerous-clean-slate: true
