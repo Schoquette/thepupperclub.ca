@@ -45,14 +45,17 @@ thepupperclub.ca/
 #### Key API Features
 
 - **Authentication**: Login, password reset, role-based access (admin/client)
-- **Client Management**: Profiles, onboarding steps, home access codes (encrypted)
-- **Dog Management**: CRUD, vaccination records, documents
-- **Appointments**: Scheduling, check-in/complete, recurring generation
+- **Client Management**: Profiles, onboarding steps, home access codes (encrypted), secondary contacts with notification preferences
+- **Dog Management**: CRUD, vaccination records, documents, profile photos
+- **Appointments**: Scheduling, check-in/complete, recurring generation, team member assignment
 - **Invoicing**: Create, send, pay via Stripe, PDF export, subscription billing
 - **Messaging**: Conversations with photo attachments, emoji reactions
-- **Report Cards**: Post-visit reports with photos and templates
+- **Report Cards**: Post-visit reports with multi-photo support, per-dog checklists/notes, customizable templates per client
 - **Document Signing**: Self-hosted digital signatures with encrypted tokens
 - **Intake Forms**: 45-field intake form with branded PDF export
+- **Auto-Mileage**: Automatic driving distance calculation on appointment completion via Google Maps Distance Matrix API (home → client1 → client2 → ... → home)
+- **Report Exports**: Download mileage, walk history, and billing reports as CSV or PDF
+- **Team Management**: Invite members, home address with Google Places autocomplete (Canadian addresses), role management
 - **Notifications**: Expo push notifications, email broadcasts, pre-visit reminders
 - **Audit Logging**: Tracks all admin actions
 
@@ -67,9 +70,9 @@ thepupperclub.ca/
 #### API Routes
 
 - **Public**: `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`, `/webhooks/stripe`, `/contact`, `/signing/{token}`
-- **Admin** (`/admin/*`): Full CRUD for clients, dogs, appointments, invoices, report cards, documents, notifications, audit logs, intake forms, Stripe products
+- **Admin** (`/admin/*`): Full CRUD for clients, dogs, appointments, invoices, report cards, documents, notifications, audit logs, intake forms, Stripe products, team management, time/mileage reports, report exports
 - **Client** (`/client/*`): Profile, dogs, appointments, invoices, billing/Stripe setup, report cards, documents, onboarding
-- **Shared**: Conversations, messages, message reactions, photo serving
+- **Shared**: Conversations, messages, message reactions, photo serving, document download
 
 ### Web Portal — React 18
 
@@ -83,7 +86,7 @@ thepupperclub.ca/
 
 #### Web Portal Pages (30 pages)
 
-**Admin Pages**: Dashboard, Clients list, Client detail, Intake form, Calendar, Service requests, Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Broadcast messages, Audit logs
+**Admin Pages**: Dashboard, Clients list, Client detail, Intake form, Calendar, Service requests, Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Broadcast messages, Audit logs
 
 **Client Pages**: Dashboard, Onboarding, Profile, Dogs, Appointments, Messages, Invoices, Billing (Stripe card management), Report cards, Documents
 
@@ -91,7 +94,7 @@ thepupperclub.ca/
 
 #### Reusable UI Components
 
-Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji reactions and photo lightbox)
+Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji reactions and photo lightbox), AddressAutocomplete (Google Places, Canada-only)
 
 ### Mobile App — Expo SDK 51
 
@@ -154,29 +157,61 @@ The `/shared` package (`@pupper/shared`) provides TypeScript interfaces used by 
 | **Payments** | Stripe | Webhooks at `/api/webhooks/stripe` |
 | **Domain** | GoDaddy | `thepupperclub.ca` |
 
-### GitHub Actions
+### GitHub Actions — Automatic Deployment
 
-The `.github/workflows/deploy.yml` workflow automatically deploys the `site/` directory to GitHub Pages on every push to `main`.
+The `.github/workflows/deploy.yml` workflow runs on every push to `main` and handles two parallel deployments:
+
+| Job | Target | What it deploys |
+|-----|--------|-----------------|
+| `deploy-site` | GitHub Pages | The `site/` directory (marketing website) |
+| `deploy-godaddy` | GoDaddy shared hosting (FTP) | The `api/` directory (Laravel) and the built `web/dist/` (React portal) |
+
+The GoDaddy job:
+1. Installs Node.js dependencies for the web portal
+2. Builds the React app with production environment variables
+3. Uploads `api/` to the server via FTP (excludes `.env`, logs, cache, sessions)
+4. Uploads the built `web/dist/` to the server via FTP
+
+#### Required GitHub Secrets
+
+The following secrets must be configured in **Settings → Secrets and variables → Actions**:
+
+| Secret | Description |
+|--------|-------------|
+| `FTP_SERVER` | GoDaddy FTP server hostname (already set) |
+| `FTP_USERNAME` | FTP username (already set) |
+| `FTP_PASSWORD` | FTP password (already set) |
+| `VITE_STRIPE_KEY` | Stripe publishable key for production build |
+| `VITE_GOOGLE_MAPS_KEY` | Google Maps API key for production build |
+
+Server paths are hardcoded in the workflow:
+- **API** → `thepupperclub.ca/api/`
+- **Web portal** → `thepupperclub.ca/` (document root)
+
+> **Note**: The API's `.env` file is excluded from FTP deployment and must be configured directly on the server.
 
 ---
 
 ## Database Schema
 
-22 migrations covering:
+Migrations covering:
 
-- **Users & Auth** — users table with roles (admin, client), Sanctum personal access tokens
-- **Client Profiles** — extended client info, subscription fields (plan, billing date, Stripe customer/payment method)
+- **Users & Auth** — users table with roles (admin, client, superadmin), Sanctum tokens, home address fields for team members
+- **Client Profiles** — extended client info, subscription fields, secondary contact (name, email, notification preferences)
 - **Home Access** — encrypted access codes for client homes
-- **Dogs** — breed, age, temperament, special needs, vaccination records
-- **Appointments** — scheduling with check-in/complete timestamps, recurring support
+- **Dogs** — breed, age, temperament, special needs, vaccination records, profile photo
+- **Appointments** — scheduling with check-in/complete timestamps, recurring support, team member assignment (`assigned_to`)
 - **Service Requests** — client-submitted requests for schedule changes
-- **Visit Reports** — post-visit report cards with photos, mood, notes
+- **Visit Reports** — post-visit report cards with multi-photo support, per-dog data (checklists/notes as JSON)
+- **Report Card Templates** — customizable checklist templates per client
 - **Invoices** — line items, Stripe payment intents, PDF generation
 - **Conversations & Messages** — threaded messaging with photo attachments and emoji reactions
 - **Documents** — client documents with digital signature support
 - **Onboarding Steps** — multi-step client onboarding flow
 - **Audit Logs** — admin action tracking
 - **Push Notifications** — Expo push notification records
+
+> **Note**: Many columns are auto-created by controllers on first use via `Schema::hasColumn()` checks, so the app works even without running all migrations.
 
 ---
 
@@ -215,7 +250,8 @@ chmod +x setup.sh
 ./setup.sh
 
 # Configure environment
-# Edit api/.env with your database credentials, Stripe keys, and Resend API key
+# Edit api/.env with your database credentials, Stripe keys, Google Maps key, and Resend API key
+# Edit web/.env with your API URL, Stripe publishable key, and Google Maps key
 
 # Run database migrations
 cd api
@@ -233,22 +269,55 @@ npm run dev
 
 # Start the mobile app (in a new terminal)
 cd ../mobile
+npm install
+npx expo install expo-image-picker
 npx expo start
 ```
 
 ### Environment Variables
 
 **API (`api/.env`):**
-- `DB_*` — MySQL connection
-- `MAIL_*` — Resend SMTP credentials
-- `STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET` — Stripe keys
-- `SANCTUM_STATEFUL_DOMAINS` — Allowed frontend domains
-- `FRONTEND_URL` — Web portal URL
-- `DISPLAY_TIMEZONE` — Set to `America/Vancouver`
+
+| Variable | Description |
+|----------|-------------|
+| `DB_*` | MySQL connection |
+| `STRIPE_SECRET` | Stripe secret key (`sk_test_` or `sk_live_`) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `GOOGLE_MAPS_API_KEY` | Google Maps API key (enable Distance Matrix, Places, Maps JavaScript APIs) |
+| `MAIL_MAILER` | `resend` |
+| `RESEND_API_KEY` | Resend API key |
+| `MAIL_FROM_ADDRESS` | `hello@thepupperclub.ca` (requires domain verification in Resend) |
+| `APP_TIMEZONE` | `America/Vancouver` |
+| `SANCTUM_STATEFUL_DOMAINS` | Allowed frontend domains |
+| `FRONTEND_URL` | Web portal URL |
 
 **Web (`web/.env`):**
-- `VITE_API_URL` — API base URL
-- `VITE_STRIPE_KEY` — Stripe publishable key
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | API base URL (e.g., `http://localhost:8000`) |
+| `VITE_STRIPE_KEY` | Stripe publishable key (must match backend's secret key mode — both test or both live) |
+| `VITE_GOOGLE_MAPS_KEY` | Google Maps API key (for Places address autocomplete) |
+
+> **Stripe key mismatch warning**: `pk_live_` and `sk_test_` keys do not pair. Both must be the same mode (test or live) for payments to work.
+
+### Post-Setup Steps
+
+1. **Google Maps**: Get an API key from [Google Cloud Console](https://console.cloud.google.com/) and enable **Distance Matrix API**, **Places API**, and **Maps JavaScript API**
+2. **Team addresses**: Set each team member's home address on the Team page (Admin → Team) — required for automatic mileage calculation
+3. **Resend**: Verify `thepupperclub.ca` domain in Resend dashboard before sending from `hello@thepupperclub.ca`
+4. **Stripe webhook**: Register `https://thepupperclub.ca/api/webhooks/stripe` in Stripe dashboard
+
+### Auto-Mileage
+
+When an appointment is completed (check-out), the system automatically calculates driving distance via Google Maps Distance Matrix API:
+
+- **First appointment of the day**: team member's home → client's address
+- **Middle appointments**: previous client's address → current client's address
+- **Last appointment of the day**: includes return trip to team member's home
+- If another appointment is completed later, mileage for the entire day is recalculated
+
+Requires `GOOGLE_MAPS_API_KEY` in `api/.env` and team member home addresses set on the Team page.
 
 ### Default Admin Account
 

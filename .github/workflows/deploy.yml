@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy
 
 on:
   push:
@@ -10,7 +10,8 @@ permissions:
   id-token: write
 
 jobs:
-  deploy:
+  # ── Marketing Site → GitHub Pages ──────────────────────────────────
+  deploy-site:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -30,3 +31,53 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # ── API + Web Portal → GoDaddy (FTP) ──────────────────────────────
+  deploy-godaddy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install web dependencies
+        run: npm ci --workspace=web --workspace=shared
+
+      - name: Build web portal
+        run: npm run build:web
+        env:
+          VITE_API_URL: https://thepupperclub.ca
+          VITE_STRIPE_KEY: ${{ secrets.VITE_STRIPE_KEY }}
+          VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
+
+      - name: Deploy API to GoDaddy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./api/
+          server-dir: thepupperclub.ca/api/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/storage/logs/**
+            **/storage/framework/cache/**
+            **/storage/framework/sessions/**
+            **/storage/framework/views/**
+            .env
+
+      - name: Deploy web portal build to GoDaddy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./web/dist/
+          server-dir: thepupperclub.ca/
