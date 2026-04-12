@@ -61,7 +61,7 @@ jobs:
           php-version: '8.2'
 
       - name: Install Composer dependencies
-        run: cd api && composer install --no-dev --optimize-autoloader --no-interaction
+        run: cd api && mkdir -p bootstrap/cache storage/framework/{cache,sessions,views} storage/logs && composer install --no-dev --optimize-autoloader --no-interaction
 
       - name: Deploy API to GoDaddy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
