@@ -55,6 +55,14 @@ jobs:
           VITE_STRIPE_KEY: ${{ secrets.VITE_STRIPE_KEY }}
           VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install Composer dependencies
+        run: cd api && composer install --no-dev --optimize-autoloader --no-interaction
+
       - name: Deploy API to GoDaddy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
