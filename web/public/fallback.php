@@ -26,5 +26,18 @@ if (isset($pages[$uri])) {
     exit;
 }
 
+// SEO files
+$seoFiles = [
+    '/robots.txt'  => 'robots.txt',
+    '/sitemap.xml' => 'sitemap.xml',
+];
+
+if (isset($seoFiles[$uri])) {
+    $ext = pathinfo($seoFiles[$uri], PATHINFO_EXTENSION);
+    header('Content-Type: ' . ($ext === 'xml' ? 'application/xml' : 'text/plain'));
+    readfile(__DIR__ . '/' . $seoFiles[$uri]);
+    exit;
+}
+
 // Everything else (login, admin, client, sign, etc.) → React app
 readfile(__DIR__ . '/app.html');

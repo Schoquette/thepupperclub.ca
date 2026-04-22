@@ -8,6 +8,12 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
   <title>Services — The Pupper Club</title>
   <meta name="description" content="Explore our curated dog care packages. Monthly subscriptions for 30 or 60 minute visits in Port Moody, Anmore & surrounding areas.">
+  <meta property="og:title" content="Services — The Pupper Club">
+  <meta property="og:description" content="Explore our curated dog care packages. Monthly subscriptions for 30 or 60 minute visits in Port Moody, Anmore & surrounding areas.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://thepupperclub.ca/services">
+  <meta property="og:image" content="https://images.squarespace-cdn.com/content/v1/698c986abec1646881b9843f/409f84f0-c68e-45a8-a1f6-1e9c6c9f3a23/Espresso+-+One+line+-+No+tagline.png?format=1500w">
+  <link rel="canonical" href="https://thepupperclub.ca/services">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
@@ -354,6 +360,32 @@
         document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
       });
     });
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "serviceType": "Dog Walking and Pet Care",
+    "provider": {
+      "@type": "LocalBusiness",
+      "name": "The Pupper Club",
+      "url": "https://thepupperclub.ca",
+      "telephone": "+1-604-998-1814",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Port Moody",
+        "addressRegion": "BC",
+        "addressCountry": "CA"
+      }
+    },
+    "areaServed": [
+      { "@type": "City", "name": "Port Moody" },
+      { "@type": "City", "name": "Anmore" },
+      { "@type": "City", "name": "Coquitlam" },
+      { "@type": "City", "name": "Belcarra" }
+    ],
+    "description": "Monthly subscription dog walking and in-home visit packages with 30 or 60 minute options."
+  }
   </script>
 </body>
 </html>
