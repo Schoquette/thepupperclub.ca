@@ -17,6 +17,8 @@ $pages = [
     '/services' => 'services.html',
     '/contact'  => 'contact.html',
     '/faq'      => 'faq.html',
+    '/privacy'  => 'privacy.html',
+    '/terms'    => 'terms.html',
 ];
 
 if (isset($pages[$uri])) {
