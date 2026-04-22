@@ -5,17 +5,13 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { CheckCircle, Lock, Trash2 } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 export default function ClientProfilePage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [pwForm, setPwForm] = useState({ current_password: '', password: '', password_confirmation: '' });
-  const [pwMsg, setPwMsg] = useState('');
-  const [showDelete, setShowDelete] = useState(false);
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleteMsg, setDeleteMsg] = useState('');
+  const [updateError, setUpdateError] = useState('');
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['client-profile'],
@@ -29,6 +25,10 @@ export default function ClientProfilePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-profile'] });
       setEditing(false);
+      setUpdateError('');
+    },
+    onError: (err: any) => {
+      setUpdateError(err.response?.data?.message || 'Failed to save changes. Please try again.');
     },
   });
 
@@ -37,28 +37,6 @@ export default function ClientProfilePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-profile'] });
       setConfirmed(true);
-    },
-  });
-
-  const changePassword = useMutation({
-    mutationFn: () => api.patch('/auth/change-password', pwForm),
-    onSuccess: () => {
-      setPwMsg('Password changed successfully.');
-      setPwForm({ current_password: '', password: '', password_confirmation: '' });
-    },
-    onError: (err: any) => {
-      setPwMsg(err.response?.data?.message || 'Failed to change password.');
-    },
-  });
-
-  const deleteAccount = useMutation({
-    mutationFn: () => api.delete('/auth/account', { data: { password: deletePassword } }),
-    onSuccess: () => {
-      localStorage.removeItem('token');
-      window.location.href = '/';
-    },
-    onError: (err: any) => {
-      setDeleteMsg(err.response?.data?.message || 'Failed to delete account.');
     },
   });
 
@@ -116,12 +94,6 @@ export default function ClientProfilePage() {
                   secondary_contact_name: p.secondary_contact_name ?? '',
                   secondary_contact_email: p.secondary_contact_email ?? '',
                   secondary_contact_phone: p.secondary_contact_phone ?? '',
-                  notify_app: p.notify_app ?? true,
-                  notify_email: p.notify_email ?? false,
-                  notify_sms: p.notify_sms ?? false,
-                  secondary_notify_app: p.secondary_notify_app ?? false,
-                  secondary_notify_email: p.secondary_notify_email ?? false,
-                  secondary_notify_sms: p.secondary_notify_sms ?? false,
                 });
                 setEditing(true);
               }}>
@@ -158,58 +130,7 @@ export default function ClientProfilePage() {
                 </div>
               </div>
             </div>
-
-            {/* Notification Preferences */}
-            <div className="pt-2 border-t border-cream">
-              <p className="text-sm font-semibold text-espresso mb-1">Notification Preferences</p>
-              <p className="text-xs text-taupe mb-4">Choose how each contact receives updates about appointments, messages, and more.</p>
-
-              <div className="grid grid-cols-2 gap-6">
-                {/* Primary */}
-                <div>
-                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Primary Contact</p>
-                  <div className="space-y-2">
-                    {[
-                      { key: 'notify_app', label: 'App notifications' },
-                      { key: 'notify_email', label: 'Email' },
-                      { key: 'notify_sms', label: 'Text message (SMS)' },
-                    ].map(({ key, label }) => (
-                      <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
-                        <input
-                          type="checkbox"
-                          checked={!!form[key]}
-                          onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
-                          className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
-                        />
-                        <span className="text-sm text-espresso">{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Secondary */}
-                <div>
-                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Secondary Contact</p>
-                  <div className="space-y-2">
-                    {[
-                      { key: 'secondary_notify_app', label: 'App notifications' },
-                      { key: 'secondary_notify_email', label: 'Email' },
-                      { key: 'secondary_notify_sms', label: 'Text message (SMS)' },
-                    ].map(({ key, label }) => (
-                      <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
-                        <input
-                          type="checkbox"
-                          checked={!!form[key]}
-                          onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
-                          className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
-                        />
-                        <span className="text-sm text-espresso">{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            {updateError && <p className="text-sm text-red-500">{updateError}</p>}
           </div>
         ) : (
           <div className="space-y-4">
@@ -249,47 +170,6 @@ export default function ClientProfilePage() {
                 </dl>
               </div>
             )}
-
-            {/* Read-only notification preferences */}
-            <div className="pt-3 border-t border-cream">
-              <p className="text-sm font-semibold text-espresso mb-3">Notification Preferences</p>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Primary Contact</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(p.notify_app ?? true) && (
-                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>
-                    )}
-                    {!!p.notify_email && (
-                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>
-                    )}
-                    {!!p.notify_sms && (
-                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>
-                    )}
-                    {!(p.notify_app ?? true) && !p.notify_email && !p.notify_sms && (
-                      <span className="text-xs text-taupe">None selected</span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Secondary Contact</p>
-                  <div className="flex flex-wrap gap-2">
-                    {!!p.secondary_notify_app && (
-                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>
-                    )}
-                    {!!p.secondary_notify_email && (
-                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>
-                    )}
-                    {!!p.secondary_notify_sms && (
-                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>
-                    )}
-                    {!p.secondary_notify_app && !p.secondary_notify_email && !p.secondary_notify_sms && (
-                      <span className="text-xs text-taupe">None selected</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </Card>
@@ -305,88 +185,6 @@ export default function ClientProfilePage() {
           </Button>
         </div>
       )}
-
-      {/* Change Password */}
-      <Card>
-        <CardHeader title="Change Password" />
-        <div className="space-y-4">
-          <Input
-            label="Current Password"
-            type="password"
-            value={pwForm.current_password}
-            onChange={e => { setPwForm(f => ({ ...f, current_password: e.target.value })); setPwMsg(''); }}
-          />
-          <Input
-            label="New Password"
-            type="password"
-            value={pwForm.password}
-            onChange={e => { setPwForm(f => ({ ...f, password: e.target.value })); setPwMsg(''); }}
-          />
-          <Input
-            label="Confirm New Password"
-            type="password"
-            value={pwForm.password_confirmation}
-            onChange={e => { setPwForm(f => ({ ...f, password_confirmation: e.target.value })); setPwMsg(''); }}
-          />
-          <p className="text-xs text-taupe">Must be at least 8 characters with uppercase, lowercase, and a number.</p>
-          {pwMsg && (
-            <p className={`text-sm ${pwMsg.includes('successfully') ? 'text-green-600' : 'text-red-500'}`}>{pwMsg}</p>
-          )}
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              loading={changePassword.isPending}
-              disabled={!pwForm.current_password || !pwForm.password || !pwForm.password_confirmation}
-              onClick={() => changePassword.mutate()}
-            >
-              <Lock className="w-4 h-4 mr-1.5" />
-              Update Password
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Delete Account */}
-      <Card>
-        <CardHeader title="Delete Account" />
-        <div className="space-y-4">
-          <p className="text-sm text-taupe">
-            Permanently delete your account and all associated data including dog profiles, appointments, messages, and documents. This action cannot be undone.
-          </p>
-          {!showDelete ? (
-            <Button size="sm" variant="outline" onClick={() => setShowDelete(true)}>
-              <Trash2 className="w-4 h-4 mr-1.5" />
-              Delete My Account
-            </Button>
-          ) : (
-            <div className="space-y-3 p-4 border border-red-200 rounded-xl bg-red-50/50">
-              <p className="text-sm font-semibold text-red-700">Are you sure? Enter your password to confirm.</p>
-              <Input
-                label="Password"
-                type="password"
-                value={deletePassword}
-                onChange={e => { setDeletePassword(e.target.value); setDeleteMsg(''); }}
-              />
-              {deleteMsg && <p className="text-sm text-red-500">{deleteMsg}</p>}
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => { setShowDelete(false); setDeletePassword(''); setDeleteMsg(''); }}>
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  loading={deleteAccount.isPending}
-                  disabled={!deletePassword}
-                  onClick={() => deleteAccount.mutate()}
-                  className="!bg-red-600 hover:!bg-red-700 !text-white !border-red-600"
-                >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  Permanently Delete
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
     </div>
   );
 }

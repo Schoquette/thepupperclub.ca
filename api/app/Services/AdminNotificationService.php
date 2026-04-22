@@ -65,7 +65,7 @@ class AdminNotificationService
 
     private function notifyAdmin(string $title, string $body): void
     {
-        $admin = User::where('role', 'admin')->first();
+        $admin = User::whereIn('role', ['admin', 'superadmin'])->first();
         if (!$admin) return;
 
         // Push notification to admin

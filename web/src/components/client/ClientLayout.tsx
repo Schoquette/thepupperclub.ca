@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -91,12 +91,14 @@ export default function ClientLayout() {
       {/* User */}
       <div className="px-3 py-4 border-t border-cream">
         <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${collapsed && !mobileOpen ? 'justify-center' : ''}`}>
-          <div className="h-8 w-8 rounded-full bg-gold flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+          <Link to="/client/settings" onClick={() => setMobileOpen(false)} className="h-8 w-8 rounded-full bg-gold flex items-center justify-center text-white text-sm font-bold flex-shrink-0 hover:bg-gold/80 transition-colors">
             {user?.name.charAt(0)}
-          </div>
+          </Link>
           {(!collapsed || mobileOpen) && (
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-espresso truncate">{user?.name}</div>
+              <Link to="/client/settings" onClick={() => setMobileOpen(false)} className="text-sm font-semibold text-espresso truncate block hover:text-gold transition-colors">
+                {user?.name}
+              </Link>
               <button onClick={handleLogout} className="text-xs text-taupe hover:text-espresso">
                 Sign out
               </button>

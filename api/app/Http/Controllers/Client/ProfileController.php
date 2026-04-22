@@ -101,19 +101,16 @@ class ProfileController extends Controller
             }
         }
 
-        // Post changes in chat
-        if (!empty($changes)) {
-            $body = "{$user->name} updated their profile:\n• " . implode("\n• ", $changes);
-            $this->adminNotifications->notifyWithMessage($user, 'Profile Updated', $body);
-        } else {
-            $this->adminNotifications->profileUpdated($user);
-        }
-
-        // Notify admin if billing method changed (separate billing-specific notification)
-        if (isset($data['billing_method']) && $data['billing_method'] !== $oldBillingMethod && !empty($oldBillingMethod)) {
-            $labels = ['credit_card' => 'Credit Card', 'e_transfer' => 'E-Transfer', 'interac_pad' => 'Interac/PAD', 'cash' => 'Cash'];
-            $newLabel = $labels[$data['billing_method']] ?? $data['billing_method'];
-            // Already posted in the changes message above, no need to double-post
+        // Post changes in chat (don't let notification failures break the save)
+        try {
+            if (!empty($changes)) {
+                $body = "{$user->name} updated their profile:\n• " . implode("\n• ", $changes);
+                $this->adminNotifications->notifyWithMessage($user, 'Profile Updated', $body);
+            } else {
+                $this->adminNotifications->profileUpdated($user);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Profile update notification failed: ' . $e->getMessage());
         }
 
         return response()->json(['data' => $user->fresh('clientProfile')]);
