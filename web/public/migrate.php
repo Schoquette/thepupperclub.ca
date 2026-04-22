@@ -34,6 +34,42 @@ echo "<pre>\n";
 echo "Available PDO drivers: " . implode(', ', PDO::getAvailableDrivers()) . "\n";
 echo "PHP version: " . phpversion() . "\n\n";
 
+// Test raw PDO connection to diagnose attribute issues
+echo "Testing raw SQL Server connection...\n";
+try {
+    $host = env('DB_HOST');
+    $port = env('DB_PORT', '1433');
+    $db = env('DB_DATABASE');
+    $dsn = "sqlsrv:Server={$host},{$port};Database={$db};Encrypt=no;TrustServerCertificate=yes";
+    $pdo = new PDO($dsn, env('DB_USERNAME'), env('DB_PASSWORD'), [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    ]);
+    echo "Raw PDO connection: SUCCESS\n";
+    $pdo = null;
+} catch (\Exception $e) {
+    echo "Raw PDO connection failed: " . $e->getMessage() . "\n";
+}
+
+// Test which PDO attributes cause issues
+echo "\nTesting PDO attributes...\n";
+$attrs = [
+    'ATTR_CASE' => PDO::ATTR_CASE,
+    'ATTR_ERRMODE' => PDO::ATTR_ERRMODE,
+    'ATTR_ORACLE_NULLS' => PDO::ATTR_ORACLE_NULLS,
+    'ATTR_STRINGIFY_FETCHES' => PDO::ATTR_STRINGIFY_FETCHES,
+];
+foreach ($attrs as $name => $attr) {
+    try {
+        $pdo = new PDO($dsn, env('DB_USERNAME'), env('DB_PASSWORD'));
+        $pdo->setAttribute($attr, $attr === PDO::ATTR_ERRMODE ? PDO::ERRMODE_EXCEPTION : ($attr === PDO::ATTR_CASE ? PDO::CASE_NATURAL : ($attr === PDO::ATTR_ORACLE_NULLS ? PDO::NULL_NATURAL : false)));
+        echo "  $name: OK\n";
+        $pdo = null;
+    } catch (\Exception $e) {
+        echo "  $name: FAILED - " . $e->getMessage() . "\n";
+    }
+}
+echo "\n";
+
 // Run migrations
 echo "Running migrations...\n";
 try {
