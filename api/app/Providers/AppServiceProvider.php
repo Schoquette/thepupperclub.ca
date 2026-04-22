@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\VaccinationRecord;
 use App\Observers\AuditObserver;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Database\Connectors\SqlServerConnector;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 
@@ -19,7 +20,16 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Fix SQL Server PDO: remove ATTR_STRINGIFY_FETCHES which isn't supported
+        $this->app->bind('db.connector.sqlsrv', function () {
+            return new class extends SqlServerConnector {
+                protected $options = [
+                    \PDO::ATTR_CASE => \PDO::CASE_NATURAL,
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                    \PDO::ATTR_ORACLE_NULLS => \PDO::NULL_NATURAL,
+                ];
+            };
+        });
     }
 
     public function boot(): void
