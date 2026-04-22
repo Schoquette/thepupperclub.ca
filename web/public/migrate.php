@@ -30,6 +30,10 @@ $kernel->bootstrap();
 
 echo "<pre>\n";
 
+// Show available database drivers
+echo "Available PDO drivers: " . implode(', ', PDO::getAvailableDrivers()) . "\n";
+echo "PHP version: " . phpversion() . "\n\n";
+
 // Run migrations
 echo "Running migrations...\n";
 try {
