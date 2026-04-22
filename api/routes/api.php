@@ -33,8 +33,10 @@ Route::post('/signing/{token}/sign',    [\App\Http\Controllers\SigningController
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout',      [AuthController::class, 'logout']);
     Route::get('/auth/me',           [AuthController::class, 'me']);
-    Route::patch('/auth/set-password',[AuthController::class, 'setPassword']);
-    Route::patch('/auth/push-token', [AuthController::class, 'updatePushToken']);
+    Route::patch('/auth/set-password',    [AuthController::class, 'setPassword']);
+    Route::patch('/auth/change-password', [AuthController::class, 'changePassword']);
+    Route::delete('/auth/account',        [AuthController::class, 'deleteAccount']);
+    Route::patch('/auth/push-token',      [AuthController::class, 'updatePushToken']);
 
     // ── Admin ─────────────────────────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->group(function () {

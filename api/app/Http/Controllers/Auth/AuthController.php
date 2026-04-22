@@ -25,7 +25,7 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials.'], 401);
+            return response()->json(['message' => 'The email and password do not match.'], 401);
         }
 
         if ($user->status === 'inactive') {
@@ -113,6 +113,68 @@ class AuthController extends Controller
         }
 
         return response()->json(['message' => __($status)], 422);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'current_password' => 'required|string',
+            'password'         => ['required', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()],
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Current password is incorrect.'], 422);
+        }
+
+        $user->update(['password' => Hash::make($request->password)]);
+
+        AuditLog::recordEvent($user, 'password_changed');
+
+        return response()->json(['message' => 'Password changed successfully.']);
+    }
+
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->role === 'superadmin' || $user->role === 'admin') {
+            return response()->json(['message' => 'Admin accounts cannot be self-deleted.'], 403);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Password is incorrect.'], 422);
+        }
+
+        AuditLog::recordEvent($user, 'account_deleted');
+
+        // Delete related data
+        $user->tokens()->delete();
+        $user->dogs()->each(function ($dog) {
+            $dog->vaccinationRecords()->delete();
+            $dog->delete();
+        });
+        $user->appointments()->delete();
+        $user->homeAccess()->delete();
+        $user->clientProfile()->delete();
+
+        // Delete conversations and messages
+        $conversations = \App\Models\Conversation::where('user_id', $user->id)->get();
+        foreach ($conversations as $convo) {
+            $convo->messages()->delete();
+            $convo->delete();
+        }
+
+        // Soft-delete the user
+        $user->update(['status' => 'inactive']);
+        $user->delete();
+
+        return response()->json(['message' => 'Your account and data have been deleted.']);
     }
 
     public function updatePushToken(Request $request): JsonResponse

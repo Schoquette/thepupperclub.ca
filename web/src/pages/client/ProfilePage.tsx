@@ -5,12 +5,17 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Lock, Trash2 } from 'lucide-react';
 
 export default function ClientProfilePage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [pwForm, setPwForm] = useState({ current_password: '', password: '', password_confirmation: '' });
+  const [pwMsg, setPwMsg] = useState('');
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteMsg, setDeleteMsg] = useState('');
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['client-profile'],
@@ -32,6 +37,28 @@ export default function ClientProfilePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-profile'] });
       setConfirmed(true);
+    },
+  });
+
+  const changePassword = useMutation({
+    mutationFn: () => api.patch('/auth/change-password', pwForm),
+    onSuccess: () => {
+      setPwMsg('Password changed successfully.');
+      setPwForm({ current_password: '', password: '', password_confirmation: '' });
+    },
+    onError: (err: any) => {
+      setPwMsg(err.response?.data?.message || 'Failed to change password.');
+    },
+  });
+
+  const deleteAccount = useMutation({
+    mutationFn: () => api.delete('/auth/account', { data: { password: deletePassword } }),
+    onSuccess: () => {
+      localStorage.removeItem('token');
+      window.location.href = '/';
+    },
+    onError: (err: any) => {
+      setDeleteMsg(err.response?.data?.message || 'Failed to delete account.');
     },
   });
 
@@ -278,6 +305,88 @@ export default function ClientProfilePage() {
           </Button>
         </div>
       )}
+
+      {/* Change Password */}
+      <Card>
+        <CardHeader title="Change Password" />
+        <div className="space-y-4">
+          <Input
+            label="Current Password"
+            type="password"
+            value={pwForm.current_password}
+            onChange={e => { setPwForm(f => ({ ...f, current_password: e.target.value })); setPwMsg(''); }}
+          />
+          <Input
+            label="New Password"
+            type="password"
+            value={pwForm.password}
+            onChange={e => { setPwForm(f => ({ ...f, password: e.target.value })); setPwMsg(''); }}
+          />
+          <Input
+            label="Confirm New Password"
+            type="password"
+            value={pwForm.password_confirmation}
+            onChange={e => { setPwForm(f => ({ ...f, password_confirmation: e.target.value })); setPwMsg(''); }}
+          />
+          <p className="text-xs text-taupe">Must be at least 8 characters with uppercase, lowercase, and a number.</p>
+          {pwMsg && (
+            <p className={`text-sm ${pwMsg.includes('successfully') ? 'text-green-600' : 'text-red-500'}`}>{pwMsg}</p>
+          )}
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              loading={changePassword.isPending}
+              disabled={!pwForm.current_password || !pwForm.password || !pwForm.password_confirmation}
+              onClick={() => changePassword.mutate()}
+            >
+              <Lock className="w-4 h-4 mr-1.5" />
+              Update Password
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Delete Account */}
+      <Card>
+        <CardHeader title="Delete Account" />
+        <div className="space-y-4">
+          <p className="text-sm text-taupe">
+            Permanently delete your account and all associated data including dog profiles, appointments, messages, and documents. This action cannot be undone.
+          </p>
+          {!showDelete ? (
+            <Button size="sm" variant="outline" onClick={() => setShowDelete(true)}>
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Delete My Account
+            </Button>
+          ) : (
+            <div className="space-y-3 p-4 border border-red-200 rounded-xl bg-red-50/50">
+              <p className="text-sm font-semibold text-red-700">Are you sure? Enter your password to confirm.</p>
+              <Input
+                label="Password"
+                type="password"
+                value={deletePassword}
+                onChange={e => { setDeletePassword(e.target.value); setDeleteMsg(''); }}
+              />
+              {deleteMsg && <p className="text-sm text-red-500">{deleteMsg}</p>}
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setShowDelete(false); setDeletePassword(''); setDeleteMsg(''); }}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  loading={deleteAccount.isPending}
+                  disabled={!deletePassword}
+                  onClick={() => deleteAccount.mutate()}
+                  className="!bg-red-600 hover:!bg-red-700 !text-white !border-red-600"
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" />
+                  Permanently Delete
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
