@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { format } from 'date-fns';
-import { MessageCircle, Calendar } from 'lucide-react';
+import { MessageCircle, Calendar, Smartphone, X } from 'lucide-react';
 import { PawIcon } from '@/components/ui/PawIcon';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -16,6 +17,14 @@ const TIME_BLOCK_LABELS: Record<string, string> = {
 export default function ClientDashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [phoneBannerDismissed, setPhoneBannerDismissed] = useState(
+    () => localStorage.getItem('pupper-phone-banner-dismissed') === '1'
+  );
+
+  const dismissPhoneBanner = () => {
+    localStorage.setItem('pupper-phone-banner-dismissed', '1');
+    setPhoneBannerDismissed(true);
+  };
 
   const { data: profile } = useQuery({
     queryKey: ['client-profile'],
@@ -49,6 +58,45 @@ export default function ClientDashboardPage() {
           {isFirstTime ? 'Let\'s get your profile set up.' : 'Here\'s what\'s coming up for your pup.'}
         </p>
       </div>
+
+      {/* Add to Home Screen banner */}
+      {!phoneBannerDismissed && (
+        <div className="relative bg-gradient-to-r from-gold/10 to-cream border border-gold/20 rounded-xl p-4">
+          <button
+            onClick={dismissPhoneBanner}
+            className="absolute top-3 right-3 text-taupe hover:text-espresso"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <div className="flex items-start gap-3">
+            <Smartphone className="w-6 h-6 text-gold flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold text-espresso text-sm">Get The Pupper Club on Your Phone</div>
+              <p className="text-xs text-taupe mt-1 mb-2">
+                Add a shortcut to your home screen for quick access — it works just like an app!
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-espresso">
+                <div className="bg-white/60 rounded-lg p-2.5">
+                  <div className="font-semibold mb-1">iPhone / iPad</div>
+                  <ol className="list-decimal list-inside space-y-0.5 text-taupe">
+                    <li>Open this page in <strong className="text-espresso">Safari</strong></li>
+                    <li>Tap the <strong className="text-espresso">Share</strong> button (square with arrow)</li>
+                    <li>Scroll down and tap <strong className="text-espresso">Add to Home Screen</strong></li>
+                  </ol>
+                </div>
+                <div className="bg-white/60 rounded-lg p-2.5">
+                  <div className="font-semibold mb-1">Android</div>
+                  <ol className="list-decimal list-inside space-y-0.5 text-taupe">
+                    <li>Open this page in <strong className="text-espresso">Chrome</strong></li>
+                    <li>Tap the <strong className="text-espresso">three-dot menu</strong> (top right)</li>
+                    <li>Tap <strong className="text-espresso">Add to Home screen</strong></li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* First-time setup prompt */}
       {isFirstTime && (
