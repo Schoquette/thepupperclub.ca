@@ -46,6 +46,7 @@ class AppointmentController extends Controller
             'duration_minutes' => 'required|integer|min:15',
             'notes'            => 'nullable|string',
             'recurrence_rule'  => 'nullable|array',
+            'recurrence'       => 'nullable|array',
         ];
 
         if (Schema::hasColumn('appointments', 'assigned_to')) {

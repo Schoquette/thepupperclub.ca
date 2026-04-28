@@ -12,9 +12,25 @@ class AppointmentService
     private const BUFFER_MINUTES = 15;
     private const MAX_PER_BLOCK  = 3;
 
+    /**
+     * Parse a datetime string, always interpreting naive datetimes in Pacific time.
+     */
+    private function parseTime(string $time): Carbon
+    {
+        $tz = config('app.timezone', 'America/Vancouver');
+
+        // If the string has a Z or +/- offset, parse then convert to app tz
+        if (preg_match('/[Zz]$|\+\d{2}:?\d{2}$|-\d{2}:?\d{2}$/', $time)) {
+            return Carbon::parse($time)->timezone($tz);
+        }
+
+        // Naive datetime (e.g. 2026-04-28T12:30) — interpret as Pacific
+        return Carbon::parse($time, $tz);
+    }
+
     public function create(array $data): Appointment
     {
-        $scheduledTime = Carbon::parse($data['scheduled_time']);
+        $scheduledTime = $this->parseTime($data['scheduled_time']);
 
         abort_if($scheduledTime->isPast(), 422, 'Cannot schedule appointments in the past.');
 
@@ -28,6 +44,9 @@ class AppointmentService
         }
         $hasAssignedTo = true;
 
+        // Accept both 'recurrence_rule' and 'recurrence' from frontend
+        $recurrenceRule = $data['recurrence_rule'] ?? $data['recurrence'] ?? null;
+
         $fields = [
             'user_id'           => $data['user_id'],
             'service_type'      => $data['service_type'],
@@ -35,7 +54,7 @@ class AppointmentService
             'client_time_block' => $data['client_time_block'],
             'duration_minutes'  => $data['duration_minutes'] ?? 30,
             'notes'             => $data['notes'] ?? null,
-            'recurrence_rule'   => $data['recurrence_rule'] ?? null,
+            'recurrence_rule'   => $recurrenceRule,
         ];
 
         if ($hasAssignedTo) {
@@ -47,7 +66,7 @@ class AppointmentService
         $appointment->dogs()->attach($data['dog_ids']);
 
         // Generate recurring children if rule provided
-        if (!empty($data['recurrence_rule'])) {
+        if (!empty($recurrenceRule)) {
             $this->generateRecurring($appointment);
         }
 
@@ -56,6 +75,11 @@ class AppointmentService
 
     public function update(Appointment $appointment, array $data, string $scope = 'single'): void
     {
+        // Ensure scheduled_time is always parsed in Pacific timezone
+        if (isset($data['scheduled_time'])) {
+            $data['scheduled_time'] = $this->parseTime($data['scheduled_time']);
+        }
+
         if ($scope === 'future_all' && $appointment->recurrence_parent_id) {
             // Update this and all future siblings
             Appointment::where(function ($q) use ($appointment) {
@@ -113,15 +137,23 @@ class AppointmentService
         $rule = $parent->recurrence_rule;
         if (!$rule) return;
 
-        $upTo      = $upTo ? Carbon::parse($upTo) : Carbon::now()->addMonths(6);
-        $current   = Carbon::parse($parent->scheduled_time);
+        $tz        = config('app.timezone', 'America/Vancouver');
+        $upTo      = $upTo ? Carbon::parse($upTo, $tz) : Carbon::now($tz)->addMonths(6);
+        $current   = Carbon::parse($parent->scheduled_time)->timezone($tz);
         $dogIds    = $parent->dogs->pluck('id')->all();
         $generated = 0;
-        $maxOccurrences = $rule['occurrences'] ?? 999;
-        $endDate   = isset($rule['end_date']) ? Carbon::parse($rule['end_date']) : $upTo;
+        $maxOccurrences = $rule['end_after_count'] ?? $rule['occurrences'] ?? 999;
+        $endDate   = isset($rule['end_date']) ? Carbon::parse($rule['end_date'], $tz)->endOfDay() : $upTo;
+        $interval  = max(1, (int) ($rule['interval'] ?? 1));
+        $daysOfWeek = $rule['days_of_week'] ?? [];
+
+        // For "never" end type, cap at 6 months
+        if (($rule['end_type'] ?? 'never') === 'never') {
+            $maxOccurrences = 999;
+        }
 
         while ($generated < $maxOccurrences) {
-            $current = $this->nextOccurrence($current, $rule);
+            $current = $this->nextOccurrence($current->copy(), $rule, $interval, $daysOfWeek);
 
             if ($current->gt($upTo) || $current->gt($endDate)) break;
 
@@ -147,14 +179,42 @@ class AppointmentService
         }
     }
 
-    private function nextOccurrence(Carbon $from, array $rule): Carbon
+    private function nextOccurrence(Carbon $from, array $rule, int $interval = 1, array $daysOfWeek = []): Carbon
     {
-        return match ($rule['frequency']) {
-            'daily'     => $from->addDay(),
-            'weekly'    => $from->addWeek(),
+        $frequency = $rule['frequency'] ?? 'weekly';
+
+        if ($frequency === 'weekly' && !empty($daysOfWeek)) {
+            // For weekly with specific days: advance day-by-day to find the next matching day
+            $dayMap = ['sun' => 0, 'mon' => 1, 'tue' => 2, 'wed' => 3, 'thu' => 4, 'fri' => 5, 'sat' => 6];
+            $targetDays = array_map(fn($d) => $dayMap[$d] ?? $d, $daysOfWeek);
+            $startOfWeek = $from->copy()->startOfWeek(Carbon::SUNDAY);
+            $next = $from->copy()->addDay();
+
+            // Try remaining days in this week first
+            while ($next->lt($startOfWeek->copy()->addWeeks(1))) {
+                if (in_array($next->dayOfWeek, $targetDays)) {
+                    return $next;
+                }
+                $next->addDay();
+            }
+
+            // Jump ahead by (interval - 1) weeks then check each day of that week
+            $next = $startOfWeek->copy()->addWeeks($interval);
+            for ($d = 0; $d < 7; $d++) {
+                $candidate = $next->copy()->addDays($d);
+                if (in_array($candidate->dayOfWeek, $targetDays)) {
+                    $candidate->setTime($from->hour, $from->minute, 0);
+                    return $candidate;
+                }
+            }
+        }
+
+        return match ($frequency) {
+            'daily'     => $from->addDays($interval),
+            'weekly'    => $from->addWeeks($interval),
             'biweekly'  => $from->addWeeks(2),
-            'monthly'   => $from->addMonth(),
-            default     => $from->addWeek(),
+            'monthly'   => $from->addMonths($interval),
+            default     => $from->addWeeks($interval),
         };
     }
 }

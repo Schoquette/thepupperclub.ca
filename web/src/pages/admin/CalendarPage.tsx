@@ -15,6 +15,12 @@ import { Badge, statusBadge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
+/** Format a Date as YYYY-MM-DDTHH:mm in local time (no UTC conversion) */
+function toLocalISO(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const locales = { 'en-CA': enCA };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
@@ -264,8 +270,8 @@ export default function AdminCalendarPage() {
     const durationMin = Math.round((newEnd.getTime() - newStart.getTime()) / 60_000);
     const payload: any = {
       id: appointment.id,
-      scheduled_time: newStart.toISOString(),
-      client_time_block: getTimeBlock(newStart.toISOString()),
+      scheduled_time: toLocalISO(newStart),
+      client_time_block: getTimeBlock(toLocalISO(newStart)),
       duration_minutes: durationMin,
     };
     // Show notify prompt instead of saving directly
