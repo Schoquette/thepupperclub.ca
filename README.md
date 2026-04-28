@@ -13,7 +13,7 @@ This is a **monorepo** with four main components:
 | **API** | `/api` | Laravel 11, PHP 8.2 | REST API, authentication, payments, email |
 | **Web Portal** | `/web` | React 18, TypeScript, Vite, TailwindCSS | Admin dashboard & client portal |
 | **Mobile App** | `/mobile` | Expo SDK 51, React Native, NativeWind | Client & admin mobile experience |
-| **Marketing Site** | `/site` | Static HTML, CSS, JS | Public-facing website at thepupperclub.ca |
+| **Marketing Site** | `/site` | Static HTML, CSS, JS | Public-facing website at thepupperclub.ca (7 pages) |
 | **Shared Types** | `/shared` | TypeScript | Shared interfaces between web and mobile |
 
 ```
@@ -40,23 +40,25 @@ thepupperclub.ca/
 - **Stripe PHP SDK** for payment processing (invoices, subscriptions, saved cards)
 - **Resend** (via SMTP) for transactional email
 - **DomPDF** for PDF generation (intake forms, invoices)
-- **22 database migrations** covering users, clients, dogs, appointments, invoices, messaging, documents, and more
+- **40+ database migrations** covering users, clients, dogs, appointments, invoices, messaging, documents, templates, subscriptions, and more
 
 #### Key API Features
 
-- **Authentication**: Login, password reset, role-based access (admin/client)
-- **Client Management**: Profiles, onboarding steps, home access codes (encrypted), secondary contacts with notification preferences
+- **Authentication**: Login, password reset, password change, account deletion, role-based access (admin/client/superadmin)
+- **Client Management**: Profiles, onboarding steps, home access codes (encrypted), secondary contacts with notification preferences, intake forms
 - **Dog Management**: CRUD, vaccination records, documents, profile photos
 - **Appointments**: Scheduling, check-in/complete, recurring generation, team member assignment
 - **Invoicing**: Create, send, pay via Stripe, PDF export, subscription billing
 - **Messaging**: Conversations with photo attachments, emoji reactions
 - **Report Cards**: Post-visit reports with multi-photo support, per-dog checklists/notes, customizable templates per client
-- **Document Signing**: Self-hosted digital signatures with encrypted tokens
+- **Document Management**: Upload PDF, Word (.doc/.docx), and images; self-hosted digital signatures with encrypted tokens; template system with visual field editor
 - **Intake Forms**: 45-field intake form with branded PDF export
 - **Auto-Mileage**: Automatic driving distance calculation on appointment completion via Google Maps Distance Matrix API (home → client1 → client2 → ... → home)
 - **Report Exports**: Download mileage, walk history, and billing reports as CSV or PDF
 - **Team Management**: Invite members, home address with Google Places autocomplete (Canadian addresses), role management
-- **Notifications**: Expo push notifications, email broadcasts, pre-visit reminders
+- **Notifications**: Expo push notifications, email broadcasts (rich text editor with templates), pre-visit reminders, multi-channel dispatch (app, email, SMS)
+- **Broadcast System**: Gmail-style rich text editor, system and marketing templates, inline image support
+- **Two-Way Communication**: Chat messages, inbound email webhook for email replies, one-way SMS alerts via Twilio
 - **Audit Logging**: Tracks all admin actions
 
 #### Scheduled Commands
@@ -84,11 +86,11 @@ thepupperclub.ca/
 - **React Big Calendar** for appointment scheduling views
 - **Axios** for API communication with auth interceptors
 
-#### Web Portal Pages (30 pages)
+#### Web Portal Pages (35+ pages)
 
-**Admin Pages**: Dashboard, Clients list, Client detail, Intake form, Calendar, Service requests, Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Broadcast messages, Audit logs
+**Admin Pages** (20): Dashboard, Clients list, Client detail, Dogs list, Intake form, Calendar, Service requests, Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Broadcast messages, Audit logs, Template editor
 
-**Client Pages**: Dashboard, Onboarding, Profile, Dogs, Appointments, Messages, Invoices, Billing (Stripe card management), Report cards, Documents
+**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions), Onboarding, Profile, Dogs, Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form, Settings (password change, notifications, account deletion)
 
 **Shared**: Login, Set password, Forgot/reset password, Document signing
 
@@ -116,20 +118,24 @@ Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji rea
 ### Marketing Site — Static HTML/CSS/JS
 
 - Pure **HTML, CSS, and JavaScript** — no framework, no build step
-- Deployed to **GitHub Pages** with automatic deployment on push
-- Custom domain: **www.thepupperclub.ca**
-- Clean URLs via `.htaccess` rewrite rules (Apache)
+- Hosted on GoDaddy alongside the portal, routed via `fallback.php`
+- Custom domain: **thepupperclub.ca**
 - Contact form wired to the Laravel API `/api/contact` endpoint
+- **SEO**: Open Graph tags, canonical links, JSON-LD structured data (LocalBusiness, FAQPage, Service schemas), robots.txt, sitemap.xml
+- **Legal**: Privacy Policy (BC PIPA compliant), Terms of Service (CASL compliant)
+- Custom favicon (leaping dog silhouette)
 
 #### Pages
 
 | Page | Description |
 |------|-------------|
-| Home (`index.html`) | Hero, ethos section, contact form |
-| Services (`services.html`) | Tabbed pricing (60min/30min), packages, testimonials |
+| Home (`index.html`) | Hero, ethos section, contact form, JSON-LD LocalBusiness schema |
+| Services (`services.html`) | Tabbed pricing (60min/30min), packages, testimonials, JSON-LD Service schema |
 | About (`about.html`) | Founder story, Instagram feed |
 | Contact (`contact.html`) | Contact form, email, phone, service area |
-| FAQ (`faq.html`) | 9-item accordion |
+| FAQ (`faq.html`) | 9-item accordion, JSON-LD FAQPage schema |
+| Privacy (`privacy.html`) | BC PIPA-compliant privacy policy |
+| Terms (`terms.html`) | Terms of service with CASL compliance |
 
 ### Shared Types — TypeScript
 
@@ -166,45 +172,38 @@ The `/shared` package (`@pupper/shared`) provides TypeScript interfaces used by 
 
 | Component | Host | Details |
 |-----------|------|---------|
-| **Marketing Site** | GitHub Pages | Auto-deploys from `site/` on push to `main` |
-| **API + Web Portal** | GoDaddy cPanel | PHP hosting with MySQL 8.0 |
+| **API + Web Portal + Marketing Site** | GoDaddy Plesk (Windows/IIS) | PHP 8.2 hosting with MySQL 8.0 |
 | **Database** | GoDaddy MySQL | `pupper_club` database |
 | **Email** | Resend | SMTP via `smtp.resend.com` |
+| **SMS** | Twilio | One-way SMS alerts |
 | **Payments** | Stripe | Webhooks at `/api/webhooks/stripe` |
-| **Domain** | GoDaddy | `thepupperclub.ca` |
+| **Domain** | GoDaddy | `thepupperclub.ca` (Cloudflare CDN) |
+| **Source** | GitHub | `Schoquette/thepupperclub.ca` |
 
-### GitHub Actions — Automatic Deployment
+### Automatic Deployment — GitHub Webhook
 
-The `.github/workflows/deploy.yml` workflow runs on every push to `main` and handles two parallel deployments:
+The server auto-deploys on every push to `main` via a GitHub webhook:
 
-| Job | Target | What it deploys |
-|-----|--------|-----------------|
-| `deploy-site` | GitHub Pages | The `site/` directory (marketing website) |
-| `deploy-godaddy` | GoDaddy shared hosting (FTP) | The `api/` directory (Laravel) and the built `web/dist/` (React portal) |
+1. Code is pushed to GitHub
+2. GitHub sends a POST to `https://thepupperclub.ca/deploy.php`
+3. The script verifies the HMAC-SHA256 signature
+4. Runs `git pull origin main` on the server
 
-The GoDaddy job:
-1. Installs Node.js dependencies for the web portal
-2. Builds the React app with production environment variables
-3. Uploads `api/` to the server via FTP (excludes `.env`, logs, cache, sessions)
-4. Uploads the built `web/dist/` to the server via FTP
+The webhook secret is configured in the GitHub repo settings. The deploy script logs all deployments to `deploy.log`.
 
-#### Required GitHub Secrets
+### Database Management — `migrate.php`
 
-The following secrets must be configured in **Settings → Secrets and variables → Actions**:
+A web-accessible migration runner at `https://thepupperclub.ca/migrate.php?key=SECRET`:
 
-| Secret | Description |
-|--------|-------------|
-| `FTP_SERVER` | GoDaddy FTP server hostname (already set) |
-| `FTP_USERNAME` | FTP username (already set) |
-| `FTP_PASSWORD` | FTP password (already set) |
-| `VITE_STRIPE_KEY` | Stripe publishable key for production build |
-| `VITE_GOOGLE_MAPS_KEY` | Google Maps API key for production build |
+| Parameter | Action |
+|-----------|--------|
+| (none) | Run pending migrations + seed |
+| `?fresh=1` | Drop all tables, re-migrate, seed with test data (4 clients, 6 dogs) |
+| `?clean=1` | Drop all tables, re-migrate, create admin user only (clean slate) |
 
-Server paths are hardcoded in the workflow:
-- **API** → `thepupperclub.ca/api/`
-- **Web portal** → `thepupperclub.ca/` (document root)
+Shows diagnostics (storage permissions, PHP version, DB connection) and data counts after completion.
 
-> **Note**: The API's `.env` file is excluded from FTP deployment and must be configured directly on the server.
+> **Note**: The API's `.env` file must be configured directly on the server.
 
 ---
 
