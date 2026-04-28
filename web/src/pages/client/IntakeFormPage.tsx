@@ -409,7 +409,7 @@ const WALK_STYLE_OPTIONS = [
   { value: 'sniff_focused', label: 'Sniff Focused' },
   { value: 'structured_training', label: 'Structured Training' },
   { value: 'social', label: 'Social' },
-  { value: 'indoor_outdoor', label: 'Indoor/Outdoor' },
+  { value: 'indoor_play', label: 'Indoor Play' },
   { value: 'low_stimulation', label: 'Low Stimulation' },
   { value: 'high_activity', label: 'High Activity' },
   { value: 'off_leash', label: 'Off Leash' },
@@ -561,10 +561,10 @@ function DogCard({
                   : <input type="date" className={fieldCls} value={dog.date_of_birth} onChange={e => set({ date_of_birth: e.target.value })} />
                 }
               </FieldRow>
-              <FieldRow label="Weight (kg)">
+              <FieldRow label="Weight (lbs)">
                 {readOnly
-                  ? <ReadValue value={dog.weight_kg ? `${dog.weight_kg} kg` : undefined} />
-                  : <input type="number" step="0.1" min="0" className={fieldCls} value={dog.weight_kg} onChange={e => set({ weight_kg: e.target.value })} placeholder="12.5" />
+                  ? <ReadValue value={dog.weight_kg ? `${dog.weight_kg} lbs` : undefined} />
+                  : <input type="number" step="0.1" min="0" className={fieldCls} value={dog.weight_kg} onChange={e => set({ weight_kg: e.target.value })} placeholder="27.5" />
                 }
               </FieldRow>
               <FieldRow label="Size">
@@ -788,7 +788,7 @@ function DogCard({
 // ── Section nav tabs ───────────────────────────────────────────────────────────
 
 const SECTION_LABELS = [
-  { id: 'section-1', label: 'Owner' },
+  { id: 'section-1', label: 'Parent' },
   { id: 'section-2', label: 'Vet' },
   { id: 'section-3', label: 'Dogs' },
   { id: 'section-4', label: 'Home Access' },
@@ -1106,7 +1106,7 @@ export default function IntakeFormPage() {
 
         {/* ── Section 1: Owner Information ─────────────────────────────────── */}
         <SectionCard id="section-1">
-          <SectionHeading>1. Owner Information</SectionHeading>
+          <SectionHeading>1. Parent Information</SectionHeading>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FieldRow label="Full Name">
               {readOnly
@@ -1117,31 +1117,31 @@ export default function IntakeFormPage() {
             <FieldRow label="Phone">
               {readOnly
                 ? <ReadValue value={form.phone} />
-                : <input type="tel" className={fieldCls} value={form.phone} onChange={e => update({ phone: e.target.value })} placeholder="(416) 555-0100" />
+                : <input type="tel" className={fieldCls} value={form.phone} onChange={e => update({ phone: e.target.value })} placeholder="(604) 555-0100" />
               }
             </FieldRow>
             <FieldRow label="Street Address">
               {readOnly
                 ? <ReadValue value={form.address} />
-                : <input className={fieldCls} value={form.address} onChange={e => update({ address: e.target.value })} placeholder="123 Main St" />
+                : <input className={fieldCls} value={form.address} onChange={e => update({ address: e.target.value })} placeholder="2425 St. Johns St" />
               }
             </FieldRow>
             <FieldRow label="City">
               {readOnly
                 ? <ReadValue value={form.city} />
-                : <input className={fieldCls} value={form.city} onChange={e => update({ city: e.target.value })} placeholder="Toronto" />
+                : <input className={fieldCls} value={form.city} onChange={e => update({ city: e.target.value })} placeholder="Port Moody" />
               }
             </FieldRow>
             <FieldRow label="Province">
               {readOnly
                 ? <ReadValue value={form.province} />
-                : <input className={fieldCls} value={form.province} onChange={e => update({ province: e.target.value })} placeholder="ON" />
+                : <input className={fieldCls} value={form.province} onChange={e => update({ province: e.target.value })} placeholder="BC" />
               }
             </FieldRow>
             <FieldRow label="Postal Code">
               {readOnly
                 ? <ReadValue value={form.postal_code} />
-                : <input className={fieldCls} value={form.postal_code} onChange={e => update({ postal_code: e.target.value })} placeholder="M5V 2N4" />
+                : <input className={fieldCls} value={form.postal_code} onChange={e => update({ postal_code: e.target.value })} placeholder="V3H 2A9" />
               }
             </FieldRow>
           </div>
@@ -1158,7 +1158,7 @@ export default function IntakeFormPage() {
               <FieldRow label="Phone">
                 {readOnly
                   ? <ReadValue value={form.emergency_contact_phone} />
-                  : <input type="tel" className={fieldCls} value={form.emergency_contact_phone} onChange={e => update({ emergency_contact_phone: e.target.value })} placeholder="(416) 555-0101" />
+                  : <input type="tel" className={fieldCls} value={form.emergency_contact_phone} onChange={e => update({ emergency_contact_phone: e.target.value })} placeholder="(604) 555-0101" />
                 }
               </FieldRow>
               <FieldRow label="Relationship">
@@ -1178,20 +1178,20 @@ export default function IntakeFormPage() {
             <FieldRow label="Clinic Name">
               {readOnly
                 ? <ReadValue value={form.vet_clinic_name} />
-                : <input className={fieldCls} value={form.vet_clinic_name} onChange={e => update({ vet_clinic_name: e.target.value })} placeholder="Riverside Animal Hospital" />
+                : <input className={fieldCls} value={form.vet_clinic_name} onChange={e => update({ vet_clinic_name: e.target.value })} placeholder="Port Moody Animal Hospital" />
               }
             </FieldRow>
             <FieldRow label="Phone">
               {readOnly
                 ? <ReadValue value={form.vet_phone} />
-                : <input type="tel" className={fieldCls} value={form.vet_phone} onChange={e => update({ vet_phone: e.target.value })} placeholder="(416) 555-0200" />
+                : <input type="tel" className={fieldCls} value={form.vet_phone} onChange={e => update({ vet_phone: e.target.value })} placeholder="(604) 555-0200" />
               }
             </FieldRow>
           </div>
           <FieldRow label="Address">
             {readOnly
               ? <ReadValue value={form.vet_address} />
-              : <textarea className={`${fieldCls} resize-none`} rows={2} value={form.vet_address} onChange={e => update({ vet_address: e.target.value })} placeholder="456 Vet Ave, Toronto ON M4B 1Z5" />
+              : <textarea className={`${fieldCls} resize-none`} rows={2} value={form.vet_address} onChange={e => update({ vet_address: e.target.value })} placeholder="2630 Clarke St, Port Moody BC V3H 1Z5" />
             }
           </FieldRow>
         </SectionCard>

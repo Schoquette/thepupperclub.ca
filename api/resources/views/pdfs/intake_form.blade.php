@@ -129,7 +129,7 @@
         <tr><td class="lbl">Date of Birth</td><td class="val">{{ $dog->date_of_birth }}</td></tr>
         @endif
         @if($dog->weight_kg)
-        <tr><td class="lbl">Weight</td><td class="val">{{ $dog->weight_kg }} kg</td></tr>
+        <tr><td class="lbl">Weight</td><td class="val">{{ $dog->weight_kg }} lbs</td></tr>
         @endif
         @if($dog->sex)
         <tr><td class="lbl">Sex</td><td class="val">{{ ucfirst($dog->sex) }}</td></tr>

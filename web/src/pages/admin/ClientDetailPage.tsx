@@ -230,7 +230,7 @@ function DogEditForm({
           <Input type="date" value={form.date_of_birth} onChange={e => onChange({ date_of_birth: e.target.value })} />
         </div>
         <div>
-          <label className="label">Weight (kg)</label>
+          <label className="label">Weight (lbs)</label>
           <Input type="number" step="0.1" min="0" value={form.weight_kg} onChange={e => onChange({ weight_kg: e.target.value })} />
         </div>
         <div>
@@ -1043,7 +1043,7 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
               <ProfileRow label="Size" value={SIZE_LABELS[dog.size] ?? dog.size} />
               <ProfileRow label="Sex" value={dog.sex === 'male' ? 'Male' : dog.sex === 'female' ? 'Female' : null} />
               <ProfileRow label="Date of Birth" value={dog.date_of_birth ? new Date(dog.date_of_birth).toLocaleDateString('en-CA') : null} />
-              <ProfileRow label="Weight" value={dog.weight_kg ? `${dog.weight_kg} kg` : null} />
+              <ProfileRow label="Weight" value={dog.weight_kg ? `${dog.weight_kg} lbs` : null} />
               <ProfileRow label="Colour" value={dog.colour} />
               <ProfileRow label="Microchip" value={dog.microchip_number} />
               <ProfileRow label="Spayed/Neutered" value={dog.spayed_neutered ? 'Yes' : 'No'} />

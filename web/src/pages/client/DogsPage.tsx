@@ -255,7 +255,7 @@ export default function ClientDogsPage() {
                 <DetailRow label="Size" value={SIZE_LABELS[dog.size] ?? dog.size} />
                 <DetailRow label="Sex" value={dog.sex === 'male' ? 'Male' : dog.sex === 'female' ? 'Female' : null} />
                 <DetailRow label="Date of Birth" value={dog.date_of_birth ? new Date(dog.date_of_birth).toLocaleDateString('en-CA') : null} />
-                <DetailRow label="Weight" value={dog.weight_kg ? `${dog.weight_kg} kg` : null} />
+                <DetailRow label="Weight" value={dog.weight_kg ? `${dog.weight_kg} lbs` : null} />
                 <DetailRow label="Colour" value={dog.colour} />
                 <DetailRow label="Microchip" value={dog.microchip_number} />
                 <DetailRow label="Spayed/Neutered" value={dog.spayed_neutered ? 'Yes' : 'No'} />
@@ -346,7 +346,7 @@ export default function ClientDogsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Select label="Size" value={editForm.size} onChange={e => setEditForm(f => ({ ...f, size: e.target.value }))} options={SIZE_OPTIONS} />
                   <Select label="Sex" value={editForm.sex} onChange={e => setEditForm(f => ({ ...f, sex: e.target.value }))} options={SEX_OPTIONS} />
-                  <Input label="Weight (kg)" type="number" value={editForm.weight_kg} onChange={e => setEditForm(f => ({ ...f, weight_kg: e.target.value }))} />
+                  <Input label="Weight (lbs)" type="number" value={editForm.weight_kg} onChange={e => setEditForm(f => ({ ...f, weight_kg: e.target.value }))} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Input label="Date of Birth" type="date" value={editForm.date_of_birth} onChange={e => setEditForm(f => ({ ...f, date_of_birth: e.target.value }))} />
@@ -494,7 +494,7 @@ export default function ClientDogsPage() {
             <Select label="Size" value={form.size} onChange={e => setForm(f => ({ ...f, size: e.target.value }))} options={SIZE_OPTIONS} />
             <Select label="Sex" value={form.sex} onChange={e => setForm(f => ({ ...f, sex: e.target.value }))}
               options={SEX_OPTIONS} />
-            <Input label="Weight (kg)" type="number" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
+            <Input label="Weight (lbs)" type="number" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
           </div>
           <Input label="Date of Birth" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
