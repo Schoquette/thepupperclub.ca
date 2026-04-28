@@ -1322,22 +1322,10 @@ export default function IntakeFormPage() {
 
           <div className="space-y-5">
             {/* Update method */}
-            <CheckboxGroup
-              label="Preferred Update Method"
-              options={UPDATE_METHOD_OPTIONS}
-              values={form.preferred_update_method}
-              onChange={v => updateField('preferred_update_method', v)}
-              readOnly={readOnly}
-            />
-
-            {/* Report detail */}
-            <RadioGroup
-              label="Report Detail Level"
-              options={REPORT_DETAIL_OPTIONS}
-              value={form.report_detail_level}
-              onChange={v => updateField('report_detail_level', v)}
-              readOnly={readOnly}
-            />
+            <div>
+              <label className="block text-sm font-medium text-espresso mb-1">Update Method</label>
+              <p className="text-sm text-taupe">In-App Notifications Only</p>
+            </div>
 
             <FieldRow label="What Does Great Care Look Like to You?">
               {readOnly
