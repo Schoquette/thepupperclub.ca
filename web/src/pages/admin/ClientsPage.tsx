@@ -24,6 +24,7 @@ export default function AdminClientsPage() {
   const [quickName, setQuickName] = useState('');
   const [quickEmail, setQuickEmail] = useState('');
   const [quickError, setQuickError] = useState('');
+  const [inviteSent, setInviteSent] = useState('');
 
   // Intake flow modal (step 1: name + email)
   const [intakeModal, setIntakeModal] = useState(false);
@@ -53,6 +54,7 @@ export default function AdminClientsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-clients'] });
       setQuickModal(false);
+      setInviteSent(quickEmail);
       setQuickName(''); setQuickEmail(''); setQuickError('');
     },
     onError: (e: any) => setQuickError(e.response?.data?.message || 'Could not send invite.'),
@@ -251,6 +253,17 @@ export default function AdminClientsPage() {
               Start Intake Form →
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Invite sent confirmation */}
+      <Modal open={!!inviteSent} onClose={() => setInviteSent('')} title="Invite Sent!">
+        <div className="space-y-4 text-center">
+          <div className="text-4xl">✉️</div>
+          <p className="text-sm text-espresso">
+            An invitation has been sent to <strong>{inviteSent}</strong>. They'll receive an email with instructions to set up their account.
+          </p>
+          <Button onClick={() => setInviteSent('')}>Done</Button>
         </div>
       </Modal>
     </div>

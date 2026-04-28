@@ -823,7 +823,10 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
               ))}
             </select>
             {allPrices.length === 0 && (
-              <p className="text-xs text-red-500">{stripeMessage || 'No plans found. Make sure Stripe is configured and has active products with recurring prices.'}</p>
+              <p className="text-xs text-red-500">
+                {stripeMessage || 'No plans found. Make sure Stripe has active products with monthly recurring prices.'}
+                {stripeRes?.debug && <span className="block mt-1 text-taupe">({stripeRes.debug.products_count} products, {stripeRes.debug.prices_count} prices found in Stripe)</span>}
+              </p>
             )}
             {selectedPrice && (
               <div>
@@ -1513,8 +1516,10 @@ export default function AdminClientDetailPage() {
   useEffect(() => { if (client) setForm(buildProfileForm(client)); }, [client]);
   useEffect(() => { setAccessForm(buildHomeAccessForm(homeAccess)); }, [homeAccess]);
 
+  const [inviteConfirm, setInviteConfirm] = useState('');
   const resend = useMutation({
     mutationFn: () => api.post(`/admin/clients/${id}/resend-invite`),
+    onSuccess: () => setInviteConfirm(client?.email || 'the client'),
   });
 
   const [showSetPassword, setShowSetPassword] = useState(false);
@@ -2010,6 +2015,20 @@ export default function AdminClientDetailPage() {
             <p className="text-center py-8 text-taupe">No home access info on file. Click Edit to add.</p>
           )}
         </Card>
+      )}
+
+      {/* Invite sent confirmation */}
+      {inviteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4 text-center space-y-4">
+            <div className="text-4xl">✉️</div>
+            <h3 className="text-lg font-display text-espresso">Invite Sent!</h3>
+            <p className="text-sm text-taupe">
+              An invitation has been sent to <strong>{inviteConfirm}</strong>.
+            </p>
+            <Button onClick={() => setInviteConfirm('')}>Done</Button>
+          </div>
+        </div>
       )}
 
       {/* Delete confirmation modal */}
