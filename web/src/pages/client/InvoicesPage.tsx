@@ -10,7 +10,7 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { CreditCard, Heart, CheckCircle } from 'lucide-react';
+import { CreditCard, Heart, CheckCircle, Download, Eye, X } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_KEY ?? '');
 
@@ -117,6 +117,43 @@ export default function ClientInvoicesPage() {
   const [tipping, setTipping] = useState<any>(null);
   const [tipAmount, setTipAmount] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState('');
+  const [previewing, setPreviewing] = useState<any>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const openPreview = async (inv: any) => {
+    setPreviewing(inv);
+    setPdfLoading(true);
+    try {
+      const res = await api.get(`/client/invoices/${inv.id}/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      setPdfUrl(url);
+    } catch {
+      setPdfUrl(null);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const downloadPdf = async (inv: any) => {
+    try {
+      const res = await api.get(`/client/invoices/${inv.id}/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${inv.invoice_number}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently fail
+    }
+  };
+
+  const closePreview = () => {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPreviewing(null);
+    setPdfUrl(null);
+  };
 
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['client-profile'],
@@ -199,7 +236,7 @@ export default function ClientInvoicesPage() {
           {dueInvoices.length > 0 ? (
             <div className="space-y-3">
               {dueInvoices.map((inv: any) => (
-                <div key={inv.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-xl">
+                <div key={inv.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-xl cursor-pointer hover:bg-red-100/60 transition-colors" onClick={() => openPreview(inv)}>
                   <div>
                     <div className="font-mono text-xs text-taupe">{inv.invoice_number}</div>
                     <div className="font-bold text-espresso">${Number(inv.total).toFixed(2)}</div>
@@ -212,7 +249,7 @@ export default function ClientInvoicesPage() {
                       <div className="text-xs text-red-500 mt-0.5">Due {format(new Date(inv.due_date), 'MMM d, yyyy')}</div>
                     )}
                   </div>
-                  <div className="flex flex-col items-end gap-1.5">
+                  <div className="flex flex-col items-end gap-1.5" onClick={e => e.stopPropagation()}>
                     <Badge variant={statusBadge(inv.status)}>{inv.status}</Badge>
                     {(!inv.billing_method || inv.billing_method === 'credit_card' || inv.billing_method === 'interac_pad') && (
                       <Button size="sm" onClick={() => setPaying(inv)}>Pay Now</Button>
@@ -248,7 +285,7 @@ export default function ClientInvoicesPage() {
           <h2 className="font-display text-lg text-espresso mb-3">Past Invoices</h2>
           <div className="space-y-3">
             {pastInvoices.map((inv: any) => (
-              <Card key={inv.id} padding="sm">
+              <Card key={inv.id} padding="sm" className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openPreview(inv)}>
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-mono text-xs text-taupe">{inv.invoice_number}</div>
@@ -262,7 +299,7 @@ export default function ClientInvoicesPage() {
                       <div className="text-xs text-taupe mt-0.5">{format(new Date(inv.due_date), 'MMM d, yyyy')}</div>
                     )}
                   </div>
-                  <div className="flex flex-col items-end gap-2">
+                  <div className="flex flex-col items-end gap-2" onClick={e => e.stopPropagation()}>
                     <Badge variant={statusBadge(inv.status)}>{inv.status}</Badge>
                     {inv.status === 'paid' && !inv.tip && (
                       <Button size="sm" variant="outline" onClick={() => setTipping(inv)}>
@@ -297,6 +334,42 @@ export default function ClientInvoicesPage() {
           </Elements>
         )}
       </Modal>
+
+      {/* Invoice preview modal */}
+      {previewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={closePreview}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-cream">
+              <div>
+                <h3 className="font-display text-lg text-espresso">Invoice {previewing.invoice_number}</h3>
+                <p className="text-xs text-taupe">${Number(previewing.total).toFixed(2)} — {previewing.status}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => downloadPdf(previewing)}>
+                  <Download className="w-4 h-4 mr-1.5" /> Download
+                </Button>
+                <button onClick={closePreview} className="text-taupe hover:text-espresso p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-1 min-h-[400px]">
+              {pdfLoading ? (
+                <div className="flex items-center justify-center h-full py-20">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gold border-t-transparent" />
+                </div>
+              ) : pdfUrl ? (
+                <iframe src={pdfUrl} className="w-full h-full min-h-[500px] rounded-lg" title="Invoice PDF" />
+              ) : (
+                <div className="flex items-center justify-center h-full py-20 text-taupe text-sm">
+                  Unable to load invoice preview.
+                  <button onClick={() => downloadPdf(previewing)} className="ml-2 text-gold hover:text-espresso font-medium">Download instead</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tip modal */}
       <Modal open={!!tipping} onClose={() => setTipping(null)} title="Add a Tip">

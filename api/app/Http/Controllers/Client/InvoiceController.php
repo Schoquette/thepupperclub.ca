@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
 use App\Services\InvoiceService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Stripe\SetupIntent;
 use Stripe\Stripe;
 
@@ -49,6 +51,17 @@ class InvoiceController extends Controller
         $result = $this->invoiceService->addTip($invoice, $request->amount);
 
         return response()->json(['data' => $result]);
+    }
+
+    public function pdf(Request $request, Invoice $invoice): Response
+    {
+        abort_unless($invoice->user_id === $request->user()->id, 403);
+
+        $pdf = Pdf::loadView('invoices.pdf', [
+            'invoice' => $invoice->load(['user.clientProfile', 'lineItems']),
+        ]);
+
+        return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
     }
 
     /**

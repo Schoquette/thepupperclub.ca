@@ -232,6 +232,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Invoices
         Route::get('/invoices',                      [Client\InvoiceController::class, 'index']);
+        Route::get('/invoices/{invoice}/pdf',        [Client\InvoiceController::class, 'pdf']);
         Route::post('/invoices/{invoice}/pay',       [Client\InvoiceController::class, 'pay']);
         Route::post('/invoices/{invoice}/tip',       [Client\InvoiceController::class, 'tip']);
         Route::post('/billing/setup-intent',         [Client\InvoiceController::class, 'setupIntent']);

@@ -13,38 +13,74 @@ if (($_GET['key'] ?? '') !== $secret) {
 }
 
 // Path to the api/ directory (sibling folder on server)
-$apiPath = __DIR__ . '/api';
+$apiPath = realpath(__DIR__ . '/api') ?: __DIR__ . '/api';
+
+// Also try parent-level api/ if the above doesn't exist
+if (!is_dir($apiPath)) {
+    $apiPath = realpath(__DIR__ . '/../api') ?: __DIR__ . '/../api';
+}
+
+echo "<pre>\n";
+echo "=== Diagnostics ===\n";
+echo "Document root: " . __DIR__ . "\n";
+echo "API path: $apiPath\n";
+echo "API dir exists: " . (is_dir($apiPath) ? 'YES' : 'NO') . "\n";
+echo "API dir writable: " . (is_writable($apiPath) ? 'YES' : 'NO') . "\n";
+if (is_dir($apiPath . '/storage')) {
+    echo "storage/ writable: " . (is_writable($apiPath . '/storage') ? 'YES' : 'NO') . "\n";
+    echo "storage/app/ writable: " . (is_dir($apiPath . '/storage/app') ? (is_writable($apiPath . '/storage/app') ? 'YES' : 'NO') : 'dir missing') . "\n";
+    echo "storage/framework/ writable: " . (is_dir($apiPath . '/storage/framework') ? (is_writable($apiPath . '/storage/framework') ? 'YES' : 'NO') : 'dir missing') . "\n";
+}
+echo "PHP SAPI: " . php_sapi_name() . "\n";
+echo "PHP user: " . (function_exists('get_current_user') ? get_current_user() : 'unknown') . "\n";
+echo "\n";
 
 // Create required storage directories if they don't exist
 $storageDirs = [
-    $apiPath . '/storage',
-    $apiPath . '/storage/logs',
-    $apiPath . '/storage/app',
-    $apiPath . '/storage/app/public',
-    $apiPath . '/storage/app/documents',
-    $apiPath . '/storage/app/templates',
-    $apiPath . '/storage/app/photos',
-    $apiPath . '/storage/framework',
-    $apiPath . '/storage/framework/cache',
-    $apiPath . '/storage/framework/cache/data',
-    $apiPath . '/storage/framework/sessions',
-    $apiPath . '/storage/framework/views',
-    $apiPath . '/bootstrap/cache',
+    'storage',
+    'storage/logs',
+    'storage/app',
+    'storage/app/public',
+    'storage/app/documents',
+    'storage/app/templates',
+    'storage/app/photos',
+    'storage/framework',
+    'storage/framework/cache',
+    'storage/framework/cache/data',
+    'storage/framework/sessions',
+    'storage/framework/views',
+    'bootstrap/cache',
 ];
 
-echo "<pre>\n";
 echo "=== Storage Directory Setup ===\n";
-foreach ($storageDirs as $dir) {
-    if (!is_dir($dir)) {
-        if (@mkdir($dir, 0775, true)) {
-            echo "Created: " . basename(dirname($dir)) . '/' . basename($dir) . "\n";
-        } else {
-            echo "FAILED to create: $dir\n";
-        }
-    } else {
-        echo "Exists: " . basename(dirname($dir)) . '/' . basename($dir) . "\n";
+
+// Save current dir and move into api/ so mkdir uses relative paths
+// (works around Windows absolute-path permission issues)
+$origDir = getcwd();
+chdir($apiPath);
+
+foreach ($storageDirs as $relDir) {
+    $full = $apiPath . '/' . $relDir;
+    if (is_dir($full)) {
+        echo "Exists: $relDir\n";
+        continue;
+    }
+    // Try mkdir with recursive flag (no explicit permissions on Windows)
+    $ok = @mkdir($full, 0777, true);
+    if (!$ok) {
+        // Fallback: try creating via shell on Windows
+        $winPath = str_replace('/', '\\', $full);
+        @exec("mkdir \"$winPath\" 2>&1", $out, $code);
+        $ok = is_dir($full);
+    }
+    echo ($ok ? "Created: $relDir" : "FAILED: $relDir") . "\n";
+    // Drop a .gitkeep so the dir persists in deploys
+    if ($ok) {
+        @file_put_contents($full . '/.gitkeep', '');
     }
 }
+
+chdir($origDir);
 echo "\n";
 
 // Check vendor exists
@@ -63,16 +99,43 @@ $kernel->bootstrap();
 echo "PHP version: " . phpversion() . "\n";
 echo "DB connection: " . config('database.default') . "\n\n";
 
-// Check for ?fresh=1 to do a full reset
+// Modes: ?clean=1 (fresh + admin only), ?fresh=1 (fresh + test data), default (incremental + seed)
+$clean = ($_GET['clean'] ?? '') === '1';
 $fresh = ($_GET['fresh'] ?? '') === '1';
 
-if ($fresh) {
+if ($clean || $fresh) {
     echo "=== FRESH MIGRATION (dropping all tables) ===\n";
     try {
-        Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
+        // Run migrate:fresh WITHOUT --seed so we control seeding separately
+        Illuminate\Support\Facades\Artisan::call('migrate:fresh', ['--force' => true]);
         echo Illuminate\Support\Facades\Artisan::output();
     } catch (\Exception $e) {
         echo "Error: " . $e->getMessage() . "\n";
+    }
+
+    if ($clean) {
+        // Admin-only: just create the admin user
+        echo "\n=== Creating admin user only (clean start) ===\n";
+        try {
+            $admin = \App\Models\User::firstOrCreate(['email' => 'sophie@thepupperclub.ca'], [
+                'name'     => 'Sophie Choquette',
+                'password' => \Illuminate\Support\Facades\Hash::make('changeme123'),
+                'role'     => 'superadmin',
+                'status'   => 'active',
+            ]);
+            echo "Admin created: {$admin->email} (id: {$admin->id})\n";
+        } catch (\Exception $e) {
+            echo "Error creating admin: " . $e->getMessage() . "\n";
+        }
+    } else {
+        // fresh=1: seed with test data
+        echo "\n=== Running seeder (test data) ===\n";
+        try {
+            Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+            echo Illuminate\Support\Facades\Artisan::output();
+        } catch (\Exception $e) {
+            echo "Seeder error: " . $e->getMessage() . "\n";
+        }
     }
 } else {
     echo "=== Running migrations ===\n";
@@ -90,6 +153,24 @@ if ($fresh) {
     } catch (\Exception $e) {
         echo "Seeder error: " . $e->getMessage() . "\n";
     }
+}
+
+// ── Quick data check ──
+echo "\n=== Data Check ===\n";
+try {
+    $users = \Illuminate\Support\Facades\DB::table('users')->count();
+    $clients = \Illuminate\Support\Facades\DB::table('users')->where('role', 'client')->count();
+    $dogs = \Illuminate\Support\Facades\DB::table('dogs')->count();
+    $profiles = \Illuminate\Support\Facades\DB::table('client_profiles')->count();
+    echo "Users: $users (Clients: $clients)\n";
+    echo "Client Profiles: $profiles\n";
+    echo "Dogs: $dogs\n";
+    if ($clients === 0) {
+        echo "\n⚠ NO CLIENTS FOUND — seeder may have failed.\n";
+        echo "Try running again without ?fresh=1 to re-seed.\n";
+    }
+} catch (\Exception $e) {
+    echo "Check failed: " . $e->getMessage() . "\n";
 }
 
 echo "\nDone!\n";

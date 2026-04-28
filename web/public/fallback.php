@@ -30,11 +30,13 @@ if (isset($pages[$uri])) {
 $seoFiles = [
     '/robots.txt'  => 'robots.txt',
     '/sitemap.xml' => 'sitemap.xml',
+    '/google963925999d6d5da9.html' => 'google963925999d6d5da9.html',
 ];
 
 if (isset($seoFiles[$uri])) {
     $ext = pathinfo($seoFiles[$uri], PATHINFO_EXTENSION);
-    header('Content-Type: ' . ($ext === 'xml' ? 'application/xml' : 'text/plain'));
+    $types = ['xml' => 'application/xml', 'html' => 'text/html', 'txt' => 'text/plain'];
+    header('Content-Type: ' . ($types[$ext] ?? 'text/plain'));
     readfile(__DIR__ . '/' . $seoFiles[$uri]);
     exit;
 }
