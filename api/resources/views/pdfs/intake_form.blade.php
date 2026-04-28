@@ -86,13 +86,17 @@
       </td></tr>
       @endif
       @if($profile->preferred_walk_times)
-      <tr><td class="lbl">Preferred Walk Times</td><td class="val">{{ $profile->preferred_walk_times }}</td></tr>
+      <tr><td class="lbl">Preferred Walk Times</td><td class="val">
+        {{ is_array($profile->preferred_walk_times) ? implode(', ', $profile->preferred_walk_times) : $profile->preferred_walk_times }}
+      </td></tr>
       @endif
       @if($profile->preferred_walk_length)
       <tr><td class="lbl">Walk Length</td><td class="val">{{ $profile->preferred_walk_length }}</td></tr>
       @endif
       @if($profile->preferred_update_method)
-      <tr><td class="lbl">Update Method</td><td class="val">{{ $profile->preferred_update_method }}</td></tr>
+      <tr><td class="lbl">Update Method</td><td class="val">
+        {{ is_array($profile->preferred_update_method) ? implode(', ', $profile->preferred_update_method) : $profile->preferred_update_method }}
+      </td></tr>
       @endif
       @if($profile->report_detail_level)
       <tr><td class="lbl">Report Detail Level</td><td class="val">{{ $profile->report_detail_level }}</td></tr>
