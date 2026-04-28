@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
+import { Upload } from 'lucide-react';
 
 
 export default function AdminDocumentsPage() {
@@ -23,6 +24,13 @@ export default function AdminDocumentsPage() {
   const [uploadDesc, setUploadDesc] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState('');
+
+  // Upload document modal
+  const [showDocUpload, setShowDocUpload] = useState(false);
+  const [docUploadFile, setDocUploadFile] = useState<File | null>(null);
+  const [docUploadClient, setDocUploadClient] = useState('');
+  const [docUploadType, setDocUploadType] = useState('other');
+  const [docUploadError, setDocUploadError] = useState('');
 
   // Use template modal
   const [useModal, setUseModal] = useState<any>(null);
@@ -94,6 +102,27 @@ export default function AdminDocumentsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['document-templates'] }),
   });
 
+  // Upload document to client
+  const uploadDocument = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('file', docUploadFile!);
+      fd.append('type', docUploadType);
+      return api.post(`/admin/clients/${docUploadClient}/documents`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: () => {
+      setShowDocUpload(false);
+      setDocUploadFile(null);
+      setDocUploadClient('');
+      setDocUploadType('other');
+      setDocUploadError('');
+      qc.invalidateQueries({ queryKey: ['admin-documents'] });
+    },
+    onError: (e: any) => setDocUploadError(e.response?.data?.message || 'Upload failed.'),
+  });
+
   // Send for signing
   const sendDoc = useMutation({
     mutationFn: (docId: number) => api.post(`/admin/documents/${docId}/send`),
@@ -118,9 +147,15 @@ export default function AdminDocumentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="page-title">Documents</h1>
-        {tab === 'templates' && (
-          <Button onClick={() => setShowUpload(true)}>+ New Template</Button>
-        )}
+        <div className="flex gap-2">
+          {tab === 'templates' ? (
+            <Button onClick={() => setShowUpload(true)}>+ New Template</Button>
+          ) : (
+            <Button onClick={() => { setShowDocUpload(true); setDocUploadError(''); }}>
+              <Upload className="w-4 h-4 mr-1.5" /> Upload Document
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tabs + search */}
@@ -290,7 +325,7 @@ export default function AdminDocumentsPage() {
       <Modal open={showUpload} onClose={() => setShowUpload(false)} title="New Document Template">
         <div className="space-y-4">
           <p className="text-sm text-taupe">
-            Upload a PDF document. You'll be able to add form fields (name, signature, date, etc.) in the next step.
+            Upload a document. PDF templates can have form fields (name, signature, date, etc.) added in the next step.
           </p>
           <Input
             label="Template Name"
@@ -305,13 +340,14 @@ export default function AdminDocumentsPage() {
             placeholder="Brief description..."
           />
           <div>
-            <label className="block text-sm font-medium text-espresso mb-1">PDF File</label>
+            <label className="block text-sm font-medium text-espresso mb-1">File</label>
             <input
               type="file"
-              accept=".pdf"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic"
               onChange={e => setUploadFile(e.target.files?.[0] ?? null)}
               className="block w-full text-sm text-espresso file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-cream file:text-espresso hover:file:bg-cream/70"
             />
+            <p className="text-xs text-taupe mt-1">PDF, Word (.doc, .docx), JPG, PNG, HEIC — max 20 MB</p>
           </div>
           {uploadError && (
             <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{uploadError}</div>
@@ -364,6 +400,65 @@ export default function AdminDocumentsPage() {
               onClick={() => useModal && createFromTemplate.mutate(useModal.id)}
             >
               Create Draft
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Upload Document Modal */}
+      <Modal open={showDocUpload} onClose={() => setShowDocUpload(false)} title="Upload Document">
+        <div className="space-y-4">
+          <p className="text-sm text-taupe">
+            Upload a document (PDF, Word, or image) and assign it to a client.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-espresso mb-1">Client</label>
+            <select
+              value={docUploadClient}
+              onChange={e => setDocUploadClient(e.target.value)}
+              className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
+            >
+              <option value="">Select a client...</option>
+              {(clients ?? []).map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name} — {c.email}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-espresso mb-1">Document Type</label>
+            <select
+              value={docUploadType}
+              onChange={e => setDocUploadType(e.target.value)}
+              className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
+            >
+              <option value="vaccination_record">Vaccination Record</option>
+              <option value="vet_record">Vet Record</option>
+              <option value="service_agreement">Service Agreement</option>
+              <option value="liability_waiver">Liability Waiver</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-espresso mb-1">File</label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic"
+              onChange={e => setDocUploadFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-sm text-espresso file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-cream file:text-espresso hover:file:bg-cream/70"
+            />
+            <p className="text-xs text-taupe mt-1">PDF, Word (.doc, .docx), JPG, PNG, HEIC — max 10 MB</p>
+          </div>
+          {docUploadError && (
+            <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{docUploadError}</div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => setShowDocUpload(false)}>Cancel</Button>
+            <Button
+              loading={uploadDocument.isPending}
+              disabled={!docUploadClient || !docUploadFile}
+              onClick={() => uploadDocument.mutate()}
+            >
+              Upload
             </Button>
           </div>
         </div>

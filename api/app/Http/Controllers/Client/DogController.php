@@ -103,7 +103,7 @@ class DogController extends Controller
     public function uploadDocument(Request $request): JsonResponse
     {
         $request->validate([
-            'file'   => 'required|file|mimes:pdf,jpg,jpeg,png,heic,docx|max:10240',
+            'file'   => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png,heic|max:10240',
             'type'   => 'required|in:vaccination_record,vet_record,service_agreement,liability_waiver,other',
             'dog_id' => 'nullable|exists:dogs,id',
         ]);

@@ -33,7 +33,7 @@ class DocumentTemplateController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'pdf' => 'required|file|mimes:pdf|max:20480',
+            'pdf' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png,heic|max:20480',
         ]);
 
         $file = $request->file('pdf');
