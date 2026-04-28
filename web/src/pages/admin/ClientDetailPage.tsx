@@ -820,6 +820,9 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                 <option key={p.priceId} value={p.priceId}>{p.label}</option>
               ))}
             </select>
+            {allPrices.length === 0 && (
+              <p className="text-xs text-red-500">No plans found. Make sure Stripe is configured and has active products with recurring prices.</p>
+            )}
             {selectedPrice && (
               <div>
                 <label className="label">Start Date</label>

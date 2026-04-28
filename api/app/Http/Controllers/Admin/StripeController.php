@@ -14,7 +14,11 @@ class StripeController extends Controller
      */
     public function products(): JsonResponse
     {
-        $stripe = new StripeClient(config('services.stripe.secret'));
+        $key = config('services.stripe.secret');
+        if (!$key) {
+            return response()->json(['data' => [], 'message' => 'Stripe secret key is not configured on the server.']);
+        }
+        $stripe = new StripeClient($key);
 
         $products = $stripe->products->all(['active' => true, 'limit' => 100]);
         $prices   = $stripe->prices->all(['active' => true, 'limit' => 100, 'expand' => []]);
