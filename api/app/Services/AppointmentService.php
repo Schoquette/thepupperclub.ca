@@ -15,18 +15,16 @@ class AppointmentService
     /**
      * Parse a datetime string, always interpreting naive datetimes in Pacific time.
      */
+    /**
+     * Parse a time string, stripping any timezone info so the raw
+     * local time is stored as-is in the database. The frontend always
+     * sends and displays Pacific time, so no conversion is needed.
+     */
     private function parseTime(string $time): Carbon
     {
-        // Always interpret appointment times as Pacific, regardless of server config
-        $tz = 'America/Vancouver';
-
-        // If the string has a Z or +/- offset, parse then convert to Pacific
-        if (preg_match('/[Zz]$|\+\d{2}:?\d{2}$|-\d{2}:?\d{2}$/', $time)) {
-            return Carbon::parse($time)->timezone($tz);
-        }
-
-        // Naive datetime (e.g. 2026-04-28T12:30) — interpret as Pacific
-        return Carbon::parse($time, $tz);
+        // Strip Z or offset so Carbon doesn't convert to UTC
+        $clean = preg_replace('/[Zz]$|[+-]\d{2}:?\d{2}$/', '', $time);
+        return Carbon::parse($clean);
     }
 
     public function create(array $data): Appointment
@@ -138,13 +136,12 @@ class AppointmentService
         $rule = $parent->recurrence_rule;
         if (!$rule) return;
 
-        $tz        = config('app.timezone', 'America/Vancouver');
-        $upTo      = $upTo ? Carbon::parse($upTo, $tz) : Carbon::now($tz)->addMonths(6);
-        $current   = Carbon::parse($parent->scheduled_time)->timezone($tz);
+        $upTo      = $upTo ? Carbon::parse($upTo) : Carbon::now()->addMonths(6);
+        $current   = Carbon::parse($parent->scheduled_time);
         $dogIds    = $parent->dogs->pluck('id')->all();
         $generated = 0;
         $maxOccurrences = $rule['end_after_count'] ?? $rule['occurrences'] ?? 999;
-        $endDate   = isset($rule['end_date']) ? Carbon::parse($rule['end_date'], $tz)->endOfDay() : $upTo;
+        $endDate   = isset($rule['end_date']) ? Carbon::parse($rule['end_date'])->endOfDay() : $upTo;
         $interval  = max(1, (int) ($rule['interval'] ?? 1));
         $daysOfWeek = $rule['days_of_week'] ?? [];
 

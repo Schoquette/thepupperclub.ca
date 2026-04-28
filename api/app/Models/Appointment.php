@@ -13,13 +13,12 @@ class Appointment extends Model
     use SoftDeletes;
 
     /**
-     * Serialize dates as Pacific time without Z suffix so the frontend
-     * displays them at the correct local time regardless of server config.
+     * Output dates without timezone suffix — the frontend treats all
+     * appointment times as Pacific regardless.
      */
     protected function serializeDate(\DateTimeInterface $date): string
     {
-        return $date->setTimezone(new \DateTimeZone('America/Vancouver'))
-                    ->format('Y-m-d\TH:i:s');
+        return $date->format('Y-m-d\TH:i:s');
     }
 
     protected $fillable = [

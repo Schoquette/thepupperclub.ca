@@ -168,6 +168,9 @@ export default function AdminCalendarPage() {
   // "Send Update?" prompt after save
   const [notifyPrompt, setNotifyPrompt] = useState<{ appointmentId: number; payload: any } | null>(null);
 
+  // Scope prompt for recurring edits: "just this one" or "all future"
+  const [scopePrompt, setScopePrompt] = useState<{ appointmentId: number; payload: any; isRecurring: boolean } | null>(null);
+
   // Delete appointment
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; hasRecurrence: boolean } | null>(null);
 
@@ -294,7 +297,6 @@ export default function AdminCalendarPage() {
   const handleEditSave = () => {
     if (!editForm) return;
     const payload: any = {
-      id: editForm.id,
       service_type: editForm.service_type,
       duration_minutes: editForm.duration_minutes,
       scheduled_time: editForm.scheduled_time,
@@ -305,9 +307,22 @@ export default function AdminCalendarPage() {
     if (editForm.assigned_to !== undefined) {
       payload.assigned_to = editForm.assigned_to || null;
     }
-    // Show notify prompt
-    setNotifyPrompt({ appointmentId: editForm.id, payload });
+    const isRecurring = !!(editForm.recurrence_rule || editForm.recurrence_parent_id);
     setEditing(false);
+    if (isRecurring) {
+      // Ask scope first, then notify
+      setScopePrompt({ appointmentId: editForm.id, payload, isRecurring: true });
+    } else {
+      // Go straight to notify prompt
+      setNotifyPrompt({ appointmentId: editForm.id, payload });
+    }
+  };
+
+  const handleScopeDecision = (scope: 'single' | 'future_all') => {
+    if (!scopePrompt) return;
+    const { appointmentId, payload } = scopePrompt;
+    setScopePrompt(null);
+    setNotifyPrompt({ appointmentId, payload: { ...payload, scope } });
   };
 
   const handleNotifyDecision = (sendNotification: boolean) => {
@@ -476,6 +491,8 @@ export default function AdminCalendarPage() {
                         notes: selected.notes || '',
                         dog_ids: selected.dogs?.map((d: any) => d.id) ?? [],
                         assigned_to: selected.assigned_admin?.id?.toString() ?? '',
+                        recurrence_rule: selected.recurrence_rule,
+                        recurrence_parent_id: selected.recurrence_parent_id,
                       });
                       setEditing(true);
                       setEditError('');
@@ -952,6 +969,24 @@ export default function AdminCalendarPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Recurring edit scope prompt */}
+      <Modal open={!!scopePrompt} onClose={() => setScopePrompt(null)} title="Edit Recurring Appointment">
+        <div className="space-y-4">
+          <p className="text-sm text-espresso">
+            This appointment is part of a recurring series. Apply your changes to:
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setScopePrompt(null)}>Cancel</Button>
+            <Button size="sm" onClick={() => handleScopeDecision('single')}>
+              Just This One
+            </Button>
+            <Button size="sm" onClick={() => handleScopeDecision('future_all')}>
+              All Future Events
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Delete confirmation */}
