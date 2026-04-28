@@ -105,6 +105,9 @@ export default function ClientAppointmentsPage() {
   const [extraChargeConfirmed, setExtraChargeConfirmed] = useState(false);
   const [requestAddons, setRequestAddons] = useState<{ service: string; address: string; comments: string }[]>([]);
   const [form, setForm] = useState({ service_type: 'walk_30', preferred_time_block: 'morning', preferred_date: '', notes: '', dog_ids: [] as number[] });
+  // Edit request
+  const [editingRequest, setEditingRequest] = useState<any>(null);
+  const [editReqForm, setEditReqForm] = useState({ service_type: 'walk_30', preferred_time_block: 'morning', preferred_date: '', notes: '', dog_ids: [] as number[] });
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['client-appointments'],
@@ -129,6 +132,21 @@ export default function ClientAppointmentsPage() {
       setForm({ service_type: 'walk_30', preferred_time_block: 'morning', preferred_date: '', notes: '', dog_ids: [] });
       setRequestAddons([]);
       setExtraChargeConfirmed(false);
+    },
+  });
+
+  const updateRequest = useMutation({
+    mutationFn: (id: number) => api.put(`/client/service-requests/${id}`, editReqForm),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-service-requests'] });
+      setEditingRequest(null);
+    },
+  });
+
+  const deleteRequest = useMutation({
+    mutationFn: (id: number) => api.delete(`/client/service-requests/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-service-requests'] });
     },
   });
 
@@ -324,18 +342,112 @@ export default function ClientAppointmentsPage() {
               <Card key={req.id} padding="sm">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-espresso capitalize">
-                    {req.service_type?.replace(/_/g, ' ')} · {TIME_BLOCKS.find(t => t.value === req.preferred_time_block)?.label}
+                    {SERVICE_LABELS[req.service_type] ?? req.service_type?.replace(/_/g, ' ')} · {TIME_BLOCKS.find(t => t.value === req.preferred_time_block)?.label}
                     {req.preferred_date && (
-                      <span className="text-taupe"> · {format(new Date(req.preferred_date), 'MMM d, yyyy')}</span>
+                      <span className="text-taupe"> · {format(new Date(req.preferred_date + 'T00:00:00'), 'MMM d, yyyy')}</span>
                     )}
                   </div>
-                  <Badge variant="gold">Pending</Badge>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingRequest(req);
+                        setEditReqForm({
+                          service_type: req.service_type,
+                          preferred_time_block: req.preferred_time_block,
+                          preferred_date: req.preferred_date ? req.preferred_date.slice(0, 10) : '',
+                          notes: req.notes ?? '',
+                          dog_ids: req.dogs?.map((d: any) => d.id) ?? [],
+                        });
+                      }}
+                      className="text-xs text-blue hover:underline font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => { if (confirm('Cancel this request?')) deleteRequest.mutate(req.id); }}
+                      className="text-xs text-red-500 hover:underline font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <Badge variant="gold">Pending</Badge>
+                  </div>
                 </div>
+                {req.dogs?.length > 0 && (
+                  <div className="text-xs text-taupe mt-1">
+                    Dogs: {req.dogs.map((d: any) => d.name).join(', ')}
+                  </div>
+                )}
+                {req.notes && (
+                  <div className="text-xs text-taupe mt-1 line-clamp-2">Notes: {req.notes}</div>
+                )}
               </Card>
             ))}
           </div>
         </div>
       )}
+
+      {/* Edit request modal */}
+      <Modal open={!!editingRequest} onClose={() => setEditingRequest(null)} title="Edit Service Request" size="lg">
+        {editingRequest && (
+          <div className="space-y-4">
+            <Select
+              label="Service type"
+              value={editReqForm.service_type}
+              onChange={e => setEditReqForm(f => ({ ...f, service_type: e.target.value }))}
+              options={SERVICE_TYPES}
+            />
+            <Select
+              label="Preferred time"
+              value={editReqForm.preferred_time_block}
+              onChange={e => setEditReqForm(f => ({ ...f, preferred_time_block: e.target.value }))}
+              options={TIME_BLOCKS}
+            />
+            <Input
+              label="Preferred date"
+              type="date"
+              value={editReqForm.preferred_date}
+              onChange={e => setEditReqForm(f => ({ ...f, preferred_date: e.target.value }))}
+              min={format(new Date(), 'yyyy-MM-dd')}
+            />
+            <div>
+              <label className="label">Dog(s)</label>
+              <div className="space-y-2">
+                {dogs?.map((dog: any) => (
+                  <label key={dog.id} className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editReqForm.dog_ids.includes(dog.id)}
+                      onChange={() => setEditReqForm(f => ({
+                        ...f,
+                        dog_ids: f.dog_ids.includes(dog.id) ? f.dog_ids.filter(id => id !== dog.id) : [...f.dog_ids, dog.id],
+                      }))}
+                      className="rounded border-taupe accent-gold"
+                    />
+                    <span className="text-sm text-espresso">{dog.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <Textarea
+              label="Notes (optional)"
+              rows={3}
+              value={editReqForm.notes}
+              onChange={e => setEditReqForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Anything your walker should know?"
+            />
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setEditingRequest(null)}>Cancel</Button>
+              <Button
+                loading={updateRequest.isPending}
+                disabled={!editReqForm.preferred_date || editReqForm.dog_ids.length === 0}
+                onClick={() => updateRequest.mutate(editingRequest.id)}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* ── Appointment detail / action modal ── */}
       <Modal open={!!selected && !!actionView} onClose={closeModal} title={modalTitle} size="lg">

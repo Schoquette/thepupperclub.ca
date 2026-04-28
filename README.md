@@ -46,13 +46,13 @@ thepupperclub.ca/
 
 - **Authentication**: Login, password reset, password change, account deletion, role-based access (admin/client/superadmin)
 - **Client Management**: Profiles, onboarding steps, home access codes (encrypted), secondary contacts with notification preferences, intake forms
-- **Dog Management**: CRUD, vaccination records, documents, profile photos
+- **Dog Management**: CRUD, vaccination records, documents, profile photos, full intake fields (personality, behaviour, medical, walk preferences, medications, training commands)
 - **Appointments**: Scheduling, check-in/complete, recurring generation, team member assignment
 - **Invoicing**: Create, send, pay via Stripe, PDF export, subscription billing
 - **Messaging**: Conversations with photo attachments, emoji reactions
 - **Report Cards**: Post-visit reports with multi-photo support, per-dog checklists/notes, customizable templates per client
 - **Document Management**: Upload PDF, Word (.doc/.docx), and images; self-hosted digital signatures with encrypted tokens; template system with visual field editor
-- **Intake Forms**: 45-field intake form with branded PDF export
+- **Intake Forms**: 45-field intake form with branded PDF export (includes home access, dog profiles with full personality/medical/walk preference details)
 - **Auto-Mileage**: Automatic driving distance calculation on appointment completion via Google Maps Distance Matrix API (home → client1 → client2 → ... → home)
 - **Report Exports**: Download mileage, walk history, and billing reports as CSV or PDF
 - **Team Management**: Invite members, home address with Google Places autocomplete (Canadian addresses), role management
@@ -68,6 +68,7 @@ thepupperclub.ca/
 | `SendPreVisitPrompts` | Sends reminders 2 hours before appointments |
 | `GenerateRecurringAppointments` | Creates recurring appointment instances |
 | `GenerateSubscriptionInvoices` | Monthly billing with 3-day email reminders |
+| `RegenerateIntakePdfs` | One-time: regenerate all intake form PDFs with latest branded template |
 
 #### API Routes
 
@@ -216,7 +217,7 @@ Migrations covering:
 - **Home Access** — encrypted access codes for client homes
 - **Dogs** — breed, age, temperament, special needs, vaccination records, profile photo
 - **Appointments** — scheduling with check-in/complete timestamps, recurring support, team member assignment (`assigned_to`)
-- **Service Requests** — client-submitted requests for schedule changes
+- **Service Requests** — client-submitted requests for schedule changes, time extensions, and special services (editable/cancellable while pending)
 - **Visit Reports** — post-visit report cards with multi-photo support, per-dog data (checklists/notes as JSON)
 - **Report Card Templates** — customizable checklist templates per client
 - **Invoices** — line items, Stripe payment intents, PDF generation

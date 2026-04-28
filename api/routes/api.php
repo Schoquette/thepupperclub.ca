@@ -224,8 +224,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/appointments/{appointment}/request-time-change',   [Client\AppointmentController::class, 'requestTimeChange']);
         Route::post('/appointments/{appointment}/request-extension',     [Client\AppointmentController::class, 'requestExtension']);
         Route::post('/appointments/{appointment}/request-special-service', [Client\AppointmentController::class, 'requestSpecialService']);
-        Route::get('/service-requests',              [Client\AppointmentController::class, 'serviceRequests']);
-        Route::post('/service-requests',             [Client\AppointmentController::class, 'storeServiceRequest']);
+        Route::get('/service-requests',                              [Client\AppointmentController::class, 'serviceRequests']);
+        Route::post('/service-requests',                             [Client\AppointmentController::class, 'storeServiceRequest']);
+        Route::put('/service-requests/{serviceRequest}',             [Client\AppointmentController::class, 'updateServiceRequest']);
+        Route::delete('/service-requests/{serviceRequest}',          [Client\AppointmentController::class, 'destroyServiceRequest']);
 
         // Report cards
         Route::get('/report-cards',                          [ClientReportCardController::class, 'index']);

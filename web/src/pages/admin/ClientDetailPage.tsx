@@ -925,7 +925,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
 }
 
 const SIZE_LABELS: Record<string, string> = {
-  small: 'Small', medium: 'Medium', large: 'Large', extra_large: 'Extra Large',
+  toy: 'Toy (under 10 lbs)', small: 'Small (under 20 lbs)', medium: 'Medium (20–55 lbs)', large: 'Large (55–90 lbs)', extra_large: 'Extra Large (90+ lbs)', xl: 'Extra Large (90+ lbs)',
 };
 
 function ProfileRow({ label, value }: { label: string; value?: string | null }) {

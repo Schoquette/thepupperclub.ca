@@ -424,11 +424,11 @@ const GEAR_OPTIONS = [
 
 const SIZE_OPTIONS = [
   { value: '', label: 'Select…' },
-  { value: 'toy', label: 'Toy' },
-  { value: 'small', label: 'Small' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'large', label: 'Large' },
-  { value: 'xl', label: 'XL' },
+  { value: 'toy', label: 'Toy (under 10 lbs)' },
+  { value: 'small', label: 'Small (under 20 lbs)' },
+  { value: 'medium', label: 'Medium (20–55 lbs)' },
+  { value: 'large', label: 'Large (55–90 lbs)' },
+  { value: 'xl', label: 'Extra Large (90+ lbs)' },
 ];
 
 const SEX_OPTIONS = [

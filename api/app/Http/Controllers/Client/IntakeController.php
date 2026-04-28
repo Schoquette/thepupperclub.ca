@@ -170,7 +170,11 @@ class IntakeController extends Controller
             if (!empty($dogData['id'])) {
                 $id = $dogData['id'];
                 unset($dogData['id']);
-                Dog::where('id', $id)->where('user_id', $client->id)->update($dogData);
+                $dog = Dog::where('id', $id)->where('user_id', $client->id)->first();
+                if ($dog) {
+                    $dog->fill($dogData);
+                    $dog->save();
+                }
             } else {
                 unset($dogData['id']);
                 if (!empty($dogData['name'])) {
