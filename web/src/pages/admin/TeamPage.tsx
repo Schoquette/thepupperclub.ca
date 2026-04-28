@@ -80,6 +80,8 @@ export default function TeamPage() {
     onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to add team member.'),
   });
 
+  const [addressError, setAddressError] = useState('');
+
   const updateAddress = useMutation({
     mutationFn: ({ id, address }: { id: number; address: AddressFields }) =>
       api.patch(`/admin/team/${id}`, {
@@ -90,8 +92,10 @@ export default function TeamPage() {
       }),
     onSuccess: () => {
       setEditingId(null);
+      setAddressError('');
       qc.invalidateQueries({ queryKey: ['admin-team'] });
     },
+    onError: (e: any) => setAddressError(e.response?.data?.message ?? 'Failed to save address.'),
   });
 
   const toggleStatus = useMutation({
@@ -198,15 +202,18 @@ export default function TeamPage() {
                       value={editAddress}
                       onChange={setEditAddress}
                     />
+                    {addressError && (
+                      <div className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">{addressError}</div>
+                    )}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => updateAddress.mutate({ id: member.id, address: editAddress })}
+                        onClick={() => { setAddressError(''); updateAddress.mutate({ id: member.id, address: editAddress }); }}
                         className="text-xs text-gold hover:text-gold/80 font-medium"
                       >
-                        Save
+                        {updateAddress.isPending ? 'Saving...' : 'Save'}
                       </button>
                       <button
-                        onClick={() => setEditingId(null)}
+                        onClick={() => { setEditingId(null); setAddressError(''); }}
                         className="text-xs text-taupe hover:text-espresso"
                       >
                         Cancel

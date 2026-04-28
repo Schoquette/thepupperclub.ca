@@ -5,9 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   Home, Calendar, MessageCircle, ClipboardList,
-  CreditCard, FileText, User, Menu, X,
+  CreditCard, FileText, User, Menu, X, Smartphone,
 } from 'lucide-react';
 import { PawIcon } from '@/components/ui/PawIcon';
+import { Modal } from '@/components/ui/Modal';
 
 const NAV_ALL = [
   { to: '/client',               label: 'Home',      icon: Home,           end: true },
@@ -25,6 +26,7 @@ export default function ClientLayout() {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [phoneModal, setPhoneModal] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ['client-profile'],
@@ -146,6 +148,47 @@ export default function ClientLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Floating "Get on Your Phone" button */}
+      <button
+        onClick={() => setPhoneModal(true)}
+        className="fixed bottom-5 right-5 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full bg-gold text-white shadow-lg hover:bg-gold/90 transition-colors text-sm font-semibold"
+      >
+        <Smartphone className="w-4 h-4" />
+        <span className="hidden sm:inline">Get on Your Phone</span>
+      </button>
+
+      {/* Phone instructions modal */}
+      <Modal open={phoneModal} onClose={() => setPhoneModal(false)} title="Get The Pupper Club on Your Phone">
+        <div className="space-y-4">
+          <p className="text-sm text-taupe">
+            Add a shortcut to your home screen for quick access — it works just like an app!
+          </p>
+          <div className="space-y-3">
+            <div className="bg-cream/50 rounded-xl p-4">
+              <div className="font-semibold text-espresso text-sm mb-2">iPhone / iPad</div>
+              <ol className="list-decimal list-inside space-y-1.5 text-sm text-taupe">
+                <li>Open this page in <strong className="text-espresso">Safari</strong></li>
+                <li>Tap the <strong className="text-espresso">Share</strong> button <span className="text-xs">(square with an arrow, bottom of screen)</span></li>
+                <li>Scroll down and tap <strong className="text-espresso">Add to Home Screen</strong></li>
+                <li>Tap <strong className="text-espresso">Add</strong> in the top right</li>
+              </ol>
+            </div>
+            <div className="bg-cream/50 rounded-xl p-4">
+              <div className="font-semibold text-espresso text-sm mb-2">Android</div>
+              <ol className="list-decimal list-inside space-y-1.5 text-sm text-taupe">
+                <li>Open this page in <strong className="text-espresso">Chrome</strong></li>
+                <li>Tap the <strong className="text-espresso">three-dot menu</strong> <span className="text-xs">(top right corner)</span></li>
+                <li>Tap <strong className="text-espresso">Add to Home screen</strong></li>
+                <li>Tap <strong className="text-espresso">Add</strong> to confirm</li>
+              </ol>
+            </div>
+          </div>
+          <p className="text-xs text-taupe text-center">
+            Once added, you'll find The Pupper Club icon on your home screen!
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }

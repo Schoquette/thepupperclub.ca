@@ -8,11 +8,16 @@ use Stripe\StripeClient;
 
 class StripeSubscriptionService
 {
-    private StripeClient $stripe;
+    private ?StripeClient $stripe = null;
 
-    public function __construct()
+    private function stripe(): StripeClient
     {
-        $this->stripe = new StripeClient(config('services.stripe.secret'));
+        if (!$this->stripe) {
+            $key = config('services.stripe.secret');
+            abort_unless($key, 500, 'Stripe secret key is not configured.');
+            $this->stripe = new StripeClient($key);
+        }
+        return $this->stripe;
     }
 
     /**
@@ -30,7 +35,7 @@ class StripeSubscriptionService
 
         // Look up the price to get product info
         try {
-            $price = $this->stripe->prices->retrieve($stripePriceId, ['expand' => ['product']]);
+            $price = $this->stripe()->prices->retrieve($stripePriceId, ['expand' => ['product']]);
             $productName = is_object($price->product) ? $price->product->name : 'Subscription';
             $amount = $price->unit_amount / 100;
         } catch (\Exception $e) {
@@ -44,7 +49,7 @@ class StripeSubscriptionService
             // Cancel any existing Stripe subscription first
             if ($profile->stripe_subscription_id) {
                 try {
-                    $this->stripe->subscriptions->cancel($profile->stripe_subscription_id);
+                    $this->stripe()->subscriptions->cancel($profile->stripe_subscription_id);
                 } catch (\Exception $e) {}
             }
 
@@ -94,7 +99,7 @@ class StripeSubscriptionService
         // CC/interac_pad billing — create Stripe subscription for auto-charge
         // Ensure Stripe customer exists
         if (!$profile->stripe_customer_id) {
-            $customer = $this->stripe->customers->create([
+            $customer = $this->stripe()->customers->create([
                 'email'    => $client->email,
                 'name'     => $client->name,
                 'metadata' => ['user_id' => $client->id],
@@ -105,9 +110,9 @@ class StripeSubscriptionService
         // If client already has an active subscription, update it
         if ($profile->stripe_subscription_id) {
             try {
-                $sub = $this->stripe->subscriptions->retrieve($profile->stripe_subscription_id);
+                $sub = $this->stripe()->subscriptions->retrieve($profile->stripe_subscription_id);
                 if (in_array($sub->status, ['active', 'trialing', 'past_due'])) {
-                    $sub = $this->stripe->subscriptions->update($profile->stripe_subscription_id, [
+                    $sub = $this->stripe()->subscriptions->update($profile->stripe_subscription_id, [
                         'items' => [
                             ['id' => $sub->items->data[0]->id, 'price' => $stripePriceId],
                         ],
@@ -127,7 +132,7 @@ class StripeSubscriptionService
             abort_unless($profile->stripe_payment_method_id, 422, 'Client must have a card on file before subscribing with credit card.');
         }
 
-        $sub = $this->stripe->subscriptions->create([
+        $sub = $this->stripe()->subscriptions->create([
             'customer'               => $profile->stripe_customer_id,
             'default_payment_method' => $profile->stripe_payment_method_id,
             'items'                  => [['price' => $stripePriceId]],
@@ -147,7 +152,7 @@ class StripeSubscriptionService
         $profile = $client->clientProfile;
 
         if ($profile?->stripe_subscription_id) {
-            $this->stripe->subscriptions->update($profile->stripe_subscription_id, [
+            $this->stripe()->subscriptions->update($profile->stripe_subscription_id, [
                 'cancel_at_period_end' => true,
             ]);
         } else {
@@ -165,7 +170,7 @@ class StripeSubscriptionService
 
         if ($profile?->stripe_subscription_id) {
             try {
-                $this->stripe->subscriptions->cancel($profile->stripe_subscription_id);
+                $this->stripe()->subscriptions->cancel($profile->stripe_subscription_id);
             } catch (\Exception $e) {}
         }
 
@@ -186,7 +191,7 @@ class StripeSubscriptionService
 
         if (!$productName && is_string($priceObj->product)) {
             try {
-                $product = $this->stripe->products->retrieve($priceObj->product);
+                $product = $this->stripe()->products->retrieve($priceObj->product);
                 $productName = $product->name;
             } catch (\Exception $e) {
                 $productName = $priceObj->nickname ?? 'Subscription';
