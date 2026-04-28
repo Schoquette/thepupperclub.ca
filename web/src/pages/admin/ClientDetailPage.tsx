@@ -1566,9 +1566,13 @@ export default function AdminClientDetailPage() {
   });
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const deleteClient = useMutation({
     mutationFn: () => api.delete(`/admin/clients/${id}`),
     onSuccess: () => navigate('/admin/clients'),
+    onError: (e: any) => {
+      setDeleteError(`Error ${e.response?.status}: ${e.response?.data?.message || JSON.stringify(e.response?.data) || e.message}`);
+    },
   });
 
   const saveAccess = useMutation({
@@ -2016,10 +2020,8 @@ export default function AdminClientDetailPage() {
             <p className="text-sm text-taupe">
               Are you sure you want to permanently delete <strong>{client.name}</strong>? This will remove all their data including dogs, appointments, documents, and messages. This cannot be undone.
             </p>
-            {deleteClient.isError && (
-              <p className="text-sm text-red-600">
-                {(deleteClient.error as any)?.response?.data?.message ?? 'Failed to delete client.'}
-              </p>
+            {deleteError && (
+              <p className="text-sm text-red-600">{deleteError}</p>
             )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}>

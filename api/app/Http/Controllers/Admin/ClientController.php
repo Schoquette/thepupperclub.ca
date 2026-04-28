@@ -526,36 +526,57 @@ class ClientController extends Controller
     {
         $this->ensureIsClient($client);
 
-        // Delete all related data so the email can be reused
-        $client->dogs()->each(function ($dog) {
-            \Illuminate\Support\Facades\Storage::disk('local')->deleteDirectory("dogs/{$dog->id}");
-            $dog->vaccinationRecords()->delete();
-            $dog->delete();
-        });
-        $client->documents()->each(function ($doc) {
-            if ($doc->storage_path) {
-                \Illuminate\Support\Facades\Storage::disk('local')->delete($doc->storage_path);
+        try {
+            // Delete appointments and their relations
+            $client->appointments()->each(function ($appt) {
+                $appt->dogs()->detach();
+                if ($appt->visitReport) {
+                    $appt->visitReport->forceDelete();
+                }
+                $appt->forceDelete();
+            });
+
+            // Delete dogs and their records
+            $client->dogs()->each(function ($dog) {
+                \Illuminate\Support\Facades\Storage::disk('local')->deleteDirectory("dogs/{$dog->id}");
+                $dog->vaccinationRecords()->delete();
+                // Detach from any appointment pivot
+                \Illuminate\Support\Facades\DB::table('appointment_dog')->where('dog_id', $dog->id)->delete();
+                $dog->delete();
+            });
+
+            // Delete documents
+            $client->documents()->each(function ($doc) {
+                if ($doc->storage_path) {
+                    \Illuminate\Support\Facades\Storage::disk('local')->delete($doc->storage_path);
+                }
+                $doc->delete();
+            });
+
+            // Delete other relations
+            $client->clientProfile()->delete();
+            $client->homeAccess()->delete();
+            $client->onboardingSteps()->delete();
+            $client->subscriptionChanges()->delete();
+
+            // Delete conversations and messages
+            $conversation = \App\Models\Conversation::where('user_id', $client->id)->first();
+            if ($conversation) {
+                $conversation->messages()->delete();
+                $conversation->delete();
             }
-            $doc->delete();
-        });
-        $client->appointments()->delete();
-        $client->clientProfile()->delete();
-        $client->homeAccess()->delete();
-        $client->onboardingSteps()->delete();
-        $client->subscriptionChanges()->delete();
 
-        // Delete conversations and messages
-        $conversation = \App\Models\Conversation::where('user_id', $client->id)->first();
-        if ($conversation) {
-            $conversation->messages()->delete();
-            $conversation->delete();
+            // Delete audit logs for this user
+            AuditLog::where('user_id', $client->id)->delete();
+
+            // Hard delete the user
+            $client->tokens()->delete();
+            $client->forceDelete();
+
+            return response()->json(['message' => 'Client deleted.']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Delete failed: ' . $e->getMessage()], 500);
         }
-
-        // Hard delete the user
-        $client->tokens()->delete();
-        $client->forceDelete();
-
-        return response()->json(['message' => 'Client deleted.']);
     }
 
     private function ensureIsClient(User $user): void
