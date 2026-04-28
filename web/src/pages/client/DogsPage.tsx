@@ -181,8 +181,10 @@ export default function ClientDogsPage() {
     },
   });
 
+  const [saveError, setSaveError] = useState('');
+
   const updateDog = useMutation({
-    mutationFn: () => api.patch(`/client/dogs/${selectedDog.id}`, {
+    mutationFn: () => api.post(`/client/dogs/${selectedDog.id}/update`, {
       ...editForm,
       weight_kg: editForm.weight_kg ? Number(editForm.weight_kg) : null,
     }),
@@ -191,6 +193,11 @@ export default function ClientDogsPage() {
       setSelectedDog(res.data.data);
       setEditing(false);
       setConfirmModal(false);
+      setSaveError('');
+    },
+    onError: (e: any) => {
+      setConfirmModal(false);
+      setSaveError(e.response?.data?.message ?? 'Failed to save. Please try again.');
     },
   });
 
@@ -228,6 +235,10 @@ export default function ClientDogsPage() {
             <Button size="sm" variant="outline" onClick={startEdit}>Edit</Button>
           )}
         </div>
+
+        {saveError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">{saveError}</div>
+        )}
 
         {!editing ? (
           /* ── Read-only detail ── */

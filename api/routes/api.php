@@ -209,6 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dogs',                          [Client\DogController::class, 'index']);
         Route::post('/dogs',                         [Client\DogController::class, 'store']);
         Route::patch('/dogs/{dog}',                  [Client\DogController::class, 'update']);
+        Route::post('/dogs/{dog}/update',            [Client\DogController::class, 'update']);
         Route::post('/dogs/{dog}/photo',             [Client\DogController::class, 'uploadPhoto']);
         Route::get('/dogs/{dog}/photo',              [Client\DogController::class, 'servePhoto']);
         Route::delete('/dogs/{dog}/photo',           [Client\DogController::class, 'deletePhoto']);
