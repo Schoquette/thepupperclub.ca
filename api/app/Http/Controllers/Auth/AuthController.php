@@ -153,26 +153,42 @@ class AuthController extends Controller
 
         AuditLog::recordEvent($user, 'account_deleted');
 
-        // Delete related data
+        // Delete related data — order matters for foreign key constraints
         $user->tokens()->delete();
+
+        // Invoices and line items (cascade handles line items)
+        $user->invoices()->forceDelete();
+
+        // Service requests (pivot cascade handles service_request_dog)
+        $user->serviceRequests()->delete();
+
+        // Appointments (cascade handles visit_reports, appointment_dog pivot)
+        $user->appointments()->forceDelete();
+
+        // Dogs (cascade handles vaccination_records, service_request_dog)
         $user->dogs()->each(function ($dog) {
             $dog->vaccinationRecords()->delete();
-            $dog->delete();
+            $dog->forceDelete();
         });
-        $user->appointments()->delete();
+
+        // Documents, onboarding, push notifications
+        $user->documents()->delete();
+        $user->onboardingSteps()->delete();
+        $user->pushNotifications()->delete();
+
+        // Home access & profile
         $user->homeAccess()->delete();
         $user->clientProfile()->delete();
 
-        // Delete conversations and messages
+        // Conversations and messages
         $conversations = \App\Models\Conversation::where('user_id', $user->id)->get();
         foreach ($conversations as $convo) {
             $convo->messages()->delete();
             $convo->delete();
         }
 
-        // Soft-delete the user
-        $user->update(['status' => 'inactive']);
-        $user->delete();
+        // Hard-delete the user
+        $user->forceDelete();
 
         return response()->json(['message' => 'Your account and data have been deleted.']);
     }

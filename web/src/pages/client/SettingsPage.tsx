@@ -50,7 +50,7 @@ export default function ClientSettingsPage() {
   });
 
   const deleteAccount = useMutation({
-    mutationFn: () => api.delete('/auth/account', { data: { password: deletePassword } }),
+    mutationFn: () => api.post('/auth/delete-account', { password: deletePassword }),
     onSuccess: () => {
       localStorage.removeItem('token');
       window.location.href = '/';
