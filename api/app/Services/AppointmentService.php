@@ -31,7 +31,10 @@ class AppointmentService
     {
         $scheduledTime = $this->parseTime($data['scheduled_time']);
 
-        abort_if($scheduledTime->isPast(), 422, 'Cannot schedule appointments in the past.');
+        // Compare against Pacific "now" since all times are stored as naive Pacific
+        $nowPacific = Carbon::now('America/Vancouver');
+        $scheduledCheck = Carbon::parse($scheduledTime->format('Y-m-d H:i:s'), 'America/Vancouver');
+        abort_if($scheduledCheck->lt($nowPacific), 422, 'Cannot schedule appointments in the past.');
 
         $this->validateBuffer($scheduledTime, null);
         $this->validateBlockCapacity($data['client_time_block'], $scheduledTime->toDateString());
