@@ -894,6 +894,7 @@ export default function IntakeFormPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
   const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -946,7 +947,7 @@ export default function IntakeFormPage() {
     mutationFn: () => api.post(`/admin/clients/${id}/resend-invite`),
     onSuccess: () => {
       setInviteSent(true);
-      setTimeout(() => setInviteSent(false), 3000);
+      setShowInviteModal(false);
     },
   });
 
@@ -1048,10 +1049,9 @@ export default function IntakeFormPage() {
           <Button
             variant="outline"
             size="sm"
-            loading={resendInvite.isPending}
-            onClick={() => resendInvite.mutate()}
+            onClick={() => setShowInviteModal(true)}
           >
-            {inviteSent ? 'Sent!' : isSubmitted ? 'Resend Invite' : 'Send Invite'}
+            {inviteSent ? 'Resend Invite' : 'Send Invite'}
           </Button>
 
           {/* Save Draft */}
@@ -1479,6 +1479,44 @@ export default function IntakeFormPage() {
             >
               Confirm Submit
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Invite confirmation modal */}
+      <Modal
+        open={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        title={inviteSent ? 'Invite Sent' : 'Send Invite'}
+        size="sm"
+      >
+        <div className="space-y-4">
+          {inviteSent ? (
+            <p className="text-sm text-green-700">
+              The invitation has been sent to <strong>{clientName}</strong> successfully.
+            </p>
+          ) : (
+            <p className="text-sm text-espresso">
+              Send an invitation email to <strong>{clientName}</strong>? They will receive a link to set their password and access the client portal.
+            </p>
+          )}
+          {resendInvite.isError && (
+            <p className="text-sm text-red-600">
+              {(resendInvite.error as any)?.response?.data?.message ?? 'Failed to send invite.'}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowInviteModal(false)}>
+              {inviteSent ? 'Close' : 'Cancel'}
+            </Button>
+            {!inviteSent && (
+              <Button
+                loading={resendInvite.isPending}
+                onClick={() => resendInvite.mutate()}
+              >
+                Send Invite
+              </Button>
+            )}
           </div>
         </div>
       </Modal>
