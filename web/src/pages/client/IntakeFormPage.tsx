@@ -938,6 +938,7 @@ export default function IntakeFormPage() {
       setIsDirty(false);
       setSubmitted(true);
       qc.invalidateQueries({ queryKey: ['client-intake'] });
+      navigate('/client/profile');
     },
   });
 
@@ -1050,9 +1051,9 @@ export default function IntakeFormPage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Save indicator */}
-          {!readOnly && (
+          {!readOnly && (isDirty || savedFlash) && (
             <span className={`text-xs transition-all duration-300 ${
-              savedFlash ? 'text-green-600' : isDirty ? 'text-taupe' : 'text-transparent'
+              savedFlash ? 'text-green-600' : 'text-taupe'
             }`}>
               {savedFlash ? 'Saved' : 'Unsaved changes'}
             </span>
