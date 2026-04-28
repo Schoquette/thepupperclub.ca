@@ -37,12 +37,13 @@ class NotificationDispatcher
             $this->sendEmail($user, $title, $htmlBody ?? nl2br(e($body)), $replyTo);
         }
 
-        // SMS (one-way — reply note appended)
+        // SMS (one-way — log in to respond)
         if ($prefs['notify_sms']) {
             $phone = $user->clientProfile?->phone;
             if ($phone) {
-                $smsBody = "{$title}\n\n" . strip_tags($body)
-                    . "\n\n---\nReply in the app or email us at " . config('mail.from.address', 'hello@thepupperclub.ca');
+                $smsBody = "The Pupper Club Alert\n\n"
+                    . strip_tags($body)
+                    . "\n\nTo respond, log in at thepupperclub.ca";
                 $this->sms->send($phone, $smsBody);
             }
         }

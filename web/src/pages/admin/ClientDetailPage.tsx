@@ -1565,6 +1565,12 @@ export default function AdminClientDetailPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-client', id] }); setEditing(false); },
   });
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const deleteClient = useMutation({
+    mutationFn: () => api.delete(`/admin/clients/${id}`),
+    onSuccess: () => navigate('/admin/clients'),
+  });
+
   const saveAccess = useMutation({
     mutationFn: (f: HomeAccessForm) => api.patch(`/admin/clients/${id}/home-access`, f),
     onSuccess: () => {
@@ -1668,17 +1674,29 @@ export default function AdminClientDetailPage() {
       {/* ── Profile tab ───────────────────────────────────────────────────── */}
       {tab === 'profile' && form && (
         <div className="space-y-6">
-          <div className="flex justify-end gap-2">
-            {editing ? (
-              <>
-                <Button variant="outline" size="sm" onClick={handleProfileCancel}>Cancel</Button>
-                <Button size="sm" loading={saveProfile.isPending} onClick={() => saveProfile.mutate(form)}>
-                  Save Changes
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit Profile</Button>
-            )}
+          <div className="flex justify-between">
+            <div>
+              {editing && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="text-sm text-red-500 hover:text-red-700 hover:underline"
+                >
+                  Delete Client
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {editing ? (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleProfileCancel}>Cancel</Button>
+                  <Button size="sm" loading={saveProfile.isPending} onClick={() => saveProfile.mutate(form)}>
+                    Save Changes
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit Profile</Button>
+              )}
+            </div>
           </div>
 
           {saveProfile.isError && (
@@ -1988,6 +2006,35 @@ export default function AdminClientDetailPage() {
             <p className="text-center py-8 text-taupe">No home access info on file. Click Edit to add.</p>
           )}
         </Card>
+      )}
+
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
+            <h3 className="text-lg font-display text-espresso">Delete Client</h3>
+            <p className="text-sm text-taupe">
+              Are you sure you want to permanently delete <strong>{client.name}</strong>? This will remove all their data including dogs, appointments, documents, and messages. This cannot be undone.
+            </p>
+            {deleteClient.isError && (
+              <p className="text-sm text-red-600">
+                {(deleteClient.error as any)?.response?.data?.message ?? 'Failed to delete client.'}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}>
+                Cancel
+              </Button>
+              <button
+                onClick={() => deleteClient.mutate()}
+                disabled={deleteClient.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteClient.isPending ? 'Deleting…' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

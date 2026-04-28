@@ -522,6 +522,42 @@ class ClientController extends Controller
         return response()->json(['data' => $changes]);
     }
 
+    public function destroy(User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+
+        // Delete all related data so the email can be reused
+        $client->dogs()->each(function ($dog) {
+            \Illuminate\Support\Facades\Storage::disk('local')->deleteDirectory("dogs/{$dog->id}");
+            $dog->vaccinationRecords()->delete();
+            $dog->delete();
+        });
+        $client->documents()->each(function ($doc) {
+            if ($doc->storage_path) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($doc->storage_path);
+            }
+            $doc->delete();
+        });
+        $client->appointments()->delete();
+        $client->clientProfile()->delete();
+        $client->homeAccess()->delete();
+        $client->onboardingSteps()->delete();
+        $client->subscriptionChanges()->delete();
+
+        // Delete conversations and messages
+        $conversation = \App\Models\Conversation::where('user_id', $client->id)->first();
+        if ($conversation) {
+            $conversation->messages()->delete();
+            $conversation->delete();
+        }
+
+        // Hard delete the user
+        $client->tokens()->delete();
+        $client->forceDelete();
+
+        return response()->json(['message' => 'Client deleted.']);
+    }
+
     private function ensureIsClient(User $user): void
     {
         abort_unless($user->role === 'client', 404);

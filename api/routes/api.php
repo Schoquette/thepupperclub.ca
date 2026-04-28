@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/clients',                          [Admin\ClientController::class, 'index']);
         Route::get('/clients/{client}',                 [Admin\ClientController::class, 'show']);
         Route::patch('/clients/{client}',               [Admin\ClientController::class, 'update']);
+        Route::delete('/clients/{client}',             [Admin\ClientController::class, 'destroy']);
         Route::post('/clients/{client}/resend-invite',  [Admin\ClientController::class, 'resendInvite']);
         Route::post('/clients/{client}/reset-password', [Admin\ClientController::class, 'resetPassword']);
         Route::get('/clients/{client}/home-access',     [Admin\ClientController::class, 'homeAccess']);
