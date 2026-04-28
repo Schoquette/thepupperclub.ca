@@ -168,6 +168,9 @@ export default function AdminCalendarPage() {
   // "Send Update?" prompt after save
   const [notifyPrompt, setNotifyPrompt] = useState<{ appointmentId: number; payload: any } | null>(null);
 
+  // Delete appointment
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; hasRecurrence: boolean } | null>(null);
+
   // Visit completion report form (legacy – still used for check-out)
   const [completing, setCompleting] = useState(false);
   const [reportForm, setReportForm] = useState({
@@ -181,8 +184,8 @@ export default function AdminCalendarPage() {
     queryFn: () =>
       api.get('/admin/appointments', {
         params: {
-          start: range.start.toISOString(),
-          end: range.end.toISOString(),
+          start: toLocalISO(range.start),
+          end: toLocalISO(range.end),
         },
       }).then(r => r.data.data),
   });
@@ -254,6 +257,15 @@ export default function AdminCalendarPage() {
     },
     onError: (err: any) => {
       setEditError(err.response?.data?.message ?? 'Failed to update appointment.');
+    },
+  });
+
+  const deleteAppointment = useMutation({
+    mutationFn: ({ id, scope }: { id: number; scope: string }) => api.delete(`/admin/appointments/${id}`, { data: { scope } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-appointments'] });
+      setSelected(null);
+      setDeleteConfirm(null);
     },
   });
 
@@ -339,13 +351,19 @@ export default function AdminCalendarPage() {
     }));
   };
 
-  const events = (data ?? []).map((appt: any) => ({
-    id: appt.id,
-    title: `${appt.user?.name} — ${appt.dogs?.map((d: any) => d.name).join(', ')}`,
-    start: new Date(appt.scheduled_time),
-    end: new Date(new Date(appt.scheduled_time).getTime() + appt.duration_minutes * 60_000),
-    resource: appt,
-  }));
+  const events = (data ?? []).map((appt: any) => {
+    // Parse as local time — strip trailing Z/offset so JS doesn't convert from UTC
+    const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const start = new Date(localStr);
+    const end = new Date(start.getTime() + appt.duration_minutes * 60_000);
+    return {
+      id: appt.id,
+      title: `${appt.user?.name} — ${appt.dogs?.map((d: any) => d.name).join(', ')}`,
+      start,
+      end,
+      resource: appt,
+    };
+  });
 
   const today = startOfDay(new Date());
 
@@ -486,33 +504,63 @@ export default function AdminCalendarPage() {
                 </a>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><span className="text-taupe">Service:</span> {selected.service_type.replace(/_/g, ' ')}</div>
-              <div><span className="text-taupe">Duration:</span> {formatDuration(selected.duration_minutes)}</div>
-              <div><span className="text-taupe">Time:</span> {format(new Date(selected.scheduled_time), 'h:mm a')}</div>
-              <div><span className="text-taupe">Date:</span> {format(new Date(selected.scheduled_time), 'MMM d, yyyy')}</div>
-              {selected.assigned_admin && (
-                <div><span className="text-taupe">Team Member:</span> {selected.assigned_admin.name}</div>
-              )}
-            </div>
-            {selected.notes && <p className="text-sm text-taupe bg-cream rounded-lg p-3">{selected.notes}</p>}
-            <div className="flex justify-end gap-3 mt-4">
-              {selected.status === 'scheduled' && (
-                <Button loading={checkIn.isPending} onClick={() => checkIn.mutate(selected.id)}>
-                  Check In
-                </Button>
-              )}
-              {selected.status === 'checked_in' && (
-                <Button onClick={() => setCompleting(true)}>
-                  Complete Visit
-                </Button>
-              )}
-              {selected.status === 'completed' && (
-                <Button variant="outline" onClick={() => navigate(`/admin/report-cards/new?appointment_id=${selected.id}`)}>
-                  Write Report Card
-                </Button>
-              )}
-            </div>
+            {(() => {
+              const apptDate = new Date(selected.scheduled_time);
+              const todayStr = format(new Date(), 'yyyy-MM-dd');
+              const apptStr = format(apptDate, 'yyyy-MM-dd');
+              const isToday = todayStr === apptStr;
+              const isRecurring = !!(selected.recurrence_rule || selected.recurrence_parent_id);
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-taupe">Service:</span> {selected.service_type.replace(/_/g, ' ')}</div>
+                    <div><span className="text-taupe">Duration:</span> {formatDuration(selected.duration_minutes)}</div>
+                    <div><span className="text-taupe">Time:</span> {format(apptDate, 'h:mm a')}</div>
+                    <div><span className="text-taupe">Date:</span> {format(apptDate, 'MMM d, yyyy')}</div>
+                    {selected.assigned_admin && (
+                      <div><span className="text-taupe">Team Member:</span> {selected.assigned_admin.name}</div>
+                    )}
+                    {isRecurring && (
+                      <div className="col-span-2"><span className="text-taupe">Recurring:</span> Yes</div>
+                    )}
+                  </div>
+                  {selected.notes && <p className="text-sm text-taupe bg-cream rounded-lg p-3">{selected.notes}</p>}
+                  <div className="flex items-center justify-between mt-4">
+                    <div>
+                      {selected.status !== 'completed' && selected.status !== 'cancelled' && (
+                        <button
+                          onClick={() => setDeleteConfirm({ id: selected.id, hasRecurrence: isRecurring })}
+                          className="text-sm text-red-500 hover:text-red-700 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex gap-3">
+                      {selected.status === 'scheduled' && (
+                        isToday ? (
+                          <Button loading={checkIn.isPending} onClick={() => checkIn.mutate(selected.id)}>
+                            Check In
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-taupe italic self-center">Check-in available on {format(apptDate, 'MMM d')}</span>
+                        )
+                      )}
+                      {selected.status === 'checked_in' && (
+                        <Button onClick={() => setCompleting(true)}>
+                          Complete Visit
+                        </Button>
+                      )}
+                      {selected.status === 'completed' && (
+                        <Button variant="outline" onClick={() => navigate(`/admin/report-cards/new?appointment_id=${selected.id}`)}>
+                          Write Report Card
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </Modal>
@@ -904,6 +952,49 @@ export default function AdminCalendarPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Delete Appointment">
+        <div className="space-y-4">
+          <p className="text-sm text-espresso">
+            {deleteConfirm?.hasRecurrence
+              ? 'This appointment is part of a recurring series. What would you like to delete?'
+              : 'Are you sure you want to delete this appointment?'}
+          </p>
+          {deleteAppointment.isError && (
+            <p className="text-sm text-red-600">{(deleteAppointment.error as any)?.response?.data?.message ?? 'Delete failed.'}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            {deleteConfirm?.hasRecurrence ? (
+              <>
+                <button
+                  onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'single' })}
+                  disabled={deleteAppointment.isPending}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  Just This One
+                </button>
+                <button
+                  onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'future_all' })}
+                  disabled={deleteAppointment.isPending}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  All Future Events
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'single' })}
+                disabled={deleteAppointment.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteAppointment.isPending ? 'Deleting…' : 'Yes, Delete'}
+              </button>
+            )}
+          </div>
+        </div>
       </Modal>
 
       {/* Send Update prompt */}

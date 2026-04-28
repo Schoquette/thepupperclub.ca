@@ -17,9 +17,10 @@ class AppointmentService
      */
     private function parseTime(string $time): Carbon
     {
-        $tz = config('app.timezone', 'America/Vancouver');
+        // Always interpret appointment times as Pacific, regardless of server config
+        $tz = 'America/Vancouver';
 
-        // If the string has a Z or +/- offset, parse then convert to app tz
+        // If the string has a Z or +/- offset, parse then convert to Pacific
         if (preg_match('/[Zz]$|\+\d{2}:?\d{2}$|-\d{2}:?\d{2}$/', $time)) {
             return Carbon::parse($time)->timezone($tz);
         }
