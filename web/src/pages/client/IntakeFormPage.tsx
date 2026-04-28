@@ -916,15 +916,19 @@ export default function IntakeFormPage() {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
+  const [saveError, setSaveError] = useState('');
+
   const saveDraft = useMutation({
-    mutationFn: (f: FormData) => api.put('/client/intake', f),
+    mutationFn: (f: FormData) => api.post('/client/intake/save', f),
     onSuccess: () => {
       setIsDirty(false);
+      setSaveError('');
       setSavedFlash(true);
       if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
       savedFlashTimer.current = setTimeout(() => setSavedFlash(false), 2500);
       qc.invalidateQueries({ queryKey: ['client-intake'] });
     },
+    onError: (e: any) => setSaveError(e.response?.data?.message ?? 'Failed to save draft.'),
   });
 
   const submitForm = useMutation({

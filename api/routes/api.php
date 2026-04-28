@@ -65,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Intake form
         Route::get('/clients/{client}/intake',           [IntakeController::class, 'show']);
         Route::put('/clients/{client}/intake',           [IntakeController::class, 'save']);
+        Route::post('/clients/{client}/intake/save',     [IntakeController::class, 'save']);
         Route::post('/clients/{client}/intake/submit',   [IntakeController::class, 'submit']);
 
         // Document signing
@@ -199,6 +200,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Client-side intake form
         Route::get('/intake',                        [Client\IntakeController::class, 'show']);
         Route::put('/intake',                        [Client\IntakeController::class, 'save']);
+        Route::post('/intake/save',                  [Client\IntakeController::class, 'save']);
         Route::post('/intake/submit',                [Client\IntakeController::class, 'submit']);
         Route::get('/home-access',                   [Client\ProfileController::class, 'homeAccess']);
         Route::patch('/home-access',                 [Client\ProfileController::class, 'updateHomeAccess']);
