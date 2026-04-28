@@ -1457,7 +1457,7 @@ export default function IntakeFormPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-espresso">
-            Are you sure you want to submit this intake form for <strong>{clientName}</strong>? Once submitted, the form will be locked and cannot be edited.
+            Are you sure you want to submit this intake form for <strong>{clientName}</strong>? The profile can still be updated after submission.
           </p>
           {submitForm.isError && (
             <p className="text-sm text-red-600">
