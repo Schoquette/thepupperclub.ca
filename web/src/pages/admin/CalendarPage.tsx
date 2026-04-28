@@ -423,6 +423,14 @@ export default function AdminCalendarPage() {
                 setRange({ start: r.start, end: r.end });
               }
             }}
+            selectable
+            onSelectSlot={(slotInfo: any) => {
+              const f = blankForm();
+              f.scheduled_time = toLocalISO(slotInfo.start);
+              setNewForm(f);
+              setCreateError('');
+              setCreatingAppt(true);
+            }}
             onSelectEvent={(e: any) => setSelected(e.resource)}
             onEventDrop={handleDragDrop}
             onEventResize={handleDragDrop}
