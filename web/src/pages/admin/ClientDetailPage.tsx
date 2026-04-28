@@ -570,11 +570,13 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
   const [pauseBilling, setPauseBilling] = useState(true);
   const [prorateOnResume, setProrateOnResume] = useState(false);
 
-  const { data: stripeProducts } = useQuery({
+  const { data: stripeRes } = useQuery({
     queryKey: ['stripe-products'],
-    queryFn: () => api.get('/admin/stripe/products').then(r => r.data.data),
+    queryFn: () => api.get('/admin/stripe/products').then(r => r.data),
     staleTime: 5 * 60 * 1000,
   });
+  const stripeProducts = stripeRes?.data ?? [];
+  const stripeMessage = stripeRes?.message ?? '';
 
   const { data: history } = useQuery({
     queryKey: ['subscription-history', clientId],
@@ -821,7 +823,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
               ))}
             </select>
             {allPrices.length === 0 && (
-              <p className="text-xs text-red-500">No plans found. Make sure Stripe is configured and has active products with recurring prices.</p>
+              <p className="text-xs text-red-500">{stripeMessage || 'No plans found. Make sure Stripe is configured and has active products with recurring prices.'}</p>
             )}
             {selectedPrice && (
               <div>

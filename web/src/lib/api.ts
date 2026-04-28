@@ -9,12 +9,24 @@ export const api = axios.create({
   },
 });
 
-// Inject token on every request
+// Inject token + convert PUT/PATCH/DELETE to POST with _method spoofing (IIS strips bodies on these methods)
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  const method = config.method?.toUpperCase();
+  if (method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+    const data = config.data ?? {};
+    if (data instanceof FormData) {
+      data.append('_method', method);
+    } else {
+      config.data = { ...data, _method: method };
+    }
+    config.method = 'post';
+  }
+
   return config;
 });
 

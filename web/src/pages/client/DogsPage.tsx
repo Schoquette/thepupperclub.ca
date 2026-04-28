@@ -197,7 +197,9 @@ export default function ClientDogsPage() {
     },
     onError: (e: any) => {
       setConfirmModal(false);
-      setSaveError(e.response?.data?.message ?? 'Failed to save. Please try again.');
+      const status = e.response?.status;
+      const detail = e.response?.data?.message || e.response?.data?.error || JSON.stringify(e.response?.data);
+      setSaveError(`Save failed (${status || 'network error'}): ${detail || e.message}`);
     },
   });
 

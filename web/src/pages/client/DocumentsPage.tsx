@@ -59,10 +59,12 @@ export default function DocumentsPage() {
   });
 
   const fetchBlob = async (doc: any, inline = false) => {
-    const res = await api.get(`/documents/${doc.id}${inline ? '?inline=1' : ''}`, {
-      responseType: 'blob',
+    const token = localStorage.getItem('token');
+    const res = await fetch(`/api/documents/${doc.id}${inline ? '?inline=1' : ''}`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
-    return res.data;
+    if (!res.ok) throw new Error(`${res.status}`);
+    return await res.blob();
   };
 
   const handleView = async (doc: any) => {
@@ -71,8 +73,8 @@ export default function DocumentsPage() {
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    } catch (e) {
-      alert('Failed to load document. It may have been moved or deleted.');
+    } catch (e: any) {
+      alert(`Failed to load document (error ${e.message}). It may have been moved or deleted.`);
     }
   };
 
@@ -85,8 +87,8 @@ export default function DocumentsPage() {
       a.download = doc.filename;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e) {
-      alert('Failed to download document.');
+    } catch (e: any) {
+      alert(`Failed to download document (error ${e.message}).`);
     }
   };
 
