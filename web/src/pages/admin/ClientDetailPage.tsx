@@ -624,7 +624,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
   });
 
   const cp = clientProfile ?? {};
-  const billingMethod = cp.billing_method ?? 'credit_card';
+  const billingMethod: string = cp.billing_method ?? 'credit_card';
   const hasSubscription = !!cp.stripe_subscription_id || !!cp.subscription_plan;
 
   // Build flat list of recurring prices from products (exclude one-time prices)
@@ -1460,6 +1460,7 @@ function fileIcon(mimeType: string): string {
 // ── Home access form ──────────────────────────────────────────────────────────
 
 interface HomeAccessForm {
+  [key: string]: string;
   entry_instructions: string;
   lockbox_code: string;
   door_code: string;
@@ -1942,7 +1943,7 @@ export default function AdminClientDetailPage() {
                 { label: 'Key Location',       key: 'key_location' },
                 { label: 'Parking Instructions', key: 'parking_instructions', multiline: true },
                 { label: 'Notes',              key: 'notes', multiline: true },
-              ] as const).map(({ label, key, multiline }) => (
+              ] as Array<{ label: string; key: string; multiline?: boolean }>).map(({ label, key, multiline }) => (
                 <div key={key}>
                   <label className="label">{label}</label>
                   {multiline ? (

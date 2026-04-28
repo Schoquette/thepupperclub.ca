@@ -56,7 +56,7 @@ export default function InvoiceCreatePage() {
 
   // Auto-set CC surcharge based on selected client's billing method
   const selectedClient = clients?.find((c: any) => String(c.id) === userId);
-  const clientBillingMethod = selectedClient?.client_profile?.billing_method ?? 'credit_card';
+  const clientBillingMethod: string = selectedClient?.client_profile?.billing_method ?? 'credit_card';
 
   const { data: stripeProducts } = useQuery<StripeProduct[]>({
     queryKey: ['stripe-products'],

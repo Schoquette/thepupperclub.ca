@@ -52,6 +52,10 @@ export interface Appointment {
   check_in_time: string | null;
   check_out_time: string | null;
   pre_visit_notification_sent: boolean;
+  assigned_to?: number | null;
+  dogs?: any[];
+  visitReport?: any;
+  user?: any;
   created_at: string;
   updated_at: string;
 }
