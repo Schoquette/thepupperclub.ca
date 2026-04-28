@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
@@ -452,6 +452,14 @@ export default function AdminCalendarPage() {
           />
         </Card>
       )}
+
+      {/* Today's Appointments */}
+      <TodaysAppointments
+        appointments={data ?? []}
+        onCheckIn={(id: number) => checkIn.mutate(id)}
+        checkInPending={checkIn.isPending}
+        onSelect={(appt: any) => setSelected(appt)}
+      />
 
       {/* Appointment detail modal */}
       <Modal open={!!selected && !completing && !editing} onClose={() => setSelected(null)} title="Appointment" size="lg">
@@ -1219,6 +1227,165 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, on
           Save Changes
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ── Today's Appointments + Map ─────────────────────────────────────────────
+
+function TodaysAppointments({ appointments, onCheckIn, checkInPending, onSelect }: {
+  appointments: any[];
+  onCheckIn: (id: number) => void;
+  checkInPending: boolean;
+  onSelect: (appt: any) => void;
+}) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [checkingInId, setCheckingInId] = useState<number | null>(null);
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todaysAppts = appointments
+    .filter((a: any) => a.scheduled_time?.startsWith(todayStr) && a.status !== 'cancelled')
+    .sort((a: any, b: any) => a.scheduled_time.localeCompare(b.scheduled_time));
+
+  // Load Google Maps script
+  useEffect(() => {
+    const key = (import.meta as any).env?.VITE_GOOGLE_MAPS_KEY;
+    if (!key || mapLoaded) return;
+    if (document.getElementById('google-maps-script')) { setMapLoaded(true); return; }
+
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=marker`;
+    script.async = true;
+    script.onload = () => setMapLoaded(true);
+    document.head.appendChild(script);
+  }, []);
+
+  // Render map when loaded and we have appointments
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return;
+    const google = (window as any).google;
+    if (!google?.maps) return;
+
+    const addressAppts = todaysAppts.filter((a: any) => a.user?.client_profile?.address);
+    if (addressAppts.length === 0) return;
+
+    const geocoder = new google.maps.Geocoder();
+    const map = new google.maps.Map(mapRef.current, {
+      zoom: 11,
+      center: { lat: 49.2827, lng: -122.7931 }, // Port Moody area
+      mapTypeControl: false,
+      streetViewControl: false,
+    });
+
+    const bounds = new google.maps.LatLngBounds();
+
+    addressAppts.forEach((appt: any, index: number) => {
+      const address = appt.user.client_profile.address;
+      const label = String(index + 1);
+      const dogNames = appt.dogs?.map((d: any) => d.name).join(', ') || 'Appointment';
+
+      geocoder.geocode({ address }, (results: any, status: any) => {
+        if (status !== 'OK' || !results?.[0]) return;
+        const pos = results[0].geometry.location;
+        bounds.extend(pos);
+
+        const marker = new google.maps.Marker({
+          position: pos,
+          map,
+          label: { text: label, color: 'white', fontWeight: 'bold', fontSize: '14px' },
+          title: `${label}. ${dogNames} — ${address}`,
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+          content: `<div style="font-size:13px"><strong>${label}. ${dogNames}</strong><br>${format(new Date(appt.scheduled_time), 'h:mm a')}<br><span style="color:#666">${address}</span></div>`,
+        });
+        marker.addListener('click', () => infoWindow.open(map, marker));
+
+        if (index === addressAppts.length - 1 && addressAppts.length > 1) {
+          map.fitBounds(bounds, 60);
+        } else if (addressAppts.length === 1) {
+          map.setCenter(pos);
+          map.setZoom(14);
+        }
+      });
+    });
+  }, [mapLoaded, todaysAppts.length, todayStr]);
+
+  if (todaysAppts.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <h2 className="text-lg font-display text-espresso mb-4">Today's Appointments</h2>
+        <div className="divide-y divide-cream">
+          {todaysAppts.map((appt: any, index: number) => {
+            const time = format(new Date(appt.scheduled_time), 'h:mm a');
+            const dogNames = appt.dogs?.map((d: any) => d.name).join(', ') || '—';
+            const address = appt.user?.client_profile?.address;
+            const isScheduled = appt.status === 'scheduled';
+            const isCheckedIn = appt.status === 'checked_in';
+
+            return (
+              <div key={appt.id} className="flex items-center gap-3 py-3">
+                {/* Order number */}
+                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-espresso text-cream flex items-center justify-center text-xs font-bold">
+                  {index + 1}
+                </div>
+
+                {/* Left: time + dog name */}
+                <button
+                  className="flex-1 min-w-0 text-left hover:bg-cream/50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors"
+                  onClick={() => onSelect(appt)}
+                >
+                  <div className="text-sm font-semibold text-espresso">{time}</div>
+                  <div className="text-sm text-taupe truncate">{dogNames}</div>
+                  {isCheckedIn && <span className="text-xs text-gold font-medium">Checked in</span>}
+                  {appt.status === 'completed' && <span className="text-xs text-green-600 font-medium">Completed</span>}
+                </button>
+
+                {/* Right: address + buttons */}
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  {address && (
+                    <span className="text-xs text-taupe max-w-[180px] truncate hidden sm:inline" title={address}>
+                      {address}
+                    </span>
+                  )}
+                  {address && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue/10 text-blue hover:bg-blue/20 transition-colors"
+                    >
+                      Map
+                    </a>
+                  )}
+                  {isScheduled && (
+                    <button
+                      onClick={() => { setCheckingInId(appt.id); onCheckIn(appt.id); }}
+                      disabled={checkInPending && checkingInId === appt.id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gold text-white hover:bg-gold/90 transition-colors disabled:opacity-50"
+                    >
+                      {checkInPending && checkingInId === appt.id ? 'Checking in…' : 'Check In'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Map */}
+      {todaysAppts.some((a: any) => a.user?.client_profile?.address) && (
+        <Card>
+          <h2 className="text-lg font-display text-espresso mb-3">Route Map</h2>
+          <div ref={mapRef} className="w-full h-[400px] rounded-xl overflow-hidden" />
+          {!mapLoaded && <p className="text-xs text-taupe text-center py-8">Loading map…</p>}
+        </Card>
+      )}
     </div>
   );
 }
