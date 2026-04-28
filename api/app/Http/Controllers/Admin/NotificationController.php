@@ -138,7 +138,7 @@ class NotificationController extends Controller
                                     'image/png'
                                 );
                                 $logoPart->asInline();
-                                $logoPart->setContentId('logo');
+                                $logoPart->setContentId('logo@thepupperclub.ca');
                                 $message->getSymfonyMessage()->attachPart($logoPart);
                             }
                             foreach ($storedFiles as $att) {
@@ -204,7 +204,7 @@ class NotificationController extends Controller
         $logoPath = public_path('images/logo-cream-stacked.png');
         if (file_exists($logoPath)) {
             $logoData = base64_encode(file_get_contents($logoPath));
-            $emailHtml = str_replace('src="cid:logo"', 'src="data:image/png;base64,' . $logoData . '"', $emailHtml);
+            $emailHtml = str_replace('src="cid:logo@thepupperclub.ca"', 'src="data:image/png;base64,' . $logoData . '"', $emailHtml);
         }
 
         return response()->json([
@@ -407,7 +407,7 @@ class NotificationController extends Controller
         $logoPath = public_path('images/logo-cream-stacked.png');
         if (file_exists($logoPath)) {
             $logoData = base64_encode(file_get_contents($logoPath));
-            $html = str_replace('src="cid:logo"', 'src="data:image/png;base64,' . $logoData . '"', $html);
+            $html = str_replace('src="cid:logo@thepupperclub.ca"', 'src="data:image/png;base64,' . $logoData . '"', $html);
         }
 
         return response()->json(['html' => $html]);

@@ -30,6 +30,35 @@ class ServiceRequestController extends Controller
         return response()->json($requests);
     }
 
+    /**
+     * Admin creates a service request on behalf of a client.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'user_id'              => 'required|exists:users,id',
+            'service_type'         => 'required|in:walk_30,walk_60,drop_in,overnight,day_boarding',
+            'preferred_time_block' => 'required|in:early_morning,morning,midday,afternoon,evening',
+            'preferred_date'       => 'required|date',
+            'notes'                => 'nullable|string',
+            'dog_ids'              => 'required|array|min:1',
+            'dog_ids.*'            => 'exists:dogs,id',
+        ]);
+
+        $sr = ServiceRequest::create([
+            'user_id'              => $data['user_id'],
+            'service_type'         => $data['service_type'],
+            'preferred_time_block' => $data['preferred_time_block'],
+            'preferred_date'       => $data['preferred_date'],
+            'notes'                => $data['notes'] ?? null,
+            'status'               => 'pending',
+        ]);
+
+        $sr->dogs()->attach($data['dog_ids']);
+
+        return response()->json(['data' => $sr->load(['dogs', 'user'])], 201);
+    }
+
     public function update(Request $request, ServiceRequest $serviceRequest): JsonResponse
     {
         $this->ensureCounterTimeColumn();

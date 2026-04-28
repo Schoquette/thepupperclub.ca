@@ -137,7 +137,7 @@ class ReportCardService
                     'image/png'
                 );
                 $logoPart->asInline();
-                $logoPart->setContentId('logo');
+                $logoPart->setContentId('logo@thepupperclub.ca');
                 $mail->getSymfonyMessage()->attachPart($logoPart);
             }
         });

@@ -110,6 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Service requests
         Route::get('/service-requests',               [Admin\ServiceRequestController::class, 'index']);
+        Route::post('/service-requests',              [Admin\ServiceRequestController::class, 'store']);
         Route::patch('/service-requests/{serviceRequest}', [Admin\ServiceRequestController::class, 'update']);
 
         // Invoices

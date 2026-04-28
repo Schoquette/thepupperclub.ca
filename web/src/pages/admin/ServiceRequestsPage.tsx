@@ -133,6 +133,26 @@ function AvailabilityTimeline({ date, selectedTime, serviceDuration }: { date: s
   );
 }
 
+const SERVICE_TYPES = [
+  { value: 'walk_30', label: '30-Min Walk' },
+  { value: 'walk_60', label: '60-Min Walk' },
+  { value: 'drop_in', label: 'Drop-In Visit' },
+  { value: 'day_boarding', label: 'Day Boarding' },
+  { value: 'overnight', label: 'Overnight' },
+];
+
+const TIME_BLOCKS = [
+  { value: 'early_morning', label: 'Early Morning (7–10 AM)' },
+  { value: 'morning', label: 'Morning (9–12 PM)' },
+  { value: 'midday', label: 'Midday (11 AM–2 PM)' },
+  { value: 'afternoon', label: 'Afternoon (2–5 PM)' },
+  { value: 'evening', label: 'Evening (5–8 PM)' },
+];
+
+function blankCreateForm() {
+  return { user_id: '', dog_ids: [] as number[], service_type: 'walk_60', preferred_time_block: 'morning', preferred_date: '', notes: '' };
+}
+
 export default function AdminServiceRequestsPage() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<any>(null);
@@ -144,10 +164,47 @@ export default function AdminServiceRequestsPage() {
   const [counterTime, setCounterTime] = useState('');
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Create form
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState(blankCreateForm);
+  const [createError, setCreateError] = useState('');
+
   const { data, isLoading } = useQuery({
     queryKey: ['admin-service-requests'],
     queryFn: () => api.get('/admin/service-requests').then(r => r.data),
     refetchInterval: 30_000,
+  });
+
+  // Load clients for the create form
+  const { data: clientsData } = useQuery({
+    queryKey: ['admin-clients-sr'],
+    queryFn: () => api.get('/admin/clients').then(r => r.data.data),
+    enabled: creating,
+  });
+
+  // Load dogs for selected client
+  const selectedClientId = createForm.user_id ? parseInt(createForm.user_id) : null;
+  const { data: clientDetail } = useQuery({
+    queryKey: ['admin-client-dogs-sr', selectedClientId],
+    queryFn: () => api.get(`/admin/clients/${selectedClientId}`).then(r => r.data.data),
+    enabled: !!selectedClientId,
+  });
+  const clientDogs: any[] = (clientDetail?.dogs ?? []).filter((d: any) => d.is_active);
+
+  const createRequest = useMutation({
+    mutationFn: () => api.post('/admin/service-requests', {
+      ...createForm,
+      user_id: parseInt(createForm.user_id),
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-service-requests'] });
+      setCreating(false);
+      setCreateForm(blankCreateForm());
+      setCreateError('');
+    },
+    onError: (err: any) => {
+      setCreateError(err.response?.data?.message ?? 'Failed to create request.');
+    },
   });
 
   const respond = useMutation({
@@ -176,7 +233,119 @@ export default function AdminServiceRequestsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="page-title">Service Requests</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="page-title">Service Requests</h1>
+        <Button size="sm" onClick={() => { setCreating(true); setCreateForm(blankCreateForm()); setCreateError(''); }}>
+          + Create Request
+        </Button>
+      </div>
+
+      {/* Create request modal */}
+      <Modal open={creating} onClose={() => setCreating(false)} title="Create Service Request" size="md">
+        <div className="space-y-4">
+          {/* Client */}
+          <div>
+            <label className="label">Client *</label>
+            <select
+              className="input"
+              value={createForm.user_id}
+              onChange={e => setCreateForm(f => ({ ...f, user_id: e.target.value, dog_ids: [] }))}
+            >
+              <option value="">Select a client</option>
+              {(clientsData ?? []).map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dogs */}
+          {clientDogs.length > 0 && (
+            <div>
+              <label className="label">Dogs *</label>
+              <div className="flex gap-2 flex-wrap">
+                {clientDogs.map((d: any) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setCreateForm(f => ({
+                      ...f,
+                      dog_ids: f.dog_ids.includes(d.id)
+                        ? f.dog_ids.filter(id => id !== d.id)
+                        : [...f.dog_ids, d.id],
+                    }))}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                      createForm.dog_ids.includes(d.id)
+                        ? 'bg-espresso text-cream border-espresso'
+                        : 'border-taupe text-espresso hover:bg-cream'
+                    }`}
+                  >
+                    {d.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Service type */}
+          <div>
+            <label className="label">Service Type *</label>
+            <select
+              className="input"
+              value={createForm.service_type}
+              onChange={e => setCreateForm(f => ({ ...f, service_type: e.target.value }))}
+            >
+              {SERVICE_TYPES.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date + Time Block */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Preferred Date *"
+              type="date"
+              min={new Date().toISOString().substring(0, 10)}
+              value={createForm.preferred_date}
+              onChange={e => setCreateForm(f => ({ ...f, preferred_date: e.target.value }))}
+            />
+            <div>
+              <label className="label">Preferred Time *</label>
+              <select
+                className="input"
+                value={createForm.preferred_time_block}
+                onChange={e => setCreateForm(f => ({ ...f, preferred_time_block: e.target.value }))}
+              >
+                {TIME_BLOCKS.map(tb => (
+                  <option key={tb.value} value={tb.value}>{tb.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <Textarea
+            label="Notes"
+            rows={2}
+            value={createForm.notes}
+            onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))}
+            placeholder="Any special instructions..."
+          />
+
+          {createError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{createError}</p>}
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setCreating(false)}>Cancel</Button>
+            <Button
+              loading={createRequest.isPending}
+              disabled={!createForm.user_id || createForm.dog_ids.length === 0 || !createForm.preferred_date}
+              onClick={() => createRequest.mutate()}
+            >
+              Create Request
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="space-y-3">
         {data?.data?.map((sr: any) => (

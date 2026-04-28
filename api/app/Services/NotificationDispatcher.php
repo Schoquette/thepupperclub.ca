@@ -113,7 +113,7 @@ class NotificationDispatcher
                         'image/png'
                     );
                     $logoPart->asInline();
-                    $logoPart->setContentId('logo');
+                    $logoPart->setContentId('logo@thepupperclub.ca');
                     $symfony->attachPart($logoPart);
                 }
                 // Reply-To: use inbound address so replies route through the webhook,

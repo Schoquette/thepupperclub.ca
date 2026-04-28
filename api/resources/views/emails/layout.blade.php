@@ -124,7 +124,7 @@
     <div class="container">
       {{-- Header --}}
       <div class="header">
-        <img src="cid:logo" alt="The Pupper Club" />
+        <img src="cid:logo@thepupperclub.ca" alt="The Pupper Club" />
       </div>
 
       {{-- Content --}}

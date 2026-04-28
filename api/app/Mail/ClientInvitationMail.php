@@ -38,7 +38,7 @@ class ClientInvitationMail extends Mailable
                     'image/png'
                 );
                 $logoPart->asInline();
-                $logoPart->setContentId('logo');
+                $logoPart->setContentId('logo@thepupperclub.ca');
                 $message->attachPart($logoPart);
             });
         }
