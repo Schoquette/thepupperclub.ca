@@ -12,6 +12,18 @@ use App\Http\Controllers\Admin\IntakeController;
 use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
+// Temporary: fix billing_method enum (REMOVE after running)
+Route::get('/fix-billing-enum-9x7k', function () {
+    try {
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE client_profiles MODIFY COLUMN billing_method ENUM('credit_card','e_transfer','cash','ach','interac_pad') NOT NULL DEFAULT 'credit_card'"
+        );
+        return response()->json(['message' => 'billing_method enum updated to include interac_pad.']);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // Temporary: clear config cache (REMOVE after confirming)
 Route::get('/clear-cache-9x7k', function () {
     \Illuminate\Support\Facades\Artisan::call('config:clear');
