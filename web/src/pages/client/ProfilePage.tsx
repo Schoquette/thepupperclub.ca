@@ -178,17 +178,20 @@ export default function ClientProfilePage() {
       {/* Quick links */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { to: '/client/dogs', icon: Dog, label: 'My Dogs' },
-          { to: '/client/billing', icon: CreditCard, label: 'Billing' },
-          { to: '/client/settings', icon: Settings, label: 'Settings' },
+          { to: '/client/dogs', icon: Dog, label: 'My Dogs', desc: 'View & edit dogs' },
+          { to: '/client/billing', icon: CreditCard, label: 'Billing', desc: 'Payment & plan' },
+          { to: '/client/settings', icon: Settings, label: 'Settings', desc: 'Password & prefs' },
         ].map(link => (
           <Link
             key={link.to}
             to={link.to}
-            className="flex flex-col items-center gap-2 rounded-xl border border-cream p-4 text-sm font-medium text-espresso hover:bg-cream/50 transition-colors"
+            className="flex flex-col items-center gap-1.5 rounded-xl bg-cream/60 border border-taupe/20 p-5 text-center hover:bg-blue/5 hover:border-blue/30 transition-all group"
           >
-            <link.icon className="w-5 h-5 text-taupe" />
-            {link.label}
+            <div className="w-10 h-10 rounded-full bg-blue/10 flex items-center justify-center group-hover:bg-blue/20 transition-colors">
+              <link.icon className="w-5 h-5 text-blue" />
+            </div>
+            <span className="text-sm font-semibold text-espresso">{link.label}</span>
+            <span className="text-[11px] text-taupe">{link.desc}</span>
           </Link>
         ))}
       </div>
