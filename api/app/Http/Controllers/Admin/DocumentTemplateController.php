@@ -189,7 +189,7 @@ class DocumentTemplateController extends Controller
 
     public function adminIndex(Request $request): JsonResponse
     {
-        $query = ClientDocument::with(['user', 'template'])
+        $query = ClientDocument::with(['user', 'template.fields'])
             ->orderBy('created_at', 'desc');
 
         if ($request->status) {
@@ -233,6 +233,12 @@ class DocumentTemplateController extends Controller
     {
         abort_unless($document->user_id, 422, 'Document must be assigned to a client.');
         abort_if($document->signed_at, 422, 'Document is already signed.');
+
+        // Require fields to be defined before sending template-based documents
+        if ($document->template_id) {
+            $fieldCount = $document->template?->fields()->count() ?? 0;
+            abort_if($fieldCount === 0, 422, 'Please define signing fields on this template before sending. Go to Templates > Edit to add fields.');
+        }
 
         $token = Str::random(64);
 

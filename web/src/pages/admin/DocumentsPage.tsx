@@ -124,15 +124,26 @@ export default function AdminDocumentsPage() {
   });
 
   // Send for signing
+  const [sendError, setSendError] = useState('');
   const sendDoc = useMutation({
     mutationFn: (docId: number) => api.post(`/admin/documents/${docId}/send`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-documents'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-documents'] }); setSendError(''); },
+    onError: (e: any) => setSendError(e.response?.data?.message || 'Failed to send.'),
   });
 
   const docStatus = (doc: any): string => {
     if (doc.signed_at) return 'signed';
     if (doc.sent_at) return 'sent';
     return doc.status || 'draft';
+  };
+
+  /** Template-based docs need fields defined before sending */
+  const canSend = (doc: any): boolean => {
+    if (!doc.template_id) return true; // non-template docs can always be sent
+    return (doc.template?.fields?.length ?? 0) > 0;
+  };
+  const needsFields = (doc: any): boolean => {
+    return !!doc.template_id && (doc.template?.fields?.length ?? 0) === 0;
   };
 
   const tabs = [
@@ -157,6 +168,13 @@ export default function AdminDocumentsPage() {
           )}
         </div>
       </div>
+
+      {sendError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 flex items-center justify-between">
+          <span>{sendError}</span>
+          <button onClick={() => setSendError('')} className="text-red-400 hover:text-red-600 ml-3">&times;</button>
+        </div>
+      )}
 
       {/* Tabs + search */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -292,12 +310,21 @@ export default function AdminDocumentsPage() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex gap-2">
-                            {st === 'draft' && (
+                            {st === 'draft' && canSend(doc) && (
                               <button
-                                onClick={() => sendDoc.mutate(doc.id)}
+                                onClick={() => { setSendError(''); sendDoc.mutate(doc.id); }}
                                 className="text-gold hover:text-gold/80 text-sm font-medium"
                               >
                                 Send
+                              </button>
+                            )}
+                            {st === 'draft' && needsFields(doc) && (
+                              <button
+                                onClick={() => navigate(`/admin/documents/templates/${doc.template_id}/edit`)}
+                                className="text-red-500 hover:text-red-700 text-xs font-medium"
+                                title="Define signing fields before sending"
+                              >
+                                Define Fields
                               </button>
                             )}
                             <button
@@ -384,9 +411,19 @@ export default function AdminDocumentsPage() {
               ))}
             </select>
           </div>
-          {useModal?.fields_count > 0 && (
+          {useModal?.fields_count > 0 ? (
             <div className="text-xs text-taupe bg-cream/50 rounded-lg px-3 py-2">
               This template has {useModal.fields_count} form field{useModal.fields_count !== 1 ? 's' : ''} that will be pre-filled with the client's information.
+            </div>
+          ) : (
+            <div className="text-sm bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800">
+              This template has no signing fields defined. You won't be able to send the document for signing until you{' '}
+              <button
+                className="underline font-medium"
+                onClick={() => { setUseModal(null); navigate(`/admin/documents/templates/${useModal?.id}/edit`); }}
+              >
+                define fields
+              </button>.
             </div>
           )}
           {useError && (
@@ -488,6 +525,13 @@ export default function AdminDocumentsPage() {
                 )}
               </div>
 
+              {/* Warning: needs fields */}
+              {st === 'draft' && needsFields(previewDoc) && (
+                <div className="text-sm bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-amber-800">
+                  This document was created from a template but has no signing fields defined yet. Please define fields on the template before sending for signature.
+                </div>
+              )}
+
               {/* PDF preview */}
               <div className="border border-cream rounded-lg overflow-hidden bg-gray-100">
                 <iframe
@@ -501,12 +545,20 @@ export default function AdminDocumentsPage() {
               {/* Actions */}
               <div className="flex items-center justify-between pt-2 border-t border-cream">
                 <div className="flex gap-2">
-                  {st === 'draft' && (
+                  {st === 'draft' && canSend(previewDoc) && (
                     <Button
-                      onClick={() => { sendDoc.mutate(previewDoc.id); setPreviewDoc(null); }}
+                      onClick={() => { setSendError(''); sendDoc.mutate(previewDoc.id); setPreviewDoc(null); }}
                       loading={sendDoc.isPending}
                     >
                       Send for Signing
+                    </Button>
+                  )}
+                  {st === 'draft' && needsFields(previewDoc) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => { setPreviewDoc(null); navigate(`/admin/documents/templates/${previewDoc.template_id}/edit`); }}
+                    >
+                      Define Fields First
                     </Button>
                   )}
                   {previewDoc.signed_pdf_path && (
