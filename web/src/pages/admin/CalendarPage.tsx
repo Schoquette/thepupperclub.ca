@@ -1295,8 +1295,6 @@ function TodaysAppointments({ appointments, onCheckIn, checkInPending, onSelect 
   checkInPending: boolean;
   onSelect: (appt: any) => void;
 }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -1304,72 +1302,9 @@ function TodaysAppointments({ appointments, onCheckIn, checkInPending, onSelect 
     .filter((a: any) => a.scheduled_time?.startsWith(todayStr) && a.status !== 'cancelled')
     .sort((a: any, b: any) => a.scheduled_time.localeCompare(b.scheduled_time));
 
-  // Load Google Maps script
-  useEffect(() => {
-    const key = (import.meta as any).env?.VITE_GOOGLE_MAPS_KEY;
-    if (!key || mapLoaded) return;
-    if (document.getElementById('google-maps-script')) { setMapLoaded(true); return; }
-
-    const script = document.createElement('script');
-    script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=marker`;
-    script.async = true;
-    script.onload = () => setMapLoaded(true);
-    document.head.appendChild(script);
-  }, []);
-
-  // Render map when loaded and we have appointments
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current) return;
-    const google = (window as any).google;
-    if (!google?.maps) return;
-
-    const addressAppts = todaysAppts.filter((a: any) => a.user?.client_profile?.address);
-    if (addressAppts.length === 0) return;
-
-    const geocoder = new google.maps.Geocoder();
-    const map = new google.maps.Map(mapRef.current, {
-      zoom: 11,
-      center: { lat: 49.2827, lng: -122.7931 }, // Port Moody area
-      mapTypeControl: false,
-      streetViewControl: false,
-    });
-
-    const bounds = new google.maps.LatLngBounds();
-
-    addressAppts.forEach((appt: any, index: number) => {
-      const address = appt.user.client_profile.address;
-      const label = String(index + 1);
-      const dogNames = appt.dogs?.map((d: any) => d.name).join(', ') || 'Appointment';
-
-      geocoder.geocode({ address }, (results: any, status: any) => {
-        if (status !== 'OK' || !results?.[0]) return;
-        const pos = results[0].geometry.location;
-        bounds.extend(pos);
-
-        const marker = new google.maps.Marker({
-          position: pos,
-          map,
-          label: { text: label, color: 'white', fontWeight: 'bold', fontSize: '14px' },
-          title: `${label}. ${dogNames} — ${address}`,
-        });
-
-        const infoWindow = new google.maps.InfoWindow({
-          content: `<div style="font-size:13px"><strong>${label}. ${dogNames}</strong><br>${format(new Date(appt.scheduled_time), 'h:mm a')}<br><span style="color:#666">${address}</span></div>`,
-        });
-        marker.addListener('click', () => infoWindow.open(map, marker));
-
-        if (index === addressAppts.length - 1 && addressAppts.length > 1) {
-          map.fitBounds(bounds, 60);
-        } else if (addressAppts.length === 1) {
-          map.setCenter(pos);
-          map.setZoom(14);
-        }
-      });
-    });
-  }, [mapLoaded, todaysAppts.length, todayStr]);
-
   if (todaysAppts.length === 0) return null;
+
+  const hasAddresses = todaysAppts.some((a: any) => a.user?.client_profile?.address);
 
   return (
     <div className="space-y-4">
@@ -1434,15 +1369,131 @@ function TodaysAppointments({ appointments, onCheckIn, checkInPending, onSelect 
         </div>
       </Card>
 
-      {/* Map */}
-      {todaysAppts.some((a: any) => a.user?.client_profile?.address) && (
-        <Card>
-          <h2 className="text-lg font-display text-espresso mb-3">Route Map</h2>
-          <div ref={mapRef} className="w-full h-[400px] rounded-xl overflow-hidden" />
-          {!mapLoaded && <p className="text-xs text-taupe text-center py-8">Loading map…</p>}
-        </Card>
-      )}
+      {/* Map — lazy loaded on expand */}
+      {hasAddresses && <RouteMap appointments={todaysAppts} />}
     </div>
+  );
+}
+
+// ── Route Map (lazy-loaded) ─────────────────────────────────────────────────
+
+function RouteMap({ appointments }: { appointments: any[] }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState('');
+
+  const addressAppts = appointments.filter((a: any) => a.user?.client_profile?.address);
+
+  // Load Google Maps script only when expanded
+  useEffect(() => {
+    if (!expanded) return;
+    const key = (import.meta as any).env?.VITE_GOOGLE_MAPS_KEY;
+    if (!key) { setMapError('Google Maps API key not configured.'); return; }
+
+    const existingScript = document.getElementById('google-maps-script');
+    if (existingScript) {
+      const google = (window as any).google;
+      if (google?.maps) { setMapLoaded(true); return; }
+      // Script tag exists but hasn't loaded yet — wait for it
+      existingScript.addEventListener('load', () => setMapLoaded(true));
+      existingScript.addEventListener('error', () => setMapError('Failed to load Google Maps.'));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=marker`;
+    script.async = true;
+    script.onload = () => setMapLoaded(true);
+    script.onerror = () => setMapError('Failed to load Google Maps.');
+    document.head.appendChild(script);
+  }, [expanded]);
+
+  // Render map when loaded
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !expanded) return;
+    const google = (window as any).google;
+    if (!google?.maps) return;
+    if (addressAppts.length === 0) return;
+
+    const geocoder = new google.maps.Geocoder();
+    const map = new google.maps.Map(mapRef.current, {
+      zoom: 11,
+      center: { lat: 49.2827, lng: -122.7931 },
+      mapTypeControl: false,
+      streetViewControl: false,
+    });
+
+    const bounds = new google.maps.LatLngBounds();
+    let resolved = 0;
+
+    addressAppts.forEach((appt: any, index: number) => {
+      const address = appt.user.client_profile.address;
+      const label = String(index + 1);
+      const dogNames = appt.dogs?.map((d: any) => d.name).join(', ') || 'Appointment';
+
+      geocoder.geocode({ address }, (results: any, status: any) => {
+        resolved++;
+        if (status !== 'OK' || !results?.[0]) {
+          if (resolved === addressAppts.length && bounds.isEmpty?.()) {
+            setMapError('Could not geocode any addresses.');
+          }
+          return;
+        }
+        const pos = results[0].geometry.location;
+        bounds.extend(pos);
+
+        const marker = new google.maps.Marker({
+          position: pos,
+          map,
+          label: { text: label, color: 'white', fontWeight: 'bold', fontSize: '14px' },
+          title: `${label}. ${dogNames} — ${address}`,
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+          content: `<div style="font-size:13px"><strong>${label}. ${dogNames}</strong><br>${format(new Date(appt.scheduled_time), 'h:mm a')}<br><span style="color:#666">${address}</span></div>`,
+        });
+        marker.addListener('click', () => infoWindow.open(map, marker));
+
+        // Fit bounds after all geocodes complete
+        if (resolved === addressAppts.length) {
+          if (addressAppts.length > 1) {
+            map.fitBounds(bounds, 60);
+          } else {
+            map.setCenter(pos);
+            map.setZoom(14);
+          }
+        }
+      });
+    });
+  }, [mapLoaded, expanded]);
+
+  return (
+    <Card>
+      <button
+        className="flex items-center justify-between w-full text-left"
+        onClick={() => setExpanded(e => !e)}
+      >
+        <h2 className="text-lg font-display text-espresso">Route Map</h2>
+        <svg
+          className={`w-5 h-5 text-taupe transition-transform ${expanded ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="mt-3">
+          {mapError ? (
+            <p className="text-xs text-red-500 text-center py-8">{mapError}</p>
+          ) : !mapLoaded ? (
+            <p className="text-xs text-taupe text-center py-8">Loading map...</p>
+          ) : null}
+          <div ref={mapRef} className={`w-full h-[400px] rounded-xl overflow-hidden ${!mapLoaded || mapError ? 'hidden' : ''}`} />
+        </div>
+      )}
+    </Card>
   );
 }
 
