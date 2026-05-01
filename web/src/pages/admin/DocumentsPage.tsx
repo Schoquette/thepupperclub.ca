@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
@@ -11,6 +11,26 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 import { Upload } from 'lucide-react';
 
+function DocumentPreviewFrame({ docId }: { docId: number }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let revoked = false;
+    api.get(`/documents/${docId}`, { responseType: 'blob' })
+      .then(res => {
+        if (revoked) return;
+        const url = URL.createObjectURL(res.data);
+        setBlobUrl(url);
+      })
+      .catch(() => setError('Failed to load document preview.'));
+    return () => { revoked = true; if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [docId]);
+
+  if (error) return <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</div>;
+  if (!blobUrl) return <div className="flex items-center justify-center h-96 text-taupe">Loading preview...</div>;
+  return <iframe src={blobUrl} className="w-full h-[70vh] rounded-lg border border-cream" />;
+}
 
 export default function AdminDocumentsPage() {
   const navigate = useNavigate();
@@ -504,7 +524,6 @@ export default function AdminDocumentsPage() {
       {/* Document Preview Modal */}
       <Modal open={!!previewDoc} onClose={() => setPreviewDoc(null)} title={previewDoc?.filename ?? 'Document Preview'} size="2xl">
         {previewDoc && (() => {
-          const apiBase = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000';
           const st = docStatus(previewDoc);
           return (
             <div className="space-y-4">
@@ -533,14 +552,7 @@ export default function AdminDocumentsPage() {
               )}
 
               {/* PDF preview */}
-              <div className="border border-cream rounded-lg overflow-hidden bg-gray-100">
-                <iframe
-                  src={`${apiBase}/api/documents/${previewDoc.id}?inline=1`}
-                  className="w-full border-0"
-                  style={{ height: 560 }}
-                  title="Document preview"
-                />
-              </div>
+              <DocumentPreviewFrame docId={previewDoc.id} />
 
               {/* Actions */}
               <div className="flex items-center justify-between pt-2 border-t border-cream">
@@ -562,14 +574,20 @@ export default function AdminDocumentsPage() {
                     </Button>
                   )}
                   {previewDoc.signed_pdf_path && (
-                    <a
-                      href={`${apiBase}/api/documents/${previewDoc.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={async () => {
+                        const res = await api.get(`/documents/${previewDoc.id}`, { responseType: 'blob' });
+                        const url = URL.createObjectURL(res.data);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = previewDoc.filename || 'document.pdf';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
                       className="inline-flex items-center px-4 py-2 rounded-lg border border-taupe/30 text-sm font-medium text-espresso hover:bg-cream transition-colors"
                     >
                       Download Certificate
-                    </a>
+                    </button>
                   )}
                 </div>
                 <div className="flex gap-2">
