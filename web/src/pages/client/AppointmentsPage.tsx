@@ -109,7 +109,7 @@ export default function ClientAppointmentsPage() {
   const [editingRequest, setEditingRequest] = useState<any>(null);
   const [editReqForm, setEditReqForm] = useState({ service_type: 'walk_30', preferred_time_block: 'morning', preferred_date: '', notes: '', dog_ids: [] as number[] });
 
-  const { data: appointments, isLoading } = useQuery({
+  const { data: appointments, isLoading, isError } = useQuery({
     queryKey: ['client-appointments'],
     queryFn: () => api.get('/client/appointments').then(r => r.data.data),
   });
@@ -121,7 +121,7 @@ export default function ClientAppointmentsPage() {
 
   const { data: requests } = useQuery({
     queryKey: ['client-service-requests'],
-    queryFn: () => api.get('/client/service-requests').then(r => r.data.data),
+    queryFn: () => api.get('/client/service-requests').then(r => r.data?.data ?? []),
   });
 
   const [requestSuccess, setRequestSuccess] = useState(false);
@@ -221,7 +221,7 @@ export default function ClientAppointmentsPage() {
 
   // Map appointments → calendar events
   const events: CalEvent[] = useMemo(() => {
-    if (!appointments) return [];
+    if (!Array.isArray(appointments)) return [];
     return appointments
       .filter((a: any) => a.scheduled_time)
       .map((a: any) => {
@@ -271,6 +271,18 @@ export default function ClientAppointmentsPage() {
   });
 
   if (isLoading) return <PageLoader />;
+
+  if (isError) return (
+    <div className="space-y-6">
+      <h1 className="font-display text-xl text-espresso">Visits & Appointments</h1>
+      <Card>
+        <div className="text-center py-8">
+          <p className="text-taupe text-sm">Unable to load appointments. Please try refreshing the page.</p>
+          <Button size="sm" className="mt-4" onClick={() => window.location.reload()}>Refresh</Button>
+        </div>
+      </Card>
+    </div>
+  );
 
   // ── Modal title based on view ──
   const modalTitle =
@@ -338,11 +350,11 @@ export default function ClientAppointmentsPage() {
       </Card>
 
       {/* Pending requests */}
-      {requests?.filter((r: any) => r.status === 'pending').length > 0 && (
+      {Array.isArray(requests) && requests.filter((r: any) => r.status === 'pending').length > 0 && (
         <div>
           <h2 className="font-display text-base text-espresso mb-2">Pending Requests</h2>
           <div className="space-y-2">
-            {requests?.filter((r: any) => r.status === 'pending').map((req: any) => (
+            {(requests as any[]).filter((r: any) => r.status === 'pending').map((req: any) => (
               <Card key={req.id} padding="sm">
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-espresso capitalize">
