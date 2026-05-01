@@ -381,7 +381,7 @@ export default function AdminCalendarPage() {
     }));
   };
 
-  const appointmentEvents = (data ?? []).map((appt: any) => {
+  const appointmentEvents = (data ?? []).filter((appt: any) => appt.status !== 'cancelled').map((appt: any) => {
     // Parse as local time — strip trailing Z/offset so JS doesn't convert from UTC
     const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
     const start = new Date(localStr);
