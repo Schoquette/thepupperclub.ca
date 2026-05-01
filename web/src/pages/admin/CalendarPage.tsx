@@ -212,6 +212,13 @@ export default function AdminCalendarPage() {
     queryFn: () => api.get('/admin/dogs/birthdays').then(r => r.data.data),
   });
 
+  // Scheduling status for current week
+  const weekStart = format(startOfWeek(currentDate, { locale: enCA }), 'yyyy-MM-dd');
+  const { data: schedulingData } = useQuery({
+    queryKey: ['scheduling-status', weekStart],
+    queryFn: () => api.get('/admin/appointments/scheduling-status', { params: { week_start: weekStart } }).then(r => r.data),
+  });
+
   // Load dogs for selected client
   const selectedClientId = newForm.user_id ? parseInt(newForm.user_id) : null;
   const { data: clientDetail } = useQuery({
@@ -421,6 +428,18 @@ export default function AdminCalendarPage() {
           + New Appointment
         </Button>
       </div>
+
+      {/* Scheduling Status Dashboard */}
+      <SchedulingDashboard
+        data={schedulingData}
+        onSchedule={(userId: number) => {
+          const f = blankForm();
+          f.user_id = String(userId);
+          setNewForm(f);
+          setCreateError('');
+          setCreatingAppt(true);
+        }}
+      />
 
       {isLoading ? <PageLoader /> : (
         <Card padding="none" className="overflow-hidden">
@@ -1544,5 +1563,140 @@ function UpcomingBirthdays({ birthdays }: { birthdays: any[] }) {
         })}
       </div>
     </Card>
+  );
+}
+
+// ── Scheduling Status Dashboard ─────────────────────────────────────────────
+
+function SchedulingDashboard({ data, onSchedule }: { data: any; onSchedule: (userId: number) => void }) {
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(true);
+
+  if (!data?.data || data.data.length === 0) return null;
+
+  const clients: any[] = data.data;
+  const under = clients.filter((c: any) => c.status === 'under');
+  const over = clients.filter((c: any) => c.status === 'over');
+  const ok = clients.filter((c: any) => c.status === 'ok');
+  const paused = clients.filter((c: any) => c.status === 'paused');
+
+  const weekLabel = data.week_start
+    ? `Week of ${format(parseISO(data.week_start), 'MMM d')}`
+    : 'This Week';
+
+  return (
+    <Card>
+      <button
+        className="flex items-center justify-between w-full text-left"
+        onClick={() => setExpanded(e => !e)}
+      >
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-display text-espresso">Scheduling Status</h2>
+          <span className="text-xs text-taupe">{weekLabel}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {under.length > 0 && (
+            <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+              {under.length} need{under.length === 1 ? 's' : ''} scheduling
+            </span>
+          )}
+          {over.length > 0 && (
+            <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              {over.length} over-scheduled
+            </span>
+          )}
+          <svg
+            className={`w-5 h-5 text-taupe transition-transform ${expanded ? 'rotate-180' : ''}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-3">
+          {/* Under-scheduled clients (need attention) */}
+          {under.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Needs Scheduling</p>
+              <div className="divide-y divide-cream">
+                {under.map((c: any) => (
+                  <SchedulingRow key={c.user_id} client={c} onSchedule={onSchedule} onNavigate={() => navigate(`/admin/clients/${c.user_id}`)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Over-scheduled clients */}
+          {over.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">Over-Scheduled</p>
+              <div className="divide-y divide-cream">
+                {over.map((c: any) => (
+                  <SchedulingRow key={c.user_id} client={c} onSchedule={onSchedule} onNavigate={() => navigate(`/admin/clients/${c.user_id}`)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* On-track clients (collapsible) */}
+          {ok.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">On Track ({ok.length})</p>
+              <div className="divide-y divide-cream">
+                {ok.map((c: any) => (
+                  <SchedulingRow key={c.user_id} client={c} onSchedule={onSchedule} onNavigate={() => navigate(`/admin/clients/${c.user_id}`)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Paused clients */}
+          {paused.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">Paused ({paused.length})</p>
+              <div className="divide-y divide-cream">
+                {paused.map((c: any) => (
+                  <SchedulingRow key={c.user_id} client={c} onSchedule={onSchedule} onNavigate={() => navigate(`/admin/clients/${c.user_id}`)} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function SchedulingRow({ client, onSchedule, onNavigate }: { client: any; onSchedule: (userId: number) => void; onNavigate: () => void }) {
+  const c = client;
+  const statusColors: Record<string, string> = {
+    under: 'text-red-600 bg-red-50',
+    over: 'text-amber-600 bg-amber-50',
+    ok: 'text-green-600 bg-green-50',
+    paused: 'text-taupe bg-cream',
+  };
+
+  return (
+    <div className="flex items-center gap-3 py-2.5">
+      <button className="flex-1 min-w-0 text-left" onClick={onNavigate}>
+        <div className="text-sm font-semibold text-espresso hover:text-gold transition-colors">{c.name}</div>
+        <div className="text-xs text-taupe">{c.dogs?.join(', ')}{c.plan ? ` — ${c.plan}` : ''}</div>
+      </button>
+      <div className="flex items-center gap-2">
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${statusColors[c.status] ?? ''}`}>
+          {c.scheduled}/{c.quota}
+        </span>
+        {c.status === 'under' && (
+          <button
+            onClick={() => onSchedule(c.user_id)}
+            className="px-3 py-1 rounded-lg text-xs font-semibold bg-gold text-white hover:bg-gold/90 transition-colors"
+          >
+            Schedule
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

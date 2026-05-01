@@ -8,6 +8,13 @@ use Stripe\StripeClient;
 
 class StripeSubscriptionService
 {
+    /** Default walks/week for known plan tiers */
+    private const PLAN_DEFAULTS = [
+        'essential' => 2,
+        'signature' => 3,
+        'premier'   => 4,
+    ];
+
     private ?StripeClient $stripe = null;
 
     private function stripe(): StripeClient
@@ -76,7 +83,7 @@ class StripeSubscriptionService
                 }
             }
 
-            $profile->update([
+            $updateData = [
                 'stripe_subscription_id'  => null,
                 'stripe_price_id'         => $stripePriceId,
                 'subscription_plan'       => $productName,
@@ -85,7 +92,15 @@ class StripeSubscriptionService
                 'subscription_start_date' => $isNewSubscription ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()) : $profile->subscription_start_date,
                 'next_billing_date'       => $isNewSubscription ? ($effectiveDate ? Carbon::parse($effectiveDate)->addMonth() : now()->addMonth()) : $profile->next_billing_date,
                 'subscription_end_date'   => null,
-            ]);
+            ];
+
+            // Auto-set walks_per_week from plan name if not already customized
+            $walksDefault = $this->walksFromPlanName($productName);
+            if ($walksDefault && !$profile->walks_per_week) {
+                $updateData['walks_per_week'] = $walksDefault;
+            }
+
+            $profile->update($updateData);
 
             return [
                 'action'     => $isNewSubscription ? 'created' : 'updated',
@@ -198,7 +213,7 @@ class StripeSubscriptionService
             }
         }
 
-        $profile->update([
+        $updateData = [
             'stripe_subscription_id'  => $sub->id,
             'stripe_price_id'         => $priceObj->id,
             'subscription_plan'       => $productName,
@@ -207,6 +222,23 @@ class StripeSubscriptionService
             'subscription_start_date' => Carbon::createFromTimestamp($sub->current_period_start),
             'next_billing_date'       => Carbon::createFromTimestamp($sub->current_period_end),
             'subscription_end_date'   => $sub->cancel_at ? Carbon::createFromTimestamp($sub->cancel_at) : null,
-        ]);
+        ];
+
+        $walksDefault = $this->walksFromPlanName($productName);
+        if ($walksDefault && !$profile->walks_per_week) {
+            $updateData['walks_per_week'] = $walksDefault;
+        }
+
+        $profile->update($updateData);
+    }
+
+    private function walksFromPlanName(?string $planName): ?int
+    {
+        if (!$planName) return null;
+        $lower = strtolower($planName);
+        foreach (self::PLAN_DEFAULTS as $keyword => $walks) {
+            if (str_contains($lower, $keyword)) return $walks;
+        }
+        return null;
     }
 }

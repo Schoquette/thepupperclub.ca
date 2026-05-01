@@ -99,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/dogs/{dog}/photo', [Admin\DogController::class, 'deletePhoto']);
 
         // Appointments
+        Route::get('/appointments/scheduling-status',        [Admin\AppointmentController::class, 'schedulingStatus']);
         Route::get('/appointments',                          [Admin\AppointmentController::class, 'index']);
         Route::post('/appointments',                         [Admin\AppointmentController::class, 'store']);
         Route::get('/appointments/{appointment}',            [Admin\AppointmentController::class, 'show']);

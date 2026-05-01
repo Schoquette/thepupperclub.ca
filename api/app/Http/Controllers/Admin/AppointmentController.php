@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Invoice;
+use App\Models\User;
 use App\Services\AppointmentService;
 use App\Services\MileageService;
 use App\Services\NotificationDispatcher;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -32,6 +34,51 @@ class AppointmentController extends Controller
             ->orderBy('scheduled_time');
 
         return response()->json($query->paginate(50));
+    }
+
+    public function schedulingStatus(Request $request): JsonResponse
+    {
+        $weekStart = $request->week_start
+            ? Carbon::parse($request->week_start)->startOfWeek()
+            : Carbon::now()->startOfWeek();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+
+        // Get active clients with a walks_per_week quota
+        $clients = User::where('role', 'client')
+            ->whereHas('clientProfile', fn($q) => $q->whereNotNull('walks_per_week')->where('walks_per_week', '>', 0))
+            ->with('clientProfile:id,user_id,subscription_plan,walks_per_week,subscription_paused_from')
+            ->with('dogs:id,user_id,name')
+            ->get();
+
+        // Count scheduled appointments per client for the week
+        $counts = Appointment::whereBetween('scheduled_time', [$weekStart, $weekEnd])
+            ->whereIn('status', ['scheduled', 'checked_in', 'completed'])
+            ->selectRaw('user_id, count(*) as count')
+            ->groupBy('user_id')
+            ->pluck('count', 'user_id');
+
+        $result = $clients->map(function ($client) use ($counts) {
+            $quota = $client->clientProfile->walks_per_week;
+            $scheduled = $counts->get($client->id, 0);
+            $isPaused = (bool) $client->clientProfile->subscription_paused_from;
+
+            return [
+                'user_id'   => $client->id,
+                'name'      => $client->name,
+                'plan'      => $client->clientProfile->subscription_plan,
+                'quota'     => $quota,
+                'scheduled' => $scheduled,
+                'diff'      => $scheduled - $quota,
+                'status'    => $isPaused ? 'paused' : ($scheduled >= $quota ? ($scheduled > $quota ? 'over' : 'ok') : 'under'),
+                'dogs'      => $client->dogs->pluck('name')->toArray(),
+            ];
+        })->sortBy('diff')->values();
+
+        return response()->json([
+            'data'       => $result,
+            'week_start' => $weekStart->format('Y-m-d'),
+            'week_end'   => $weekEnd->format('Y-m-d'),
+        ]);
     }
 
     public function store(Request $request): JsonResponse

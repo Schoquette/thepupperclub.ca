@@ -95,6 +95,7 @@ class ClientController extends Controller
             'profile.subscription_start_date' => 'sometimes|nullable|date',
             'profile.next_billing_date'       => 'sometimes|nullable|date',
             'profile.subscription_end_date'   => 'sometimes|nullable|date',
+            'profile.walks_per_week'          => 'sometimes|nullable|integer|min:0|max:14',
             'profile.notes'                   => 'sometimes|nullable|string',
         ]);
 

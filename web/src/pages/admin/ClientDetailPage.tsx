@@ -561,6 +561,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
   const qc = useQueryClient();
   const [selectedPrice, setSelectedPrice] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
+  const [walksEditing, setWalksEditing] = useState(false);
   const [error, setError] = useState('');
 
   // Pause state
@@ -614,6 +615,11 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
     onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to pause.'),
   });
 
+  const updateWalks = useMutation({
+    mutationFn: (walks: number | null) => api.patch(`/admin/clients/${clientId}`, { profile: { walks_per_week: walks } }),
+    onSuccess: () => { onChanged(); setWalksEditing(false); },
+  });
+
   const resumeSub = useMutation({
     mutationFn: () => api.post(`/admin/clients/${clientId}/resume-subscription`),
     onSuccess: (res) => {
@@ -662,6 +668,32 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                 {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
                 {!cp.stripe_subscription_id && <span className="text-xs text-taupe ml-1">(local)</span>}
               </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-taupe">Walks/week</span>
+              {walksEditing ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="border border-taupe/30 rounded px-2 py-0.5 text-sm w-16"
+                    defaultValue={cp.walks_per_week ?? ''}
+                    onChange={e => {
+                      const v = e.target.value ? parseInt(e.target.value) : null;
+                      updateWalks.mutate(v);
+                    }}
+                  >
+                    <option value="">—</option>
+                    {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <button className="text-xs text-taupe hover:text-espresso" onClick={() => setWalksEditing(false)}>cancel</button>
+                </div>
+              ) : (
+                <button
+                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  onClick={() => setWalksEditing(true)}
+                >
+                  {cp.walks_per_week ? `${cp.walks_per_week}/week` : 'Not set'}
+                </button>
+              )}
             </div>
             {cp.next_billing_date && (
               <div className="flex justify-between">

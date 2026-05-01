@@ -43,6 +43,7 @@ class ClientProfile extends Model
         'subscription_tier',
         'subscription_plan',
         'subscription_amount',
+        'walks_per_week',
         'subscription_start_date',
         'next_billing_date',
         'subscription_end_date',
