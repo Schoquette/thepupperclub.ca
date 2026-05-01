@@ -215,9 +215,11 @@ export default function AdminCalendarPage() {
   });
   const clientDogs: any[] = (clientDetail?.dogs ?? []).filter((d: any) => d.is_active);
 
+  const [checkInError, setCheckInError] = useState('');
   const checkIn = useMutation({
     mutationFn: (id: number) => api.post(`/admin/appointments/${id}/check-in`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-appointments'] }); setSelected(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-appointments'] }); setSelected(null); setCheckInError(''); },
+    onError: (err: any) => { setCheckInError(err.response?.data?.message || 'Check-in failed.'); },
   });
 
   const complete = useMutation({
@@ -462,9 +464,12 @@ export default function AdminCalendarPage() {
       )}
 
       {/* Today's Appointments */}
+      {checkInError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">{checkInError}</div>
+      )}
       <TodaysAppointments
         appointments={data ?? []}
-        onCheckIn={(id: number) => checkIn.mutate(id)}
+        onCheckIn={(id: number) => { setCheckInError(''); checkIn.mutate(id); }}
         checkInPending={checkIn.isPending}
         onSelect={(appt: any) => setSelected(appt)}
       />

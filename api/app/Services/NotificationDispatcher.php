@@ -114,7 +114,7 @@ class NotificationDispatcher
                     );
                     $logoPart->asInline();
                     $logoPart->setContentId('logo@thepupperclub.ca');
-                    $symfony->attachPart($logoPart);
+                    $symfony->addPart($logoPart);
                 }
                 // Reply-To: use inbound address so replies route through the webhook,
                 // falling back to the admin's email if no inbound is configured

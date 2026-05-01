@@ -139,7 +139,7 @@ class NotificationController extends Controller
                                 );
                                 $logoPart->asInline();
                                 $logoPart->setContentId('logo@thepupperclub.ca');
-                                $message->getSymfonyMessage()->attachPart($logoPart);
+                                $message->getSymfonyMessage()->addPart($logoPart);
                             }
                             foreach ($storedFiles as $att) {
                                 $message->attach(Storage::disk('local')->path($att['storage_path']), [
