@@ -12,6 +12,14 @@ use App\Http\Controllers\Admin\IntakeController;
 use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
+// Temporary: test email delivery (REMOVE after confirming)
+Route::get('/test-email-9x7k', function () {
+    \Illuminate\Support\Facades\Mail::raw('This is a test email from The Pupper Club portal.', function ($msg) {
+        $msg->to('sophie@thepupperclub.ca')->subject('Email Test');
+    });
+    return response()->json(['message' => 'Test email sent. Check your inbox.']);
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
