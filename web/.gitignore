@@ -1,5 +1,5 @@
 node_modules
-dist
+# dist is committed — no build tools on shared hosting
 .env
 .env.local
 .env.*.local

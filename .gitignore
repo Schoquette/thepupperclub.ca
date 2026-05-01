@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-vendor/
 
 # Laravel
 api/.env
@@ -20,8 +19,7 @@ api/.phpunit.result.cache
 !api/storage/framework/views/.gitkeep
 !api/storage/app/public/.gitkeep
 
-# React/Vite build
-web/dist/
+# React/Vite build (web/dist/ is tracked — no CLI on shared hosting)
 web/.env
 web/.env.local
 

@@ -192,6 +192,21 @@ The server auto-deploys on every push to `main` via a GitHub webhook:
 
 The webhook secret is configured in the GitHub repo settings. The deploy script logs all deployments to `deploy.log`.
 
+**Important — shared hosting constraints:**
+
+- The server is GoDaddy shared hosting (Windows OS) with **no SSH or CLI access**
+- `composer install`, `npm run build`, `php artisan migrate` **cannot be run on the server**
+- Therefore, `api/vendor/` and `web/dist/` **must be committed to the repo** so they deploy via git pull
+- Database migrations are run via `migrate.php` (see below)
+- The `.env` file is managed directly on the server by the GoDaddy admin
+
+### Deploy workflow
+
+1. Make changes locally
+2. If frontend changed: `cd web && npm run build && git add web/dist`
+3. If Composer packages changed: `cd api && composer install && git add api/vendor api/composer.lock`
+4. Commit and `git push` — auto-deploys to production
+
 ### Database Management — `migrate.php`
 
 A web-accessible migration runner at `https://thepupperclub.ca/migrate.php?key=SECRET`:
