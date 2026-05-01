@@ -69,7 +69,7 @@ class IntakeController extends Controller
 
         $client->documents()->create([
             'type'         => 'intake_form',
-            'filename'     => 'Client Intake Form.pdf',
+            'filename'     => "{$client->name} - Intake Form.pdf",
             'mime_type'    => 'application/pdf',
             'size_bytes'   => strlen($pdfContent),
             'storage_path' => $storagePath,
