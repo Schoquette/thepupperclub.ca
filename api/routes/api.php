@@ -20,6 +20,21 @@ Route::get('/clear-cache-9x7k', function () {
     return response()->json(['message' => 'Config, route, and view caches cleared.']);
 });
 
+// Temporary: check mail config (REMOVE after confirming)
+Route::get('/mail-debug-9x7k', function () {
+    return response()->json([
+        'MAIL_MAILER' => env('MAIL_MAILER'),
+        'MAIL_HOST' => env('MAIL_HOST'),
+        'MAIL_PORT' => env('MAIL_PORT'),
+        'MAIL_USERNAME' => env('MAIL_USERNAME'),
+        'MAIL_PASSWORD' => env('MAIL_PASSWORD') ? '***set***' : '***NOT SET***',
+        'MAIL_ENCRYPTION' => env('MAIL_ENCRYPTION'),
+        'MAIL_FROM_ADDRESS' => env('MAIL_FROM_ADDRESS'),
+        'default_mailer' => config('mail.default'),
+        'mailers_defined' => array_keys(config('mail.mailers', [])),
+    ]);
+});
+
 // Temporary: test email delivery (REMOVE after confirming)
 Route::get('/test-email-9x7k', function () {
     \Illuminate\Support\Facades\Mail::raw('This is a test email from The Pupper Club portal.', function ($msg) {
