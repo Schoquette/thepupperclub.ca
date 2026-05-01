@@ -11,8 +11,10 @@ use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Models\VaccinationRecord;
 use App\Observers\AuditObserver;
+use App\Mail\ResendTransport;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Connectors\SqlServerConnector;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 
@@ -34,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Register custom Resend API mail transport (bypasses SMTP)
+        Mail::extend('resend', function () {
+            return new ResendTransport(config('services.resend.key'));
+        });
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }
