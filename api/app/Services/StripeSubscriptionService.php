@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Stripe\StripeClient;
 
 class StripeSubscriptionService
@@ -95,9 +96,11 @@ class StripeSubscriptionService
             ];
 
             // Auto-set walks_per_week from plan name if not already customized
-            $walksDefault = $this->walksFromPlanName($productName);
-            if ($walksDefault && !$profile->walks_per_week) {
-                $updateData['walks_per_week'] = $walksDefault;
+            if (Schema::hasColumn('client_profiles', 'walks_per_week')) {
+                $walksDefault = $this->walksFromPlanName($productName);
+                if ($walksDefault && !$profile->walks_per_week) {
+                    $updateData['walks_per_week'] = $walksDefault;
+                }
             }
 
             $profile->update($updateData);
