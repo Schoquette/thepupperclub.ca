@@ -985,6 +985,12 @@ const SIZE_LABELS: Record<string, string> = {
   toy: 'Toy (under 10 lbs)', small: 'Small (under 20 lbs)', medium: 'Medium (20–55 lbs)', large: 'Large (55–90 lbs)', extra_large: 'Extra Large (90+ lbs)', xl: 'Extra Large (90+ lbs)',
 };
 
+function fmtVal(val: string | null | undefined): string | null {
+  if (!val) return null;
+  const s = val.replace(/_/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function ProfileRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
   return (
@@ -1132,14 +1138,14 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
               <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Personality & Preferences</h4>
               <div className="text-sm space-y-1">
                 <ProfileRow label="Personality" value={dog.personality_description} />
-                <ProfileRow label="Energy Level" value={dog.energy_level} />
-                <ProfileRow label="With Dogs" value={dog.interaction_dogs} />
-                <ProfileRow label="With Strangers" value={dog.interaction_strangers} />
-                <ProfileRow label="With Children" value={dog.interaction_children} />
+                <ProfileRow label="Energy Level" value={fmtVal(dog.energy_level)} />
+                <ProfileRow label="With Dogs" value={fmtVal(dog.interaction_dogs)} />
+                <ProfileRow label="With Strangers" value={fmtVal(dog.interaction_strangers)} />
+                <ProfileRow label="With Children" value={fmtVal(dog.interaction_children)} />
                 <ProfileRow label="Triggers" value={dog.triggers} />
-                <ProfileRow label="Walk Style" value={Array.isArray(dog.preferred_walk_style) ? dog.preferred_walk_style.join(', ') : dog.preferred_walk_style} />
-                <ProfileRow label="Gear" value={Array.isArray(dog.preferred_gear) ? dog.preferred_gear.join(', ') : dog.preferred_gear} />
-                <ProfileRow label="Treats Allowed" value={dog.treats_allowed} />
+                <ProfileRow label="Walk Style" value={Array.isArray(dog.preferred_walk_style) ? dog.preferred_walk_style.map(s => fmtVal(s)).join(', ') : fmtVal(dog.preferred_walk_style)} />
+                <ProfileRow label="Gear" value={Array.isArray(dog.preferred_gear) ? dog.preferred_gear.map(g => fmtVal(g)).join(', ') : fmtVal(dog.preferred_gear)} />
+                <ProfileRow label="Treats Allowed" value={fmtVal(dog.treats_allowed)} />
                 <ProfileRow label="Treats Notes" value={dog.treats_notes} />
                 <ProfileRow label="Training Commands" value={dog.training_commands} />
                 <ProfileRow label="Avoid on Walks" value={dog.avoid_on_walks} />

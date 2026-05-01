@@ -165,6 +165,13 @@ function preparePayload(form: DogForm) {
   };
 }
 
+/** Format stored values: replace underscores with spaces, sentence case */
+function fmt(val: string | null | undefined): string | null {
+  if (!val) return null;
+  const s = val.replace(/_/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (!value && value !== 0) return null;
   return (
@@ -564,10 +571,10 @@ export default function ClientDogsPage() {
               <Card>
                 <h3 className="font-display text-espresso text-sm mb-3">Personality & Behaviour</h3>
                 <DetailRow label="Personality" value={dog.personality_description} />
-                <DetailRow label="Energy Level" value={dog.energy_level ? dog.energy_level.charAt(0).toUpperCase() + dog.energy_level.slice(1).replace('_', ' ') : null} />
-                <DetailRow label="With Other Dogs" value={dog.interaction_dogs} />
-                <DetailRow label="With Strangers" value={dog.interaction_strangers} />
-                <DetailRow label="With Children" value={dog.interaction_children} />
+                <DetailRow label="Energy Level" value={fmt(dog.energy_level)} />
+                <DetailRow label="With Other Dogs" value={fmt(dog.interaction_dogs)} />
+                <DetailRow label="With Strangers" value={fmt(dog.interaction_strangers)} />
+                <DetailRow label="With Children" value={fmt(dog.interaction_children)} />
                 <DetailRow label="Triggers / Fears" value={dog.triggers} />
                 <DetailRow label="Bite History" value={dog.bite_history ? 'Yes' : null} />
                 <DetailRow label="Bite History Notes" value={dog.bite_history_notes} />
@@ -623,7 +630,7 @@ export default function ClientDogsPage() {
                     <span className="text-sm text-taupe">Walk Style</span>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {dog.preferred_walk_style.map((s: string) => (
-                        <span key={s} className="text-xs bg-blue/10 text-blue px-2 py-0.5 rounded-full">{s}</span>
+                        <span key={s} className="text-xs bg-blue/10 text-blue px-2 py-0.5 rounded-full">{fmt(s)}</span>
                       ))}
                     </div>
                   </div>
@@ -633,12 +640,12 @@ export default function ClientDogsPage() {
                     <span className="text-sm text-taupe">Gear / Equipment</span>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {dog.preferred_gear.map((g: string) => (
-                        <span key={g} className="text-xs bg-blue/10 text-blue px-2 py-0.5 rounded-full">{g}</span>
+                        <span key={g} className="text-xs bg-blue/10 text-blue px-2 py-0.5 rounded-full">{fmt(g)}</span>
                       ))}
                     </div>
                   </div>
                 )}
-                <DetailRow label="Treats Allowed" value={dog.treats_allowed ? dog.treats_allowed.charAt(0).toUpperCase() + dog.treats_allowed.slice(1) : null} />
+                <DetailRow label="Treats Allowed" value={fmt(dog.treats_allowed)} />
                 <DetailRow label="Treats Notes" value={dog.treats_notes} />
                 <DetailRow label="Training Commands" value={dog.training_commands} />
                 <DetailRow label="Avoid on Walks" value={dog.avoid_on_walks} />
