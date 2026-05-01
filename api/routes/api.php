@@ -12,6 +12,19 @@ use App\Http\Controllers\Admin\IntakeController;
 use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
+// ── One-time migration endpoint (remove after use) ──────────────────────────
+Route::get('/run-migrations', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        return response()->json([
+            'message' => 'Migrations complete.',
+            'output'  => \Illuminate\Support\Facades\Artisan::output(),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
