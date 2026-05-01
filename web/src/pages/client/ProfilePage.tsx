@@ -5,7 +5,8 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Dog, CreditCard, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function ClientProfilePage() {
   const qc = useQueryClient();
@@ -173,6 +174,24 @@ export default function ClientProfilePage() {
           </div>
         )}
       </Card>
+
+      {/* Quick links */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { to: '/client/dogs', icon: Dog, label: 'My Dogs' },
+          { to: '/client/billing', icon: CreditCard, label: 'Billing' },
+          { to: '/client/settings', icon: Settings, label: 'Settings' },
+        ].map(link => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className="flex flex-col items-center gap-2 rounded-xl border border-cream p-4 text-sm font-medium text-espresso hover:bg-cream/50 transition-colors"
+          >
+            <link.icon className="w-5 h-5 text-taupe" />
+            {link.label}
+          </Link>
+        ))}
+      </div>
 
       {/* Confirm button — shown when admin submitted intake but client hasn't confirmed */}
       {needsReview && !editing && (
