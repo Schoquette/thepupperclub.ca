@@ -124,14 +124,18 @@ export default function ClientAppointmentsPage() {
     queryFn: () => api.get('/client/service-requests').then(r => r.data.data),
   });
 
+  const [requestSuccess, setRequestSuccess] = useState(false);
+  const [requestError, setRequestError] = useState('');
+
   const createRequest = useMutation({
     mutationFn: () => api.post('/client/service-requests', { ...form, addons: requestAddons.length > 0 ? requestAddons : undefined }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-service-requests'] });
-      setRequestModal(false);
-      setForm({ service_type: 'walk_30', preferred_time_block: 'morning', preferred_date: '', notes: '', dog_ids: [] });
-      setRequestAddons([]);
-      setExtraChargeConfirmed(false);
+      setRequestSuccess(true);
+      setRequestError('');
+    },
+    onError: (e: any) => {
+      setRequestError(e.response?.data?.message || 'Something went wrong. Please try again.');
     },
   });
 
@@ -739,8 +743,32 @@ export default function ClientAppointmentsPage() {
       </Modal>
 
       {/* ── Request visit modal ── */}
-      <Modal open={requestModal} onClose={() => { setRequestModal(false); setRequestAddons([]); setExtraChargeConfirmed(false); }} title="Request a Visit" size="lg">
+      <Modal open={requestModal} onClose={() => { setRequestModal(false); setRequestAddons([]); setExtraChargeConfirmed(false); setRequestSuccess(false); setRequestError(''); }} title={requestSuccess ? 'Request Submitted' : 'Request a Visit'} size="lg">
+        {requestSuccess ? (
+          <div className="text-center py-6 space-y-4">
+            <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+              <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <h3 className="font-display text-lg text-espresso">Visit request submitted!</h3>
+            <p className="text-sm text-taupe max-w-sm mx-auto">
+              Sophie will review your request and get back to you shortly. You'll see it listed under Pending Requests below.
+            </p>
+            <Button onClick={() => {
+              setRequestModal(false);
+              setRequestSuccess(false);
+              setRequestError('');
+              setForm({ service_type: 'walk_30', preferred_time_block: 'morning', preferred_date: '', notes: '', dog_ids: [] });
+              setRequestAddons([]);
+              setExtraChargeConfirmed(false);
+            }}>
+              Done
+            </Button>
+          </div>
+        ) : (
         <div className="space-y-4">
+          {requestError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">{requestError}</div>
+          )}
           <Select
             label="Service type"
             value={form.service_type}
@@ -859,7 +887,7 @@ export default function ClientAppointmentsPage() {
           </label>
 
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => { setRequestModal(false); setRequestAddons([]); setExtraChargeConfirmed(false); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setRequestModal(false); setRequestAddons([]); setExtraChargeConfirmed(false); setRequestError(''); }}>Cancel</Button>
             <Button
               loading={createRequest.isPending}
               disabled={
@@ -875,6 +903,7 @@ export default function ClientAppointmentsPage() {
             </Button>
           </div>
         </div>
+        )}
       </Modal>
     </div>
   );
