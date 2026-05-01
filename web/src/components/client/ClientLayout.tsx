@@ -12,9 +12,9 @@ import { Modal } from '@/components/ui/Modal';
 
 const NAV_ALL = [
   { to: '/client',               label: 'Home',      icon: Home,           end: true },
-  { to: '/client/appointments',  label: 'Calendar',  icon: Calendar,       requiresProfile: true },
+  { to: '/client/appointments',  label: 'Calendar',  icon: Calendar },
   { to: '/client/messages',      label: 'Messages',  icon: MessageCircle },
-  { to: '/client/report-cards',  label: 'Reports',   icon: ClipboardList,  requiresProfile: true },
+  { to: '/client/report-cards',  label: 'Reports',   icon: ClipboardList },
   { to: '/client/invoices',      label: 'Billing',   icon: CreditCard },
   { to: '/client/dogs',          label: 'My Dogs',   icon: PawIcon },
   { to: '/client/documents',     label: 'Documents', icon: FileText },
