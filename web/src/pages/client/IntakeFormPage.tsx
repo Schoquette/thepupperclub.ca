@@ -5,6 +5,8 @@ import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
+import SimpleAddressInput from '@/components/ui/SimpleAddressInput';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -1131,30 +1133,22 @@ export default function IntakeFormPage() {
                 : <input type="tel" className={fieldCls} value={form.phone} onChange={e => update({ phone: e.target.value })} placeholder="(604) 555-0100" />
               }
             </FieldRow>
-            <FieldRow label="Street Address">
-              {readOnly
-                ? <ReadValue value={form.address} />
-                : <input className={fieldCls} value={form.address} onChange={e => update({ address: e.target.value })} placeholder="2425 St. Johns St" />
-              }
-            </FieldRow>
-            <FieldRow label="City">
-              {readOnly
-                ? <ReadValue value={form.city} />
-                : <input className={fieldCls} value={form.city} onChange={e => update({ city: e.target.value })} placeholder="Port Moody" />
-              }
-            </FieldRow>
-            <FieldRow label="Province">
-              {readOnly
-                ? <ReadValue value={form.province} />
-                : <input className={fieldCls} value={form.province} onChange={e => update({ province: e.target.value })} placeholder="BC" />
-              }
-            </FieldRow>
-            <FieldRow label="Postal Code">
-              {readOnly
-                ? <ReadValue value={form.postal_code} />
-                : <input className={fieldCls} value={form.postal_code} onChange={e => update({ postal_code: e.target.value })} placeholder="V3H 2A9" />
-              }
-            </FieldRow>
+            {readOnly ? (
+              <>
+                <FieldRow label="Street Address"><ReadValue value={form.address} /></FieldRow>
+                <FieldRow label="City"><ReadValue value={form.city} /></FieldRow>
+                <FieldRow label="Province"><ReadValue value={form.province} /></FieldRow>
+                <FieldRow label="Postal Code"><ReadValue value={form.postal_code} /></FieldRow>
+              </>
+            ) : (
+              <div className="sm:col-span-2">
+                <AddressAutocomplete
+                  label="Address"
+                  value={{ street: form.address, city: form.city, province: form.province, postal_code: form.postal_code }}
+                  onChange={({ street, city, province, postal_code }) => update({ address: street, city, province, postal_code })}
+                />
+              </div>
+            )}
           </div>
 
           <div className="pt-2 border-t border-cream">
@@ -1202,7 +1196,7 @@ export default function IntakeFormPage() {
           <FieldRow label="Address">
             {readOnly
               ? <ReadValue value={form.vet_address} />
-              : <textarea className={`${fieldCls} resize-none`} rows={2} value={form.vet_address} onChange={e => update({ vet_address: e.target.value })} placeholder="2630 Clarke St, Port Moody BC V3H 1Z5" />
+              : <SimpleAddressInput className={fieldCls} value={form.vet_address} onChange={v => update({ vet_address: v })} placeholder="2630 Clarke St, Port Moody BC V3H 1Z5" />
             }
           </FieldRow>
         </SectionCard>
