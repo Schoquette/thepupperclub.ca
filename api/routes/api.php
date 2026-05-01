@@ -12,6 +12,32 @@ use App\Http\Controllers\Admin\IntakeController;
 use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
+// ── One-time: set walks_per_week for existing subscribed clients (remove after use) ──
+Route::get('/set-walks-defaults', function () {
+    $defaults = ['essential' => 2, 'signature' => 3, 'premier' => 4];
+    $updated = [];
+
+    $profiles = \App\Models\ClientProfile::whereNotNull('subscription_plan')
+        ->whereNull('walks_per_week')
+        ->get();
+
+    foreach ($profiles as $profile) {
+        $plan = strtolower($profile->subscription_plan ?? '');
+        foreach ($defaults as $keyword => $walks) {
+            if (str_contains($plan, $keyword)) {
+                $profile->update(['walks_per_week' => $walks]);
+                $updated[] = "{$profile->user_id}: {$profile->subscription_plan} → {$walks}/week";
+                break;
+            }
+        }
+    }
+
+    return response()->json([
+        'message' => count($updated) . ' clients updated.',
+        'updated' => $updated,
+    ]);
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);

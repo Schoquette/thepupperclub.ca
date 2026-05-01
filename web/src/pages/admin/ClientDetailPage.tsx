@@ -562,6 +562,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
   const [selectedPrice, setSelectedPrice] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [walksEditing, setWalksEditing] = useState(false);
+  const [billingEditing, setBillingEditing] = useState(false);
   const [error, setError] = useState('');
 
   // Pause state
@@ -620,6 +621,11 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
     onSuccess: () => { onChanged(); setWalksEditing(false); },
   });
 
+  const updateBilling = useMutation({
+    mutationFn: (method: string) => api.patch(`/admin/clients/${clientId}`, { profile: { billing_method: method } }),
+    onSuccess: () => { onChanged(); setBillingEditing(false); },
+  });
+
   const resumeSub = useMutation({
     mutationFn: () => api.post(`/admin/clients/${clientId}/resume-subscription`),
     onSuccess: (res) => {
@@ -662,12 +668,31 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
               <span className="text-taupe">Amount</span>
               <span className="font-semibold text-espresso">${Number(cp.subscription_amount).toFixed(2)}/mo</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-taupe">Billing</span>
-              <span className="font-semibold text-espresso">
-                {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
-                {!cp.stripe_subscription_id && <span className="text-xs text-taupe ml-1">(local)</span>}
-              </span>
+              {billingEditing ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="border border-taupe/30 rounded px-2 py-0.5 text-sm"
+                    defaultValue={billingMethod}
+                    onChange={e => updateBilling.mutate(e.target.value)}
+                  >
+                    <option value="credit_card">Credit Card</option>
+                    <option value="e_transfer">E-Transfer</option>
+                    <option value="interac_pad">Interac/PAD</option>
+                    <option value="cash">Cash</option>
+                  </select>
+                  <button className="text-xs text-taupe hover:text-espresso" onClick={() => setBillingEditing(false)}>cancel</button>
+                </div>
+              ) : (
+                <button
+                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  onClick={() => setBillingEditing(true)}
+                >
+                  {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
+                  {!cp.stripe_subscription_id && <span className="text-xs text-taupe ml-1">(local)</span>}
+                </button>
+              )}
             </div>
             <div className="flex justify-between items-center">
               <span className="text-taupe">Walks/week</span>
@@ -1845,18 +1870,6 @@ export default function AdminClientDetailPage() {
 
               <SubscriptionCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
 
-              <Card>
-                <CardHeader title="Billing Method" />
-                <div>
-                  <select className="input" value={form.billing_method} onChange={e => handleProfileChange('billing_method', e.target.value)}>
-                    <option value="credit_card">Credit Card</option>
-                    <option value="e_transfer">E-Transfer</option>
-                    <option value="interac_pad">Interac/PAD</option>
-                    <option value="cash">Cash</option>
-                  </select>
-                </div>
-              </Card>
-
               <Card className="md:col-span-2">
                 <CardHeader title="Admin Notes" />
                 <textarea
@@ -1933,13 +1946,6 @@ export default function AdminClientDetailPage() {
               </Card>
 
               <SubscriptionCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
-
-              <Card>
-                <CardHeader title="Billing Method" />
-                <dl className="space-y-1 text-sm">
-                  <Field label="Method" value={p.billing_method?.replace('_', ' ')} />
-                </dl>
-              </Card>
 
               {p.notes && (
                 <Card>
