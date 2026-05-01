@@ -38,10 +38,11 @@ class AppointmentController extends Controller
 
     public function schedulingStatus(Request $request): JsonResponse
     {
+        // Use the exact date sent by frontend (Sunday-based weeks)
         $weekStart = $request->week_start
-            ? Carbon::parse($request->week_start)->startOfWeek()
-            : Carbon::now()->startOfWeek();
-        $weekEnd = $weekStart->copy()->endOfWeek();
+            ? Carbon::parse($request->week_start)->startOfDay()
+            : Carbon::now()->startOfWeek(Carbon::SUNDAY);
+        $weekEnd = $weekStart->copy()->addDays(6)->endOfDay();
 
         // Get active clients with a walks_per_week quota
         $clients = User::where('role', 'client')
