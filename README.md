@@ -38,27 +38,29 @@ thepupperclub.ca/
 - **MySQL 8.0** database (hosted on GoDaddy cPanel)
 - **Laravel Sanctum** for API token authentication (Bearer tokens)
 - **Stripe PHP SDK** for payment processing (invoices, subscriptions, saved cards)
-- **Resend** (via SMTP) for transactional email
-- **DomPDF** for PDF generation (intake forms, invoices)
+- **Resend** (HTTP API transport) for transactional email (GoDaddy blocks SMTP port 587)
+- **DomPDF** for PDF generation (intake forms, invoices, reports)
+- **Twilio** for one-way SMS notifications
 - **40+ database migrations** covering users, clients, dogs, appointments, invoices, messaging, documents, templates, subscriptions, and more
 
 #### Key API Features
 
 - **Authentication**: Login, password reset, password change, account deletion, role-based access (admin/client/superadmin)
 - **Client Management**: Profiles, onboarding steps, home access codes (encrypted), secondary contacts with notification preferences, intake forms
-- **Dog Management**: CRUD, vaccination records, documents, profile photos, full intake fields (personality, behaviour, medical, walk preferences, medications, training commands)
+- **Dog Management**: CRUD with full intake fields (personality, behaviour, medical, visit preferences, medications, training commands), vaccination records, documents, profile photos, size options (toy/small/medium/large/extra large)
 - **Appointments**: Scheduling, check-in/complete, recurring generation, team member assignment
-- **Invoicing**: Create, send, pay via Stripe, PDF export, subscription billing
-- **Messaging**: Conversations with photo attachments, emoji reactions
-- **Report Cards**: Post-visit reports with multi-photo support, per-dog checklists/notes, customizable templates per client
-- **Document Management**: Upload PDF, Word (.doc/.docx), and images; self-hosted digital signatures with encrypted tokens; template system with visual field editor
-- **Intake Forms**: 45-field intake form with branded PDF export (includes home access, dog profiles with full personality/medical/walk preference details)
-- **Auto-Mileage**: Automatic driving distance calculation on appointment completion via Google Maps Distance Matrix API (home → client1 → client2 → ... → home)
+- **Invoicing**: Create, send, pay via Stripe, PDF export, subscription billing with pause/resume
+- **Messaging**: Conversations with photo attachments, emoji reactions, reply threading, date separators
+- **Report Cards**: Post-visit reports with multi-photo support, per-dog checklists/notes, customizable templates per client, branded email with dog photo
+- **Document Management**: Upload PDF, Word (.doc/.docx), and images; self-hosted digital signatures with encrypted tokens; template system with visual field editor; authenticated preview via blob URL
+- **Intake Forms**: 45-field intake form with branded PDF export (blue headings, black text, sentence case), Google Places address autocomplete for parent and vet addresses
+- **Auto-Mileage**: Automatic driving distance calculation on appointment completion via Google Maps Distance Matrix API (home -> client1 -> client2 -> ... -> home)
 - **Report Exports**: Download mileage, walk history, and billing reports as CSV or PDF
 - **Team Management**: Invite members, home address with Google Places autocomplete (Canadian addresses), role management
-- **Notifications**: Expo push notifications, email broadcasts (rich text editor with templates), pre-visit reminders, multi-channel dispatch (app, email, SMS)
-- **Broadcast System**: Gmail-style rich text editor, system and marketing templates, inline image support
-- **Two-Way Communication**: Chat messages, inbound email webhook for email replies, one-way SMS alerts via Twilio
+- **Notifications**: Expo push notifications, multi-channel dispatch (app, email, SMS via Twilio), client notification preferences
+- **Broadcast System**: Gmail-style rich text editor, system and marketing templates, inline image support, "also send email" override
+- **Two-Way Communication**: Chat messages dispatched to client's preferred channels, inbound email webhook for email replies, one-way SMS alerts with "Reply in app or by email" note
+- **Email System**: Resend HTTP API transport (custom Guzzle-based transport since GoDaddy blocks SMTP), branded email templates with CID inline logo, editable system email templates (8 templates with token-based customization)
 - **Audit Logging**: Tracks all admin actions
 
 #### Scheduled Commands
@@ -72,9 +74,9 @@ thepupperclub.ca/
 
 #### API Routes
 
-- **Public**: `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`, `/webhooks/stripe`, `/contact`, `/signing/{token}`
+- **Public**: `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`, `/webhooks/stripe`, `/webhooks/email`, `/contact`, `/signing/{token}`
 - **Admin** (`/admin/*`): Full CRUD for clients, dogs, appointments, invoices, report cards, documents, notifications, audit logs, intake forms, Stripe products, team management, time/mileage reports, report exports
-- **Client** (`/client/*`): Profile, dogs, appointments, invoices, billing/Stripe setup, report cards, documents, onboarding
+- **Client** (`/client/*`): Profile, dogs (with full intake fields), appointments, invoices, billing/Stripe setup, report cards, documents, onboarding, intake form
 - **Shared**: Conversations, messages, message reactions, photo serving, document download
 
 ### Web Portal — React 18
@@ -85,19 +87,20 @@ thepupperclub.ca/
 - **React Router v6** for client-side routing
 - **Stripe React SDK** for payment UI (card management, invoice payments)
 - **React Big Calendar** for appointment scheduling views
+- **Google Places Autocomplete** for address fields (intake forms, team addresses)
 - **Axios** for API communication with auth interceptors
 
 #### Web Portal Pages (35+ pages)
 
 **Admin Pages** (20): Dashboard, Clients list, Client detail, Dogs list, Intake form, Calendar, Service requests, Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Broadcast messages, Audit logs, Template editor
 
-**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions), Onboarding, Profile, Dogs, Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form, Settings (password change, notifications, account deletion)
+**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, notifications, account deletion)
 
 **Shared**: Login, Set password, Forgot/reset password, Document signing
 
 #### Reusable UI Components
 
-Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji reactions and photo lightbox), AddressAutocomplete (Google Places, Canada-only)
+Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji reactions and photo lightbox), AddressAutocomplete (Google Places, Canada-only), SimpleAddressInput (single-string address autocomplete), RichTextEditor (Gmail-style with inline images)
 
 ### Mobile App — Expo SDK 51
 
@@ -175,7 +178,7 @@ The `/shared` package (`@pupper/shared`) provides TypeScript interfaces used by 
 |-----------|------|---------|
 | **API + Web Portal + Marketing Site** | GoDaddy Plesk (Windows/IIS) | PHP 8.2 hosting with MySQL 8.0 |
 | **Database** | GoDaddy MySQL | `pupper_club` database |
-| **Email** | Resend | SMTP via `smtp.resend.com` |
+| **Email** | Resend | HTTP API transport (custom Guzzle-based, port 443) |
 | **SMS** | Twilio | One-way SMS alerts |
 | **Payments** | Stripe | Webhooks at `/api/webhooks/stripe` |
 | **Domain** | GoDaddy | `thepupperclub.ca` (Cloudflare CDN) |
@@ -198,9 +201,10 @@ The webhook secret is configured in the GitHub repo settings. The deploy script 
 - `composer install`, `npm run build`, `php artisan migrate` **cannot be run on the server**
 - Therefore, `api/vendor/` and `web/dist/` **must be committed to the repo** so they deploy via git pull
 - Database migrations are run via `migrate.php` (see below)
-- The `.env` file is managed directly on the server by the GoDaddy admin
+- Temporary migration endpoints in `api/routes/api.php` can be used for one-off schema changes
+- The `.env` file is managed directly on the server via GoDaddy admin panel
 
-### Deploy workflow
+### Deploy Workflow
 
 1. Make changes locally
 2. If frontend changed: `cd web && npm run build && git add web/dist`
@@ -228,16 +232,18 @@ Shows diagnostics (storage permissions, PHP version, DB connection) and data cou
 Migrations covering:
 
 - **Users & Auth** — users table with roles (admin, client, superadmin), Sanctum tokens, home address fields for team members
-- **Client Profiles** — extended client info, subscription fields, secondary contact (name, email, notification preferences)
+- **Client Profiles** — extended client info, subscription fields (with pause/resume), secondary contact (name, email, notification preferences), billing method (interac_pad enum), notification preferences (app/email/SMS)
 - **Home Access** — encrypted access codes for client homes
-- **Dogs** — breed, age, temperament, special needs, vaccination records, profile photo
-- **Appointments** — scheduling with check-in/complete timestamps, recurring support, team member assignment (`assigned_to`)
+- **Dogs** — breed, age, size (toy/small/medium/large/extra_large/xl), colour, microchip, spayed/neutered, personality (energy level, interactions with dogs/strangers/children, triggers), medical (conditions, allergies, medications as JSON, mobility limitations, recent surgeries), visit preferences (walk style, gear, treats, training commands, avoid list), profile photos, vaccination records, bite history, admin tags (off-leash approved, media consent, buddy walks OK)
+- **Appointments** — scheduling with check-in/complete timestamps, recurring support, team member assignment
 - **Service Requests** — client-submitted requests for schedule changes, time extensions, and special services (editable/cancellable while pending)
 - **Visit Reports** — post-visit report cards with multi-photo support, per-dog data (checklists/notes as JSON)
 - **Report Card Templates** — customizable checklist templates per client
-- **Invoices** — line items, Stripe payment intents, PDF generation
-- **Conversations & Messages** — threaded messaging with photo attachments and emoji reactions
-- **Documents** — client documents with digital signature support
+- **Invoices** — line items, Stripe payment intents, PDF generation, invoice numbers (`PC-YYYY-NNNN`)
+- **Conversations & Messages** — threaded messaging with photo attachments, emoji reactions, reply threading (`reply_to_id`), notification type messages
+- **Documents** — client documents with digital signature support, templates with visual field editor
+- **Document Templates** — PDF templates with positioned form fields (name, checkbox, date, signature, dog_name, open_text)
+- **System Email Templates** — admin-customizable email overrides with token support
 - **Onboarding Steps** — multi-step client onboarding flow
 - **Audit Logs** — admin action tracking
 - **Push Notifications** — Expo push notification records
@@ -315,12 +321,16 @@ npx expo start
 | `STRIPE_SECRET` | Stripe secret key (`sk_test_` or `sk_live_`) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `GOOGLE_MAPS_API_KEY` | Google Maps API key (enable Distance Matrix, Places, Maps JavaScript APIs) |
-| `MAIL_MAILER` | `resend` |
-| `RESEND_API_KEY` | Resend API key |
+| `MAIL_MAILER` | `resend` (uses custom HTTP transport via Guzzle) |
+| `RESEND_API_KEY` | Resend API key (also read from `MAIL_PASSWORD` as fallback) |
 | `MAIL_FROM_ADDRESS` | `hello@thepupperclub.ca` (requires domain verification in Resend) |
 | `APP_TIMEZONE` | `America/Vancouver` |
 | `SANCTUM_STATEFUL_DOMAINS` | Allowed frontend domains |
 | `FRONTEND_URL` | Web portal URL |
+| `TWILIO_SID` | Twilio account SID (for SMS) |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token |
+| `TWILIO_FROM_NUMBER` | Twilio phone number |
+| `RESEND_INBOUND_ADDRESS` | `reply@thepupperclub.ca` (for two-way email) |
 
 **Web (`web/.env`):**
 
@@ -335,16 +345,18 @@ npx expo start
 ### Post-Setup Steps
 
 1. **Google Maps**: Get an API key from [Google Cloud Console](https://console.cloud.google.com/) and enable **Distance Matrix API**, **Places API**, and **Maps JavaScript API**
-2. **Team addresses**: Set each team member's home address on the Team page (Admin → Team) — required for automatic mileage calculation
+2. **Team addresses**: Set each team member's home address on the Team page (Admin -> Team) — required for automatic mileage calculation
 3. **Resend**: Verify `thepupperclub.ca` domain in Resend dashboard before sending from `hello@thepupperclub.ca`
 4. **Stripe webhook**: Register `https://thepupperclub.ca/api/webhooks/stripe` in Stripe dashboard
+5. **Resend inbound email**: Set up inbound webhook URL to `https://thepupperclub.ca/api/webhooks/email` for two-way email replies
+6. **Twilio**: Create account, get phone number, add credentials to `.env` for SMS notifications
 
 ### Auto-Mileage
 
 When an appointment is completed (check-out), the system automatically calculates driving distance via Google Maps Distance Matrix API:
 
-- **First appointment of the day**: team member's home → client's address
-- **Middle appointments**: previous client's address → current client's address
+- **First appointment of the day**: team member's home -> client's address
+- **Middle appointments**: previous client's address -> current client's address
 - **Last appointment of the day**: includes return trip to team member's home
 - If another appointment is completed later, mileage for the entire day is recalculated
 

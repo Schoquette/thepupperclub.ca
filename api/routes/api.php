@@ -92,6 +92,19 @@ Route::get('/test-email-9x7k', function () {
     return response()->json(['message' => 'Test email sent. Check your inbox.']);
 });
 
+// Temporary: fix dogs.size enum to include toy and xl (REMOVE after running)
+Route::get('/fix-dog-size-enum-9x7k', function () {
+    try {
+        // Change size from ENUM to VARCHAR so any value works
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE dogs MODIFY COLUMN size VARCHAR(20) NULL"
+        );
+        return response()->json(['message' => 'dogs.size changed to VARCHAR(20) — toy, xl, etc. now accepted.']);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
