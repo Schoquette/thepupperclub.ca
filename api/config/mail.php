@@ -2,7 +2,7 @@
 
 return [
 
-    'default' => trim(env('MAIL_MAILER', 'smtp')),
+    'default' => trim(env('MAIL_MAILER', 'resend')),
 
     'mailers' => [
         'resend' => [

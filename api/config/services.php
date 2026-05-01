@@ -8,7 +8,7 @@ return [
         'scheme'   => 'https',
     ],
     'resend' => [
-        'key'             => env('RESEND_API_KEY'),
+        'key'             => env('RESEND_API_KEY', env('MAIL_PASSWORD')),
         'inbound_address' => env('RESEND_INBOUND_ADDRESS'), // e.g. reply@thepupperclub.ca
     ],
     'stripe' => [
