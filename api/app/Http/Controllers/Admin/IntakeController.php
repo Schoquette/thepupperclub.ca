@@ -138,19 +138,31 @@ class IntakeController extends Controller
                 if ($v === '') $dogData[$k] = null;
             }
 
-            if (!empty($dogData['id'])) {
-                $id = $dogData['id'];
-                unset($dogData['id']);
-                $dog = Dog::where('id', $id)->where('user_id', $client->id)->first();
-                if ($dog) {
-                    $dog->fill($dogData);
-                    $dog->save();
+            // Only keep fillable fields
+            $fillable = (new Dog())->getFillable();
+            $dogData = array_intersect_key($dogData, array_flip($fillable));
+            $dogData['user_id'] = $client->id;
+
+            try {
+                if (!empty($dogData['id'])) {
+                    $id = $dogData['id'];
+                    unset($dogData['id']);
+                    $dog = Dog::where('id', $id)->where('user_id', $client->id)->first();
+                    if ($dog) {
+                        $dog->fill($dogData);
+                        $dog->save();
+                    }
+                } else {
+                    unset($dogData['id']);
+                    if (!empty($dogData['name'])) {
+                        $client->dogs()->create($dogData);
+                    }
                 }
-            } else {
-                unset($dogData['id']);
-                if (!empty($dogData['name'])) {
-                    $client->dogs()->create($dogData);
-                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Intake dog save failed', [
+                    'dog_name' => $dogData['name'] ?? 'unknown',
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }

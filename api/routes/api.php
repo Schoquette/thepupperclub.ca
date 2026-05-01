@@ -12,6 +12,43 @@ use App\Http\Controllers\Admin\IntakeController;
 use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
+// Temporary: add missing dog intake columns (REMOVE after running)
+Route::get('/fix-dog-columns-9x7k', function () {
+    $results = [];
+    $columns = [
+        'personality_description' => 'TEXT NULL',
+        'energy_level' => 'VARCHAR(50) NULL',
+        'interaction_dogs' => 'VARCHAR(50) NULL',
+        'interaction_strangers' => 'VARCHAR(50) NULL',
+        'interaction_children' => 'VARCHAR(50) NULL',
+        'triggers' => 'TEXT NULL',
+        'preferred_walk_style' => 'JSON NULL',
+        'preferred_gear' => 'JSON NULL',
+        'treats_allowed' => 'VARCHAR(50) NULL',
+        'treats_notes' => 'TEXT NULL',
+        'training_commands' => 'TEXT NULL',
+        'avoid_on_walks' => 'TEXT NULL',
+        'medical_conditions' => 'TEXT NULL',
+        'allergies' => 'TEXT NULL',
+        'administer_medication_on_visits' => 'TINYINT(1) NULL',
+        'mobility_limitations' => 'TINYINT(1) NULL',
+        'recent_surgeries' => 'TEXT NULL',
+    ];
+    foreach ($columns as $col => $type) {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', $col)) {
+            try {
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE dogs ADD COLUMN {$col} {$type}");
+                $results[] = "Added {$col}";
+            } catch (\Throwable $e) {
+                $results[] = "Failed {$col}: " . $e->getMessage();
+            }
+        } else {
+            $results[] = "{$col} already exists";
+        }
+    }
+    return response()->json(['results' => $results]);
+});
+
 // Temporary: fix billing_method enum (REMOVE after running)
 Route::get('/fix-billing-enum-9x7k', function () {
     try {
