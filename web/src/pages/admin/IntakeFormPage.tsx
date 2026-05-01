@@ -904,7 +904,6 @@ export default function IntakeFormPage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
-  const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Query ──────────────────────────────────────────────────────────────────
 
@@ -934,8 +933,6 @@ export default function IntakeFormPage() {
       setIsDirty(false);
       setSaveError('');
       setSavedFlash(true);
-      if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
-      savedFlashTimer.current = setTimeout(() => setSavedFlash(false), 2500);
       qc.invalidateQueries({ queryKey: ['admin-intake', id] });
     },
     onError: (e: any) => setSaveError(e.response?.data?.message ?? 'Failed to save draft.'),
@@ -961,23 +958,25 @@ export default function IntakeFormPage() {
 
   // ── Form helpers ───────────────────────────────────────────────────────────
 
+  const markDirty = useCallback(() => { setIsDirty(true); setSavedFlash(false); }, []);
+
   const update = useCallback((partial: Partial<FormData>) => {
     setForm(prev => prev ? { ...prev, ...partial } : prev);
-    setIsDirty(true);
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const updateField = useCallback((key: keyof FormData, value: any) => {
     setForm(prev => prev ? { ...prev, [key]: value } : prev);
-    setIsDirty(true);
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const updateHomeAccess = useCallback((key: keyof FormData['home_access'], value: string) => {
     setForm(prev => {
       if (!prev) return prev;
       return { ...prev, home_access: { ...prev.home_access, [key]: value } };
     });
-    setIsDirty(true);
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const updateDog = useCallback((index: number, updated: DogData) => {
     setForm(prev => {
@@ -1045,11 +1044,11 @@ export default function IntakeFormPage() {
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Save indicator */}
-          {!readOnly && (isDirty || savedFlash) && (
+          {!readOnly && (
             <span className={`text-xs transition-all duration-300 ${
-              savedFlash ? 'text-green-600' : 'text-taupe'
+              savedFlash ? 'text-green-600' : isDirty ? 'text-taupe' : 'text-transparent'
             }`}>
-              {savedFlash ? 'Saved' : 'Unsaved changes'}
+              {savedFlash ? 'Saved' : isDirty ? 'Unsaved changes' : '\u00A0'}
             </span>
           )}
 
