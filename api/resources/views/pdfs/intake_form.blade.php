@@ -165,6 +165,22 @@
     </div>
     @endif
 
+    {{-- Communication Preferences --}}
+    @if($profile)
+    <div class="section">
+      <div class="section-title">Communication Preferences</div>
+      <table class="fields">
+        @php
+          $channels = [];
+          if ($profile->notify_app ?? true) $channels[] = 'App Notifications';
+          if ($profile->notify_email) $channels[] = 'Email';
+          if ($profile->notify_sms) $channels[] = 'Text Message (SMS)';
+        @endphp
+        <tr><td class="lbl">Preferred Channels</td><td class="val">{{ count($channels) ? implode(', ', $channels) : 'None selected' }}</td></tr>
+      </table>
+    </div>
+    @endif
+
     {{-- Service Preferences --}}
     @if($profile)
     <div class="section">

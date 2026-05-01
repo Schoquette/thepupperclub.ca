@@ -143,8 +143,19 @@ class IntakeController extends Controller
             'report_detail_level', 'preferred_walk_days', 'preferred_walk_length', 'preferred_walk_times',
             'what_great_care_looks_like', 'biggest_concern', 'comfort_factors',
             'referral_source', 'additional_notes', 'billing_method',
+            'notify_app', 'notify_email', 'notify_sms',
         ]);
+        // Boolean fields should pass through even when false
+        $booleanKeys = ['notify_app', 'notify_email', 'notify_sms'];
+        $booleanFields = [];
+        foreach ($booleanKeys as $bk) {
+            if (array_key_exists($bk, $profileFields)) {
+                $booleanFields[$bk] = (bool) $profileFields[$bk];
+                unset($profileFields[$bk]);
+            }
+        }
         $profileFields = array_filter($profileFields, fn($v) => $v !== null && $v !== '');
+        $profileFields = array_merge($profileFields, $booleanFields);
 
         if (!empty($profileFields)) {
             $client->clientProfile()->updateOrCreate(['user_id' => $client->id], $profileFields);

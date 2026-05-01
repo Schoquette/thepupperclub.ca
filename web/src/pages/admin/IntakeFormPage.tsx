@@ -82,6 +82,9 @@ interface FormData {
   billing_method: string;
   referral_source: string;
   additional_notes: string;
+  notify_app: boolean;
+  notify_email: boolean;
+  notify_sms: boolean;
   dogs: DogData[];
 }
 
@@ -194,6 +197,9 @@ function buildForm(data: any): FormData {
     billing_method: p.billing_method ?? '',
     referral_source: p.referral_source ?? '',
     additional_notes: p.additional_notes ?? '',
+    notify_app: p.notify_app ?? true,
+    notify_email: p.notify_email ?? false,
+    notify_sms: p.notify_sms ?? false,
     dogs,
   };
 }
@@ -1326,10 +1332,36 @@ export default function IntakeFormPage() {
           <SectionHeading>6. Communication & Scheduling Preferences</SectionHeading>
 
           <div className="space-y-5">
-            {/* Update method */}
+            {/* Communication preferences */}
             <div>
-              <label className="block text-sm font-medium text-espresso mb-1">Update Method</label>
-              <p className="text-sm text-taupe">In-App Notifications Only</p>
+              <label className="block text-sm font-medium text-espresso mb-1">Communication Preferences</label>
+              <p className="text-xs text-taupe mb-3">How would the client like to receive updates?</p>
+              {readOnly ? (
+                <div className="flex flex-wrap gap-2">
+                  {form.notify_app && <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App Notifications</span>}
+                  {form.notify_email && <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>}
+                  {form.notify_sms && <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Text Message (SMS)</span>}
+                  {!form.notify_app && !form.notify_email && !form.notify_sms && <span className="text-xs text-taupe">None selected</span>}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {[
+                    { key: 'notify_app' as const, label: 'App notifications (recommended)' },
+                    { key: 'notify_email' as const, label: 'Email' },
+                    { key: 'notify_sms' as const, label: 'Text message (SMS)' },
+                  ].map(opt => (
+                    <label key={opt.key} className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form[opt.key]}
+                        onChange={e => update({ [opt.key]: e.target.checked })}
+                        className="rounded accent-gold"
+                      />
+                      <span className="text-sm text-espresso">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             <FieldRow label="What Does Great Care Look Like to You?">
