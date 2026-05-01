@@ -11,12 +11,12 @@ import { Dog } from 'lucide-react';
 import { PawIcon } from '@/components/ui/PawIcon';
 
 const SIZE_OPTIONS = [
-  { value: '', label: 'Select size...' },
+  { value: '', label: 'Select…' },
   { value: 'toy', label: 'Toy (under 10 lbs)' },
   { value: 'small', label: 'Small (under 20 lbs)' },
   { value: 'medium', label: 'Medium (20–55 lbs)' },
   { value: 'large', label: 'Large (55–90 lbs)' },
-  { value: 'extra_large', label: 'Extra Large (90+ lbs)' },
+  { value: 'xl', label: 'Extra Large (90+ lbs)' },
 ];
 
 const SIZE_LABELS: Record<string, string> = {
@@ -29,28 +29,60 @@ const SIZE_LABELS: Record<string, string> = {
 };
 
 const SEX_OPTIONS = [
-  { value: '', label: 'Select...' },
+  { value: '', label: 'Select…' },
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
 ];
 
 const ENERGY_OPTIONS = [
-  { value: '', label: 'Select...' },
-  { value: 'low', label: 'Low' },
+  { value: 'very_calm', label: 'Very Calm' },
   { value: 'moderate', label: 'Moderate' },
-  { value: 'high', label: 'High' },
-  { value: 'very_high', label: 'Very High' },
+  { value: 'high_energy', label: 'High Energy' },
+  { value: 'varies', label: 'Varies' },
+];
+
+const DOG_INTERACTION_OPTIONS = [
+  { value: 'loves', label: 'Loves Dogs' },
+  { value: 'selective', label: 'Selective' },
+  { value: 'prefers_avoid', label: 'Prefers to Avoid' },
+  { value: 'reactive', label: 'Reactive' },
+];
+
+const STRANGER_OPTIONS = [
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'shy', label: 'Shy' },
+  { value: 'protective', label: 'Protective' },
+  { value: 'nervous', label: 'Nervous' },
+];
+
+const CHILDREN_OPTIONS = [
+  { value: 'comfortable', label: 'Comfortable' },
+  { value: 'unsure', label: 'Unsure' },
+  { value: 'avoid', label: 'Avoid' },
 ];
 
 const TREATS_OPTIONS = [
-  { value: '', label: 'Select...' },
   { value: 'yes', label: 'Yes' },
-  { value: 'limited', label: 'Limited / specific only' },
+  { value: 'only_specific', label: 'Only Specific' },
   { value: 'no', label: 'No' },
 ];
 
-const WALK_STYLE_OPTIONS = ['On-leash only', 'Off-leash (trained recall)', 'Long-line / flexi', 'Sniff walks', 'Structured heel walks'];
-const GEAR_OPTIONS = ['Harness', 'Collar', 'Gentle Leader / head halter', 'Martingale', 'Standard leash', 'Long line', 'Muzzle (if needed)'];
+const WALK_STYLE_OPTIONS = [
+  { value: 'sniff_focused', label: 'Sniff Focused' },
+  { value: 'structured_training', label: 'Structured Training' },
+  { value: 'social', label: 'Social' },
+  { value: 'indoor_play', label: 'Indoor Play' },
+  { value: 'low_stimulation', label: 'Low Stimulation' },
+  { value: 'high_activity', label: 'High Activity' },
+  { value: 'off_leash', label: 'Off Leash' },
+];
+
+const GEAR_OPTIONS = [
+  { value: 'collar', label: 'Collar' },
+  { value: 'harness', label: 'Harness' },
+  { value: 'slip_lead', label: 'Slip Lead' },
+  { value: 'gentle_leader', label: 'Gentle Leader' },
+];
 
 interface Medication {
   name: string;
@@ -230,21 +262,68 @@ function DogPhotoUpload({ dog, onChanged }: { dog: any; onChanged: () => void })
   );
 }
 
+// ── Reusable radio group (pill buttons) ──
+function RadioPillGroup({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-espresso mb-2">{label}</label>
+      <div className="flex flex-wrap gap-2">
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value === value ? '' : opt.value)}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              value === opt.value ? 'bg-blue/10 border-blue text-blue font-medium' : 'border-taupe/30 text-taupe hover:bg-cream'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Reusable checkbox group for arrays ──
-function CheckboxGroup({ options, selected, onChange }: { options: string[]; selected: string[]; onChange: (v: string[]) => void }) {
-  const toggle = (opt: string) => {
-    onChange(selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt]);
+function CheckboxPillGroup({ label, options, selected, onChange }: { label: string; options: { value: string; label: string }[]; selected: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (val: string) => {
+    onChange(selected.includes(val) ? selected.filter(s => s !== val) : [...selected, val]);
   };
   return (
-    <div className="flex flex-wrap gap-2">
-      {options.map(opt => (
-        <label key={opt} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
-          selected.includes(opt) ? 'bg-blue/10 border-blue text-blue font-medium' : 'border-taupe/30 text-taupe hover:bg-cream'
-        }`}>
-          <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggle(opt)} className="sr-only" />
-          {opt}
-        </label>
-      ))}
+    <div>
+      <label className="block text-sm font-medium text-espresso mb-2">{label}</label>
+      <div className="flex flex-wrap gap-2">
+        {options.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => toggle(opt.value)}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              selected.includes(opt.value) ? 'bg-blue/10 border-blue text-blue font-medium' : 'border-taupe/30 text-taupe hover:bg-cream'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Bool radio (Yes / No) ──
+function BoolRadio({ label, value, onChange }: { label: string; value: boolean | null; onChange: (v: boolean) => void }) {
+  return (
+    <div>
+      <span className="text-sm font-medium text-espresso mr-4">{label}</span>
+      <label className="inline-flex items-center gap-1 mr-3 cursor-pointer">
+        <input type="radio" checked={value === true} onChange={() => onChange(true)} className="accent-gold" />
+        <span className="text-sm text-espresso">Yes</span>
+      </label>
+      <label className="inline-flex items-center gap-1 cursor-pointer">
+        <input type="radio" checked={value === false} onChange={() => onChange(false)} className="accent-gold" />
+        <span className="text-sm text-espresso">No</span>
+      </label>
     </div>
   );
 }
@@ -273,7 +352,7 @@ function MedicationsEditor({ meds, onChange }: { meds: Medication[]; onChange: (
   );
 }
 
-// ── Dog form fields (shared between Add and Edit) ──
+// ── Dog form fields (shared between Add and Edit) — matches intake form ──
 function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispatch<React.SetStateAction<DogForm>> }) {
   return (
     <>
@@ -285,18 +364,18 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
             <Input label="Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <Input label="Breed" value={form.breed} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} />
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input label="Colour / Markings" value={form.colour} onChange={e => setForm(f => ({ ...f, colour: e.target.value }))} />
+            <Input label="Date of Birth" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Input label="Weight (lbs)" type="number" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
             <Select label="Size" value={form.size} onChange={e => setForm(f => ({ ...f, size: e.target.value }))} options={SIZE_OPTIONS} />
             <Select label="Sex" value={form.sex} onChange={e => setForm(f => ({ ...f, sex: e.target.value }))} options={SEX_OPTIONS} />
-            <Input label="Weight (lbs)" type="number" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input label="Date of Birth" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
-            <Input label="Colour / Markings" value={form.colour} onChange={e => setForm(f => ({ ...f, colour: e.target.value }))} />
-          </div>
-          <Input label="Microchip Number" value={form.microchip_number} onChange={e => setForm(f => ({ ...f, microchip_number: e.target.value }))} />
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.spayed_neutered} onChange={e => setForm(f => ({ ...f, spayed_neutered: e.target.checked }))} className="rounded accent-gold" />
+          <Input label="Microchip Number" value={form.microchip_number} onChange={e => setForm(f => ({ ...f, microchip_number: e.target.value }))} placeholder="Optional" />
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={form.spayed_neutered} onChange={e => setForm(f => ({ ...f, spayed_neutered: e.target.checked }))} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
             <span className="text-sm text-espresso">Spayed / Neutered</span>
           </label>
         </div>
@@ -304,108 +383,56 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
 
       {/* Personality & Behaviour */}
       <Card>
-        <h3 className="font-display text-espresso text-sm mb-4">Personality & Behaviour</h3>
+        <h3 className="font-display text-espresso text-sm mb-4">Personality</h3>
         <div className="space-y-4">
-          <Textarea label="Personality Description" rows={2} value={form.personality_description} onChange={e => setForm(f => ({ ...f, personality_description: e.target.value }))} placeholder="How would you describe your dog's personality?" />
-          <Select label="Energy Level" value={form.energy_level} onChange={e => setForm(f => ({ ...f, energy_level: e.target.value }))} options={ENERGY_OPTIONS} />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Textarea label="With Other Dogs" rows={2} value={form.interaction_dogs} onChange={e => setForm(f => ({ ...f, interaction_dogs: e.target.value }))} placeholder="Friendly, selective, reactive..." />
-            <Textarea label="With Strangers" rows={2} value={form.interaction_strangers} onChange={e => setForm(f => ({ ...f, interaction_strangers: e.target.value }))} placeholder="Friendly, shy, cautious..." />
-            <Textarea label="With Children" rows={2} value={form.interaction_children} onChange={e => setForm(f => ({ ...f, interaction_children: e.target.value }))} placeholder="Good, avoid, supervised..." />
-          </div>
-          <Textarea label="Triggers / Fears" rows={2} value={form.triggers} onChange={e => setForm(f => ({ ...f, triggers: e.target.value }))} placeholder="Loud noises, other dogs, skateboards..." />
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.bite_history} onChange={e => setForm(f => ({ ...f, bite_history: e.target.checked }))} className="rounded accent-gold" />
-            <span className="text-sm text-espresso">Bite History</span>
+          <Textarea label="Personality Description" rows={3} value={form.personality_description} onChange={e => setForm(f => ({ ...f, personality_description: e.target.value }))} placeholder="Describe your dog's personality…" />
+          <RadioPillGroup label="Energy Level" options={ENERGY_OPTIONS} value={form.energy_level} onChange={v => setForm(f => ({ ...f, energy_level: v }))} />
+          <RadioPillGroup label="Interaction with Other Dogs" options={DOG_INTERACTION_OPTIONS} value={form.interaction_dogs} onChange={v => setForm(f => ({ ...f, interaction_dogs: v }))} />
+          <RadioPillGroup label="Interaction with Strangers" options={STRANGER_OPTIONS} value={form.interaction_strangers} onChange={v => setForm(f => ({ ...f, interaction_strangers: v }))} />
+          <RadioPillGroup label="Interaction with Children" options={CHILDREN_OPTIONS} value={form.interaction_children} onChange={v => setForm(f => ({ ...f, interaction_children: v }))} />
+          <Textarea label="Triggers / Fears" rows={2} value={form.triggers} onChange={e => setForm(f => ({ ...f, triggers: e.target.value }))} placeholder="e.g. skateboards, loud noises…" />
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={form.bite_history} onChange={e => setForm(f => ({ ...f, bite_history: e.target.checked }))} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
+            <span className="text-sm text-espresso font-medium">Bite History</span>
           </label>
           {form.bite_history && (
-            <Textarea label="Bite History Details" rows={2} value={form.bite_history_notes} onChange={e => setForm(f => ({ ...f, bite_history_notes: e.target.value }))} />
+            <Textarea label="Bite History Details" rows={2} value={form.bite_history_notes} onChange={e => setForm(f => ({ ...f, bite_history_notes: e.target.value }))} placeholder="Describe the incident(s)…" />
           )}
-          <Textarea label="Aggression Notes" rows={2} value={form.aggression_notes} onChange={e => setForm(f => ({ ...f, aggression_notes: e.target.value }))} placeholder="Any notes about reactivity or aggression..." />
         </div>
       </Card>
 
-      {/* Medical */}
+      {/* Health */}
       <Card>
-        <h3 className="font-display text-espresso text-sm mb-4">Medical</h3>
+        <h3 className="font-display text-espresso text-sm mb-4">Health</h3>
         <div className="space-y-4">
-          <Textarea label="Medical Conditions" rows={2} value={form.medical_conditions} onChange={e => setForm(f => ({ ...f, medical_conditions: e.target.value }))} placeholder="Any ongoing conditions..." />
-          <Textarea label="Allergies" rows={2} value={form.allergies} onChange={e => setForm(f => ({ ...f, allergies: e.target.value }))} placeholder="Food or environmental allergies..." />
+          <Textarea label="Medical Conditions" rows={2} value={form.medical_conditions} onChange={e => setForm(f => ({ ...f, medical_conditions: e.target.value }))} placeholder="e.g. hip dysplasia, epilepsy…" />
+          <Textarea label="Allergies" rows={2} value={form.allergies} onChange={e => setForm(f => ({ ...f, allergies: e.target.value }))} placeholder="e.g. chicken, grass…" />
           <div>
-            <label className="block text-sm font-medium text-espresso mb-1">Medications</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-espresso">Medications</label>
+              <button type="button" onClick={() => setForm(f => ({ ...f, medications: [...f.medications, { name: '', dosage: '' }] }))} className="text-sm text-blue hover:underline font-medium">+ Add Medication</button>
+            </div>
             <MedicationsEditor meds={form.medications} onChange={m => setForm(f => ({ ...f, medications: m }))} />
           </div>
-          {form.medications.length > 0 && (
-            <div>
-              <span className="text-sm text-espresso mr-4">Administer medication on visits?</span>
-              <label className="inline-flex items-center gap-1 mr-3 cursor-pointer">
-                <input type="radio" name="admin_med" checked={form.administer_medication_on_visits === true} onChange={() => setForm(f => ({ ...f, administer_medication_on_visits: true }))} className="accent-gold" />
-                <span className="text-sm text-espresso">Yes</span>
-              </label>
-              <label className="inline-flex items-center gap-1 cursor-pointer">
-                <input type="radio" name="admin_med" checked={form.administer_medication_on_visits === false} onChange={() => setForm(f => ({ ...f, administer_medication_on_visits: false }))} className="accent-gold" />
-                <span className="text-sm text-espresso">No</span>
-              </label>
-            </div>
-          )}
-          <div>
-            <span className="text-sm text-espresso mr-4">Mobility limitations?</span>
-            <label className="inline-flex items-center gap-1 mr-3 cursor-pointer">
-              <input type="radio" name="mobility" checked={form.mobility_limitations === true} onChange={() => setForm(f => ({ ...f, mobility_limitations: true }))} className="accent-gold" />
-              <span className="text-sm text-espresso">Yes</span>
-            </label>
-            <label className="inline-flex items-center gap-1 cursor-pointer">
-              <input type="radio" name="mobility" checked={form.mobility_limitations === false} onChange={() => setForm(f => ({ ...f, mobility_limitations: false }))} className="accent-gold" />
-              <span className="text-sm text-espresso">No</span>
-            </label>
-          </div>
-          <Textarea label="Recent Surgeries" rows={2} value={form.recent_surgeries} onChange={e => setForm(f => ({ ...f, recent_surgeries: e.target.value }))} placeholder="Any recent procedures..." />
+          <BoolRadio label="Administer Medication on Visits?" value={form.administer_medication_on_visits} onChange={v => setForm(f => ({ ...f, administer_medication_on_visits: v }))} />
+          <BoolRadio label="Mobility Limitations?" value={form.mobility_limitations} onChange={v => setForm(f => ({ ...f, mobility_limitations: v }))} />
+          <Textarea label="Recent Surgeries / Injuries" rows={2} value={form.recent_surgeries} onChange={e => setForm(f => ({ ...f, recent_surgeries: e.target.value }))} placeholder="Include date and details…" />
         </div>
       </Card>
 
-      {/* Veterinarian */}
+      {/* Visit Preferences */}
       <Card>
-        <h3 className="font-display text-espresso text-sm mb-4">Veterinarian</h3>
-        <div className="space-y-3">
-          <Input label="Vet Name" value={form.vet_name} onChange={e => setForm(f => ({ ...f, vet_name: e.target.value }))} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input label="Vet Phone" value={form.vet_phone} onChange={e => setForm(f => ({ ...f, vet_phone: e.target.value }))} />
-            <Input label="Vet Address" value={form.vet_address} onChange={e => setForm(f => ({ ...f, vet_address: e.target.value }))} />
-          </div>
-        </div>
-      </Card>
-
-      {/* Walk Preferences */}
-      <Card>
-        <h3 className="font-display text-espresso text-sm mb-4">Walk Preferences</h3>
+        <h3 className="font-display text-espresso text-sm mb-4">Visit Preferences</h3>
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-espresso mb-2">Preferred Walk Style</label>
-            <CheckboxGroup options={WALK_STYLE_OPTIONS} selected={form.preferred_walk_style} onChange={v => setForm(f => ({ ...f, preferred_walk_style: v }))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-espresso mb-2">Gear / Equipment</label>
-            <CheckboxGroup options={GEAR_OPTIONS} selected={form.preferred_gear} onChange={v => setForm(f => ({ ...f, preferred_gear: v }))} />
-          </div>
-          <Select label="Treats Allowed" value={form.treats_allowed} onChange={e => setForm(f => ({ ...f, treats_allowed: e.target.value }))} options={TREATS_OPTIONS} />
-          {(form.treats_allowed === 'yes' || form.treats_allowed === 'limited') && (
-            <Textarea label="Treats Notes" rows={2} value={form.treats_notes} onChange={e => setForm(f => ({ ...f, treats_notes: e.target.value }))} placeholder="Preferences, restrictions..." />
+          <CheckboxPillGroup label="Preferred Walk Style" options={WALK_STYLE_OPTIONS} selected={form.preferred_walk_style} onChange={v => setForm(f => ({ ...f, preferred_walk_style: v }))} />
+          <CheckboxPillGroup label="Preferred Gear" options={GEAR_OPTIONS} selected={form.preferred_gear} onChange={v => setForm(f => ({ ...f, preferred_gear: v }))} />
+          <RadioPillGroup label="Treats Allowed?" options={TREATS_OPTIONS} value={form.treats_allowed} onChange={v => setForm(f => ({ ...f, treats_allowed: v }))} />
+          {form.treats_allowed === 'only_specific' && (
+            <Input label="Specific Treats Allowed" value={form.treats_notes} onChange={e => setForm(f => ({ ...f, treats_notes: e.target.value }))} placeholder="e.g. single-ingredient beef treats only" />
           )}
-          <Textarea label="Training Commands" rows={2} value={form.training_commands} onChange={e => setForm(f => ({ ...f, training_commands: e.target.value }))} placeholder="Sit, stay, leave it, etc." />
-          <Textarea label="Things to Avoid on Walks" rows={2} value={form.avoid_on_walks} onChange={e => setForm(f => ({ ...f, avoid_on_walks: e.target.value }))} placeholder="Specific areas, triggers, other dogs..." />
+          <Textarea label="Known Training Commands" rows={2} value={form.training_commands} onChange={e => setForm(f => ({ ...f, training_commands: e.target.value }))} placeholder="e.g. sit, stay, leave it…" />
+          <Textarea label="Avoid on Walks" rows={2} value={form.avoid_on_walks} onChange={e => setForm(f => ({ ...f, avoid_on_walks: e.target.value }))} placeholder="e.g. dog parks, off-leash areas…" />
         </div>
-      </Card>
-
-      {/* Special Instructions */}
-      <Card>
-        <h3 className="font-display text-espresso text-sm mb-4">Additional Notes</h3>
-        <Textarea
-          label="Special Instructions"
-          rows={3}
-          value={form.special_instructions}
-          onChange={e => setForm(f => ({ ...f, special_instructions: e.target.value }))}
-          placeholder="Anything else we should know..."
-        />
       </Card>
     </>
   );
@@ -425,12 +452,19 @@ export default function ClientDogsPage() {
     queryFn: () => api.get('/client/dogs').then(r => r.data.data),
   });
 
+  const [addError, setAddError] = useState('');
+
   const addDog = useMutation({
     mutationFn: () => api.post('/client/dogs', preparePayload(form)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-dogs'] });
       setAddModal(false);
       setForm(EMPTY_FORM);
+      setAddError('');
+    },
+    onError: (e: any) => {
+      const detail = e.response?.data?.message || e.response?.data?.error || JSON.stringify(e.response?.data?.errors);
+      setAddError(`Failed to add dog: ${detail || e.message}`);
     },
   });
 
@@ -718,12 +752,15 @@ export default function ClientDogsPage() {
       </div>
 
       {/* Add Dog Modal */}
-      <Modal open={addModal} onClose={() => setAddModal(false)} title="Add a Dog" size="lg">
+      <Modal open={addModal} onClose={() => { setAddModal(false); setAddError(''); }} title="Add a Dog" size="lg">
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+          {addError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">{addError}</div>
+          )}
           <DogFormFields form={form} setForm={setForm} />
           <p className="text-xs text-taupe">New dogs are pending review by Sophie before their first appointment.</p>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => setAddModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setAddModal(false); setAddError(''); }}>Cancel</Button>
             <Button loading={addDog.isPending} disabled={!form.name} onClick={() => addDog.mutate()}>Add Dog</Button>
           </div>
         </div>

@@ -134,7 +134,7 @@ class DogController extends Controller
             'name'               => "{$prefix}string|max:100",
             'breed'              => 'sometimes|nullable|string|max:100',
             'date_of_birth'      => 'sometimes|nullable|date',
-            'size'               => 'sometimes|nullable|in:small,medium,large,extra_large',
+            'size'               => 'sometimes|nullable|in:toy,small,medium,large,extra_large,xl',
             'sex'                => 'sometimes|nullable|in:male,female',
             'weight_kg'          => 'sometimes|nullable|numeric|min:0',
             'colour'             => 'sometimes|nullable|string',
@@ -148,6 +148,24 @@ class DogController extends Controller
             'vet_address'        => 'sometimes|nullable|string',
             'medications'        => 'sometimes|nullable|array',
             'special_instructions' => 'sometimes|nullable|string',
+            // Intake / personality fields
+            'personality_description'       => 'sometimes|nullable|string',
+            'energy_level'                  => 'sometimes|nullable|string|max:50',
+            'interaction_dogs'              => 'sometimes|nullable|string|max:50',
+            'interaction_strangers'         => 'sometimes|nullable|string|max:50',
+            'interaction_children'          => 'sometimes|nullable|string|max:50',
+            'triggers'                      => 'sometimes|nullable|string',
+            'medical_conditions'            => 'sometimes|nullable|string',
+            'allergies'                     => 'sometimes|nullable|string',
+            'administer_medication_on_visits' => 'sometimes|nullable|boolean',
+            'mobility_limitations'          => 'sometimes|nullable|boolean',
+            'recent_surgeries'              => 'sometimes|nullable|string',
+            'preferred_walk_style'          => 'sometimes|nullable|array',
+            'preferred_gear'                => 'sometimes|nullable|array',
+            'treats_allowed'                => 'sometimes|nullable|string|max:50',
+            'treats_notes'                  => 'sometimes|nullable|string',
+            'training_commands'             => 'sometimes|nullable|string',
+            'avoid_on_walks'                => 'sometimes|nullable|string',
         ]);
     }
 
