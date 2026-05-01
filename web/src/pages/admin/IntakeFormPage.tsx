@@ -746,9 +746,9 @@ function DogCard({
             </div>
           </div>
 
-          {/* ── Walking Preferences ────────────────────────────────────────── */}
+          {/* ── Visit Preferences ────────────────────────────────────────── */}
           <div>
-            <h3 className="text-sm font-semibold text-taupe uppercase tracking-wide mb-3">Walking Preferences</h3>
+            <h3 className="text-sm font-semibold text-taupe uppercase tracking-wide mb-3">Visit Preferences</h3>
             <div className="space-y-4">
               <CheckboxGroup
                 label="Preferred Walk Style"
@@ -1382,10 +1382,10 @@ export default function IntakeFormPage() {
             <div className="pt-3 border-t border-cream">
               <p className="text-sm font-semibold text-espresso mb-3">Scheduling Preferences</p>
 
-              {/* Walk days */}
+              {/* Visit days */}
               <div className="space-y-4">
                 <div>
-                  <Label>Preferred Walk Days</Label>
+                  <Label>Preferred Visit Days</Label>
                   {readOnly ? (
                     <ReadList values={form.preferred_walk_days.map(v => WALK_DAYS_OPTIONS.find(o => o.value === v)?.label ?? v)} />
                   ) : (
@@ -1409,7 +1409,7 @@ export default function IntakeFormPage() {
                 </div>
 
                 <RadioGroup
-                  label="Preferred Walk Length"
+                  label="Preferred Visit Length"
                   options={WALK_LENGTH_OPTIONS}
                   value={form.preferred_walk_length}
                   onChange={v => updateField('preferred_walk_length', v)}
@@ -1417,7 +1417,7 @@ export default function IntakeFormPage() {
                 />
 
                 <CheckboxGroup
-                  label="Preferred Walk Times"
+                  label="Preferred Visit Times"
                   options={WALK_TIME_OPTIONS}
                   values={form.preferred_walk_times}
                   onChange={v => updateField('preferred_walk_times', v)}
