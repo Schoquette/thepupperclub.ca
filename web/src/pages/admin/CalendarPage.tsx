@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
-import { format, parse, startOfWeek, getDay, endOfWeek, addDays, isBefore, startOfDay } from 'date-fns';
+import { format, parse, startOfWeek, getDay, endOfWeek, addDays, isBefore, startOfDay, parseISO, differenceInDays } from 'date-fns';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { enCA } from 'date-fns/locale';
 import api from '@/lib/api';
@@ -206,6 +206,12 @@ export default function AdminCalendarPage() {
     queryFn: () => api.get('/admin/team').then(r => r.data.data),
   });
 
+  // Load dog birthdays
+  const { data: birthdaysData } = useQuery({
+    queryKey: ['admin-dog-birthdays'],
+    queryFn: () => api.get('/admin/dogs/birthdays').then(r => r.data.data),
+  });
+
   // Load dogs for selected client
   const selectedClientId = newForm.user_id ? parseInt(newForm.user_id) : null;
   const { data: clientDetail } = useQuery({
@@ -368,7 +374,7 @@ export default function AdminCalendarPage() {
     }));
   };
 
-  const events = (data ?? []).map((appt: any) => {
+  const appointmentEvents = (data ?? []).map((appt: any) => {
     // Parse as local time — strip trailing Z/offset so JS doesn't convert from UTC
     const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
     const start = new Date(localStr);
@@ -378,9 +384,25 @@ export default function AdminCalendarPage() {
       title: `${appt.user?.name} — ${appt.dogs?.map((d: any) => d.name).join(', ')}`,
       start,
       end,
+      allDay: false,
       resource: appt,
     };
   });
+
+  // Birthday events for calendar
+  const birthdayEvents = (birthdaysData ?? []).map((b: any) => {
+    const bday = parseISO(b.next_birthday);
+    return {
+      id: `bday-${b.id}`,
+      title: `${b.name}'s Birthday (${b.turning_age}!)`,
+      start: bday,
+      end: bday,
+      allDay: true,
+      resource: { _isBirthday: true, ...b },
+    };
+  });
+
+  const events = [...appointmentEvents, ...birthdayEvents];
 
   const today = startOfDay(new Date());
 
@@ -433,13 +455,31 @@ export default function AdminCalendarPage() {
               setCreateError('');
               setCreatingAppt(true);
             }}
-            onSelectEvent={(e: any) => setSelected(e.resource)}
+            onSelectEvent={(e: any) => {
+              if (e.resource?._isBirthday) {
+                navigate(`/admin/clients/${e.resource.user_id}`);
+                return;
+              }
+              setSelected(e.resource);
+            }}
             onEventDrop={handleDragDrop}
             onEventResize={handleDragDrop}
             resizable
-            draggableAccessor={(event: any) => !isBefore(event.start, today)}
+            draggableAccessor={(event: any) => !event.resource?._isBirthday && !isBefore(event.start, today)}
             dayPropGetter={dayPropGetter}
             eventPropGetter={(e: any) => {
+              if (e.resource?._isBirthday) {
+                return {
+                  style: {
+                    backgroundColor: '#C9A24D',
+                    borderRadius: 6,
+                    border: 'none',
+                    color: 'white',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  },
+                };
+              }
               let bg = '#6492D8'; // blue for regular visits
               let textColor = 'white';
               if (e.resource.service_type === 'day_boarding') {
@@ -473,6 +513,9 @@ export default function AdminCalendarPage() {
         checkInPending={checkIn.isPending}
         onSelect={(appt: any) => setSelected(appt)}
       />
+
+      {/* Upcoming Birthdays */}
+      <UpcomingBirthdays birthdays={birthdaysData ?? []} />
 
       {/* Appointment detail modal */}
       <Modal open={!!selected && !completing && !editing} onClose={() => setSelected(null)} title="Appointment" size="lg">
@@ -1400,5 +1443,55 @@ function TodaysAppointments({ appointments, onCheckIn, checkInPending, onSelect 
         </Card>
       )}
     </div>
+  );
+}
+
+// ── Upcoming Birthdays ──────────────────────────────────────────────────────
+
+function UpcomingBirthdays({ birthdays }: { birthdays: any[] }) {
+  const navigate = useNavigate();
+
+  // Show birthdays in the next 30 days, plus any today
+  const upcoming = birthdays.filter((b: any) => {
+    const days = differenceInDays(parseISO(b.next_birthday), startOfDay(new Date()));
+    return days >= 0 && days <= 30;
+  });
+
+  if (upcoming.length === 0) return null;
+
+  return (
+    <Card>
+      <h2 className="text-lg font-display text-espresso mb-4">Upcoming Birthdays</h2>
+      <div className="divide-y divide-cream">
+        {upcoming.map((b: any) => {
+          const bday = parseISO(b.next_birthday);
+          const days = differenceInDays(bday, startOfDay(new Date()));
+          const label = days === 0 ? 'Today!' : days === 1 ? 'Tomorrow' : `in ${days} days`;
+
+          return (
+            <div key={b.id} className="flex items-center gap-3 py-3">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gold/20 text-gold flex items-center justify-center text-sm font-bold">
+                {b.turning_age}
+              </div>
+              <div className="flex-1 min-w-0">
+                <button
+                  className="text-sm font-semibold text-espresso hover:text-gold transition-colors text-left"
+                  onClick={() => navigate(`/admin/clients/${b.user_id}`)}
+                >
+                  {b.name}
+                </button>
+                <div className="text-xs text-taupe">{b.owner_name}</div>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                <div className="text-sm text-espresso">{format(bday, 'MMM d')}</div>
+                <div className={`text-xs font-medium ${days === 0 ? 'text-gold' : 'text-taupe'}`}>
+                  {label}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }

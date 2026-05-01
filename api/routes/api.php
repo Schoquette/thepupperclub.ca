@@ -89,6 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/documents/{document}/send',                [Admin\DocumentTemplateController::class, 'sendForSigning']);
 
         // Dogs
+        Route::get('/dogs/birthdays', [Admin\DogController::class, 'birthdays']);
         Route::get('/dogs',         [Admin\DogController::class, 'index']);
         Route::post('/dogs',        [Admin\DogController::class, 'store']);
         Route::get('/dogs/{dog}',          [Admin\DogController::class, 'show']);

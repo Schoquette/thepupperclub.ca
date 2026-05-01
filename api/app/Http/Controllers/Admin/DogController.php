@@ -78,6 +78,39 @@ class DogController extends Controller
         return response()->json(['message' => 'Photo removed.']);
     }
 
+    public function birthdays(): JsonResponse
+    {
+        $dogs = Dog::with('user')
+            ->whereNotNull('date_of_birth')
+            ->where('is_active', true)
+            ->get()
+            ->map(function ($dog) {
+                $dob = \Carbon\Carbon::parse($dog->date_of_birth);
+                $now = now()->setTimezone('America/Vancouver');
+
+                // Next birthday this year or next
+                $birthday = $dob->copy()->year($now->year);
+                if ($birthday->lt($now->startOfDay())) {
+                    $birthday->addYear();
+                }
+                $age = $birthday->year - $dob->year;
+
+                return [
+                    'id'             => $dog->id,
+                    'name'           => $dog->name,
+                    'date_of_birth'  => $dog->date_of_birth,
+                    'next_birthday'  => $birthday->format('Y-m-d'),
+                    'turning_age'    => $age,
+                    'owner_name'     => $dog->user?->name,
+                    'user_id'        => $dog->user_id,
+                ];
+            })
+            ->sortBy('next_birthday')
+            ->values();
+
+        return response()->json(['data' => $dogs]);
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
