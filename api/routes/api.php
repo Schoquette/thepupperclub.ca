@@ -15,9 +15,9 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 // Temporary: clear config cache (REMOVE after confirming)
 Route::get('/clear-cache-9x7k', function () {
     \Illuminate\Support\Facades\Artisan::call('config:clear');
-    \Illuminate\Support\Facades\Artisan::call('cache:clear');
     \Illuminate\Support\Facades\Artisan::call('route:clear');
-    return response()->json(['message' => 'All caches cleared.']);
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    return response()->json(['message' => 'Config, route, and view caches cleared.']);
 });
 
 // Temporary: test email delivery (REMOVE after confirming)
