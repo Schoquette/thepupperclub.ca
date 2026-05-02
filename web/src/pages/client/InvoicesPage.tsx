@@ -184,7 +184,7 @@ export default function ClientInvoicesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl text-espresso">Invoices</h1>
+        <h1 className="font-display text-xl text-white">Invoices</h1>
         <Link
           to="/client/billing"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gold/10 border border-gold/30 text-gold hover:bg-gold/20 font-semibold text-sm transition-colors"

@@ -25,7 +25,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream px-4">
+    <div className="min-h-screen flex items-center justify-center bg-blue px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
           <img src="/logo.png" alt="The Pupper Club" className="w-16 h-16 object-contain mx-auto mb-3" />

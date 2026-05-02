@@ -108,10 +108,10 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-cream">
+    <div className="flex h-screen overflow-hidden bg-blue">
       {/* Mobile header bar */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-cream flex items-center justify-between px-4 py-3 md:hidden">
-        <button onClick={() => setMobileOpen(true)} className="text-espresso">
+      <div className="fixed top-0 left-0 right-0 z-40 bg-blue border-b border-blue/80 flex items-center justify-between px-4 py-3 md:hidden">
+        <button onClick={() => setMobileOpen(true)} className="text-white">
           <Menu className="w-6 h-6" />
         </button>
         <img src="/logo.png" alt="The Pupper Club" className="h-8 object-contain" />

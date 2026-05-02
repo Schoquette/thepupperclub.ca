@@ -27,7 +27,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cream px-4">
+    <div className="min-h-screen flex items-center justify-center bg-blue px-4">
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="text-center mb-10">

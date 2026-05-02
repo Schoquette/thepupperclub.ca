@@ -520,10 +520,10 @@ export default function ClientDogsPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => setSelectedDog(null)} className="text-taupe hover:text-espresso text-sm">
+          <button onClick={() => setSelectedDog(null)} className="text-white/70 hover:text-white text-sm">
             &larr; Back
           </button>
-          <h1 className="font-display text-xl text-espresso flex-1">{dog.name}</h1>
+          <h1 className="font-display text-xl text-white flex-1">{dog.name}</h1>
           {!editing && (
             <Button size="sm" variant="outline" onClick={startEdit}>Edit</Button>
           )}
@@ -714,7 +714,7 @@ export default function ClientDogsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl text-espresso">My Dogs</h1>
+        <h1 className="font-display text-xl text-white">My Dogs</h1>
         <Button size="sm" onClick={() => setAddModal(true)}>+ Add Dog</Button>
       </div>
 

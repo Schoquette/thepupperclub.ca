@@ -60,7 +60,7 @@ export default function ClientProfilePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-xl text-espresso">My Profile</h1>
+      <h1 className="font-display text-xl text-white">My Profile</h1>
 
       {/* Review banner — shown when admin has submitted intake but client hasn't confirmed */}
       {needsReview && (

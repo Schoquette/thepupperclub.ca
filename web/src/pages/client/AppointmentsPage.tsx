@@ -274,7 +274,7 @@ export default function ClientAppointmentsPage() {
 
   if (isError) return (
     <div className="space-y-6">
-      <h1 className="font-display text-xl text-espresso">Visits & Appointments</h1>
+      <h1 className="font-display text-xl text-white">Visits & Appointments</h1>
       <Card>
         <div className="text-center py-8">
           <p className="text-taupe text-sm">Unable to load appointments. Please try refreshing the page.</p>
@@ -295,7 +295,7 @@ export default function ClientAppointmentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl text-espresso">Visits & Appointments</h1>
+        <h1 className="font-display text-xl text-white">Visits & Appointments</h1>
         <Button size="sm" onClick={() => setRequestModal(true)}>+ Request Visit</Button>
       </div>
 
@@ -352,7 +352,7 @@ export default function ClientAppointmentsPage() {
       {/* Pending requests */}
       {Array.isArray(requests) && requests.filter((r: any) => r.status === 'pending').length > 0 && (
         <div>
-          <h2 className="font-display text-base text-espresso mb-2">Pending Requests</h2>
+          <h2 className="font-display text-base text-white mb-2">Pending Requests</h2>
           <div className="space-y-2">
             {(requests as any[]).filter((r: any) => r.status === 'pending').map((req: any) => (
               <Card key={req.id} padding="sm">

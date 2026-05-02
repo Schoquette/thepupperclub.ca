@@ -125,7 +125,7 @@ export default function AdminDashboardPage() {
 
       {/* Today's walks */}
       <div>
-        <h2 className="font-display text-lg text-espresso mb-4">Today's Walks</h2>
+        <h2 className="font-display text-lg text-white mb-4">Today's Walks</h2>
         {data?.todays_appointments.length === 0 ? (
           <Card>
             <p className="text-center text-taupe py-8">No walks scheduled for today.</p>
