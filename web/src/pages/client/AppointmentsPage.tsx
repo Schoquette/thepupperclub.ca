@@ -13,6 +13,17 @@ import { Input, Select, Textarea } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
+class CalendarErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return <div className="text-center py-8 text-taupe text-sm">Calendar failed to load. Please refresh the page.</div>;
+    }
+    return this.props.children;
+  }
+}
+
 const locales = { 'en-CA': enCA };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
 
@@ -274,7 +285,7 @@ export default function ClientAppointmentsPage() {
 
   if (isError) return (
     <div className="space-y-6">
-      <h1 className="font-display text-xl text-white">Visits & Appointments</h1>
+      <h1 className="font-display text-xl text-espresso">Visits & Appointments</h1>
       <Card>
         <div className="text-center py-8">
           <p className="text-taupe text-sm">Unable to load appointments. Please try refreshing the page.</p>
@@ -295,7 +306,7 @@ export default function ClientAppointmentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl text-white">Visits & Appointments</h1>
+        <h1 className="font-display text-xl text-espresso">Visits & Appointments</h1>
         <Button size="sm" onClick={() => setRequestModal(true)}>+ Request Visit</Button>
       </div>
 
@@ -327,6 +338,7 @@ export default function ClientAppointmentsPage() {
 
       {/* Calendar */}
       <Card padding="none">
+        <CalendarErrorBoundary>
         <div style={{ height: 550 }} className="p-4">
           <Calendar
             localizer={localizer}
@@ -347,12 +359,13 @@ export default function ClientAppointmentsPage() {
             popup
           />
         </div>
+        </CalendarErrorBoundary>
       </Card>
 
       {/* Pending requests */}
       {Array.isArray(requests) && requests.filter((r: any) => r.status === 'pending').length > 0 && (
         <div>
-          <h2 className="font-display text-base text-white mb-2">Pending Requests</h2>
+          <h2 className="font-display text-base text-espresso mb-2">Pending Requests</h2>
           <div className="space-y-2">
             {(requests as any[]).filter((r: any) => r.status === 'pending').map((req: any) => (
               <Card key={req.id} padding="sm">

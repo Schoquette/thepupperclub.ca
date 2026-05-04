@@ -185,7 +185,7 @@ export default function ClientMessagesPage() {
   return (
     <div className="flex flex-col" style={{ height: 'calc(100vh - 12rem)' }}>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="font-display text-xl text-white">Messages</h1>
+        <h1 className="font-display text-xl text-espresso">Messages</h1>
         <button
           onClick={toggleSearch}
           className={`p-1.5 rounded-lg transition-colors ${searchOpen ? 'bg-gold/10 text-gold' : 'text-taupe hover:text-espresso hover:bg-cream'}`}

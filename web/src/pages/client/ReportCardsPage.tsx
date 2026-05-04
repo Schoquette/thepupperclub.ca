@@ -79,7 +79,7 @@ export default function ClientReportCardsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-xl text-white">Report Cards</h1>
+      <h1 className="font-display text-xl text-espresso">Report Cards</h1>
 
       {reports.length === 0 ? (
         <Card>

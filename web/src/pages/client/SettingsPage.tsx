@@ -65,8 +65,8 @@ export default function ClientSettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Settings className="w-5 h-5 text-white/70" />
-        <h1 className="font-display text-xl text-white">Settings</h1>
+        <Settings className="w-5 h-5 text-taupe" />
+        <h1 className="font-display text-xl text-espresso">Settings</h1>
       </div>
 
       {/* Change Password */}

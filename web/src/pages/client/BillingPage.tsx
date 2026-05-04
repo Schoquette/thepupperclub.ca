@@ -98,7 +98,7 @@ export default function ClientBillingPage() {
 
   return (
     <div className="space-y-6 max-w-lg">
-      <h1 className="font-display text-xl text-white">Billing</h1>
+      <h1 className="font-display text-xl text-espresso">Billing</h1>
 
       {/* Subscription summary */}
       {cp?.subscription_plan && (

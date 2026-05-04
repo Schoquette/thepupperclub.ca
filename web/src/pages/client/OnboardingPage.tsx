@@ -65,9 +65,9 @@ export default function ClientOnboardingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-xl text-white">Welcome! Let's get you set up.</h1>
-        <p className="text-white/70 mt-1 text-sm">{completedCount} of {total} steps complete</p>
-        <div className="mt-3 h-2 bg-white/20 rounded-full overflow-hidden">
+        <h1 className="font-display text-xl text-espresso">Welcome! Let's get you set up.</h1>
+        <p className="text-taupe mt-1 text-sm">{completedCount} of {total} steps complete</p>
+        <div className="mt-3 h-2 bg-cream rounded-full overflow-hidden">
           <div className="h-full bg-gold rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
       </div>
