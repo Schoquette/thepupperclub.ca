@@ -46,6 +46,7 @@ export default function TemplateEditorPage() {
   const [saved, setSaved] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDesc, setTemplateDesc] = useState('');
+  const [zoom, setZoom] = useState(1);
 
   const { data: template, isLoading } = useQuery({
     queryKey: ['document-template', id],
@@ -260,19 +261,45 @@ export default function TemplateEditorPage() {
             )}
           </div>
 
+          {/* Zoom controls */}
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}
+              className="px-2.5 py-1 text-sm rounded border border-taupe/30 text-espresso hover:bg-cream"
+            >
+              &minus;
+            </button>
+            <span className="text-sm text-espresso w-14 text-center">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => setZoom(z => Math.min(2, z + 0.1))}
+              className="px-2.5 py-1 text-sm rounded border border-taupe/30 text-espresso hover:bg-cream"
+            >
+              +
+            </button>
+            {zoom !== 1 && (
+              <button
+                onClick={() => setZoom(1)}
+                className="px-2 py-1 text-xs text-blue hover:underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
           {/* PDF + overlay container */}
+          <div className="overflow-auto bg-gray-100 rounded-lg" style={{ maxHeight: '80vh' }}>
           <div
             ref={containerRef}
-            className="relative bg-gray-100"
-            style={{ minHeight: 600 }}
+            className="relative"
+            style={{ minHeight: 600, transform: `scale(${zoom})`, transformOrigin: 'top left', width: `${100 / zoom}%` }}
             onClick={() => setSelectedIdx(null)}
           >
             {/* PDF as background */}
             {pdfBlobUrl ? (
               <iframe
-                src={`${pdfBlobUrl}#page=${currentPage}`}
+                src={`${pdfBlobUrl}#page=${currentPage}&toolbar=0`}
                 className="w-full pointer-events-none"
-                style={{ height: 700 }}
+                style={{ height: 900 }}
                 title="Template PDF"
               />
             ) : (
@@ -311,6 +338,7 @@ export default function TemplateEditorPage() {
                 );
               })}
             </div>
+          </div>
           </div>
         </Card>
 
