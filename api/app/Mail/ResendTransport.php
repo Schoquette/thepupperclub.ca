@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Models\EmailLog;
+use App\Models\User;
 use GuzzleHttp\Client;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
@@ -72,24 +74,55 @@ class ResendTransport extends AbstractTransport
             }
         }
 
-        $client = new Client();
-        $response = $client->post('https://api.resend.com/emails', [
-            'headers' => [
-                'Authorization' => "Bearer {$this->apiKey}",
-                'Content-Type'  => 'application/json',
-            ],
-            'json' => $payload,
-        ]);
+        $toEmail = $payload['to'][0] ?? '';
+        $subject = $payload['subject'] ?? '';
+        $mailClass = get_class($message->getOriginalMessage());
 
-        $body = json_decode($response->getBody()->getContents(), true);
-        if (isset($body['id'])) {
-            $message->setMessageId($body['id']);
+        try {
+            $client = new Client();
+            $response = $client->post('https://api.resend.com/emails', [
+                'headers' => [
+                    'Authorization' => "Bearer {$this->apiKey}",
+                    'Content-Type'  => 'application/json',
+                ],
+                'json' => $payload,
+            ]);
+
+            $body = json_decode($response->getBody()->getContents(), true);
+            $resendId = $body['id'] ?? null;
+            if ($resendId) {
+                $message->setMessageId($resendId);
+            }
+
+            $this->logEmail($toEmail, $subject, $mailClass, 'sent', null, $resendId);
+        } catch (\Throwable $e) {
+            $this->logEmail($toEmail, $subject, $mailClass, 'failed', $e->getMessage(), null);
+            throw $e;
         }
     }
 
     public function __toString(): string
     {
         return 'resend';
+    }
+
+    private function logEmail(string $to, string $subject, string $mailClass, string $status, ?string $error, ?string $resendId): void
+    {
+        try {
+            $user = User::where('email', $to)->first();
+            EmailLog::create([
+                'user_id'       => $user?->id,
+                'to_email'      => $to,
+                'subject'       => $subject,
+                'mail_class'    => class_basename($mailClass),
+                'status'        => $status,
+                'error_message' => $error,
+                'resend_id'     => $resendId,
+                'created_at'    => now(),
+            ]);
+        } catch (\Throwable $e) {
+            // Don't let logging failures break email sending
+        }
     }
 
     private function formatAddress(?Address $address): string

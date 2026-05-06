@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Calendar, ClipboardList, Users, PawPrint,
   MessageCircle, FileText, Receipt, Car, BarChart3,
   UserCog, Megaphone, Search, Menu, X, FolderOpen,
+  Mail, AlertTriangle,
 } from 'lucide-react';
 
 const NAV = [
@@ -23,6 +24,8 @@ const NAV = [
   { to: '/admin/reports',          label: 'Export',      icon: BarChart3 },
   { to: '/admin/team',             label: 'Team',        icon: UserCog },
   { to: '/admin/broadcast',        label: 'Broadcast',   icon: Megaphone },
+  { to: '/admin/email-logs',      label: 'Email Log',   icon: Mail },
+  { to: '/admin/error-logs',      label: 'Error Log',   icon: AlertTriangle },
   { to: '/admin/audit-logs',       label: 'Audit Log',   icon: Search },
 ];
 

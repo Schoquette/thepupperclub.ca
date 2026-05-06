@@ -105,6 +105,58 @@ Route::get('/fix-dog-size-enum-9x7k', function () {
     }
 });
 
+// Temporary: create email_logs and error_logs tables (REMOVE after running)
+Route::get('/create-log-tables-9x7k', function () {
+    $results = [];
+    try {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('email_logs')) {
+            \Illuminate\Support\Facades\DB::statement("
+                CREATE TABLE email_logs (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    user_id BIGINT UNSIGNED NULL,
+                    to_email VARCHAR(255) NOT NULL,
+                    subject VARCHAR(500) NOT NULL,
+                    mail_class VARCHAR(100) NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'sent',
+                    error_message TEXT NULL,
+                    resend_id VARCHAR(100) NULL,
+                    created_at TIMESTAMP NULL,
+                    INDEX email_logs_user_id_index (user_id),
+                    INDEX email_logs_status_index (status),
+                    INDEX email_logs_created_at_index (created_at)
+                )
+            ");
+            $results[] = 'email_logs table created';
+        } else {
+            $results[] = 'email_logs already exists';
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasTable('error_logs')) {
+            \Illuminate\Support\Facades\DB::statement("
+                CREATE TABLE error_logs (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    user_id BIGINT UNSIGNED NULL,
+                    type VARCHAR(100) NOT NULL,
+                    message TEXT NOT NULL,
+                    context JSON NULL,
+                    url VARCHAR(500) NULL,
+                    ip_address VARCHAR(45) NULL,
+                    created_at TIMESTAMP NULL,
+                    INDEX error_logs_type_index (type),
+                    INDEX error_logs_created_at_index (created_at)
+                )
+            ");
+            $results[] = 'error_logs table created';
+        } else {
+            $results[] = 'error_logs already exists';
+        }
+
+        return response()->json(['message' => 'Done', 'results' => $results]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage(), 'results' => $results], 500);
+    }
+});
+
 // Temporary: create document tables (REMOVE after running)
 Route::get('/create-document-tables-9x7k', function () {
     $results = [];
@@ -246,6 +298,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Admin ─────────────────────────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [Admin\DashboardController::class, 'index']);
+        Route::get('/error-logs', [Admin\DashboardController::class, 'errorLogs']);
+        Route::get('/email-logs', [Admin\DashboardController::class, 'emailLogs']);
 
         // Clients
         Route::get('/clients/pending',                  [Admin\ClientController::class, 'pending']);

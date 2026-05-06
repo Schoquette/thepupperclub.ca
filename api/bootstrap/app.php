@@ -45,4 +45,30 @@ return Application::configure(basePath: dirname(__DIR__))
                 return response()->json(['message' => 'Not found.'], 404);
             }
         });
+
+        // Log all API errors to error_logs table
+        $exceptions->report(function (\Throwable $e) {
+            try {
+                if (!\Illuminate\Support\Facades\Schema::hasTable('error_logs')) return;
+                // Skip validation and auth errors
+                if ($e instanceof \Illuminate\Validation\ValidationException) return;
+                if ($e instanceof \Illuminate\Auth\AuthenticationException) return;
+                if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) return;
+
+                \App\Models\ErrorLog::create([
+                    'user_id'    => auth()->id(),
+                    'type'       => class_basename($e),
+                    'message'    => \Illuminate\Support\Str::limit($e->getMessage(), 1000),
+                    'context'    => [
+                        'file'  => $e->getFile() . ':' . $e->getLine(),
+                        'trace' => \Illuminate\Support\Str::limit($e->getTraceAsString(), 2000),
+                    ],
+                    'url'        => request()->fullUrl(),
+                    'ip_address' => request()->ip(),
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {
+                // Don't let error logging break the app
+            }
+        })->stop(false);
     })->create();

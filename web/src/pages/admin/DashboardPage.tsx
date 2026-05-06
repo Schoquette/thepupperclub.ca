@@ -1,17 +1,17 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import type { DashboardSummary, Appointment } from '@pupper/shared';
-import { format } from 'date-fns';
-import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle } from 'lucide-react';
+import type { Appointment } from '@pupper/shared';
+import { format, formatDistanceToNow } from 'date-fns';
+import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle, AlertTriangle, Mail, XCircle } from 'lucide-react';
 import { PawIcon } from '@/components/ui/PawIcon';
 
-const TIME_BLOCK_LABELS = {
+const TIME_BLOCK_LABELS: Record<string, string> = {
   early_morning: '7–10 AM', morning: '9–12 PM', midday: '11 AM–2 PM',
   afternoon: '2–5 PM', evening: '5–8 PM',
 };
@@ -71,7 +71,8 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
 }
 
 export default function AdminDashboardPage() {
-  const { data, isLoading } = useQuery<DashboardSummary>({
+  const navigate = useNavigate();
+  const { data, isLoading } = useQuery<any>({
     queryKey: ['admin-dashboard'],
     queryFn: () => api.get('/admin/dashboard').then(r => r.data.data),
     refetchInterval: 30_000,
@@ -80,6 +81,8 @@ export default function AdminDashboardPage() {
   if (isLoading) return <PageLoader />;
 
   const today = format(new Date(), 'EEEE, MMMM d');
+  const recentErrors: any[] = data?.recent_errors ?? [];
+  const recentEmails: any[] = data?.recent_emails ?? [];
 
   return (
     <div className="space-y-6">
@@ -91,7 +94,7 @@ export default function AdminDashboardPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Today's Walks",    value: data?.todays_appointments.length ?? 0, Icon: PawIcon,       color: 'text-gold' },
+          { label: "Today's Walks",    value: data?.todays_appointments?.length ?? 0, Icon: PawIcon,       color: 'text-gold' },
           { label: 'Pending Requests', value: data?.pending_service_requests ?? 0,    Icon: ClipboardList, color: 'text-blue' },
           { label: 'Unread Messages',  value: data?.unread_messages ?? 0,             Icon: MessageCircle, color: 'text-espresso' },
           { label: 'Outstanding',      value: `$${Number(data?.outstanding_total ?? 0).toFixed(0)}`, Icon: DollarSign, color: 'text-gold' },
@@ -126,17 +129,95 @@ export default function AdminDashboardPage() {
       {/* Today's walks */}
       <div>
         <h2 className="font-display text-lg text-espresso mb-4">Today's Walks</h2>
-        {data?.todays_appointments.length === 0 ? (
+        {(data?.todays_appointments?.length ?? 0) === 0 ? (
           <Card>
             <p className="text-center text-taupe py-8">No walks scheduled for today.</p>
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {data?.todays_appointments.map(appt => (
+            {data?.todays_appointments.map((appt: Appointment) => (
               <WalkCard key={appt.id} appointment={appt} />
             ))}
           </div>
         )}
+      </div>
+
+      {/* Recent Emails & Errors side by side */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Email Log */}
+        <Card>
+          <CardHeader title="Recent Emails" />
+          {recentEmails.length === 0 ? (
+            <p className="text-center text-taupe text-sm py-6">No emails sent yet.</p>
+          ) : (
+            <div className="space-y-1">
+              {recentEmails.map((log: any) => (
+                <div key={log.id} className="flex items-start gap-3 py-2.5 border-b border-cream last:border-0">
+                  <div className={`mt-0.5 flex-shrink-0 ${log.status === 'sent' ? 'text-green-500' : 'text-red-500'}`}>
+                    {log.status === 'sent' ? <Mail className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-espresso truncate">{log.subject}</div>
+                    <div className="text-xs text-taupe mt-0.5">
+                      To: {log.to_email}
+                      {log.user?.name && <span> ({log.user.name})</span>}
+                    </div>
+                    {log.error_message && (
+                      <div className="text-xs text-red-600 mt-0.5 truncate">{log.error_message}</div>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-taupe flex-shrink-0">
+                    {log.created_at ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true }) : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 pt-3 border-t border-cream">
+            <button
+              onClick={() => navigate('/admin/email-logs')}
+              className="text-sm text-blue hover:underline font-medium"
+            >
+              View all emails
+            </button>
+          </div>
+        </Card>
+
+        {/* Error Log */}
+        <Card>
+          <CardHeader title="Recent Errors" />
+          {recentErrors.length === 0 ? (
+            <p className="text-center text-taupe text-sm py-6">No errors recorded.</p>
+          ) : (
+            <div className="space-y-1">
+              {recentErrors.map((log: any) => (
+                <div key={log.id} className="flex items-start gap-3 py-2.5 border-b border-cream last:border-0">
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-espresso">
+                      <span className="text-red-600">{log.type}</span>
+                    </div>
+                    <div className="text-xs text-taupe mt-0.5 line-clamp-2">{log.message}</div>
+                    {log.url && (
+                      <div className="text-[11px] text-taupe mt-0.5 truncate">{log.url}</div>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-taupe flex-shrink-0">
+                    {log.created_at ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true }) : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 pt-3 border-t border-cream">
+            <button
+              onClick={() => navigate('/admin/error-logs')}
+              className="text-sm text-blue hover:underline font-medium"
+            >
+              View all errors
+            </button>
+          </div>
+        </Card>
       </div>
 
       {/* Upcoming renewals */}
@@ -144,7 +225,7 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader title="Upcoming Renewals" subtitle="Next 7 days" />
           <div className="space-y-2">
-            {data.upcoming_renewals.map(r => (
+            {data.upcoming_renewals.map((r: any) => (
               <div key={r.user_id} className="flex items-center justify-between py-2 border-b border-cream last:border-0">
                 <div>
                   <div className="font-medium text-espresso text-sm">{r.client_name}</div>

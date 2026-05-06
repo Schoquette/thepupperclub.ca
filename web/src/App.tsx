@@ -31,6 +31,8 @@ import AdminAuditLogsPage from './pages/admin/AuditLogsPage';
 import AdminReportsPage from './pages/admin/ReportsPage';
 import AdminDocumentsPage from './pages/admin/DocumentsPage';
 import AdminTemplateEditorPage from './pages/admin/TemplateEditorPage';
+import AdminEmailLogsPage from './pages/admin/EmailLogsPage';
+import AdminErrorLogsPage from './pages/admin/ErrorLogsPage';
 import SigningPage from './pages/SigningPage';
 
 // Client pages
@@ -105,6 +107,8 @@ export default function App() {
         <Route path="documents" element={<AdminDocumentsPage />} />
         <Route path="documents/templates/:id/edit" element={<AdminTemplateEditorPage />} />
         <Route path="broadcast" element={<AdminBroadcastPage />} />
+        <Route path="email-logs" element={<AdminEmailLogsPage />} />
+        <Route path="error-logs" element={<AdminErrorLogsPage />} />
         <Route path="audit-logs" element={<AdminAuditLogsPage />} />
       </Route>
 
