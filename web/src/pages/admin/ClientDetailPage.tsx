@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { Pencil } from 'lucide-react';
+import { Pencil, ArrowUp, ArrowDown } from 'lucide-react';
 
 type Tab = 'profile' | 'dogs' | 'documents' | 'access';
 
@@ -1336,6 +1336,9 @@ const DOC_TYPES = [
   { value: 'other',              label: 'Other' },
 ];
 
+type DocSortKey = 'filename' | 'type' | 'status' | 'date';
+type DocSortDir = 'asc' | 'desc';
+
 function DocumentsTab({ clientId, client, onChanged }: { clientId: number; client: any; onChanged: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -1343,6 +1346,47 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
   const [dogId, setDogId] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [signingUrl, setSigningUrl] = useState<string | null>(null);
+  const [docSearch, setDocSearch] = useState('');
+  const [docSort, setDocSort] = useState<DocSortKey>('date');
+  const [docSortDir, setDocSortDir] = useState<DocSortDir>('desc');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const handleDocSort = (key: DocSortKey) => {
+    if (docSort === key) {
+      setDocSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setDocSort(key);
+      setDocSortDir('asc');
+    }
+  };
+
+  const getDocStatus = (doc: any) => {
+    if (doc.signed_at) return 'signed';
+    if (doc.signature_requested_at) return 'sent';
+    return 'draft';
+  };
+
+  const filteredDocs = useMemo(() => {
+    let docs = [...(client.documents ?? [])];
+    if (docSearch.trim()) {
+      const q = docSearch.toLowerCase();
+      docs = docs.filter((d: any) => d.filename?.toLowerCase().includes(q) || d.type?.toLowerCase().includes(q));
+    }
+    if (statusFilter) {
+      docs = docs.filter((d: any) => getDocStatus(d) === statusFilter);
+    }
+    docs.sort((a: any, b: any) => {
+      let cmp = 0;
+      switch (docSort) {
+        case 'filename': cmp = (a.filename || '').localeCompare(b.filename || ''); break;
+        case 'type': cmp = (a.type || '').localeCompare(b.type || ''); break;
+        case 'status': cmp = getDocStatus(a).localeCompare(getDocStatus(b)); break;
+        case 'date': cmp = (a.signed_at || a.created_at || '').localeCompare(b.signed_at || b.created_at || ''); break;
+      }
+      return docSortDir === 'asc' ? cmp : -cmp;
+    });
+    return docs;
+  }, [client.documents, docSearch, statusFilter, docSort, docSortDir]);
 
   const requestSignature = useMutation({
     mutationFn: (docId: number) =>
@@ -1466,71 +1510,119 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
           </div>
         )}
 
-        {client.documents?.length > 0 ? (
-          <div className="space-y-1">
-            {client.documents.map((doc: any) => (
-              <div key={doc.id} className="flex items-center gap-3 py-2.5 border-b border-cream last:border-0">
-                <div className="text-xl">{fileIcon(doc.mime_type)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-espresso truncate">{doc.filename}</div>
-                  <div className="text-xs text-taupe capitalize">
-                    {doc.type.replace(/_/g, ' ')}
-                    {doc.dog && <span> · {doc.dog.name}</span>}
-                    {' · '}uploaded by {doc.uploaded_by}
-                  </div>
-                  {/* Signature status */}
-                  {doc.signed_at ? (
-                    <div className="text-xs text-green-700 font-medium mt-0.5">
-                      ✓ Signed by {doc.signer_name} · {new Date(doc.signed_at).toLocaleDateString('en-CA')}
-                    </div>
-                  ) : doc.signature_requested_at ? (
-                    <div className="text-xs text-gold font-medium mt-0.5">
-                      ⏳ Signature pending
-                    </div>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
-                  {/* Signature actions */}
-                  {doc.mime_type === 'application/pdf' && !doc.signed_at && (
-                    <button
-                      onClick={() => requestSignature.mutate(doc.id)}
-                      disabled={requestSignature.isPending}
-                      className="text-xs text-gold hover:underline"
-                    >
-                      {doc.signature_requested_at ? 'Resend' : 'Request Signature'}
-                    </button>
-                  )}
-                  {doc.signed_at && (
-                    <button
-                      onClick={() => handleDownloadCertificate(doc)}
-                      className="text-xs text-green-700 hover:underline"
-                    >
-                      Certificate
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleView(doc)}
-                    className="text-blue text-sm hover:underline"
-                  >
-                    View
-                  </button>
-                  <button
-                    onClick={() => handleDownload(doc)}
-                    className="text-blue text-sm hover:underline"
-                  >
-                    Download
-                  </button>
-                  <button
-                    onClick={() => handleDelete(doc)}
-                    disabled={deleteDoc.isPending}
-                    className="text-taupe hover:text-red-500 text-sm transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+        {/* Search / filter controls */}
+        {(client.documents?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            <input
+              placeholder="Search documents..."
+              value={docSearch}
+              onChange={e => setDocSearch(e.target.value)}
+              className="border border-taupe/30 rounded-lg px-3 py-1.5 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40 w-48"
+            />
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="border border-taupe/30 rounded-lg px-3 py-1.5 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
+            >
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="signed">Signed</option>
+            </select>
           </div>
+        )}
+
+        {filteredDocs.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm table-fixed">
+              <thead>
+                <tr className="border-b border-cream text-left">
+                  {([
+                    ['filename', 'Document'],
+                    ['type', 'Type'],
+                    ['status', 'Status'],
+                    ['date', 'Date'],
+                  ] as const).map(([key, label]) => (
+                    <th
+                      key={key}
+                      className="px-3 py-2 font-semibold text-espresso cursor-pointer select-none hover:bg-cream/30 transition-colors"
+                      onClick={() => handleDocSort(key as DocSortKey)}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {label}
+                        {docSort === key && (docSortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
+                      </span>
+                    </th>
+                  ))}
+                  <th className="px-3 py-2 w-[180px]"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDocs.map((doc: any) => {
+                  const st = getDocStatus(doc);
+                  return (
+                    <tr key={doc.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg flex-shrink-0">{fileIcon(doc.mime_type)}</span>
+                          <span className="font-medium text-espresso break-words">{doc.filename}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-taupe capitalize break-words">{doc.type?.replace(/_/g, ' ')}</td>
+                      <td className="px-3 py-2.5">
+                        {st === 'signed' ? (
+                          <span className="text-xs font-medium text-green-700">Signed</span>
+                        ) : st === 'sent' ? (
+                          <span className="text-xs font-medium text-gold">Pending</span>
+                        ) : (
+                          <span className="text-xs font-medium text-taupe">Draft</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-taupe whitespace-nowrap">
+                        {doc.signed_at
+                          ? new Date(doc.signed_at).toLocaleDateString('en-CA')
+                          : doc.created_at
+                          ? new Date(doc.created_at).toLocaleDateString('en-CA')
+                          : '—'}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          {doc.mime_type === 'application/pdf' && !doc.signed_at && (
+                            <button
+                              onClick={() => requestSignature.mutate(doc.id)}
+                              disabled={requestSignature.isPending}
+                              className="text-xs text-gold hover:underline"
+                            >
+                              {doc.signature_requested_at ? 'Resend' : 'Request Signature'}
+                            </button>
+                          )}
+                          {doc.signed_at && (
+                            <button
+                              onClick={() => handleDownloadCertificate(doc)}
+                              className="text-xs text-green-700 hover:underline"
+                            >
+                              Certificate
+                            </button>
+                          )}
+                          <button onClick={() => handleView(doc)} className="text-blue text-sm hover:underline">View</button>
+                          <button onClick={() => handleDownload(doc)} className="text-blue text-sm hover:underline">Download</button>
+                          <button
+                            onClick={() => handleDelete(doc)}
+                            disabled={deleteDoc.isPending}
+                            className="text-taupe hover:text-red-500 text-sm transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (client.documents?.length ?? 0) > 0 ? (
+          <p className="text-center py-8 text-taupe">No documents match your search.</p>
         ) : (
           <p className="text-center py-8 text-taupe">No documents on file.</p>
         )}
