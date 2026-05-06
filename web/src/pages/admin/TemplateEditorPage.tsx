@@ -53,6 +53,8 @@ export default function TemplateEditorPage() {
     enabled: !!id,
   });
 
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+
   useEffect(() => {
     if (template) {
       setFields(template.fields?.map((f: any, i: number) => ({ ...f, sort_order: f.sort_order ?? i })) ?? []);
@@ -61,8 +63,19 @@ export default function TemplateEditorPage() {
     }
   }, [template]);
 
-  const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
-  const pdfUrl = id ? `${apiBase}/api/admin/document-templates/${id}/pdf` : '';
+  // Fetch PDF as authenticated blob
+  useEffect(() => {
+    if (!id) return;
+    let revoked = false;
+    api.get(`/admin/document-templates/${id}/pdf`, { responseType: 'blob' })
+      .then(res => {
+        if (revoked) return;
+        const url = URL.createObjectURL(res.data);
+        setPdfBlobUrl(url);
+      })
+      .catch(() => setPdfBlobUrl(null));
+    return () => { revoked = true; if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
+  }, [id]);
 
   const saveFields = useMutation({
     mutationFn: () => api.put(`/admin/document-templates/${id}/fields`, { fields }),
@@ -255,12 +268,18 @@ export default function TemplateEditorPage() {
             onClick={() => setSelectedIdx(null)}
           >
             {/* PDF as background */}
-            <iframe
-              src={`${pdfUrl}#page=${currentPage}`}
-              className="w-full pointer-events-none"
-              style={{ height: 700 }}
-              title="Template PDF"
-            />
+            {pdfBlobUrl ? (
+              <iframe
+                src={`${pdfBlobUrl}#page=${currentPage}`}
+                className="w-full pointer-events-none"
+                style={{ height: 700 }}
+                title="Template PDF"
+              />
+            ) : (
+              <div className="flex items-center justify-center" style={{ height: 700 }}>
+                <p className="text-taupe text-sm">Loading PDF...</p>
+              </div>
+            )}
 
             {/* Field overlays */}
             <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
