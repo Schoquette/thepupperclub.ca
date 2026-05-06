@@ -32,7 +32,7 @@ export default function DocumentsPage() {
   const [uploadType, setUploadType] = useState('other');
   const [uploadError, setUploadError] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['client-documents'],
     queryFn: () => api.get('/client/documents').then(r => r.data),
   });
@@ -155,6 +155,11 @@ export default function DocumentsPage() {
       <Card>
         {isLoading ? (
           <p className="text-center py-8 text-taupe">Loading…</p>
+        ) : isError ? (
+          <div className="text-center py-8">
+            <p className="text-red-600 text-sm font-medium">Failed to load documents.</p>
+            <p className="text-xs text-taupe mt-1">{(error as any)?.response?.data?.message || (error as any)?.message || 'Unknown error'}</p>
+          </div>
         ) : docs.length === 0 ? (
           <div className="text-center py-10">
             <FolderOpen className="w-10 h-10 text-taupe mx-auto mb-3" />
