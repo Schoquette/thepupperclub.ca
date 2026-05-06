@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+import { Pencil } from 'lucide-react';
 
 type Tab = 'profile' | 'dogs' | 'documents' | 'access';
 
@@ -883,10 +884,11 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                 </div>
               ) : (
                 <button
-                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  className="font-semibold text-espresso hover:text-gold transition-colors inline-flex items-center gap-1"
                   onClick={() => setBillingEditing(true)}
                 >
                   {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
+                  <Pencil className="w-3 h-3 text-taupe" />
                 </button>
               )}
             </div>
@@ -909,10 +911,11 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                 </div>
               ) : (
                 <button
-                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  className="font-semibold text-espresso hover:text-gold transition-colors inline-flex items-center gap-1"
                   onClick={() => setWalksEditing(true)}
                 >
                   {cp.walks_per_week ? `${cp.walks_per_week}/week` : 'Not set'}
+                  <Pencil className="w-3 h-3 text-taupe" />
                 </button>
               )}
             </div>
@@ -968,64 +971,74 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
       {/* Plan change history */}
       {history && history.length > 0 && (
         <div className="mt-4 pt-4 border-t border-cream">
-          <p className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">Plan History</p>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {history.map((h: any) => {
-              const actionLabels: Record<string, string> = {
-                created: 'Started',
-                upgraded: 'Upgraded',
-                downgraded: 'Downgraded',
-                updated: 'Changed',
-                paused: 'Paused',
-                resumed: 'Resumed',
-                canceled: 'Canceled (end of period)',
-                canceled_immediate: 'Canceled (immediate)',
-              };
-              const actionColors: Record<string, string> = {
-                created: 'text-green-600',
-                upgraded: 'text-blue-600',
-                downgraded: 'text-orange-600',
-                updated: 'text-espresso',
-                paused: 'text-orange-500',
-                resumed: 'text-green-600',
-                canceled: 'text-red-500',
-                canceled_immediate: 'text-red-600',
-              };
-              return (
-                <div key={h.id} className="flex items-start gap-2 text-xs">
-                  <div className="w-20 flex-shrink-0 text-taupe">
-                    {new Date(h.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
-                  </div>
-                  <div className="flex-1">
-                    <span className={`font-semibold ${actionColors[h.action] ?? 'text-espresso'}`}>
+          <p className="text-xs font-semibold text-taupe uppercase tracking-wide mb-3">Plan History</p>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-taupe text-left border-b border-cream">
+                <th className="pb-1.5 pr-3 font-medium w-24">Date</th>
+                <th className="pb-1.5 pr-3 font-medium">Action</th>
+                <th className="pb-1.5 pr-3 font-medium">Plan</th>
+                <th className="pb-1.5 pr-3 font-medium">Amount</th>
+                <th className="pb-1.5 font-medium text-right">By</th>
+              </tr>
+            </thead>
+            <tbody className="max-h-48 overflow-y-auto">
+              {history.map((h: any) => {
+                const actionLabels: Record<string, string> = {
+                  created: 'Started',
+                  upgraded: 'Upgraded',
+                  downgraded: 'Downgraded',
+                  updated: 'Changed',
+                  paused: 'Paused',
+                  resumed: 'Resumed',
+                  canceled: 'Canceled (EOP)',
+                  canceled_immediate: 'Canceled',
+                };
+                const actionColors: Record<string, string> = {
+                  created: 'text-green-600',
+                  upgraded: 'text-blue-600',
+                  downgraded: 'text-orange-600',
+                  updated: 'text-espresso',
+                  paused: 'text-orange-500',
+                  resumed: 'text-green-600',
+                  canceled: 'text-red-500',
+                  canceled_immediate: 'text-red-600',
+                };
+                const planLabel = h.old_plan && h.new_plan
+                  ? `${h.old_plan} → ${h.new_plan}`
+                  : h.new_plan ?? h.old_plan ?? '—';
+                return (
+                  <tr key={h.id} className="border-b border-cream/50">
+                    <td className="py-2 pr-3 text-taupe whitespace-nowrap">
+                      {new Date(h.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                    </td>
+                    <td className={`py-2 pr-3 font-semibold whitespace-nowrap ${actionColors[h.action] ?? 'text-espresso'}`}>
                       {actionLabels[h.action] ?? h.action}
-                    </span>
-                    {h.old_plan && h.new_plan ? (
-                      <span className="text-taupe"> {h.old_plan} → {h.new_plan}</span>
-                    ) : h.new_plan ? (
-                      <span className="text-taupe"> {h.new_plan}</span>
-                    ) : h.old_plan ? (
-                      <span className="text-taupe"> {h.old_plan}</span>
-                    ) : null}
-                    {h.new_amount && <span className="text-taupe"> · ${Number(h.new_amount).toFixed(2)}/mo</span>}
-                    {h.proration_amount && Number(h.proration_amount) !== 0 && (
-                      <span className={`ml-1 ${Number(h.proration_amount) > 0 ? 'text-blue-600' : 'text-green-600'}`}>
-                        ({Number(h.proration_amount) > 0 ? '+' : ''}${Number(h.proration_amount).toFixed(2)} adjustment)
-                      </span>
-                    )}
-                    {h.effective_date && (
-                      <span className="text-taupe/60 ml-1">
-                        eff. {new Date(h.effective_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    )}
-                  </div>
-                  {h.changed_by_user && (
-                    <div className="text-taupe/60 flex-shrink-0">by {h.changed_by_user.name.split(' ')[0]}</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    </td>
+                    <td className="py-2 pr-3 text-espresso">
+                      {planLabel}
+                      {h.effective_date && (
+                        <span className="text-taupe/60 ml-1">
+                          eff. {new Date(h.effective_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 text-taupe whitespace-nowrap">
+                      {h.new_amount ? `$${Number(h.new_amount).toFixed(2)}/mo` : '—'}
+                      {h.proration_amount && Number(h.proration_amount) !== 0 && (
+                        <span className={`ml-1 ${Number(h.proration_amount) > 0 ? 'text-blue-600' : 'text-green-600'}`}>
+                          ({Number(h.proration_amount) > 0 ? '+' : ''}${Number(h.proration_amount).toFixed(2)})
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-taupe/60 text-right whitespace-nowrap">
+                      {h.changed_by_user ? h.changed_by_user.name.split(' ')[0] : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </Card>
