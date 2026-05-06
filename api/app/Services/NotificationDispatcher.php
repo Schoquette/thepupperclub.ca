@@ -75,7 +75,13 @@ class NotificationDispatcher
         }
 
         $profile = $user->clientProfile;
-        if (!$profile) return $defaults;
+        if (!$profile) {
+            // Admins: always send email + app notifications
+            if (in_array($user->role, ['admin', 'superadmin'])) {
+                return ['notify_app' => true, 'notify_email' => true, 'notify_sms' => false];
+            }
+            return $defaults;
+        }
 
         return [
             'notify_app'   => $profile->notify_app ?? true,

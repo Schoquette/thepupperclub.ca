@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\PushNotification;
 use App\Models\ServiceRequest;
 use App\Services\AppointmentService;
+use App\Services\InvoiceService;
 use App\Services\NotificationDispatcher;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +18,7 @@ class ServiceRequestController extends Controller
 {
     public function __construct(
         private AppointmentService $appointmentService,
+        private InvoiceService $invoiceService,
         private NotificationDispatcher $dispatcher,
     ) {}
 
@@ -70,6 +72,9 @@ class ServiceRequestController extends Controller
             'counter_time'        => 'nullable|date_format:H:i',
             'counter_date'        => 'required_if:action,counter|date',
             'scheduled_time'      => 'required_if:action,approve|date',
+            'billing_type'        => 'nullable|in:included_in_plan,charge',
+            'billing_description' => 'nullable|string|max:255',
+            'billing_amount'      => 'nullable|numeric|min:0',
         ]);
 
         $serviceRequest->load(['user.clientProfile', 'dogs']);
@@ -102,6 +107,17 @@ class ServiceRequestController extends Controller
             'duration_minutes'  => $durations[$serviceRequest->service_type] ?? 30,
         ]);
 
+        // Add charge to client's next invoice (unless included in plan)
+        $billingType = $data['billing_type'] ?? 'included_in_plan';
+        if ($billingType === 'charge' && !empty($data['billing_amount']) && $data['billing_amount'] > 0) {
+            $this->addChargeToNextInvoice(
+                $serviceRequest->user,
+                $data['billing_description'] ?? str_replace('_', ' ', $serviceRequest->service_type),
+                (float) $data['billing_amount'],
+                Carbon::parse($data['scheduled_time'])->toDateString(),
+            );
+        }
+
         $scheduledAt = Carbon::parse($data['scheduled_time']);
         $dogNames = $serviceRequest->dogs->pluck('name')->join(' & ');
         $serviceLabel = str_replace('_', ' ', $serviceRequest->service_type);
@@ -112,6 +128,41 @@ class ServiceRequestController extends Controller
         }
 
         $this->notifyClient($serviceRequest->user, $title, $body, $adminId);
+    }
+
+    /**
+     * Add a line item charge to the client's next open invoice, or create a new draft.
+     */
+    private function addChargeToNextInvoice($client, string $description, float $amount, string $serviceDate): void
+    {
+        // Find an existing draft/sent invoice for this client
+        $invoice = \App\Models\Invoice::where('user_id', $client->id)
+            ->whereIn('status', ['draft', 'sent'])
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($invoice) {
+            // Add line item to existing invoice
+            $this->invoiceService->attachLineItems($invoice, [[
+                'description'  => $description,
+                'quantity'     => 1,
+                'unit_price'   => $amount,
+                'service_date' => $serviceDate,
+            ]]);
+            $this->invoiceService->recalculate($invoice);
+        } else {
+            // Create a new draft invoice
+            $this->invoiceService->create(
+                $client,
+                [[
+                    'description'  => $description,
+                    'quantity'     => 1,
+                    'unit_price'   => $amount,
+                    'service_date' => $serviceDate,
+                ]],
+                null, // due_date — admin can set later
+            );
+        }
     }
 
     private function decline(ServiceRequest $serviceRequest, array $data, int $adminId): void

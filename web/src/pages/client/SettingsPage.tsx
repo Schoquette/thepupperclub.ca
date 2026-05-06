@@ -5,7 +5,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { Lock, Trash2, Settings } from 'lucide-react';
+import { Lock, Trash2, Settings, Bell } from 'lucide-react';
 
 export default function ClientSettingsPage() {
   const qc = useQueryClient();
@@ -18,6 +18,20 @@ export default function ClientSettingsPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteMsg, setDeleteMsg] = useState('');
+
+  // Browser notifications
+  const [browserNotifStatus, setBrowserNotifStatus] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
+
+  const requestBrowserNotifs = async () => {
+    if (typeof Notification === 'undefined') return;
+    const result = await Notification.requestPermission();
+    setBrowserNotifStatus(result);
+    if (result === 'granted') {
+      new Notification('The Pupper Club', { body: 'Desktop notifications are now enabled!', icon: '/logo.png' });
+    }
+  };
 
   // Notification prefs
   const { data: profile, isLoading } = useQuery({
@@ -205,6 +219,40 @@ export default function ClientSettingsPage() {
           </div>
         )}
       </Card>
+
+      {/* Browser/Desktop Notifications */}
+      {typeof Notification !== 'undefined' && (
+        <Card>
+          <CardHeader title="Desktop Notifications" />
+          <div className="space-y-3">
+            <p className="text-sm text-taupe">
+              Get notified in your browser when you receive new messages, appointment updates, or invoices — even when you're on another tab.
+            </p>
+            {browserNotifStatus === 'granted' ? (
+              <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                <Bell className="w-4 h-4" />
+                Desktop notifications are enabled
+              </div>
+            ) : browserNotifStatus === 'denied' ? (
+              <div className="space-y-2">
+                <p className="text-sm text-red-500 font-medium">
+                  Notifications are blocked. To re-enable:
+                </p>
+                <ol className="list-decimal list-inside text-xs text-taupe space-y-1">
+                  <li>Click the lock/site-info icon in your browser's address bar</li>
+                  <li>Find "Notifications" and change it to "Allow"</li>
+                  <li>Refresh this page</li>
+                </ol>
+              </div>
+            ) : (
+              <Button size="sm" onClick={requestBrowserNotifs}>
+                <Bell className="w-4 h-4 mr-1.5" />
+                Enable Desktop Notifications
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Delete Account */}
       <Card>

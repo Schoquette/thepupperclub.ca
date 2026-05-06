@@ -164,6 +164,11 @@ export default function AdminServiceRequestsPage() {
   const [counterTime, setCounterTime] = useState('');
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Billing
+  const [billingType, setBillingType] = useState<'included_in_plan' | 'charge'>('included_in_plan');
+  const [billingDescription, setBillingDescription] = useState('');
+  const [billingAmount, setBillingAmount] = useState('');
+
   // Create form
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState(blankCreateForm);
@@ -173,6 +178,14 @@ export default function AdminServiceRequestsPage() {
     queryKey: ['admin-service-requests'],
     queryFn: () => api.get('/admin/service-requests').then(r => r.data),
     refetchInterval: 30_000,
+  });
+
+  // Fetch Stripe products for billing picker
+  const { data: stripeProducts } = useQuery({
+    queryKey: ['stripe-products'],
+    queryFn: () => api.get('/admin/stripe/products').then(r => r.data.data ?? []),
+    enabled: action === 'approve',
+    staleTime: 60_000,
   });
 
   // Load clients for the create form
@@ -221,7 +234,14 @@ export default function AdminServiceRequestsPage() {
 
   const handleAction = () => {
     if (action === 'approve') {
-      respond.mutate({ action: 'approve', admin_response: adminResponse, scheduled_time: `${scheduledDate}T${scheduledTime}` });
+      respond.mutate({
+        action: 'approve',
+        admin_response: adminResponse,
+        scheduled_time: `${scheduledDate}T${scheduledTime}`,
+        billing_type: billingType,
+        billing_description: billingType === 'charge' ? billingDescription : undefined,
+        billing_amount: billingType === 'charge' ? parseFloat(billingAmount) || 0 : undefined,
+      });
     } else if (action === 'decline') {
       respond.mutate({ action: 'decline', admin_response: adminResponse });
     } else if (action === 'counter') {
@@ -366,6 +386,9 @@ export default function AdminServiceRequestsPage() {
                     setAction('approve');
                     setAdminResponse('');
                     setApiError(null);
+                    setBillingType('included_in_plan');
+                    setBillingDescription('');
+                    setBillingAmount('');
                     const date = sr.preferred_date ? String(sr.preferred_date).substring(0, 10) : '';
                     const time = TIME_BLOCK_DEFAULTS[sr.preferred_time_block] ?? '09:00';
                     setScheduledDate(date);
@@ -414,7 +437,7 @@ export default function AdminServiceRequestsPage() {
             </div>
 
             {action === 'approve' && (
-              <div>
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <Input label="Date" type="date" min={new Date().toISOString().substring(0, 10)} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
                   <div>
@@ -431,6 +454,88 @@ export default function AdminServiceRequestsPage() {
                     serviceDuration={SERVICE_DURATIONS[selected?.service_type] ?? 30}
                   />
                 )}
+
+                {/* Billing */}
+                <div className="border-t border-cream pt-4">
+                  <label className="label">Billing</label>
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => { setBillingType('included_in_plan'); setBillingDescription(''); setBillingAmount(''); }}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                        billingType === 'included_in_plan' ? 'bg-gold text-white border-gold' : 'border-taupe text-espresso hover:bg-cream'
+                      }`}
+                    >
+                      Included in Plan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBillingType('charge')}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                        billingType === 'charge' ? 'bg-gold text-white border-gold' : 'border-taupe text-espresso hover:bg-cream'
+                      }`}
+                    >
+                      Extra Charge
+                    </button>
+                  </div>
+
+                  {billingType === 'charge' && (
+                    <div className="space-y-3">
+                      {/* Stripe product quick-pick */}
+                      {Array.isArray(stripeProducts) && stripeProducts.length > 0 && (
+                        <div>
+                          <label className="label text-xs">Quick pick from Stripe</label>
+                          <select
+                            className="input"
+                            value=""
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              // Format: productName|||amount
+                              const [name, amt] = val.split('|||');
+                              setBillingDescription(name);
+                              setBillingAmount(amt);
+                            }}
+                          >
+                            <option value="">Select a product...</option>
+                            {(stripeProducts as any[]).map((p: any) =>
+                              (p.prices ?? []).map((pr: any) => (
+                                <option key={pr.id} value={`${p.name}|||${pr.amount ?? 0}`}>
+                                  {p.name}{pr.nickname ? ` — ${pr.nickname}` : ''} — ${pr.amount?.toFixed(2) ?? '0.00'} {pr.currency}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2">
+                          <Input
+                            label="Description"
+                            value={billingDescription}
+                            onChange={e => setBillingDescription(e.target.value)}
+                            placeholder="e.g. 30-Min Visit (extra)"
+                          />
+                        </div>
+                        <Input
+                          label="Amount ($)"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={billingAmount}
+                          onChange={e => setBillingAmount(e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <p className="text-xs text-taupe">This will be added as a line item to the client's next invoice (or a new draft will be created).</p>
+                    </div>
+                  )}
+
+                  {billingType === 'included_in_plan' && (
+                    <p className="text-xs text-taupe">No extra charge — this visit is covered by the client's plan.</p>
+                  )}
+                </div>
               </div>
             )}
             {action === 'counter' && (

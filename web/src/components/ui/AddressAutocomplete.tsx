@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Input } from './Input';
+import { ProvinceSelect } from './ProvinceSelect';
 
 export interface AddressFields {
   street: string;
@@ -141,12 +142,9 @@ export default function AddressAutocomplete({ value, onChange, label }: Props) {
           value={value.city}
           onChange={e => onChange({ ...value, city: e.target.value })}
         />
-        <Input
-          label="Province"
+        <ProvinceSelect
           value={value.province}
-          onChange={e => onChange({ ...value, province: e.target.value })}
-          maxLength={2}
-          placeholder="BC"
+          onChange={v => onChange({ ...value, province: v })}
         />
         <Input
           label="Postal Code"

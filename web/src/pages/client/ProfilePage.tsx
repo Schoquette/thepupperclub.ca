@@ -4,6 +4,7 @@ import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ProvinceSelect } from '@/components/ui/ProvinceSelect';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { CheckCircle, Dog, CreditCard, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -110,7 +111,7 @@ export default function ClientProfilePage() {
             <Input label="Address" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
             <div className="grid grid-cols-3 gap-3">
               <Input label="City" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
-              <Input label="Province" maxLength={2} value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))} />
+              <ProvinceSelect value={form.province} onChange={v => setForm(f => ({ ...f, province: v }))} />
               <Input label="Postal Code" value={form.postal_code} onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))} />
             </div>
             <div className="pt-2 border-t border-cream">

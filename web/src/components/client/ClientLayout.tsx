@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -40,6 +40,17 @@ export default function ClientLayout() {
   });
 
   const unread = thread?.unread_count_client ?? 0;
+  const prevUnread = useRef(unread);
+
+  useEffect(() => {
+    if (unread > prevUnread.current && unread > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+      new Notification('The Pupper Club', {
+        body: `You have ${unread} unread message${unread > 1 ? 's' : ''}`,
+        icon: '/logo.png',
+      });
+    }
+    prevUnread.current = unread;
+  }, [unread]);
 
   const handleLogout = async () => {
     await logout();

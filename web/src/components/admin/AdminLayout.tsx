@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Calendar, ClipboardList, Users, PawPrint,
   MessageCircle, FileText, Receipt, Car, BarChart3,
   UserCog, Megaphone, Search, Menu, X, FolderOpen,
-  Mail, AlertTriangle,
+  Mail, AlertTriangle, Settings,
 } from 'lucide-react';
 
 const NAV = [
@@ -27,6 +27,7 @@ const NAV = [
   { to: '/admin/email-logs',      label: 'Email Log',   icon: Mail },
   { to: '/admin/error-logs',      label: 'Error Log',   icon: AlertTriangle },
   { to: '/admin/audit-logs',       label: 'Audit Log',   icon: Search },
+  { to: '/admin/settings',         label: 'Settings',    icon: Settings },
 ];
 
 export default function AdminLayout() {
@@ -41,6 +42,19 @@ export default function AdminLayout() {
     queryFn: () => api.get('/admin/dashboard').then(r => r.data.data),
     refetchInterval: 10_000,
   });
+
+  // Desktop notifications for new messages
+  const unreadAdmin = dashboard?.unread_conversations ?? 0;
+  const prevUnreadAdmin = useRef(unreadAdmin);
+  useEffect(() => {
+    if (unreadAdmin > prevUnreadAdmin.current && unreadAdmin > 0 && typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+      new Notification('The Pupper Club — Admin', {
+        body: `${unreadAdmin} conversation${unreadAdmin > 1 ? 's' : ''} with unread messages`,
+        icon: '/logo.png',
+      });
+    }
+    prevUnreadAdmin.current = unreadAdmin;
+  }, [unreadAdmin]);
 
   const handleLogout = async () => {
     await logout();

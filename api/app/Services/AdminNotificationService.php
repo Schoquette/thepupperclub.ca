@@ -65,11 +65,19 @@ class AdminNotificationService
 
     private function notifyAdmin(string $title, string $body): void
     {
-        $admin = User::whereIn('role', ['admin', 'superadmin'])->first();
-        if (!$admin) return;
+        $admins = User::whereIn('role', ['admin', 'superadmin'])->get();
 
-        // Push notification to admin
-        app(ExpoNotificationService::class)->send($admin, $title, $body);
+        foreach ($admins as $admin) {
+            // Push notification
+            app(ExpoNotificationService::class)->send($admin, $title, $body);
+
+            // Email notification (uses the NotificationDispatcher which checks preferences)
+            try {
+                app(NotificationDispatcher::class)->notify($admin, $title, $body);
+            } catch (\Throwable $e) {
+                Log::warning("[AdminNotification] Email failed for {$admin->email}: {$e->getMessage()}");
+            }
+        }
 
         Log::info("[AdminNotification] {$title}: {$body}");
     }

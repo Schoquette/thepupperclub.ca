@@ -32,6 +32,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Your account has been deactivated.'], 403);
         }
 
+        // Auto-activate pending users on login
+        if ($user->status === 'pending') {
+            $user->update(['status' => 'active']);
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
         AuditLog::recordEvent($user, 'login');

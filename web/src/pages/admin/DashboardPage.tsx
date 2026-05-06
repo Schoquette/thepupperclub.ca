@@ -1,5 +1,5 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -18,8 +18,25 @@ const TIME_BLOCK_LABELS: Record<string, string> = {
 
 function WalkCard({ appointment }: { appointment: Appointment }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const isCheckedIn = appointment.status === 'checked_in';
   const isDone = appointment.status === 'completed';
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleCheckIn = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await api.post(`/admin/appointments/${appointment.id}/check-in`);
+      qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      qc.invalidateQueries({ queryKey: ['admin-dashboard-counts'] });
+    } catch (e: any) {
+      setError(e.response?.data?.message || 'Check-in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-card p-5 flex flex-col gap-3 border-l-4 border-gold">
@@ -43,7 +60,8 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
           {!isCheckedIn ? (
             <Button
               size="sm"
-              onClick={() => api.post(`/admin/appointments/${appointment.id}/check-in`)}
+              loading={loading}
+              onClick={handleCheckIn}
             >
               Check In
             </Button>
@@ -60,6 +78,7 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
           </Button>
         </div>
       )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
       {isDone && appointment.visitReport && (
         <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg px-3 py-1.5">
           <CheckCircle className="w-4 h-4" />
