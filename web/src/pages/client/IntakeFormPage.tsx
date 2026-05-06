@@ -945,6 +945,7 @@ export default function IntakeFormPage() {
       qc.invalidateQueries({ queryKey: ['client-intake'] });
       navigate('/client/profile');
     },
+    onError: (e: any) => setSaveError(e.response?.data?.message ?? 'Failed to submit. Please try again.'),
   });
 
   // ── Form helpers ───────────────────────────────────────────────────────────

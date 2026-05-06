@@ -165,6 +165,8 @@ export default function ClientInvoicesPage() {
     queryFn: () => api.get('/client/invoices').then(r => r.data.data),
   });
 
+  const [tipError, setTipError] = useState('');
+
   const addTip = useMutation({
     mutationFn: () => api.post(`/client/invoices/${tipping?.id}/tip`, {
       amount: tipAmount ?? Number(customTip),
@@ -172,6 +174,10 @@ export default function ClientInvoicesPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-invoices'] });
       setTipping(null); setTipAmount(null); setCustomTip('');
+      setTipError('');
+    },
+    onError: (err: any) => {
+      setTipError(err.response?.data?.message || 'Failed to add tip. Please try again.');
     },
   });
 
@@ -372,7 +378,7 @@ export default function ClientInvoicesPage() {
       )}
 
       {/* Tip modal */}
-      <Modal open={!!tipping} onClose={() => setTipping(null)} title="Add a Tip">
+      <Modal open={!!tipping} onClose={() => { setTipping(null); setTipError(''); }} title="Add a Tip">
         {tipping && (
           <div className="space-y-4">
             <p className="text-sm text-taupe text-center">Show Sophie some love! 🐾</p>
@@ -400,6 +406,7 @@ export default function ClientInvoicesPage() {
                 value={customTip} onChange={e => setCustomTip(e.target.value)}
                 className="input" />
             )}
+            {tipError && <p className="text-sm text-red-600">{tipError}</p>}
             <Button
               className="w-full"
               loading={addTip.isPending}

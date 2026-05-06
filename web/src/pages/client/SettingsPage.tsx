@@ -55,11 +55,20 @@ export default function ClientSettingsPage() {
     },
   });
 
+  const [notifSuccessMsg, setNotifSuccessMsg] = useState('');
+  const [notifError, setNotifError] = useState('');
+
   const updateNotifs = useMutation({
     mutationFn: (data: Record<string, boolean>) => api.patch('/client/profile', data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-profile'] });
       setNotifEditing(false);
+      setNotifError('');
+      setNotifSuccessMsg('Saved!');
+      setTimeout(() => setNotifSuccessMsg(''), 2500);
+    },
+    onError: (err: any) => {
+      setNotifError(err.response?.data?.message || 'Failed to save notification preferences.');
     },
   });
 
@@ -150,6 +159,8 @@ export default function ClientSettingsPage() {
             )
           }
         />
+        {notifSuccessMsg && <span className="text-sm text-green-600 font-medium">{notifSuccessMsg}</span>}
+        {notifError && <p className="text-sm text-red-600">{notifError}</p>}
         {notifEditing && notifForm ? (
           <div className="space-y-4">
             <p className="text-xs text-taupe">Choose how each contact receives updates about appointments, messages, and more.</p>

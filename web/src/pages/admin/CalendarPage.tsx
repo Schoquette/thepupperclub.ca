@@ -317,12 +317,14 @@ export default function AdminCalendarPage() {
   const clientDogs: any[] = (clientDetail?.dogs ?? []).filter((d: any) => d.is_active);
 
   const [checkInError, setCheckInError] = useState('');
+  const [calSuccess, setCalSuccess] = useState('');
   const checkIn = useMutation({
     mutationFn: (id: number) => api.post(`/admin/appointments/${id}/check-in`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-appointments'] }); setSelected(null); setCheckInError(''); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-appointments'] }); setSelected(null); setCheckInError(''); setCalSuccess('Checked in!'); setTimeout(() => setCalSuccess(''), 2500); },
     onError: (err: any) => { setCheckInError(err.response?.data?.message || 'Check-in failed.'); },
   });
 
+  const [completeError, setCompleteError] = useState('');
   const complete = useMutation({
     mutationFn: async (id: number) => {
       const fd = new FormData();
@@ -335,8 +337,10 @@ export default function AdminCalendarPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-appointments'] });
       setSelected(null); setCompleting(false);
-      setPhotos([]);
+      setPhotos([]); setCompleteError('');
+      setCalSuccess('Visit completed!'); setTimeout(() => setCalSuccess(''), 2500);
     },
+    onError: (err: any) => { setCompleteError(err.response?.data?.message || 'Failed to complete visit.'); },
   });
 
   const createAppointment = useMutation({
@@ -372,6 +376,7 @@ export default function AdminCalendarPage() {
       qc.invalidateQueries({ queryKey: ['admin-appointments'] });
       setSelected(null);
       setDeleteConfirm(null);
+      setCalSuccess('Appointment deleted.'); setTimeout(() => setCalSuccess(''), 2500);
     },
   });
 
@@ -619,6 +624,9 @@ export default function AdminCalendarPage() {
       )}
 
       {/* Today's Appointments */}
+      {calSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700 font-medium">{calSuccess}</div>
+      )}
       {checkInError && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">{checkInError}</div>
       )}
@@ -780,6 +788,9 @@ export default function AdminCalendarPage() {
                 placeholder="Notes visible only to you…"
                 onChange={e => setReportForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
+            {completeError && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{completeError}</p>
+            )}
             <div className="flex items-center justify-between mt-4">
               <Button
                 variant="outline"

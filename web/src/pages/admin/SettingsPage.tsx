@@ -48,11 +48,16 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const [notifMsg, setNotifMsg] = useState('');
   const updateNotifs = useMutation({
     mutationFn: (prefs: Record<string, boolean>) => api.patch('/auth/notification-preferences', prefs),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['auth-me'] });
       setNotifEditing(false);
+      setNotifMsg('Preferences saved!'); setTimeout(() => setNotifMsg(''), 2500);
+    },
+    onError: (err: any) => {
+      setNotifMsg(err.response?.data?.message || 'Failed to save preferences.');
     },
   });
 
@@ -96,6 +101,9 @@ export default function AdminSettingsPage() {
         <p className="text-sm text-taupe mb-4">
           Choose how you receive alerts when clients send messages, submit requests, or when appointments need attention.
         </p>
+        {notifMsg && (
+          <p className={`text-sm mb-3 font-medium ${notifMsg.includes('saved') || notifMsg.includes('Saved') ? 'text-green-600' : 'text-red-600'}`}>{notifMsg}</p>
+        )}
 
         {notifEditing && notifForm ? (
           <div className="space-y-2">

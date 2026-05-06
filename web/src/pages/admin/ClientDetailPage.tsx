@@ -352,6 +352,7 @@ function VaccinationSection({ dogId }: { dogId: number }) {
   const qc = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [vacForm, setVacForm] = useState({ vaccine_name: '', administered_date: '', expiry_date: '' });
+  const [vacSuccess, setVacSuccess] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['vaccinations', dogId],
@@ -364,12 +365,13 @@ function VaccinationSection({ dogId }: { dogId: number }) {
       qc.invalidateQueries({ queryKey: ['vaccinations', dogId] });
       setAdding(false);
       setVacForm({ vaccine_name: '', administered_date: '', expiry_date: '' });
+      setVacSuccess('Saved!'); setTimeout(() => setVacSuccess(''), 2500);
     },
   });
 
   const remove = useMutation({
     mutationFn: (recordId: number) => api.delete(`/admin/dogs/${dogId}/vaccinations/${recordId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['vaccinations', dogId] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['vaccinations', dogId] }); setVacSuccess('Removed!'); setTimeout(() => setVacSuccess(''), 2500); },
   });
 
   const vaccinations: any[] = data ?? [];
@@ -378,10 +380,15 @@ function VaccinationSection({ dogId }: { dogId: number }) {
     <div className="mt-3 pt-3 border-t border-cream">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-taupe uppercase tracking-wide">Vaccinations</span>
-        {!adding && (
-          <button onClick={() => setAdding(true)} className="text-xs text-blue hover:underline">+ Add</button>
-        )}
+        <div className="flex items-center gap-2">
+          {vacSuccess && <span className="text-xs text-green-600 font-medium">{vacSuccess}</span>}
+          {!adding && (
+            <button onClick={() => setAdding(true)} className="text-xs text-blue hover:underline">+ Add</button>
+          )}
+        </div>
       </div>
+      {create.isError && <p className="text-xs text-red-600">{(create.error as any)?.response?.data?.message || 'Failed to save.'}</p>}
+      {remove.isError && <p className="text-xs text-red-600">{(remove.error as any)?.response?.data?.message || 'Failed to remove.'}</p>}
 
       {isLoading ? (
         <p className="text-xs text-taupe">Loading…</p>
@@ -489,6 +496,8 @@ function DogPhoto({ dogId, hasPhoto }: { dogId: number; hasPhoto: boolean }) {
 function DogPhotoUpload({ dogId, hasPhoto, onChanged }: { dogId: number; hasPhoto: boolean; onChanged: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [photoMsg, setPhotoMsg] = useState('');
+  const [photoError, setPhotoError] = useState('');
 
   useEffect(() => {
     if (!hasPhoto) { setPreview(null); return; }
@@ -505,12 +514,14 @@ function DogPhotoUpload({ dogId, hasPhoto, onChanged }: { dogId: number; hasPhot
       fd.append('photo', file);
       return api.post(`/admin/dogs/${dogId}/photo`, fd);
     },
-    onSuccess: () => onChanged(),
+    onSuccess: () => { onChanged(); setPhotoError(''); setPhotoMsg('Photo uploaded!'); setTimeout(() => setPhotoMsg(''), 2500); },
+    onError: (e: any) => setPhotoError(e.response?.data?.message || 'Upload failed.'),
   });
 
   const remove = useMutation({
     mutationFn: () => api.delete(`/admin/dogs/${dogId}/photo`),
-    onSuccess: () => { setPreview(null); onChanged(); },
+    onSuccess: () => { setPreview(null); onChanged(); setPhotoError(''); setPhotoMsg('Photo removed!'); setTimeout(() => setPhotoMsg(''), 2500); },
+    onError: (e: any) => setPhotoError(e.response?.data?.message || 'Failed to remove photo.'),
   });
 
   return (
@@ -526,7 +537,7 @@ function DogPhotoUpload({ dogId, hasPhoto, onChanged }: { dogId: number; hasPhot
           onClick={() => fileRef.current?.click()}
           className="text-xs text-blue hover:underline text-left"
         >
-          {preview ? 'Change photo' : 'Upload photo'}
+          {upload.isPending ? 'Uploading...' : preview ? 'Change photo' : 'Upload photo'}
         </button>
         {preview && (
           <button
@@ -534,9 +545,11 @@ function DogPhotoUpload({ dogId, hasPhoto, onChanged }: { dogId: number; hasPhot
             onClick={() => remove.mutate()}
             className="text-xs text-red-400 hover:text-red-600 text-left"
           >
-            Remove photo
+            {remove.isPending ? 'Removing...' : 'Remove photo'}
           </button>
         )}
+        {photoMsg && <span className="text-xs text-green-600 font-medium">{photoMsg}</span>}
+        {photoError && <span className="text-xs text-red-600">{photoError}</span>}
       </div>
       <input
         ref={fileRef}
@@ -565,6 +578,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
   const [walksEditing, setWalksEditing] = useState(false);
   const [billingEditing, setBillingEditing] = useState(false);
   const [error, setError] = useState('');
+  const [subSuccess, setSubSuccess] = useState('');
 
   // Pause state
   const [showPause, setShowPause] = useState(false);
@@ -592,14 +606,14 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
         stripe_price_id: priceId,
         effective_date: effective || undefined,
       }),
-    onSuccess: () => { onChanged(); setError(''); setSelectedPrice(''); setEffectiveDate(''); qc.invalidateQueries({ queryKey: ['subscription-history', clientId] }); },
-    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to subscribe.'),
+    onSuccess: () => { onChanged(); setError(''); setSelectedPrice(''); setEffectiveDate(''); qc.invalidateQueries({ queryKey: ['subscription-history', clientId] }); setSubSuccess('Plan updated!'); setTimeout(() => setSubSuccess(''), 2500); },
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to subscribe.'); setSubSuccess(''); },
   });
 
   const cancelSub = useMutation({
     mutationFn: (immediate: boolean) => api.post(`/admin/clients/${clientId}/cancel-subscription`, { immediate }),
-    onSuccess: () => { onChanged(); setError(''); qc.invalidateQueries({ queryKey: ['subscription-history', clientId] }); },
-    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to cancel.'),
+    onSuccess: () => { onChanged(); setError(''); qc.invalidateQueries({ queryKey: ['subscription-history', clientId] }); setSubSuccess('Subscription cancelled.'); setTimeout(() => setSubSuccess(''), 2500); },
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to cancel.'); setSubSuccess(''); },
   });
 
   const pauseSub = useMutation({
@@ -613,18 +627,21 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
       onChanged(); setError(''); setShowPause(false);
       setPauseFrom(''); setPauseUntil(''); setPauseBilling(true); setProrateOnResume(false);
       qc.invalidateQueries({ queryKey: ['subscription-history', clientId] });
+      setSubSuccess('Subscription paused!'); setTimeout(() => setSubSuccess(''), 2500);
     },
-    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to pause.'),
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to pause.'); setSubSuccess(''); },
   });
 
   const updateWalks = useMutation({
     mutationFn: (walks: number | null) => api.patch(`/admin/clients/${clientId}`, { profile: { walks_per_week: walks } }),
-    onSuccess: () => { onChanged(); setWalksEditing(false); },
+    onSuccess: () => { onChanged(); setWalksEditing(false); setSubSuccess('Updated!'); setTimeout(() => setSubSuccess(''), 2500); },
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to update.'); },
   });
 
   const updateBilling = useMutation({
     mutationFn: (method: string) => api.patch(`/admin/clients/${clientId}`, { profile: { billing_method: method } }),
-    onSuccess: () => { onChanged(); setBillingEditing(false); },
+    onSuccess: () => { onChanged(); setBillingEditing(false); setSubSuccess('Updated!'); setTimeout(() => setSubSuccess(''), 2500); },
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to update.'); },
   });
 
   const resumeSub = useMutation({
@@ -633,9 +650,10 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
       onChanged(); setError('');
       qc.invalidateQueries({ queryKey: ['subscription-history', clientId] });
       const credit = res.data?.proration_credit;
-      if (credit) alert(`Subscription resumed. A $${credit} proration credit invoice has been created.`);
+      setSubSuccess(credit ? `Resumed! $${credit} proration credit created.` : 'Subscription resumed!');
+      setTimeout(() => setSubSuccess(''), 2500);
     },
-    onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to resume.'),
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to resume.'); setSubSuccess(''); },
   });
 
   const cp = clientProfile ?? {};
@@ -967,6 +985,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
         </div>
       )}
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      {subSuccess && <p className="text-sm text-green-600 font-medium mt-2">{subSuccess}</p>}
 
       {/* Plan change history */}
       {history && history.length > 0 && (
@@ -1072,9 +1091,10 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
 
   useEffect(() => { setForm(buildDogForm(dog)); }, [dog]);
 
+  const [dogSaveMsg, setDogSaveMsg] = useState('');
   const update = useMutation({
     mutationFn: (f: DogForm) => api.patch(`/admin/dogs/${dog.id}`, dogPayload(f, clientId)),
-    onSuccess: () => { setEditing(false); onSaved(); },
+    onSuccess: () => { setEditing(false); onSaved(); setDogSaveMsg('Saved!'); setTimeout(() => setDogSaveMsg(''), 2500); },
   });
 
   const [justActivated, setJustActivated] = useState(false);
@@ -1139,10 +1159,16 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
               {justActivated && (
                 <span className="text-sm font-medium text-green-600 px-2 py-1">Activated!</span>
               )}
+              {dogSaveMsg && !justActivated && (
+                <span className="text-sm font-medium text-green-600 px-2 py-1">{dogSaveMsg}</span>
+              )}
               <Button size="sm" variant="outline" onClick={() => setShowProfile(true)}>Full Profile</Button>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>
             </div>
           </div>
+          {activate.isError && (
+            <p className="text-xs text-red-600 mt-1">{(activate.error as any)?.response?.data?.message || 'Activation failed.'}</p>
+          )}
           <div className="flex gap-2 mt-2 flex-wrap">
             {!dog.is_active && !justActivated && <Badge variant="red">Pending Review</Badge>}
             {justActivated && <Badge variant="green">Active</Badge>}
@@ -1393,6 +1419,7 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
     return docs;
   }, [client.documents, docSearch, statusFilter, docSort, docSortDir]);
 
+  const [docActionMsg, setDocActionMsg] = useState('');
   const requestSignature = useMutation({
     mutationFn: (docId: number) =>
       api.post(`/admin/clients/${clientId}/documents/${docId}/request-signature`).then(r => r.data),
@@ -1400,6 +1427,7 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
       setSigningUrl(data.signing_url);
       onChanged();
     },
+    onError: (e: any) => { setDocActionMsg(''); setUploadError(e.response?.data?.message || 'Failed to request signature.'); },
   });
 
   const handleCopyLink = (url: string) => {
@@ -1442,7 +1470,8 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
 
   const deleteDoc = useMutation({
     mutationFn: (docId: number) => api.delete(`/admin/clients/${clientId}/documents/${docId}`),
-    onSuccess: onChanged,
+    onSuccess: () => { onChanged(); setDocActionMsg('Document deleted.'); setTimeout(() => setDocActionMsg(''), 2500); },
+    onError: (e: any) => setUploadError(e.response?.data?.message || 'Failed to delete document.'),
   });
 
   const handleDelete = (doc: any) => {
@@ -1492,6 +1521,9 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
             {uploading ? 'Cancel' : '+ Upload'}
           </Button>
         </div>
+
+        {docActionMsg && <p className="text-sm text-green-600 font-medium mb-3">{docActionMsg}</p>}
+        {uploadError && !uploading && <p className="text-sm text-red-600 mb-3">{uploadError}</p>}
 
         {/* Signing link popup */}
         {signingUrl && (
@@ -1741,9 +1773,11 @@ export default function AdminClientDetailPage() {
   useEffect(() => { setAccessForm(buildHomeAccessForm(homeAccess)); }, [homeAccess]);
 
   const [inviteConfirm, setInviteConfirm] = useState('');
+  const [resendError, setResendError] = useState('');
   const resend = useMutation({
     mutationFn: () => api.post(`/admin/clients/${id}/resend-invite`),
-    onSuccess: () => setInviteConfirm(client?.email || 'the client'),
+    onSuccess: () => { setInviteConfirm(client?.email || 'the client'); setResendError(''); },
+    onError: (e: any) => setResendError(e.response?.data?.message || 'Failed to send invite.'),
   });
 
   const [showSetPassword, setShowSetPassword] = useState(false);
@@ -1791,9 +1825,10 @@ export default function AdminClientDetailPage() {
         notes:                   f.notes || null,
       },
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-client', id] }); setEditing(false); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-client', id] }); setEditing(false); setProfileSuccess('Saved!'); setTimeout(() => setProfileSuccess(''), 2500); },
   });
 
+  const [profileSuccess, setProfileSuccess] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const deleteClient = useMutation({
@@ -1804,11 +1839,13 @@ export default function AdminClientDetailPage() {
     },
   });
 
+  const [accessSuccess, setAccessSuccess] = useState('');
   const saveAccess = useMutation({
     mutationFn: (f: HomeAccessForm) => api.patch(`/admin/clients/${id}/home-access`, f),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-client-access', id] });
       setEditingAccess(false);
+      setAccessSuccess('Saved!'); setTimeout(() => setAccessSuccess(''), 2500);
     },
   });
 
@@ -1857,6 +1894,8 @@ export default function AdminClientDetailPage() {
           )}
         </div>
       </div>
+      {resendError && <p className="text-sm text-red-600">{resendError}</p>}
+      {profileSuccess && <p className="text-sm text-green-600 font-medium">{profileSuccess}</p>}
 
       {/* Set password inline form */}
       {showSetPassword && (
@@ -2169,6 +2208,7 @@ export default function AdminClientDetailPage() {
               {(saveAccess.error as any)?.response?.data?.message ?? 'Save failed.'}
             </p>
           )}
+          {accessSuccess && <p className="text-sm text-green-600 font-medium mb-4">{accessSuccess}</p>}
 
           {editingAccess ? (
             <div className="space-y-4">

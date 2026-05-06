@@ -90,6 +90,8 @@ export default function ClientMessagesPage() {
     }
   };
 
+  const [msgError, setMsgError] = useState('');
+
   const send = useMutation({
     mutationFn: () => api.post(`/conversations/${user?.id}/messages`, {
       body: text,
@@ -98,7 +100,11 @@ export default function ClientMessagesPage() {
     onSuccess: () => {
       setText('');
       setReplyTo(null);
+      setMsgError('');
       qc.invalidateQueries({ queryKey: ['client-conversation'] });
+    },
+    onError: (e: any) => {
+      setMsgError(e.response?.data?.message || 'Failed to send message.');
     },
   });
 
@@ -110,7 +116,10 @@ export default function ClientMessagesPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-conversation'] }),
+    onSuccess: () => { setMsgError(''); qc.invalidateQueries({ queryKey: ['client-conversation'] }); },
+    onError: (e: any) => {
+      setMsgError(e.response?.data?.message || 'Failed to send photo.');
+    },
   });
 
   const editMsg = useMutation({
@@ -118,19 +127,29 @@ export default function ClientMessagesPage() {
       api.patch(`/messages/${id}`, { body }),
     onSuccess: () => {
       setEditingId(null);
+      setMsgError('');
       qc.invalidateQueries({ queryKey: ['client-conversation'] });
+    },
+    onError: (e: any) => {
+      setMsgError(e.response?.data?.message || 'Failed to edit message.');
     },
   });
 
   const deleteMsg = useMutation({
     mutationFn: (id: number) => api.delete(`/messages/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-conversation'] }),
+    onSuccess: () => { setMsgError(''); qc.invalidateQueries({ queryKey: ['client-conversation'] }); },
+    onError: (e: any) => {
+      setMsgError(e.response?.data?.message || 'Failed to delete message.');
+    },
   });
 
   const reactMsg = useMutation({
     mutationFn: ({ id, emoji }: { id: number; emoji: string }) =>
       api.post(`/messages/${id}/reactions`, { emoji }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-conversation'] }),
+    onSuccess: () => { setMsgError(''); qc.invalidateQueries({ queryKey: ['client-conversation'] }); },
+    onError: (e: any) => {
+      setMsgError(e.response?.data?.message || 'Failed to add reaction.');
+    },
   });
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -305,6 +324,14 @@ export default function ClientMessagesPage() {
         })}
         <div ref={bottomRef} />
       </div>
+
+      {/* Error banner */}
+      {msgError && (
+        <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
+          <span>{msgError}</span>
+          <button onClick={() => setMsgError('')} className="text-red-400 hover:text-red-600 ml-2">&times;</button>
+        </div>
+      )}
 
       {/* Reply preview banner */}
       {replyTo && (

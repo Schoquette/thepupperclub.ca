@@ -55,6 +55,7 @@ export default function TeamPage() {
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editAddress, setEditAddress] = useState<AddressFields>(emptyAddress);
+  const [teamSuccess, setTeamSuccess] = useState('');
 
   const { data: team, isLoading } = useQuery<TeamMember[]>({
     queryKey: ['admin-team'],
@@ -94,6 +95,7 @@ export default function TeamPage() {
       setEditingId(null);
       setAddressError('');
       qc.invalidateQueries({ queryKey: ['admin-team'] });
+      setTeamSuccess('Address saved!'); setTimeout(() => setTeamSuccess(''), 2500);
     },
     onError: (e: any) => setAddressError(e.response?.data?.message ?? 'Failed to save address.'),
   });
@@ -101,7 +103,8 @@ export default function TeamPage() {
   const toggleStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       api.patch(`/admin/team/${id}`, { status: status === 'active' ? 'inactive' : 'active' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-team'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-team'] }); setTeamSuccess('Status updated!'); setTimeout(() => setTeamSuccess(''), 2500); },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to update status.'),
   });
 
   const resetPassword = useMutation({
@@ -109,11 +112,13 @@ export default function TeamPage() {
     onSuccess: (res) => {
       setTempPassword(res.data.temp_password);
     },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to reset password.'),
   });
 
   const removeMember = useMutation({
     mutationFn: (id: number) => api.delete(`/admin/team/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-team'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-team'] }); setTeamSuccess('Team member removed.'); setTimeout(() => setTeamSuccess(''), 2500); },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to remove team member.'),
   });
 
   if (isLoading) return <PageLoader />;
@@ -146,6 +151,13 @@ export default function TeamPage() {
         </div>
       )}
 
+      {teamSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700 font-medium">{teamSuccess}</div>
+      )}
+      {error && !showAdd && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">{error}</div>
+      )}
+
       {/* Team list */}
       <Card>
         <div className="divide-y divide-cream">
@@ -174,21 +186,24 @@ export default function TeamPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleStatus.mutate({ id: member.id, status: member.status })}
-                        className="text-xs text-taupe hover:text-espresso underline"
+                        disabled={toggleStatus.isPending}
+                        className="text-xs text-taupe hover:text-espresso underline disabled:opacity-50"
                       >
-                        {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                        {toggleStatus.isPending ? 'Updating...' : member.status === 'active' ? 'Deactivate' : 'Activate'}
                       </button>
                       <button
                         onClick={() => resetPassword.mutate(member.id)}
-                        className="text-xs text-taupe hover:text-espresso underline"
+                        disabled={resetPassword.isPending}
+                        className="text-xs text-taupe hover:text-espresso underline disabled:opacity-50"
                       >
-                        Reset Password
+                        {resetPassword.isPending ? 'Resetting...' : 'Reset Password'}
                       </button>
                       <button
                         onClick={() => { if (confirm('Remove this team member?')) removeMember.mutate(member.id); }}
-                        className="text-xs text-red-400 hover:text-red-600 underline"
+                        disabled={removeMember.isPending}
+                        className="text-xs text-red-400 hover:text-red-600 underline disabled:opacity-50"
                       >
-                        Remove
+                        {removeMember.isPending ? 'Removing...' : 'Remove'}
                       </button>
                     </div>
                   )}

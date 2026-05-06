@@ -39,9 +39,14 @@ export default function ClientOnboardingPage() {
     queryFn: () => api.get('/client/onboarding/status').then(r => r.data.data),
   });
 
+  const [stepError, setStepError] = useState('');
+
   const completeStep = useMutation({
     mutationFn: (step: string) => api.patch(`/client/onboarding/step/${step}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding-status'] }),
+    onSuccess: () => { setStepError(''); qc.invalidateQueries({ queryKey: ['onboarding-status'] }); },
+    onError: (err: any) => {
+      setStepError(err.response?.data?.message || 'Something went wrong. Please try again.');
+    },
   });
 
   if (isLoading) return <PageLoader />;
@@ -72,6 +77,8 @@ export default function ClientOnboardingPage() {
         </div>
       </div>
 
+      {stepError && <p className="text-sm text-red-600">{stepError}</p>}
+
       <div className="space-y-3">
         {STEP_ORDER.map((step, idx) => {
           const info = STEP_INFO[step];
@@ -101,6 +108,7 @@ export default function ClientOnboardingPage() {
                 {isCurrent && (
                   <Button
                     size="sm"
+                    loading={completeStep.isPending}
                     onClick={() => {
                       if (step === 'profile') navigate('/client/profile');
                       else if (step === 'dog_profiles') navigate('/client/dogs');

@@ -92,6 +92,8 @@ export default function AdminConversationPage() {
     }
   };
 
+  const [chatError, setChatError] = useState('');
+
   const send = useMutation({
     mutationFn: () => api.post(`/conversations/${clientId}/messages`, {
       body: text,
@@ -100,9 +102,11 @@ export default function AdminConversationPage() {
     onSuccess: () => {
       setText('');
       setReplyTo(null);
+      setChatError('');
       qc.invalidateQueries({ queryKey: ['conversation', clientId] });
       qc.invalidateQueries({ queryKey: ['admin-inbox'] });
     },
+    onError: (e: any) => setChatError(e.response?.data?.message || 'Failed to send message.'),
   });
 
   const sendPhoto = useMutation({
@@ -114,9 +118,11 @@ export default function AdminConversationPage() {
       });
     },
     onSuccess: () => {
+      setChatError('');
       qc.invalidateQueries({ queryKey: ['conversation', clientId] });
       qc.invalidateQueries({ queryKey: ['admin-inbox'] });
     },
+    onError: (e: any) => setChatError(e.response?.data?.message || 'Failed to send photo.'),
   });
 
   const editMsg = useMutation({
@@ -124,19 +130,23 @@ export default function AdminConversationPage() {
       api.patch(`/messages/${id}`, { body }),
     onSuccess: () => {
       setEditingId(null);
+      setChatError('');
       qc.invalidateQueries({ queryKey: ['conversation', clientId] });
     },
+    onError: (e: any) => setChatError(e.response?.data?.message || 'Failed to edit message.'),
   });
 
   const deleteMsg = useMutation({
     mutationFn: (id: number) => api.delete(`/messages/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['conversation', clientId] }),
+    onSuccess: () => { setChatError(''); qc.invalidateQueries({ queryKey: ['conversation', clientId] }); },
+    onError: (e: any) => setChatError(e.response?.data?.message || 'Failed to delete message.'),
   });
 
   const reactMsg = useMutation({
     mutationFn: ({ id, emoji }: { id: number; emoji: string }) =>
       api.post(`/messages/${id}/reactions`, { emoji }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['conversation', clientId] }),
+    onError: (e: any) => setChatError(e.response?.data?.message || 'Failed to add reaction.'),
   });
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -308,6 +318,14 @@ export default function AdminConversationPage() {
         })}
         <div ref={bottomRef} />
       </div>
+
+      {/* Chat error */}
+      {chatError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700 flex items-center justify-between mx-1">
+          <span>{chatError}</span>
+          <button onClick={() => setChatError('')} className="text-red-400 hover:text-red-600 ml-3">&times;</button>
+        </div>
+      )}
 
       {/* Reply preview banner */}
       {replyTo && (

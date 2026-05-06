@@ -34,11 +34,17 @@ export default function ClientProfilePage() {
     },
   });
 
+  const [confirmError, setConfirmError] = useState('');
+
   const confirmProfile = useMutation({
     mutationFn: () => api.post('/client/profile/confirm'),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-profile'] });
       setConfirmed(true);
+      setConfirmError('');
+    },
+    onError: (err: any) => {
+      setConfirmError(err.response?.data?.message || 'Failed to confirm profile. Please try again.');
     },
   });
 
@@ -199,13 +205,16 @@ export default function ClientProfilePage() {
 
       {/* Confirm button — shown when admin submitted intake but client hasn't confirmed */}
       {needsReview && !editing && (
-        <div className="flex justify-end gap-3">
-          <Button
-            loading={confirmProfile.isPending}
-            onClick={() => confirmProfile.mutate()}
-          >
-            Confirm Profile
-          </Button>
+        <div className="space-y-2">
+          {confirmError && <p className="text-sm text-red-600 text-right">{confirmError}</p>}
+          <div className="flex justify-end gap-3">
+            <Button
+              loading={confirmProfile.isPending}
+              onClick={() => confirmProfile.mutate()}
+            >
+              Confirm Profile
+            </Button>
+          </div>
         </div>
       )}
     </div>

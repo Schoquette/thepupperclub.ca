@@ -136,9 +136,16 @@ export default function TemplateEditorPage() {
     },
   });
 
+  const [metaSuccess, setMetaSuccess] = useState('');
   const updateMeta = useMutation({
     mutationFn: () => api.patch(`/admin/document-templates/${id}`, { name: templateName, description: templateDesc }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-template', id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document-template', id] });
+      setMetaSuccess('Updated!'); setTimeout(() => setMetaSuccess(''), 2500);
+    },
+    onError: (err: any) => {
+      setSaveError(err.response?.data?.message || 'Failed to update template details.');
+    },
   });
 
   const addField = () => {
@@ -360,10 +367,11 @@ export default function TemplateEditorPage() {
               onChange={e => setTemplateDesc(e.target.value)}
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
             <Button variant="outline" onClick={() => updateMeta.mutate()} loading={updateMeta.isPending}>
               Update
             </Button>
+            {metaSuccess && <span className="text-sm text-green-600 font-medium pb-2">{metaSuccess}</span>}
           </div>
         </div>
       </Card>

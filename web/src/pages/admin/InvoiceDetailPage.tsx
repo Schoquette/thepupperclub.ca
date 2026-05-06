@@ -94,12 +94,16 @@ export default function AdminInvoiceDetailPage() {
     setMessageModal(type);
   };
 
+  // Error state for mutations
+  const [mutError, setMutError] = useState('');
+
   const markPaid = useMutation({
     mutationFn: () => api.post(`/admin/invoices/${id}/mark-paid`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
       showToast('Invoice marked as paid.');
     },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to mark as paid.'),
   });
 
   const sendInvoice = useMutation({
@@ -108,6 +112,7 @@ export default function AdminInvoiceDetailPage() {
       qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
       showToast('Invoice sent to client.');
     },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to send invoice.'),
   });
 
   const saveEdit = useMutation({
@@ -122,6 +127,7 @@ export default function AdminInvoiceDetailPage() {
       setEditing(false);
       showToast('Changes saved.');
     },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to save changes.'),
   });
 
   const resendInvoice = useMutation({
@@ -131,6 +137,7 @@ export default function AdminInvoiceDetailPage() {
       setMessageModal(null);
       showToast('Invoice re-sent to client.');
     },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to re-send invoice.'),
   });
 
   const sendReminderMut = useMutation({
@@ -140,6 +147,7 @@ export default function AdminInvoiceDetailPage() {
       setMessageModal(null);
       showToast('Payment reminder sent.');
     },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to send reminder.'),
   });
 
   const voidInvoice = useMutation({
@@ -148,6 +156,7 @@ export default function AdminInvoiceDetailPage() {
       qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
       showToast('Invoice voided.');
     },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to void invoice.'),
   });
 
   const applyDiscount = useMutation({
@@ -162,6 +171,7 @@ export default function AdminInvoiceDetailPage() {
       setDiscountAmount('');
       showToast('Discount applied.');
     },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to apply discount.'),
   });
 
   const downloadPdf = async () => {
@@ -210,6 +220,14 @@ export default function AdminInvoiceDetailPage() {
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl shadow-lg text-sm font-medium animate-in fade-in slide-in-from-top-2">
           <CheckCircle className="w-4 h-4 text-green-600" />
           {toast}
+        </div>
+      )}
+
+      {/* Mutation error */}
+      {mutError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 flex items-center justify-between">
+          <span>{mutError}</span>
+          <button onClick={() => setMutError('')} className="text-red-400 hover:text-red-600 ml-3">&times;</button>
         </div>
       )}
 

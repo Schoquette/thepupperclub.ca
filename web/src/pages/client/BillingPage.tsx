@@ -84,10 +84,19 @@ export default function ClientBillingPage() {
     queryFn: () => api.get('/client/billing/payment-method').then(r => r.data.data),
   });
 
+  const [methodSuccessMsg, setMethodSuccessMsg] = useState('');
+  const [methodError, setMethodError] = useState('');
+
   const updateMethod = useMutation({
     mutationFn: (method: string) => api.patch('/client/profile', { billing_method: method }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-profile'] });
+      setMethodError('');
+      setMethodSuccessMsg('Updated!');
+      setTimeout(() => setMethodSuccessMsg(''), 2500);
+    },
+    onError: (err: any) => {
+      setMethodError(err.response?.data?.message || 'Failed to update payment method.');
     },
   });
 
@@ -130,6 +139,8 @@ export default function ClientBillingPage() {
       {/* Payment method selection */}
       <Card>
         <CardHeader title="Payment Method" />
+        {methodSuccessMsg && <span className="text-sm text-green-600 font-medium">{methodSuccessMsg}</span>}
+        {methodError && <p className="text-sm text-red-600">{methodError}</p>}
         <div className="space-y-3">
           {METHOD_OPTIONS.map(opt => {
             const Icon = opt.icon;

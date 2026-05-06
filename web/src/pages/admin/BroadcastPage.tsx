@@ -166,6 +166,7 @@ export default function AdminBroadcastPage() {
       setTimeout(() => setTemplateSuccess(''), 4000);
       qc.invalidateQueries({ queryKey: ['broadcast-templates'] });
     },
+    onError: (err: any) => setTemplateError(err.response?.data?.message ?? 'Failed to delete template.'),
   });
 
   const saveSystemTemplate = useMutation({
@@ -188,6 +189,7 @@ export default function AdminBroadcastPage() {
       setTimeout(() => setTemplateSuccess(''), 4000);
       qc.invalidateQueries({ queryKey: ['system-templates'] });
     },
+    onError: (err: any) => setTemplateError(err.response?.data?.message ?? 'Failed to reset template.'),
   });
 
   const handleSend = () => {

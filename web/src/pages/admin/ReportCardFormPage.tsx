@@ -345,6 +345,7 @@ export default function AdminReportCardFormPage() {
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
       navigate('/admin/report-cards');
     },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to delete report card.'),
   });
 
   const deletePhoto = useMutation({
@@ -352,15 +353,19 @@ export default function AdminReportCardFormPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-report-card', id] });
     },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to delete photo.'),
   });
 
+  const [templateMsg, setTemplateMsg] = useState('');
   const saveTemplate = useMutation({
     mutationFn: () =>
       api.put(`/admin/clients/${clientId}/report-template`, { items: templateDraft }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['report-template', clientId] });
       setShowTemplateModal(false);
+      setTemplateMsg('Template saved!'); setTimeout(() => setTemplateMsg(''), 2500);
     },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to save template.'),
   });
 
   const resetTemplate = useMutation({
@@ -371,7 +376,9 @@ export default function AdminReportCardFormPage() {
       setTemplateDraft(defaults);
       qc.invalidateQueries({ queryKey: ['report-template', clientId] });
       setShowTemplateModal(false);
+      setTemplateMsg('Template reset to defaults!'); setTimeout(() => setTemplateMsg(''), 2500);
     },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to reset template.'),
   });
 
   if (!isNew && isLoading) return <PageLoader />;
@@ -407,6 +414,9 @@ export default function AdminReportCardFormPage() {
       )}
       {saved && (
         <div className="bg-green-50 text-green-700 text-sm px-4 py-2.5 rounded-lg">Saved successfully!</div>
+      )}
+      {templateMsg && (
+        <div className="bg-green-50 text-green-700 text-sm px-4 py-2.5 rounded-lg font-medium">{templateMsg}</div>
       )}
 
       <Card>

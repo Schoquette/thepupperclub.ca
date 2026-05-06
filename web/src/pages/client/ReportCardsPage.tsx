@@ -46,20 +46,30 @@ export default function ClientReportCardsPage() {
     queryFn: () => api.get('/client/report-cards').then((r) => r.data),
   });
 
+  const [errorMsg, setErrorMsg] = useState<Record<number, string>>({});
+
   const postComment = useMutation({
     mutationFn: ({ id, body }: { id: number; body: string }) =>
       api.post(`/client/report-cards/${id}/comments`, { body }),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['client-report-cards'] });
       setCommentDraft((p) => ({ ...p, [vars.id]: '' }));
+      setErrorMsg((p) => ({ ...p, [vars.id]: '' }));
+    },
+    onError: (e: any, vars) => {
+      setErrorMsg((p) => ({ ...p, [vars.id]: e.response?.data?.message || 'Failed to post comment.' }));
     },
   });
 
   const deleteComment = useMutation({
     mutationFn: ({ reportId, commentId }: { reportId: number; commentId: number }) =>
       api.delete(`/client/report-cards/${reportId}/comments/${commentId}`),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['client-report-cards'] });
+      setErrorMsg((p) => ({ ...p, [vars.reportId]: '' }));
+    },
+    onError: (e: any, vars) => {
+      setErrorMsg((p) => ({ ...p, [vars.reportId]: e.response?.data?.message || 'Failed to delete comment.' }));
     },
   });
 
@@ -70,6 +80,10 @@ export default function ClientReportCardsPage() {
       qc.invalidateQueries({ queryKey: ['client-report-cards'] });
       setSuccessMsg((p) => ({ ...p, [vars.id]: 'Change request submitted. Your walker has been notified.' }));
       setTimeout(() => setSuccessMsg((p) => ({ ...p, [vars.id]: '' })), 4000);
+      setErrorMsg((p) => ({ ...p, [vars.id]: '' }));
+    },
+    onError: (e: any, vars) => {
+      setErrorMsg((p) => ({ ...p, [vars.id]: e.response?.data?.message || 'Failed to submit change request.' }));
     },
   });
 
@@ -205,6 +219,11 @@ export default function ClientReportCardsPage() {
                           </div>
                         ))}
                       </div>
+                    )}
+
+                    {/* Error display */}
+                    {errorMsg[r.id] && (
+                      <p className="text-sm text-red-600">{errorMsg[r.id]}</p>
                     )}
 
                     {/* ── Comments ── */}

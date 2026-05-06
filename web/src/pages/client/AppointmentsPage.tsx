@@ -149,11 +149,18 @@ export default function ClientAppointmentsPage() {
     },
   });
 
+  const [editReqError, setEditReqError] = useState('');
+  const [deleteReqError, setDeleteReqError] = useState('');
+
   const updateRequest = useMutation({
     mutationFn: (id: number) => api.put(`/client/service-requests/${id}`, editReqForm),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-service-requests'] });
       setEditingRequest(null);
+      setEditReqError('');
+    },
+    onError: (e: any) => {
+      setEditReqError(e.response?.data?.message || 'Failed to update request.');
     },
   });
 
@@ -161,8 +168,14 @@ export default function ClientAppointmentsPage() {
     mutationFn: (id: number) => api.delete(`/client/service-requests/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-service-requests'] });
+      setDeleteReqError('');
+    },
+    onError: (e: any) => {
+      setDeleteReqError(e.response?.data?.message || 'Failed to cancel request.');
     },
   });
+
+  const [actionError, setActionError] = useState('');
 
   const cancelMut = useMutation({
     mutationFn: (id: number) => api.post(`/client/appointments/${id}/cancel`),
@@ -170,6 +183,10 @@ export default function ClientAppointmentsPage() {
       qc.invalidateQueries({ queryKey: ['client-appointments'] });
       setSuccessMsg('Appointment cancelled. Your walker has been notified.');
       setActionView('detail');
+      setActionError('');
+    },
+    onError: (e: any) => {
+      setActionError(e.response?.data?.message || 'Failed to cancel appointment.');
     },
   });
 
@@ -179,6 +196,10 @@ export default function ClientAppointmentsPage() {
       qc.invalidateQueries({ queryKey: ['client-service-requests'] });
       setSuccessMsg('Time change request submitted. Your walker will review it shortly.');
       setActionView('detail');
+      setActionError('');
+    },
+    onError: (e: any) => {
+      setActionError(e.response?.data?.message || 'Failed to submit time change request.');
     },
   });
 
@@ -190,6 +211,10 @@ export default function ClientAppointmentsPage() {
     onSuccess: () => {
       setSuccessMsg('Extension request submitted. Your walker will review it shortly.');
       setActionView('detail');
+      setActionError('');
+    },
+    onError: (e: any) => {
+      setActionError(e.response?.data?.message || 'Failed to submit extension request.');
     },
   });
 
@@ -203,6 +228,10 @@ export default function ClientAppointmentsPage() {
       setSuccessMsg('Special service request submitted. Your walker will review it shortly.');
       setActionView('detail');
       setSpecialForm({ service: '', address: '', comments: '' });
+      setActionError('');
+    },
+    onError: (e: any) => {
+      setActionError(e.response?.data?.message || 'Failed to submit special service request.');
     },
   });
 
@@ -214,6 +243,7 @@ export default function ClientAppointmentsPage() {
     setSelected(evt);
     setActionView('detail');
     setSuccessMsg('');
+    setActionError('');
     setTimeForm({ preferred_time_block: 'morning', preferred_date: '', notes: '' });
     setExtForm({ extra_minutes: '30', notes: '' });
     setSpecialForm({ service: '', address: '', comments: '' });
@@ -365,6 +395,7 @@ export default function ClientAppointmentsPage() {
       {Array.isArray(requests) && requests.filter((r: any) => r.status === 'pending').length > 0 && (
         <div>
           <h2 className="font-display text-base text-espresso mb-2">Pending Requests</h2>
+          {deleteReqError && <p className="text-sm text-red-600 mb-2">{deleteReqError}</p>}
           <div className="space-y-2">
             {(requests as any[]).filter((r: any) => r.status === 'pending').map((req: any) => (
               <Card key={req.id} padding="sm">
@@ -463,8 +494,9 @@ export default function ClientAppointmentsPage() {
               onChange={e => setEditReqForm(f => ({ ...f, notes: e.target.value }))}
               placeholder="Anything your walker should know?"
             />
+            {editReqError && <p className="text-sm text-red-600">{editReqError}</p>}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setEditingRequest(null)}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setEditingRequest(null); setEditReqError(''); }}>Cancel</Button>
               <Button
                 loading={updateRequest.isPending}
                 disabled={!editReqForm.preferred_date || editReqForm.dog_ids.length === 0}
@@ -593,8 +625,9 @@ export default function ClientAppointmentsPage() {
               onChange={e => setTimeForm(f => ({ ...f, notes: e.target.value }))}
               placeholder="Reason for the change..."
             />
+            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setActionView('detail')}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setActionView('detail'); setActionError(''); }}>Cancel</Button>
               <Button
                 loading={timeChangeMut.isPending}
                 disabled={!timeForm.preferred_date}
@@ -632,8 +665,9 @@ export default function ClientAppointmentsPage() {
               </span>
             </label>
             <p className="text-xs text-taupe">Your walker will be notified of this cancellation.</p>
+            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setActionView('detail'); setCancelConfirmed(false); }}>Go Back</Button>
+              <Button variant="outline" onClick={() => { setActionView('detail'); setCancelConfirmed(false); setActionError(''); }}>Go Back</Button>
               <Button
                 loading={cancelMut.isPending}
                 disabled={!cancelConfirmed}
@@ -671,8 +705,9 @@ export default function ClientAppointmentsPage() {
               onChange={e => setExtForm(f => ({ ...f, notes: e.target.value }))}
               placeholder="Any details about why you need the extension..."
             />
+            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setActionView('detail')}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setActionView('detail'); setActionError(''); }}>Cancel</Button>
               <Button
                 loading={extensionMut.isPending}
                 onClick={() => extensionMut.mutate(selected.id)}
@@ -748,8 +783,9 @@ export default function ClientAppointmentsPage() {
               />
             )}
 
+            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setActionView('detail')}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setActionView('detail'); setActionError(''); }}>Cancel</Button>
               <Button
                 loading={specialMut.isPending}
                 disabled={

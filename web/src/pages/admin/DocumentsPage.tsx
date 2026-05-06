@@ -79,6 +79,9 @@ export default function AdminDocumentsPage() {
     }
   };
 
+  // Success/error feedback
+  const [successMsg, setSuccessMsg] = useState('');
+
   // Rename state
   const [renameId, setRenameId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -202,7 +205,11 @@ export default function AdminDocumentsPage() {
   // Delete template
   const deleteTemplate = useMutation({
     mutationFn: (id: number) => api.delete(`/admin/document-templates/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['document-templates'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['document-templates'] });
+      setSuccessMsg('Template deleted.'); setTimeout(() => setSuccessMsg(''), 2500);
+    },
+    onError: (e: any) => setSendError(e.response?.data?.message || 'Failed to delete template.'),
   });
 
   // Upload document to client
@@ -234,20 +241,29 @@ export default function AdminDocumentsPage() {
       setRenameId(null);
       setRenameValue('');
       qc.invalidateQueries({ queryKey: ['admin-documents'] });
+      setSuccessMsg('Renamed!'); setTimeout(() => setSuccessMsg(''), 2500);
     },
+    onError: (e: any) => setSendError(e.response?.data?.message || 'Failed to rename document.'),
   });
 
   // Delete document
   const deleteDoc = useMutation({
     mutationFn: (id: number) => api.delete(`/admin/documents/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-documents'] });
+      setSuccessMsg('Document deleted.'); setTimeout(() => setSuccessMsg(''), 2500);
+    },
+    onError: (e: any) => setSendError(e.response?.data?.message || 'Failed to delete document.'),
   });
 
   // Send for signing
   const [sendError, setSendError] = useState('');
   const sendDoc = useMutation({
     mutationFn: (docId: number) => api.post(`/admin/documents/${docId}/send`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-documents'] }); setSendError(''); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-documents'] }); setSendError('');
+      setSuccessMsg('Document sent for signing!'); setTimeout(() => setSuccessMsg(''), 2500);
+    },
     onError: (e: any) => setSendError(e.response?.data?.message || 'Failed to send.'),
   });
 
@@ -288,6 +304,11 @@ export default function AdminDocumentsPage() {
         </div>
       </div>
 
+      {successMsg && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700 font-medium">
+          {successMsg}
+        </div>
+      )}
       {sendError && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 flex items-center justify-between">
           <span>{sendError}</span>
