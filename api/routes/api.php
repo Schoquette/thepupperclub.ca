@@ -146,6 +146,14 @@ Route::get('/add-signing-cols-9x7k', function () {
             $results[] = "added $col to client_documents";
         }
     }
+    // Expand type ENUM to include 'document'
+    try {
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents MODIFY COLUMN type ENUM('vaccination_record','vet_record','service_agreement','liability_waiver','intake_form','other','document') NOT NULL DEFAULT 'other'");
+        $results[] = 'expanded type ENUM to include document';
+    } catch (\Throwable $e) {
+        $results[] = 'type ENUM update skipped: ' . $e->getMessage();
+    }
+
     // first_viewed_at for document view tracking
     if (!\Illuminate\Support\Facades\Schema::hasColumn('client_documents', 'first_viewed_at')) {
         \Illuminate\Support\Facades\Schema::table('client_documents', function ($t) {
