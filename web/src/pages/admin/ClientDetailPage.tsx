@@ -1143,8 +1143,8 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
                 <ProfileRow label="With Strangers" value={fmtVal(dog.interaction_strangers)} />
                 <ProfileRow label="With Children" value={fmtVal(dog.interaction_children)} />
                 <ProfileRow label="Triggers" value={dog.triggers} />
-                <ProfileRow label="Walk Style" value={Array.isArray(dog.preferred_walk_style) ? dog.preferred_walk_style.map(s => fmtVal(s)).join(', ') : fmtVal(dog.preferred_walk_style)} />
-                <ProfileRow label="Gear" value={Array.isArray(dog.preferred_gear) ? dog.preferred_gear.map(g => fmtVal(g)).join(', ') : fmtVal(dog.preferred_gear)} />
+                <ProfileRow label="Walk Style" value={Array.isArray(dog.preferred_walk_style) ? dog.preferred_walk_style.map((s: string) => fmtVal(s)).join(', ') : fmtVal(dog.preferred_walk_style)} />
+                <ProfileRow label="Gear" value={Array.isArray(dog.preferred_gear) ? dog.preferred_gear.map((g: string) => fmtVal(g)).join(', ') : fmtVal(dog.preferred_gear)} />
                 <ProfileRow label="Treats Allowed" value={fmtVal(dog.treats_allowed)} />
                 <ProfileRow label="Treats Notes" value={dog.treats_notes} />
                 <ProfileRow label="Training Commands" value={dog.training_commands} />

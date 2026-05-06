@@ -23,7 +23,13 @@ function DocumentPreviewFrame({ docId }: { docId: number }) {
         const url = URL.createObjectURL(res.data);
         setBlobUrl(url);
       })
-      .catch(() => setError('Failed to load document preview.'));
+      .catch((err) => {
+        const status = err.response?.status;
+        const msg = status === 404
+          ? 'File not found on server. It may have been deleted or not yet uploaded.'
+          : `Failed to load document preview (${status || err.message}).`;
+        setError(msg);
+      });
     return () => { revoked = true; if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [docId]);
 
@@ -68,7 +74,7 @@ export default function AdminDocumentsPage() {
 
   // Documents list
   const statusFilter = tab === 'signed' ? 'signed' : tab === 'sent' ? 'sent' : tab === 'drafts' ? 'draft' : undefined;
-  const { data: docsData, isLoading: docsLoading } = useQuery({
+  const { data: docsData, isLoading: docsLoading, isError: docsError, error: docsErrorObj } = useQuery({
     queryKey: ['admin-documents', statusFilter, search],
     queryFn: () => api.get('/admin/documents', { params: { status: statusFilter, search: search || undefined } }).then(r => r.data),
     enabled: tab !== 'templates',
@@ -291,7 +297,14 @@ export default function AdminDocumentsPage() {
 
       {/* Documents tabs (all, drafts, sent, signed) */}
       {tab !== 'templates' && (
-        docsLoading ? <PageLoader /> : (
+        docsLoading ? <PageLoader /> : docsError ? (
+          <Card>
+            <div className="text-center py-8">
+              <p className="text-red-600 text-sm font-medium">Failed to load documents.</p>
+              <p className="text-xs text-taupe mt-1">{(docsErrorObj as any)?.response?.data?.message || (docsErrorObj as any)?.message || 'Unknown error'}</p>
+            </div>
+          </Card>
+        ) : (
           <Card padding="none">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

@@ -28,12 +28,7 @@ export default function ClientLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [phoneModal, setPhoneModal] = useState(false);
 
-  const { data: profile } = useQuery({
-    queryKey: ['client-profile'],
-    queryFn: () => api.get('/client/profile').then(r => r.data.data),
-  });
-  const profileConfirmed = !!profile?.client_profile?.profile_confirmed_at;
-  const NAV = NAV_ALL.filter(item => !item.requiresProfile || profileConfirmed);
+  const NAV = NAV_ALL;
 
   // Poll for unread message count
   const { data: thread } = useQuery({
