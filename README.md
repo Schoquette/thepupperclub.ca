@@ -45,7 +45,7 @@ thepupperclub.ca/
 
 #### Key API Features
 
-- **Authentication**: Login, password reset, password change, account deletion, role-based access (admin/client/superadmin)
+- **Authentication**: Login, password reset, password change, account deletion, role-based access (admin/client/superadmin), auto-activation of pending users on login
 - **Client Management**: Profiles, onboarding steps, home access codes (encrypted), secondary contacts with notification preferences, intake forms
 - **Dog Management**: CRUD with full intake fields (personality, behaviour, medical, visit preferences, medications, training commands), vaccination records, documents, profile photos, size options (toy/small/medium/large/extra large)
 - **Appointments**: Scheduling, check-in/complete, recurring generation, team member assignment
@@ -57,10 +57,12 @@ thepupperclub.ca/
 - **Auto-Mileage**: Automatic driving distance calculation on appointment completion via Google Maps Distance Matrix API (home -> client1 -> client2 -> ... -> home)
 - **Report Exports**: Download mileage, walk history, and billing reports as CSV or PDF
 - **Team Management**: Invite members, home address with Google Places autocomplete (Canadian addresses), role management
-- **Notifications**: Expo push notifications, multi-channel dispatch (app, email, SMS via Twilio), client notification preferences
+- **Notifications**: Expo push notifications, multi-channel dispatch (app, email, SMS via Twilio), desktop/browser notifications (Web Notifications API), client notification preferences, admin email notifications
 - **Broadcast System**: Gmail-style rich text editor, system and marketing templates, inline image support, "also send email" override
 - **Two-Way Communication**: Chat messages dispatched to client's preferred channels, inbound email webhook for email replies, one-way SMS alerts with "Reply in app or by email" note
-- **Email System**: Resend HTTP API transport (custom Guzzle-based transport since GoDaddy blocks SMTP), branded email templates with CID inline logo, editable system email templates (8 templates with token-based customization)
+- **Email System**: Resend HTTP API transport (custom Guzzle-based transport since GoDaddy blocks SMTP), branded email templates with CID inline logo, editable system email templates (8 templates with token-based customization), email log tracking all sent emails
+- **Error & Email Logging**: All API exceptions logged to `error_logs` table, all outbound emails tracked in `email_logs` table, viewable in admin dashboard
+- **Service Request Billing**: Admin can select a Stripe product/price when approving requests (charge added to next invoice) or mark as "Included in Plan"
 - **Audit Logging**: Tracks all admin actions
 
 #### Scheduled Commands
@@ -75,7 +77,7 @@ thepupperclub.ca/
 #### API Routes
 
 - **Public**: `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`, `/webhooks/stripe`, `/webhooks/email`, `/contact`, `/signing/{token}`
-- **Admin** (`/admin/*`): Full CRUD for clients, dogs, appointments, invoices, report cards, documents, notifications, audit logs, intake forms, Stripe products, team management, time/mileage reports, report exports
+- **Admin** (`/admin/*`): Full CRUD for clients, dogs, appointments, invoices, report cards, documents, notifications, audit logs, intake forms, Stripe products, team management, time/mileage reports, report exports, error logs, email logs, service requests with billing
 - **Client** (`/client/*`): Profile, dogs (with full intake fields), appointments, invoices, billing/Stripe setup, report cards, documents, onboarding, intake form
 - **Shared**: Conversations, messages, message reactions, photo serving, document download
 
@@ -88,19 +90,20 @@ thepupperclub.ca/
 - **Stripe React SDK** for payment UI (card management, invoice payments)
 - **React Big Calendar** for appointment scheduling views
 - **Google Places Autocomplete** for address fields (intake forms, team addresses)
+- **Web Notifications API** for desktop/browser push notifications
 - **Axios** for API communication with auth interceptors
 
-#### Web Portal Pages (35+ pages)
+#### Web Portal Pages (38+ pages)
 
-**Admin Pages** (20): Dashboard, Clients list, Client detail, Dogs list, Intake form, Calendar, Service requests, Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Broadcast messages, Audit logs, Template editor
+**Admin Pages** (23): Dashboard (with check-in, revenue stats, email/error logs), Clients list, Client detail, Dogs list, Intake form, Calendar, Service requests (with Stripe billing on approval), Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Template editor (with zoom controls), Broadcast messages, Email logs, Error logs, Audit logs, Settings (desktop notifications, password)
 
-**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, notifications, account deletion)
+**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, desktop notifications, notification preferences, account deletion)
 
 **Shared**: Login, Set password, Forgot/reset password, Document signing
 
 #### Reusable UI Components
 
-Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji reactions and photo lightbox), AddressAutocomplete (Google Places, Canada-only), SimpleAddressInput (single-string address autocomplete), RichTextEditor (Gmail-style with inline images)
+Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji reactions and photo lightbox), AddressAutocomplete (Google Places, Canada-only, province dropdown), SimpleAddressInput (single-string address autocomplete), RichTextEditor (Gmail-style with inline images), ProvinceSelect (all 13 Canadian provinces/territories)
 
 ### Mobile App — Expo SDK 51
 
@@ -181,7 +184,8 @@ The `/shared` package (`@pupper/shared`) provides TypeScript interfaces used by 
 | **Email** | Resend | HTTP API transport (custom Guzzle-based, port 443) |
 | **SMS** | Twilio | One-way SMS alerts |
 | **Payments** | Stripe | Webhooks at `/api/webhooks/stripe` |
-| **Domain** | GoDaddy | `thepupperclub.ca` (Cloudflare CDN) |
+| **CDN / DNS** | Cloudflare | DNS management, caching, SSL |
+| **Domain** | GoDaddy | `thepupperclub.ca` |
 | **Source** | GitHub | `Schoquette/thepupperclub.ca` |
 
 ### Automatic Deployment — GitHub Actions CI/CD
@@ -209,6 +213,9 @@ This job builds everything from source in CI and deploys via FTP — nothing nee
 6. **Install Composer dependencies** — runs `composer install --no-dev --optimize-autoloader` in `/api`, creating required storage directories first
 7. **Deploy API via FTP** — uploads the entire `/api` directory (including `vendor/`) to `api/` on the server, excluding `.git`, `node_modules`, storage logs/cache/sessions/views, and `.env`
 8. **Deploy web portal via FTP** — uploads the built `/web/dist/` contents to the server root (`./`)
+9. **Wipe server config cache** — uses `dangerous-clean-slate` to delete `api/bootstrap/cache/` on the server, preventing stale cached config
+10. **Clear Laravel caches** — hits `clear-cache` endpoint to run `config:clear`, `route:clear`, `view:clear`
+11. **Purge Cloudflare cache** — purges all cached files so the new JS/CSS bundles are served immediately (prevents blank-page issues from stale HTML referencing old chunk filenames)
 
 #### GitHub Secrets Required
 
@@ -221,6 +228,8 @@ The following secrets must be configured in the repo settings (**Settings > Secr
 | `FTP_PASSWORD` | FTP password |
 | `VITE_STRIPE_KEY` | Stripe publishable key (injected at build time) |
 | `VITE_GOOGLE_MAPS_KEY` | Google Maps API key (injected at build time) |
+| `CLOUDFLARE_ZONE_ID` | Cloudflare Zone ID (for cache purge after deploy) |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Cache Purge permission |
 
 #### What This Means for Development
 
@@ -279,6 +288,8 @@ Migrations covering:
 - **Document Templates** — PDF templates with positioned form fields (name, checkbox, date, signature, dog_name, open_text)
 - **System Email Templates** — admin-customizable email overrides with token support
 - **Onboarding Steps** — multi-step client onboarding flow
+- **Error Logs** — API exception tracking (type, message, context, URL, user)
+- **Email Logs** — all outbound emails tracked (to, subject, status, Resend ID, errors)
 - **Audit Logs** — admin action tracking
 - **Push Notifications** — Expo push notification records
 
@@ -360,7 +371,7 @@ npx expo start
 | `MAIL_FROM_ADDRESS` | `hello@thepupperclub.ca` (requires domain verification in Resend) |
 | `APP_TIMEZONE` | `America/Vancouver` |
 | `SANCTUM_STATEFUL_DOMAINS` | Allowed frontend domains |
-| `FRONTEND_URL` | Web portal URL |
+| `FRONTEND_URL` | Web portal URL (e.g., `https://thepupperclub.ca`) |
 | `TWILIO_SID` | Twilio account SID (for SMS) |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | Twilio phone number |
@@ -384,6 +395,7 @@ npx expo start
 4. **Stripe webhook**: Register `https://thepupperclub.ca/api/webhooks/stripe` in Stripe dashboard
 5. **Resend inbound email**: Set up inbound webhook URL to `https://thepupperclub.ca/api/webhooks/email` for two-way email replies
 6. **Twilio**: Create account, get phone number, add credentials to `.env` for SMS notifications
+7. **Cloudflare**: Add `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN` to GitHub Secrets for automatic cache purging on deploy
 
 ### Auto-Mileage
 
