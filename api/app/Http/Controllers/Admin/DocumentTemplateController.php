@@ -181,7 +181,7 @@ class DocumentTemplateController extends Controller
         ]);
 
         return response()->json([
-            'data'    => $document->load('template.fields'),
+            'data'    => $document->load(['user', 'template.fields']),
             'message' => 'Document created from template.',
         ]);
     }

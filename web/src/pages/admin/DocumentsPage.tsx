@@ -193,7 +193,8 @@ export default function AdminDocumentsPage() {
       setUseModal(null);
       setUseClientId('');
       qc.invalidateQueries({ queryKey: ['admin-documents'] });
-      navigate(`/admin/clients/${res.data.data.user_id}`);
+      // Open the newly created document in preview so admin can review & send
+      setPreviewDoc(res.data.data);
     },
     onError: (e: any) => setUseError(e.response?.data?.message || 'Failed.'),
   });
@@ -622,7 +623,7 @@ export default function AdminDocumentsPage() {
               disabled={!useClientId}
               onClick={() => useModal && createFromTemplate.mutate(useModal.id)}
             >
-              Create Draft
+              Create & Preview
             </Button>
           </div>
         </div>
