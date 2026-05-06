@@ -23,12 +23,13 @@ function DocumentPreviewFrame({ docId }: { docId: number }) {
         const url = URL.createObjectURL(res.data);
         setBlobUrl(url);
       })
-      .catch((err) => {
+      .catch(async (err) => {
         const status = err.response?.status;
-        const msg = status === 404
-          ? 'File not found on server. It may have been deleted or not yet uploaded.'
-          : `Failed to load document preview (${status || err.message}).`;
-        setError(msg);
+        let detail = '';
+        if (err.response?.data instanceof Blob) {
+          try { detail = await err.response.data.text(); } catch {}
+        }
+        setError(`Failed to load document preview (${status || err.message}). ${detail}`);
       });
     return () => { revoked = true; if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [docId]);

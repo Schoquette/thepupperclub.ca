@@ -13,12 +13,18 @@ class DocumentController extends Controller
     {
         $user = $request->user();
 
-        // Admin can access any document; client can only access their own
-        if ($user->role !== 'admin' && $document->user_id !== $user->id) {
-            abort(403);
+        if (!$user) {
+            abort(401, 'Not authenticated');
         }
 
-        abort_unless(Storage::disk('local')->exists($document->storage_path), 404);
+        // Admin can access any document; client can only access their own
+        if ($user->role !== 'admin' && $document->user_id !== $user->id) {
+            abort(403, "Access denied. Role: {$user->role}, doc owner: {$document->user_id}, you: {$user->id}");
+        }
+
+        if (!Storage::disk('local')->exists($document->storage_path)) {
+            abort(404, "File not found at: {$document->storage_path}");
+        }
 
         if ($request->boolean('inline')) {
             return Storage::disk('local')->response(
