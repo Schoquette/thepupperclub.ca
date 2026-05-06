@@ -9,8 +9,7 @@ import api from '@/lib/api';
 import { format } from 'date-fns';
 
 const TIME_BLOCKS = [
-  { value: 'early_morning', label: '7–10 AM' },
-  { value: 'morning',       label: '9–12 PM' },
+  { value: 'morning',       label: '7–11 AM' },
   { value: 'midday',        label: '11 AM–2 PM' },
   { value: 'afternoon',     label: '2–5 PM' },
   { value: 'evening',       label: '5–8 PM' },

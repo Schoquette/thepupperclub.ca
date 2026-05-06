@@ -11,14 +11,14 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format, parseISO } from 'date-fns';
 
 const TIME_BLOCK_LABELS = {
-  early_morning: '7–10 AM', morning: '9–12 PM', midday: '11 AM–2 PM',
+  early_morning: '7–11 AM', morning: '7–11 AM', midday: '11 AM–2 PM',
   afternoon: '2–5 PM', evening: '5–8 PM',
 };
 
 // Maps a time block to the start-of-block time, used to pre-fill the datetime picker
 const TIME_BLOCK_DEFAULTS: Record<string, string> = {
   early_morning: '08:00',
-  morning:       '09:00',
+  morning:       '08:00',
   midday:        '12:00',
   afternoon:     '14:00',
   evening:       '17:00',
@@ -142,8 +142,7 @@ const SERVICE_TYPES = [
 ];
 
 const TIME_BLOCKS = [
-  { value: 'early_morning', label: 'Early Morning (7–10 AM)' },
-  { value: 'morning', label: 'Morning (9–12 PM)' },
+  { value: 'morning', label: 'Morning (7–11 AM)' },
   { value: 'midday', label: 'Midday (11 AM–2 PM)' },
   { value: 'afternoon', label: 'Afternoon (2–5 PM)' },
   { value: 'evening', label: 'Evening (5–8 PM)' },

@@ -17,7 +17,7 @@ class VisitNotificationService
     {
         $user         = $appointment->user;
         $conversation = $user->conversation()->firstOrCreate(['user_id' => $user->id]);
-        $adminUser    = \App\Models\User::where('role', 'admin')->first();
+        $adminUser    = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
 
         $conversation->messages()->create([
             'sender_id' => $adminUser?->id,
@@ -42,7 +42,7 @@ class VisitNotificationService
     {
         $user         = $appointment->user;
         $conversation = $user->conversation()->firstOrCreate(['user_id' => $user->id]);
-        $adminUser    = \App\Models\User::where('role', 'admin')->first();
+        $adminUser    = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
 
         $conversation->messages()->create([
             'sender_id' => $adminUser?->id,
@@ -82,7 +82,7 @@ class VisitNotificationService
     {
         $user         = $appointment->user;
         $conversation = $user->conversation()->firstOrCreate(['user_id' => $user->id]);
-        $adminUser    = \App\Models\User::where('role', 'admin')->first();
+        $adminUser    = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
 
         $dogNames = $appointment->dogs->pluck('name')->join(' & ');
 

@@ -295,16 +295,38 @@ class DocumentTemplateController extends Controller
                 'metadata'  => ['signing_url' => $signingUrl, 'document_id' => $document->id],
             ]);
 
-            // Send email
+            // Send push notification via dispatcher (no email — we send it separately with proper template)
             $title = "Document for Signature — The Pupper Club";
-            $body  = "Please review and sign \"{$document->filename}\".";
-            $htmlBody = view('emails.signature_request', [
-                'userName'     => $client->name,
-                'documentName' => $document->filename,
-                'signingUrl'   => $signingUrl,
-            ])->render();
+            $pushBody = "Please review and sign \"{$document->filename}\".";
+            app(\App\Services\ExpoNotificationService::class)->send($client, $title, $pushBody);
 
-            app(NotificationDispatcher::class)->notify($client, $title, $body, $htmlBody);
+            // Send branded email directly (signature_request extends emails.layout, so no double-wrapping)
+            if ($client->email) {
+                try {
+                    $logoPath = public_path('images/logo-cream-stacked.png');
+                    $replyAddr = config('services.resend.inbound_address') ?: config('mail.from.address');
+                    \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($client, $title, $signingUrl, $document, $logoPath, $replyAddr) {
+                        $message->to($client->email)
+                            ->subject($title)
+                            ->replyTo($replyAddr)
+                            ->html(view('emails.signature_request', [
+                                'userName'     => $client->name,
+                                'documentName' => $document->filename,
+                                'signingUrl'   => $signingUrl,
+                            ])->render());
+                        if (file_exists($logoPath)) {
+                            $logoPart = new \Symfony\Component\Mime\Part\DataPart(
+                                file_get_contents($logoPath), 'logo.png', 'image/png'
+                            );
+                            $logoPart->asInline();
+                            $logoPart->setContentId('logo@thepupperclub.ca');
+                            $message->getSymfonyMessage()->addPart($logoPart);
+                        }
+                    });
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Signing email failed', ['error' => $e->getMessage()]);
+                }
+            }
         }
 
         return response()->json([

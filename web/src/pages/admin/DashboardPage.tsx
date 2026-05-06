@@ -12,7 +12,7 @@ import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle, Aler
 import { PawIcon } from '@/components/ui/PawIcon';
 
 const TIME_BLOCK_LABELS: Record<string, string> = {
-  early_morning: '7–10 AM', morning: '9–12 PM', midday: '11 AM–2 PM',
+  early_morning: '7–11 AM', morning: '7–11 AM', midday: '11 AM–2 PM',
   afternoon: '2–5 PM', evening: '5–8 PM',
 };
 

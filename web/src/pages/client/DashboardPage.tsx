@@ -10,7 +10,7 @@ import { PawIcon } from '@/components/ui/PawIcon';
 import { useAuth } from '@/contexts/AuthContext';
 
 const TIME_BLOCK_LABELS: Record<string, string> = {
-  early_morning: '7–10 AM', morning: '9–12 PM', midday: '11 AM–2 PM',
+  early_morning: '7–11 AM', morning: '7–11 AM', midday: '11 AM–2 PM',
   afternoon: '2–5 PM', evening: '5–8 PM',
 };
 
@@ -162,7 +162,8 @@ export default function ClientDashboardPage() {
           <div className="space-y-3">
             {upcoming.map((appt: any) => {
               const dogNames = appt.dogs?.map((d: any) => d.name).join(', ') || 'Your pup';
-              const minutes = appt.duration_minutes || (appt.service_type === 'walk_60' ? 60 : 30);
+              const mins = appt.duration_minutes || (appt.service_type === 'walk_60' ? 60 : 30);
+              const durationLabel = mins >= 120 ? `${(mins / 60).toFixed(mins % 60 === 0 ? 0 : 1)}h` : `${mins} min`;
               const timeBlock = appt.client_time_block in TIME_BLOCK_LABELS
                 ? TIME_BLOCK_LABELS[appt.client_time_block as keyof typeof TIME_BLOCK_LABELS]
                 : appt.client_time_block;
@@ -174,7 +175,7 @@ export default function ClientDashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-espresso text-sm">
-                        {dogNames} | {minutes} min Visit
+                        {dogNames} | {durationLabel} Visit
                       </div>
                       <div className="text-xs text-taupe mt-0.5">
                         {dateStr} · {timeBlock}

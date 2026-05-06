@@ -40,8 +40,7 @@ const SERVICE_TYPES = [
 ];
 
 const TIME_BLOCKS = [
-  { value: 'early_morning', label: '7–10 AM',    startHour: 7,  endHour: 10 },
-  { value: 'morning',       label: '9–12 PM',    startHour: 9,  endHour: 12 },
+  { value: 'morning',       label: '7–11 AM',    startHour: 7,  endHour: 11 },
   { value: 'midday',        label: '11 AM–2 PM', startHour: 11, endHour: 14 },
   { value: 'afternoon',     label: '2–5 PM',     startHour: 14, endHour: 17 },
   { value: 'evening',       label: '5–8 PM',     startHour: 17, endHour: 20 },
@@ -53,8 +52,7 @@ function getTimeBlock(dateTimeStr: string): string {
   if (hour >= 17) return 'evening';
   if (hour >= 14) return 'afternoon';
   if (hour >= 11) return 'midday';
-  if (hour >= 9) return 'morning';
-  return 'early_morning';
+  return 'morning';
 }
 
 const TIME_SLOTS: string[] = [];
