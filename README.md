@@ -184,32 +184,66 @@ The `/shared` package (`@pupper/shared`) provides TypeScript interfaces used by 
 | **Domain** | GoDaddy | `thepupperclub.ca` (Cloudflare CDN) |
 | **Source** | GitHub | `Schoquette/thepupperclub.ca` |
 
-### Automatic Deployment — GitHub Webhook
+### Automatic Deployment — GitHub Actions CI/CD
 
-The server auto-deploys on every push to `main` via a GitHub webhook:
+Every push to `main` triggers an automatic deployment via GitHub Actions ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)). The workflow runs two parallel jobs:
 
-1. Code is pushed to GitHub
-2. GitHub sends a POST to `https://thepupperclub.ca/deploy.php`
-3. The script verifies the HMAC-SHA256 signature
-4. Runs `git pull origin main` on the server
+#### Job 1: Marketing Site → GitHub Pages (`deploy-site`)
 
-The webhook secret is configured in the GitHub repo settings. The deploy script logs all deployments to `deploy.log`.
+1. Checks out the repo
+2. Uploads the `/site` folder as a GitHub Pages artifact
+3. Deploys to GitHub Pages at `www.thepupperclub.ca`
 
-**Important — shared hosting constraints:**
+#### Job 2: API + Web Portal → GoDaddy (`deploy-godaddy`)
 
-- The server is GoDaddy shared hosting (Windows OS) with **no SSH or CLI access**
-- `composer install`, `npm run build`, `php artisan migrate` **cannot be run on the server**
-- Therefore, `api/vendor/` and `web/dist/` **must be committed to the repo** so they deploy via git pull
-- Database migrations are run via `migrate.php` (see below)
-- Temporary migration endpoints in `api/routes/api.php` can be used for one-off schema changes
-- The `.env` file is managed directly on the server via GoDaddy admin panel
+This job builds everything from source in CI and deploys via FTP — nothing needs to be pre-built or committed locally.
 
-### Deploy Workflow
+1. **Checkout** — clones the repo
+2. **Node.js setup** — installs Node 20 with npm caching
+3. **Install dependencies** — runs `npm install` for the `web` and `shared` workspaces
+4. **Build web portal** — runs `npx vite build` in `/web` with production environment variables:
+   - `VITE_API_URL=https://thepupperclub.ca`
+   - `VITE_STRIPE_KEY` (from GitHub Secrets)
+   - `VITE_GOOGLE_MAPS_KEY` (from GitHub Secrets)
+5. **PHP setup** — installs PHP 8.2 for Composer
+6. **Install Composer dependencies** — runs `composer install --no-dev --optimize-autoloader` in `/api`, creating required storage directories first
+7. **Deploy API via FTP** — uploads the entire `/api` directory (including `vendor/`) to `api/` on the server, excluding `.git`, `node_modules`, storage logs/cache/sessions/views, and `.env`
+8. **Deploy web portal via FTP** — uploads the built `/web/dist/` contents to the server root (`./`)
 
-1. Make changes locally
-2. If frontend changed: `cd web && npm run build && git add web/dist`
-3. If Composer packages changed: `cd api && composer install && git add api/vendor api/composer.lock`
-4. Commit and `git push` — auto-deploys to production
+#### GitHub Secrets Required
+
+The following secrets must be configured in the repo settings (**Settings > Secrets and variables > Actions**):
+
+| Secret | Purpose |
+|--------|---------|
+| `FTP_SERVER` | GoDaddy FTP hostname |
+| `FTP_USERNAME` | FTP username |
+| `FTP_PASSWORD` | FTP password |
+| `VITE_STRIPE_KEY` | Stripe publishable key (injected at build time) |
+| `VITE_GOOGLE_MAPS_KEY` | Google Maps API key (injected at build time) |
+
+#### What This Means for Development
+
+Since the CI pipeline handles building and deploying:
+
+- **You do NOT need to commit `web/dist/` or `api/vendor/`** — the CI builds these fresh each deploy
+- **You do NOT need to run `npm run build` locally** before pushing (unless testing locally)
+- **You do NOT need to run `composer install` locally** before pushing (unless testing locally)
+- Just commit your source code changes, push to `main`, and the workflow handles the rest
+- The `.env` file is **never deployed** — it is managed directly on the server via the hosting admin panel
+
+#### Monitoring Deploys
+
+- View deploy status at: **Actions** tab in the GitHub repo
+- Each push shows both jobs with detailed logs
+- Failed deploys do not affect the live site (FTP upload is atomic per-file)
+
+#### Database Migrations
+
+Since the server has no SSH or CLI access, database schema changes are handled via:
+
+- **`migrate.php`** — a web-accessible migration runner (see below)
+- **Temporary migration endpoints** in `api/routes/api.php` — one-off `Route::get('/fix-something-9x7k', ...)` endpoints that run raw SQL, visited once in the browser, then removed
 
 ### Database Management — `migrate.php`
 
