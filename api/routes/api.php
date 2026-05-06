@@ -63,10 +63,24 @@ Route::get('/fix-billing-enum-9x7k', function () {
 
 // Temporary: clear config cache (REMOVE after confirming)
 Route::get('/clear-cache-9x7k', function () {
+    // Also manually delete cached config file
+    $cachedConfig = base_path('bootstrap/cache/config.php');
+    $hadCache = file_exists($cachedConfig);
+    if ($hadCache) {
+        @unlink($cachedConfig);
+    }
+
     \Illuminate\Support\Facades\Artisan::call('config:clear');
     \Illuminate\Support\Facades\Artisan::call('route:clear');
     \Illuminate\Support\Facades\Artisan::call('view:clear');
-    return response()->json(['message' => 'Config, route, and view caches cleared.']);
+
+    return response()->json([
+        'message' => 'All caches cleared.',
+        'had_cached_config' => $hadCache,
+        'frontend_url_now' => config('services.frontend_url'),
+        'env_frontend_url' => env('FRONTEND_URL'),
+        'config_file_exists' => file_exists($cachedConfig),
+    ]);
 });
 
 // Temporary: check mail config (REMOVE after confirming)
