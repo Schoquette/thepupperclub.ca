@@ -17,12 +17,13 @@
     body { font-family: DejaVu Sans, sans-serif; color: #3B2F2A; font-size: 11px; padding: 0; }
 
     .header {
-      background: #6492D8;
+      background: #F6F3EE;
       padding: 28px 40px;
       text-align: center;
+      border-bottom: 3px solid #C9A24D;
     }
     .header img { max-width: 180px; height: auto; }
-    .header-text { color: #ffffff; font-size: 10px; margin-top: 8px; letter-spacing: 0.05em; }
+    .header-text { color: #C8BFB6; font-size: 10px; margin-top: 8px; letter-spacing: 0.05em; }
 
     .body-content { padding: 32px 40px; }
 
@@ -69,14 +70,14 @@
   {{-- Branded header --}}
   <div class="header">
     @php
-      $logoPath = public_path('images/logo-cream-stacked.png');
+      $logoPath = public_path('images/logo-dark-stacked.png');
     @endphp
     @if(file_exists($logoPath))
       <img src="{{ $logoPath }}" alt="The Pupper Club" />
     @else
       <div style="color:#fff;font-size:20px;font-weight:bold;">The Pupper Club</div>
     @endif
-    <div class="header-text">Premium Dog Walking &amp; Care &bull; Port Moody, BC</div>
+    <div class="header-text">Curated Dog Care &bull; Port Moody, BC</div>
   </div>
 
   <div class="body-content">
@@ -355,7 +356,7 @@
   </div>
 
   <div class="footer">
-    <strong>The Pupper Club</strong> &bull; Premium Dog Walking &amp; Care &bull; Port Moody, BC<br>
+    <strong>The Pupper Club</strong> &bull; Curated Dog Care &bull; Port Moody, BC<br>
     thepupperclub.ca &bull; {{ $client->name }} — Intake Form &bull; {{ $submittedAt }}
   </div>
 

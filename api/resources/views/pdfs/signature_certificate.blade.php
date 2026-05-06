@@ -46,7 +46,7 @@
 
   <div class="header">
     <div class="brand">The Pupper Club</div>
-    <div class="sub">Premium Dog Walking &amp; Care Services</div>
+    <div class="sub">Curated Dog Care</div>
   </div>
 
   <h1>Document Signing Certificate</h1>

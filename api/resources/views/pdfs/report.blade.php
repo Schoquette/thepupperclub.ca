@@ -27,7 +27,7 @@
     /* Data table */
     table.data { width: 100%; border-collapse: collapse; margin-top: 4px; }
     table.data th {
-      background: #3B2F2A;
+      background: #6492D8;
       color: #F6F3EE;
       font-size: 9px;
       text-transform: uppercase;
@@ -67,7 +67,7 @@
 
   <div class="header">
     <div class="logo">The Pupper Club</div>
-    <div class="tagline">Premium Dog Walking &amp; Care</div>
+    <div class="tagline">Curated Dog Care</div>
     <div class="report-title">{{ $title }}</div>
     <div class="date-range">{{ $dateRange }}</div>
   </div>

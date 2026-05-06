@@ -5,8 +5,8 @@
   <style>
     body { font-family: 'Lato', Arial, sans-serif; background: #F6F3EE; margin: 0; padding: 0; }
     .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .header { background: #3B2F2A; padding: 32px 40px; text-align: center; }
-    .header h1 { color: #C9A24D; font-family: Georgia, serif; margin: 0; font-size: 28px; letter-spacing: 1px; }
+    .header { background: #F6F3EE; padding: 32px 40px; text-align: center; border-bottom: 3px solid #C9A24D; }
+    .header h1 { color: #3B2F2A; font-family: Georgia, serif; margin: 0; font-size: 28px; letter-spacing: 1px; }
     .header p { color: #C8BFB6; margin: 8px 0 0; font-size: 14px; }
     .body { padding: 40px; color: #3B2F2A; }
     .body h2 { font-size: 22px; margin-bottom: 16px; }
@@ -20,7 +20,7 @@
   <div class="container">
     <div class="header">
       <h1>THE PUPPER CLUB</h1>
-      <p>Premium Dog Walking & Care</p>
+      <p>Curated Dog Care</p>
     </div>
     <div class="body">
       <h2>Welcome to the team, {{ $user->name }}!</h2>
