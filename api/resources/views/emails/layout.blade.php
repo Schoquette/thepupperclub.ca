@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
   <style>
     body {
       font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;
@@ -119,23 +121,23 @@
     }
   </style>
 </head>
-<body>
-  <div class="wrapper">
-    <div class="container">
+<body style="margin:0;padding:0;background-color:#F6F3EE;font-family:'Lato','Helvetica Neue',Arial,sans-serif;">
+  <div class="wrapper" style="width:100%;background-color:#F6F3EE;padding:40px 0;">
+    <div class="container" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(59,47,42,0.08);">
       {{-- Header --}}
-      <div class="header">
-        <img src="cid:logo@thepupperclub.ca" alt="The Pupper Club" />
+      <div class="header" style="background-color:#6492D8;padding:32px 40px;text-align:center;">
+        <img src="cid:logo@thepupperclub.ca" alt="The Pupper Club" style="max-width:220px;height:auto;" />
       </div>
 
       {{-- Content --}}
-      <div class="email-body">
+      <div class="email-body" style="padding:40px;color:#3B2F2A;background-color:#ffffff;">
         @yield('body')
       </div>
 
       {{-- Footer --}}
-      <div class="footer">
-        <p>&copy; {{ date('Y') }} The Pupper Club</p>
-        <p>Port Moody, BC &middot; <a href="https://thepupperclub.ca">thepupperclub.ca</a></p>
+      <div class="footer" style="padding:24px 40px;text-align:center;border-top:1px solid #F6F3EE;background-color:#ffffff;">
+        <p style="color:#C8BFB6;font-size:12px;margin:0;line-height:1.6;">&copy; {{ date('Y') }} The Pupper Club</p>
+        <p style="color:#C8BFB6;font-size:12px;margin:0;line-height:1.6;">Port Moody, BC &middot; <a href="https://thepupperclub.ca" style="color:#6492D8;text-decoration:none;">thepupperclub.ca</a></p>
       </div>
     </div>
   </div>
