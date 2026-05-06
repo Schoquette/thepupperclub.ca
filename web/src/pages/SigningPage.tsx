@@ -221,7 +221,7 @@ export default function SigningPage() {
   return (
     <div className="min-h-screen bg-[#525659] flex flex-col">
       {/* Top bar */}
-      <div className="bg-espresso text-cream px-4 py-3 flex items-center justify-between flex-shrink-0">
+      <div className="bg-blue text-cream px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="The Pupper Club" className="w-7 h-7 object-contain" />
           <div>
@@ -244,7 +244,7 @@ export default function SigningPage() {
         {!showSignPanel && (
           <button
             onClick={handleContinueToSign}
-            className="bg-espresso text-cream text-sm font-semibold px-5 py-1.5 rounded-lg hover:bg-espresso/90 transition-colors flex items-center gap-1.5"
+            className="bg-blue text-cream text-sm font-semibold px-5 py-1.5 rounded-lg hover:bg-blue/90 transition-colors flex items-center gap-1.5"
           >
             Continue to Sign <ChevronDown className="w-4 h-4" />
           </button>
@@ -358,7 +358,7 @@ export default function SigningPage() {
                       onClick={() => { setMode(m); clearCanvas(); }}
                       className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                         mode === m
-                          ? 'bg-espresso text-cream border-espresso'
+                          ? 'bg-blue text-cream border-blue'
                           : 'border-taupe/40 text-espresso hover:bg-cream'
                       }`}
                     >
