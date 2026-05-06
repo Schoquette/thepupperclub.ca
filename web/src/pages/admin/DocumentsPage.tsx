@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
-import { Upload } from 'lucide-react';
+import { Upload, ArrowUp, ArrowDown, Pencil, Trash2, Check, X } from 'lucide-react';
 
 function DocumentPreviewFrame({ docId }: { docId: number }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -39,11 +39,49 @@ function DocumentPreviewFrame({ docId }: { docId: number }) {
   return <iframe src={blobUrl} className="w-full h-[70vh] rounded-lg border border-cream" />;
 }
 
+type SortKey = 'filename' | 'client' | 'status' | 'date';
+type SortDir = 'asc' | 'desc';
+
+function SortHeader({ label, sortKey, current, dir, onSort }: {
+  label: string; sortKey: SortKey; current: SortKey; dir: SortDir; onSort: (k: SortKey) => void;
+}) {
+  const active = current === sortKey;
+  return (
+    <th
+      className="px-4 py-3 font-semibold text-espresso cursor-pointer select-none hover:bg-cream/30 transition-colors"
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active && (dir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
+      </span>
+    </th>
+  );
+}
+
 export default function AdminDocumentsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'all' | 'templates' | 'signed' | 'sent' | 'drafts'>('all');
   const [search, setSearch] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
+
+  // Sorting
+  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  // Rename state
+  const [renameId, setRenameId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   // Upload template modal
   const [showUpload, setShowUpload] = useState(false);
@@ -76,8 +114,14 @@ export default function AdminDocumentsPage() {
   // Documents list
   const statusFilter = tab === 'signed' ? 'signed' : tab === 'sent' ? 'sent' : tab === 'drafts' ? 'draft' : undefined;
   const { data: docsData, isLoading: docsLoading, isError: docsError, error: docsErrorObj } = useQuery({
-    queryKey: ['admin-documents', statusFilter, search],
-    queryFn: () => api.get('/admin/documents', { params: { status: statusFilter, search: search || undefined } }).then(r => r.data),
+    queryKey: ['admin-documents', statusFilter, search, clientFilter],
+    queryFn: () => api.get('/admin/documents', {
+      params: {
+        status: statusFilter,
+        search: search || undefined,
+        client_id: clientFilter || undefined,
+      },
+    }).then(r => r.data),
     enabled: tab !== 'templates',
   });
 
@@ -86,6 +130,37 @@ export default function AdminDocumentsPage() {
     queryKey: ['admin-clients-simple'],
     queryFn: () => api.get('/admin/clients').then(r => r.data.data),
   });
+
+  // Sort documents client-side
+  const sortedDocs = useMemo(() => {
+    const docs = [...(docsData?.data ?? [])];
+    const getStatus = (doc: any) => {
+      if (doc.signed_at) return 'signed';
+      if (doc.sent_at) return 'sent';
+      return doc.status || 'draft';
+    };
+    const getDate = (doc: any) => doc.signed_at || doc.sent_at || doc.created_at || '';
+
+    docs.sort((a: any, b: any) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'filename':
+          cmp = (a.filename || '').localeCompare(b.filename || '');
+          break;
+        case 'client':
+          cmp = (a.user?.name || '').localeCompare(b.user?.name || '');
+          break;
+        case 'status':
+          cmp = getStatus(a).localeCompare(getStatus(b));
+          break;
+        case 'date':
+          cmp = getDate(a).localeCompare(getDate(b));
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return docs;
+  }, [docsData?.data, sortKey, sortDir]);
 
   // Upload template
   const uploadTemplate = useMutation({
@@ -150,6 +225,23 @@ export default function AdminDocumentsPage() {
     onError: (e: any) => setDocUploadError(e.response?.data?.message || 'Upload failed.'),
   });
 
+  // Rename document
+  const renameDoc = useMutation({
+    mutationFn: ({ id, filename }: { id: number; filename: string }) =>
+      api.patch(`/admin/documents/${id}/rename`, { filename }),
+    onSuccess: () => {
+      setRenameId(null);
+      setRenameValue('');
+      qc.invalidateQueries({ queryKey: ['admin-documents'] });
+    },
+  });
+
+  // Delete document
+  const deleteDoc = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/documents/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-documents'] }),
+  });
+
   // Send for signing
   const [sendError, setSendError] = useState('');
   const sendDoc = useMutation({
@@ -164,9 +256,8 @@ export default function AdminDocumentsPage() {
     return doc.status || 'draft';
   };
 
-  /** Template-based docs need fields defined before sending */
   const canSend = (doc: any): boolean => {
-    if (!doc.template_id) return true; // non-template docs can always be sent
+    if (!doc.template_id) return true;
     return (doc.template?.fields?.length ?? 0) > 0;
   };
   const needsFields = (doc: any): boolean => {
@@ -203,7 +294,7 @@ export default function AdminDocumentsPage() {
         </div>
       )}
 
-      {/* Tabs + search */}
+      {/* Tabs + search + client filter */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex rounded-lg border border-taupe/50 overflow-hidden text-sm w-fit overflow-x-auto">
           {tabs.map(t => (
@@ -219,12 +310,24 @@ export default function AdminDocumentsPage() {
           ))}
         </div>
         {tab !== 'templates' && (
-          <Input
-            placeholder="Search documents or clients..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="sm:max-w-xs"
-          />
+          <>
+            <Input
+              placeholder="Search documents..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="sm:max-w-xs"
+            />
+            <select
+              value={clientFilter}
+              onChange={e => setClientFilter(e.target.value)}
+              className="border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40 sm:max-w-xs"
+            >
+              <option value="">All Clients</option>
+              {(clients ?? []).map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </>
         )}
       </div>
 
@@ -238,58 +341,56 @@ export default function AdminDocumentsPage() {
               </Card>
             ) : (
               <Card padding="none">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-cream text-left">
-                        <th className="px-6 py-4 font-semibold text-espresso">Template</th>
-                        <th className="px-6 py-4 font-semibold text-espresso">Fields</th>
-                        <th className="px-6 py-4 font-semibold text-espresso">Used</th>
-                        <th className="px-6 py-4 font-semibold text-espresso">Created</th>
-                        <th className="px-6 py-4"></th>
+                <table className="w-full text-sm table-fixed">
+                  <thead>
+                    <tr className="border-b border-cream text-left">
+                      <th className="px-4 py-3 font-semibold text-espresso w-[40%]">Template</th>
+                      <th className="px-4 py-3 font-semibold text-espresso w-[12%]">Fields</th>
+                      <th className="px-4 py-3 font-semibold text-espresso w-[10%]">Used</th>
+                      <th className="px-4 py-3 font-semibold text-espresso w-[16%]">Created</th>
+                      <th className="px-4 py-3 w-[22%]"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {templates.map((t: any) => (
+                      <tr key={t.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-espresso break-words">{t.name}</div>
+                          <div className="text-xs text-taupe break-words">{t.pdf_filename}</div>
+                        </td>
+                        <td className="px-4 py-3 text-taupe">{t.fields_count} fields</td>
+                        <td className="px-4 py-3 text-taupe">{t.documents_count}x</td>
+                        <td className="px-4 py-3 text-xs text-taupe">
+                          {t.created_at ? format(new Date(t.created_at), 'MMM d, yyyy') : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setUseModal(t); setUseClientId(''); setUseError(''); }}
+                              className="text-gold hover:text-gold/80 text-sm font-medium"
+                            >
+                              Use
+                            </button>
+                            <button
+                              onClick={() => navigate(`/admin/documents/templates/${t.id}/edit`)}
+                              className="text-blue hover:underline text-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete "${t.name}"?`)) deleteTemplate.mutate(t.id);
+                              }}
+                              className="text-red-400 hover:text-red-600 text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {templates.map((t: any) => (
-                        <tr key={t.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
-                          <td className="px-6 py-4">
-                            <div className="font-medium text-espresso">{t.name}</div>
-                            <div className="text-xs text-taupe">{t.pdf_filename}</div>
-                          </td>
-                          <td className="px-6 py-4 text-taupe">{t.fields_count} fields</td>
-                          <td className="px-6 py-4 text-taupe">{t.documents_count}x</td>
-                          <td className="px-6 py-4 text-xs text-taupe">
-                            {t.created_at ? format(new Date(t.created_at), 'MMM d, yyyy') : '—'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => { setUseModal(t); setUseClientId(''); setUseError(''); }}
-                                className="text-gold hover:text-gold/80 text-sm font-medium"
-                              >
-                                Use
-                              </button>
-                              <button
-                                onClick={() => navigate(`/admin/documents/templates/${t.id}/edit`)}
-                                className="text-blue hover:underline text-sm"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Delete "${t.name}"?`)) deleteTemplate.mutate(t.id);
-                                }}
-                                className="text-red-400 hover:text-red-600 text-sm"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </Card>
             )}
           </div>
@@ -307,75 +408,126 @@ export default function AdminDocumentsPage() {
           </Card>
         ) : (
           <Card padding="none">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-cream text-left">
-                    <th className="px-6 py-4 font-semibold text-espresso">Document</th>
-                    <th className="px-6 py-4 font-semibold text-espresso">Client</th>
-                    <th className="px-6 py-4 font-semibold text-espresso">Status</th>
-                    <th className="px-6 py-4 font-semibold text-espresso">Date</th>
-                    <th className="px-6 py-4"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(docsData?.data ?? []).map((doc: any) => {
-                    const st = docStatus(doc);
-                    return (
-                      <tr key={doc.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-espresso">{doc.filename}</div>
-                          {doc.template && (
-                            <div className="text-xs text-taupe">From: {doc.template.name}</div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-taupe">{doc.user?.name ?? '—'}</td>
-                        <td className="px-6 py-4">
-                          <Badge variant={statusBadge(st)}>{st}</Badge>
-                        </td>
-                        <td className="px-6 py-4 text-xs text-taupe">
-                          {doc.signed_at
-                            ? format(new Date(doc.signed_at), 'MMM d, yyyy')
-                            : doc.sent_at
-                            ? format(new Date(doc.sent_at), 'MMM d, yyyy')
-                            : doc.created_at
-                            ? format(new Date(doc.created_at), 'MMM d, yyyy')
-                            : '—'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            {st === 'draft' && canSend(doc) && (
-                              <button
-                                onClick={() => { setSendError(''); sendDoc.mutate(doc.id); }}
-                                className="text-gold hover:text-gold/80 text-sm font-medium"
-                              >
-                                Send
-                              </button>
-                            )}
-                            {st === 'draft' && needsFields(doc) && (
-                              <button
-                                onClick={() => navigate(`/admin/documents/templates/${doc.template_id}/edit`)}
-                                className="text-red-500 hover:text-red-700 text-xs font-medium"
-                                title="Define signing fields before sending"
-                              >
-                                Define Fields
-                              </button>
-                            )}
+            <table className="w-full text-sm table-fixed">
+              <thead>
+                <tr className="border-b border-cream text-left">
+                  <SortHeader label="Document" sortKey="filename" current={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="Client" sortKey="client" current={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="Status" sortKey="status" current={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="Date" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
+                  <th className="px-4 py-3 w-[160px]"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedDocs.map((doc: any) => {
+                  const st = docStatus(doc);
+                  const isRenaming = renameId === doc.id;
+                  return (
+                    <tr key={doc.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
+                      <td className="px-4 py-3">
+                        {isRenaming ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              autoFocus
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && renameValue.trim()) {
+                                  renameDoc.mutate({ id: doc.id, filename: renameValue.trim() });
+                                } else if (e.key === 'Escape') {
+                                  setRenameId(null);
+                                }
+                              }}
+                              className="border border-gold/60 rounded px-2 py-1 text-sm text-espresso w-full focus:outline-none focus:ring-2 focus:ring-gold/40"
+                            />
                             <button
-                              onClick={() => setPreviewDoc(doc)}
-                              className="text-blue hover:underline text-sm"
+                              onClick={() => renameValue.trim() && renameDoc.mutate({ id: doc.id, filename: renameValue.trim() })}
+                              className="text-green-600 hover:text-green-800 flex-shrink-0"
+                              title="Save"
                             >
-                              View
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setRenameId(null)}
+                              className="text-taupe hover:text-espresso flex-shrink-0"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {(docsData?.data ?? []).length === 0 && (
+                        ) : (
+                          <div>
+                            <div className="font-medium text-espresso break-words">{doc.filename}</div>
+                            {doc.template && (
+                              <div className="text-xs text-taupe break-words">From: {doc.template.name}</div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-taupe break-words">{doc.user?.name ?? '—'}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={statusBadge(st)}>{st}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-taupe whitespace-nowrap">
+                        {doc.signed_at
+                          ? format(new Date(doc.signed_at), 'MMM d, yyyy')
+                          : doc.sent_at
+                          ? format(new Date(doc.sent_at), 'MMM d, yyyy')
+                          : doc.created_at
+                          ? format(new Date(doc.created_at), 'MMM d, yyyy')
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {st === 'draft' && canSend(doc) && (
+                            <button
+                              onClick={() => { setSendError(''); sendDoc.mutate(doc.id); }}
+                              className="text-gold hover:text-gold/80 text-sm font-medium"
+                            >
+                              Send
+                            </button>
+                          )}
+                          {st === 'draft' && needsFields(doc) && (
+                            <button
+                              onClick={() => navigate(`/admin/documents/templates/${doc.template_id}/edit`)}
+                              className="text-red-500 hover:text-red-700 text-xs font-medium"
+                              title="Define signing fields before sending"
+                            >
+                              Define Fields
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setPreviewDoc(doc)}
+                            className="text-blue hover:underline text-sm"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => { setRenameId(doc.id); setRenameValue(doc.filename); }}
+                            className="text-taupe hover:text-espresso"
+                            title="Rename"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete "${doc.filename}"? This cannot be undone.`)) {
+                                deleteDoc.mutate(doc.id);
+                              }
+                            }}
+                            className="text-red-400 hover:text-red-600"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {sortedDocs.length === 0 && (
               <div className="text-center py-12 text-taupe">No documents found.</div>
             )}
           </Card>

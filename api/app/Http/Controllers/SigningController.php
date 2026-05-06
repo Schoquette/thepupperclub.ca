@@ -101,6 +101,20 @@ class SigningController extends Controller
             abort_if($document->signed_at, 410, 'This document has already been signed.');
         }
 
+        // Track first view and notify admin (client signing only)
+        if (!$isCountersign && !$document->first_viewed_at) {
+            $document->update(['first_viewed_at' => now()]);
+
+            // Notify admin that client opened the document
+            $admin = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
+            $client = $document->user;
+            if ($admin && $client) {
+                $title = "Document viewed — {$document->filename}";
+                $body  = "{$client->name} has opened \"{$document->filename}\" for the first time.";
+                app(NotificationDispatcher::class)->notify($admin, $title, $body);
+            }
+        }
+
         $fields = [];
         $targetRole = $isCountersign ? 'company' : 'client';
 
@@ -281,8 +295,8 @@ class SigningController extends Controller
             // No company fields — generate certificate immediately
             $this->generateCertificate($document->fresh('user'));
 
-            // Notify admin via conversation
-            $admin = \App\Models\User::where('role', 'admin')->first();
+            // Notify admin via conversation + push/email
+            $admin = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
             if ($admin) {
                 $conversation = Conversation::firstOrCreate(['user_id' => $document->user_id]);
                 $conversation->messages()->create([
@@ -291,6 +305,11 @@ class SigningController extends Controller
                     'body'      => "I've signed the document \"{$document->filename}\".",
                     'metadata'  => ['system' => true, 'document_id' => $document->id],
                 ]);
+
+                $clientName = $document->user?->name ?? $data['signer_name'];
+                $title = "Document signed — {$document->filename}";
+                $body  = "{$clientName} has signed \"{$document->filename}\".";
+                app(NotificationDispatcher::class)->notify($admin, $title, $body);
             }
         }
 

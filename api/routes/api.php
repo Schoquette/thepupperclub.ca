@@ -146,6 +146,13 @@ Route::get('/add-signing-cols-9x7k', function () {
             $results[] = "added $col to client_documents";
         }
     }
+    // first_viewed_at for document view tracking
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('client_documents', 'first_viewed_at')) {
+        \Illuminate\Support\Facades\Schema::table('client_documents', function ($t) {
+            $t->timestamp('first_viewed_at')->nullable();
+        });
+        $results[] = 'added first_viewed_at to client_documents';
+    }
     return response()->json(['results' => $results ?: ['all columns already exist']]);
 });
 
@@ -390,6 +397,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Admin document management
         Route::get('/documents',                                 [Admin\DocumentTemplateController::class, 'adminIndex']);
         Route::patch('/documents/{document}/field-values',       [Admin\DocumentTemplateController::class, 'updateFieldValues']);
+        Route::patch('/documents/{document}/rename',             [Admin\DocumentTemplateController::class, 'renameDocument']);
+        Route::delete('/documents/{document}',                   [Admin\DocumentTemplateController::class, 'deleteDocument']);
         Route::post('/documents/{document}/send',                [Admin\DocumentTemplateController::class, 'sendForSigning']);
 
         // Dogs

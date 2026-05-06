@@ -35,6 +35,7 @@ class ClientDocument extends Model
         'countersigner_ip',
         'countersign_signature_data',
         'countersign_field_values',
+        'first_viewed_at',
     ];
 
     protected function casts(): array
@@ -47,6 +48,7 @@ class ClientDocument extends Model
             'field_values'           => 'array',
             'countersigned_at'       => 'datetime',
             'countersign_field_values' => 'array',
+            'first_viewed_at'          => 'datetime',
         ];
     }
 

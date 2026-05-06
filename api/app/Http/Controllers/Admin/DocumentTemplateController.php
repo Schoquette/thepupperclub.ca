@@ -203,6 +203,10 @@ class DocumentTemplateController extends Controller
             }
         }
 
+        if ($request->client_id) {
+            $query->where('user_id', $request->client_id);
+        }
+
         if ($request->search) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -214,6 +218,31 @@ class DocumentTemplateController extends Controller
         $documents = $query->paginate(50);
 
         return response()->json($documents);
+    }
+
+    public function renameDocument(Request $request, ClientDocument $document): JsonResponse
+    {
+        $data = $request->validate([
+            'filename' => 'required|string|max:255',
+        ]);
+
+        $document->update(['filename' => $data['filename']]);
+
+        return response()->json(['data' => $document->load(['user', 'template.fields']), 'message' => 'Document renamed.']);
+    }
+
+    public function deleteDocument(ClientDocument $document): JsonResponse
+    {
+        if ($document->storage_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($document->storage_path)) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($document->storage_path);
+        }
+        if ($document->signed_pdf_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($document->signed_pdf_path)) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($document->signed_pdf_path);
+        }
+
+        $document->delete();
+
+        return response()->json(['message' => 'Document deleted.']);
     }
 
     public function updateFieldValues(Request $request, ClientDocument $document): JsonResponse
