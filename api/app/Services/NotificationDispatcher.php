@@ -131,10 +131,10 @@ class NotificationDispatcher
                     $logoPart->setContentId('logo@thepupperclub.ca');
                     $symfony->addPart($logoPart);
                 }
-                // Reply-To: use inbound address so replies route through the webhook,
-                // falling back to the admin's email if no inbound is configured
+                // Reply-To: use inbound address so replies route into the app.
+                // If not configured, use MAIL_FROM_ADDRESS (not the admin's personal email).
                 $inbound = config('services.resend.inbound_address');
-                $message->replyTo($inbound ?: $replyTo ?: config('mail.from.address'));
+                $message->replyTo($inbound ?: config('mail.from.address'));
             });
         } catch (\Throwable $e) {
             Log::warning('NotificationDispatcher: Email failed', [
