@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Document, Page, pdfjs } from 'react-pdf';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 type AssignedTo = 'client' | 'company';
 
@@ -78,8 +81,10 @@ export default function TemplateEditorPage() {
     enabled: !!id,
   });
 
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [pdfError, setPdfError] = useState('');
+  const [pdfNumPages, setPdfNumPages] = useState<number>(1);
+  const [pdfPageWidth, setPdfPageWidth] = useState(800);
 
   useEffect(() => {
     if (template) {
@@ -95,36 +100,39 @@ export default function TemplateEditorPage() {
 
   useEffect(() => {
     if (!id) return;
-    let revoked = false;
+    let cancelled = false;
     setPdfError('');
-    api.get(`/admin/document-templates/${id}/pdf`, { responseType: 'blob' })
+    api.get(`/admin/document-templates/${id}/pdf`, { responseType: 'arraybuffer' })
       .then(res => {
-        if (revoked) return;
-        if (res.data.type && !res.data.type.includes('pdf')) {
-          setPdfError('Server returned non-PDF response. The template file may be missing.');
-          return;
-        }
-        const url = URL.createObjectURL(res.data);
-        setPdfBlobUrl(url);
+        if (cancelled) return;
+        setPdfData(res.data);
       })
       .catch((err) => {
-        if (!revoked) {
+        if (!cancelled) {
           const status = err.response?.status;
           setPdfError(status === 404
             ? 'PDF file not found on server. Try re-uploading the template.'
             : `Failed to load PDF (${status || 'network error'}).`);
         }
       });
-    return () => { revoked = true; if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
+    return () => { cancelled = true; };
   }, [id]);
 
+  const [saveError, setSaveError] = useState('');
   const saveFields = useMutation({
     mutationFn: () => api.put(`/admin/document-templates/${id}/fields`, { fields }),
     onSuccess: () => {
       setSaved(true);
+      setSaveError('');
       setTimeout(() => setSaved(false), 3000);
       qc.invalidateQueries({ queryKey: ['document-template', id] });
       qc.invalidateQueries({ queryKey: ['document-templates'] });
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || err.response?.data?.errors
+        ? JSON.stringify(err.response.data.errors)
+        : 'Failed to save fields.';
+      setSaveError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     },
   });
 
@@ -141,8 +149,8 @@ export default function TemplateEditorPage() {
       page: currentPage,
       x: 10,
       y: 10 + (fields.filter(f => f.page === currentPage).length * 8),
-      width: addType === 'signature' ? 30 : addType === 'checkbox' ? 5 : 25,
-      height: addType === 'signature' ? 10 : addType === 'checkbox' ? 4 : 5,
+      width: addType === 'signature' ? 20 : addType === 'checkbox' ? 3 : 15,
+      height: addType === 'signature' ? 5 : addType === 'checkbox' ? 2.5 : 3,
       required: true,
       sort_order: fields.length,
       default_value: '',
@@ -248,10 +256,24 @@ export default function TemplateEditorPage() {
   }, [dragging, fields]);
 
   const pageFields = fields.filter(f => f.page === currentPage);
+  // Measure container width for PDF rendering
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setPdfPageWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(el);
+    setPdfPageWidth(el.clientWidth || 800);
+    return () => observer.disconnect();
+  }, []);
+
   const visiblePageFields = roleFilter === 'all'
     ? pageFields
     : pageFields.filter(f => f.assigned_to === roleFilter);
-  const totalPages = template?.page_count ?? 1;
+  const totalPages = pdfNumPages || template?.page_count || 1;
 
   const clientFieldCount = fields.filter(f => f.assigned_to === 'client').length;
   const companyFieldCount = fields.filter(f => f.assigned_to === 'company').length;
@@ -313,6 +335,11 @@ export default function TemplateEditorPage() {
       {saved && (
         <div className="bg-green-50 text-green-700 text-sm font-medium px-4 py-2.5 rounded-lg">
           Fields saved successfully!
+        </div>
+      )}
+      {saveError && (
+        <div className="bg-red-50 text-red-700 text-sm font-medium px-4 py-2.5 rounded-lg">
+          Save failed: {saveError}
         </div>
       )}
 
@@ -446,17 +473,25 @@ export default function TemplateEditorPage() {
           <div
             ref={containerRef}
             className="relative"
-            style={{ minHeight: 600, transform: `scale(${zoom})`, transformOrigin: 'top left', width: `${100 / zoom}%` }}
+            style={{ minHeight: 400, transform: `scale(${zoom})`, transformOrigin: 'top left', width: `${100 / zoom}%` }}
             onClick={() => setSelectedIdx(null)}
           >
             {/* PDF as background */}
-            {pdfBlobUrl ? (
-              <iframe
-                src={`${pdfBlobUrl}#page=${currentPage}&toolbar=0`}
-                className="w-full pointer-events-none"
-                style={{ height: 900 }}
-                title="Template PDF"
-              />
+            {pdfData ? (
+              <Document
+                file={{ data: pdfData }}
+                onLoadSuccess={(pdf) => setPdfNumPages(pdf.numPages)}
+                loading={<div className="flex items-center justify-center" style={{ height: 700 }}><p className="text-taupe text-sm">Rendering PDF...</p></div>}
+                error={<div className="flex items-center justify-center" style={{ height: 700 }}><p className="text-red-500 text-sm">Failed to render PDF.</p></div>}
+              >
+                <Page
+                  pageNumber={currentPage}
+                  width={pdfPageWidth}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                  className="pointer-events-none"
+                />
+              </Document>
             ) : (
               <div className="flex items-center justify-center flex-col gap-3" style={{ height: 700 }}>
                 {pdfError ? (
