@@ -33,7 +33,12 @@ export default function SetPasswordPage() {
       setDone(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Could not set password. The link may have expired.');
+      const msg = err.response?.data?.message || '';
+      if (msg.toLowerCase().includes('token') || msg.toLowerCase().includes('invalid')) {
+        setError('This link has expired or has already been used. Please ask your walker to resend the invitation, or use "Forgot Password" on the login page.');
+      } else {
+        setError(msg || 'Could not set password. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -83,6 +88,9 @@ export default function SetPasswordPage() {
               <Button type="submit" loading={loading} className="w-full" size="lg">
                 Set Password &amp; Sign In
               </Button>
+              <p className="text-center text-xs text-taupe mt-3">
+                Link not working? <Link to="/forgot-password" className="text-blue hover:underline font-medium">Reset your password here</Link>
+              </p>
             </form>
           )}
         </div>
