@@ -75,7 +75,7 @@ class ReportCardService
             $arrivalTime   = $report->arrival_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
             $departureTime = $report->departure_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
             $visitDate     = $report->arrival_time?->setTimezone('America/Vancouver')->format('F j, Y') ?? '';
-            $portalUrl     = rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/report-cards';
+            $portalUrl     = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/report-cards';
 
             // Build checklist HTML for token replacement
             $checklistHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;">';

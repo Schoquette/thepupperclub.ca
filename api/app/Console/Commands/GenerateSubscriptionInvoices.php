@@ -117,7 +117,7 @@ class GenerateSubscriptionInvoices extends Command
                 'dueDate'       => $billingDate,
                 'billingPeriod' => null,
                 'paymentMethod' => $methodLabel,
-                'portalUrl'     => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/billing',
+                'portalUrl'     => rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/billing',
             ])->render();
 
             $dispatcher->notify($client, $title, $body, $htmlBody);

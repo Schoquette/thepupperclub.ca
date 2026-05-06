@@ -91,3 +91,19 @@ jobs:
           protocol: ftp
           local-dir: ./web/dist/
           server-dir: ./
+
+      - name: Delete cached config before deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          local-dir: ./api/bootstrap/cache/
+          server-dir: api/bootstrap/cache/
+          dangerous-clean-slate: true
+
+      - name: Clear server config cache
+        run: |
+          sleep 5
+          curl -s -o /dev/null -w "%{http_code}" https://thepupperclub.ca/api/clear-cache-9x7k || true

@@ -18,7 +18,7 @@ class ClientInvitationMail extends Mailable
         public string $token,
         public ?string $tempPassword
     ) {
-        $frontendUrl = rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
+        $frontendUrl = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
         $this->setPasswordUrl = "{$frontendUrl}/set-password?token={$token}&email=" . urlencode($user->email);
     }
 

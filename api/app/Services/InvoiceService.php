@@ -147,9 +147,9 @@ class InvoiceService
         ];
 
         $portalUrls = [
-            'invoice'  => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/invoices',
-            'reminder' => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/billing',
-            'paid'     => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/invoices',
+            'invoice'  => rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/invoices',
+            'reminder' => rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/billing',
+            'paid'     => rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/invoices',
         ];
 
         $title = $titles[$type] ?? $titles['invoice'];
@@ -227,7 +227,7 @@ class InvoiceService
             'customer'             => $stripeCustomerId,
             'payment_method'       => $paymentMethodId,
             'confirm'              => true,
-            'return_url'           => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/invoices',
+            'return_url'           => rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/invoices',
             'metadata'             => ['invoice_id' => $invoice->id],
         ]);
 
