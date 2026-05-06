@@ -60,7 +60,14 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json(['data' => $request->user()->load('clientProfile')]);
+        $user = $request->user()->load('clientProfile');
+
+        // Include notification prefs for admins from users table
+        if ($user->isAdmin() && \Illuminate\Support\Facades\Schema::hasColumn('users', 'notify_app')) {
+            $user->makeVisible(['notify_app', 'notify_email', 'notify_sms']);
+        }
+
+        return response()->json(['data' => $user]);
     }
 
     public function setPassword(Request $request): JsonResponse
@@ -203,5 +210,29 @@ class AuthController extends Controller
         $request->validate(['expo_push_token' => 'required|string']);
         $request->user()->update(['expo_push_token' => $request->expo_push_token]);
         return response()->json(['message' => 'Push token updated.']);
+    }
+
+    public function updateNotificationPreferences(Request $request): JsonResponse
+    {
+        $request->validate([
+            'notify_app'   => 'required|boolean',
+            'notify_email' => 'required|boolean',
+            'notify_sms'   => 'required|boolean',
+        ]);
+
+        $user = $request->user();
+
+        // For admins, store on users table; for clients, store on client_profiles
+        if ($user->isAdmin()) {
+            User::ensureNotifyColumns();
+            $user->update($request->only('notify_app', 'notify_email', 'notify_sms'));
+        } else {
+            $profile = $user->clientProfile;
+            if ($profile) {
+                $profile->update($request->only('notify_app', 'notify_email', 'notify_sms'));
+            }
+        }
+
+        return response()->json(['message' => 'Notification preferences updated.']);
     }
 }

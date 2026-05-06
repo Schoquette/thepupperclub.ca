@@ -70,16 +70,25 @@ class NotificationDispatcher
             'notify_sms'   => false,
         ];
 
+        // Admins: read prefs from users table
+        if (in_array($user->role, ['admin', 'superadmin'])) {
+            if (Schema::hasColumn('users', 'notify_app')) {
+                return [
+                    'notify_app'   => $user->notify_app ?? true,
+                    'notify_email' => $user->notify_email ?? true,
+                    'notify_sms'   => $user->notify_sms ?? false,
+                ];
+            }
+            return ['notify_app' => true, 'notify_email' => true, 'notify_sms' => false];
+        }
+
+        // Clients: read prefs from client_profiles table
         if (!Schema::hasColumn('client_profiles', 'notify_app')) {
             return $defaults;
         }
 
         $profile = $user->clientProfile;
         if (!$profile) {
-            // Admins: always send email + app notifications
-            if (in_array($user->role, ['admin', 'superadmin'])) {
-                return ['notify_app' => true, 'notify_email' => true, 'notify_sms' => false];
-            }
             return $defaults;
         }
 

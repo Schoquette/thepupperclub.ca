@@ -119,6 +119,12 @@ Route::get('/fix-dog-size-enum-9x7k', function () {
     }
 });
 
+// Temporary: add notify columns to users table for admin prefs (REMOVE after running)
+Route::get('/add-user-notify-cols-9x7k', function () {
+    \App\Models\User::ensureNotifyColumns();
+    return response()->json(['message' => 'notify_app, notify_email, notify_sms added to users table.']);
+});
+
 // Temporary: create email_logs and error_logs tables (REMOVE after running)
 Route::get('/create-log-tables-9x7k', function () {
     $results = [];
@@ -308,6 +314,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/auth/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/delete-account',    [AuthController::class, 'deleteAccount']);
     Route::patch('/auth/push-token',      [AuthController::class, 'updatePushToken']);
+    Route::patch('/auth/notification-preferences', [AuthController::class, 'updateNotificationPreferences']);
 
     // ── Admin ─────────────────────────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->group(function () {

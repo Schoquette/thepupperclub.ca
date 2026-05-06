@@ -26,7 +26,24 @@ class User extends Authenticatable
         'home_city',
         'home_province',
         'home_postal_code',
+        'notify_app',
+        'notify_email',
+        'notify_sms',
     ];
+
+    /**
+     * Ensure notify columns exist on users table (admin prefs).
+     */
+    public static function ensureNotifyColumns(): void
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'notify_app')) {
+            \Illuminate\Support\Facades\Schema::table('users', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->boolean('notify_app')->default(true);
+                $table->boolean('notify_email')->default(false);
+                $table->boolean('notify_sms')->default(false);
+            });
+        }
+    }
 
     protected $hidden = [
         'password',

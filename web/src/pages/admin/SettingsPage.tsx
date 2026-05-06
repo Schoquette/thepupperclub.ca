@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Lock, Bell, Settings } from 'lucide-react';
+import { Lock, Bell, Settings, Mail, MessageSquare, Smartphone } from 'lucide-react';
 
 export default function AdminSettingsPage() {
+  const qc = useQueryClient();
+
+  // Fetch current user
+  const { data: userData } = useQuery({
+    queryKey: ['auth-me'],
+    queryFn: () => api.get('/auth/me').then(r => r.data.data),
+  });
+
   // Password
   const [pwForm, setPwForm] = useState({ current_password: '', password: '', password_confirmation: '' });
   const [pwMsg, setPwMsg] = useState('');
+
+  // Notification preferences
+  const [notifForm, setNotifForm] = useState<Record<string, boolean> | null>(null);
+  const [notifEditing, setNotifEditing] = useState(false);
 
   // Browser notifications
   const [browserNotifStatus, setBrowserNotifStatus] = useState<NotificationPermission>(
@@ -36,6 +48,20 @@ export default function AdminSettingsPage() {
     },
   });
 
+  const updateNotifs = useMutation({
+    mutationFn: (prefs: Record<string, boolean>) => api.patch('/auth/notification-preferences', prefs),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['auth-me'] });
+      setNotifEditing(false);
+    },
+  });
+
+  const notifChannels = [
+    { key: 'notify_app', label: 'In-app notifications', icon: Smartphone, desc: 'Push notifications on mobile app' },
+    { key: 'notify_email', label: 'Email', icon: Mail, desc: 'Get notified via email' },
+    { key: 'notify_sms', label: 'Text message (SMS)', icon: MessageSquare, desc: 'Receive SMS alerts' },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -43,13 +69,83 @@ export default function AdminSettingsPage() {
         <h1 className="page-title">Settings</h1>
       </div>
 
+      {/* Notification Preferences */}
+      <Card>
+        <CardHeader
+          title="Alert Preferences"
+          action={
+            notifEditing ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setNotifEditing(false)}>Cancel</Button>
+                <Button size="sm" loading={updateNotifs.isPending} onClick={() => notifForm && updateNotifs.mutate(notifForm)}>Save</Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => {
+                setNotifForm({
+                  notify_app: userData?.notify_app ?? true,
+                  notify_email: userData?.notify_email ?? true,
+                  notify_sms: userData?.notify_sms ?? false,
+                });
+                setNotifEditing(true);
+              }}>
+                Edit
+              </Button>
+            )
+          }
+        />
+        <p className="text-sm text-taupe mb-4">
+          Choose how you receive alerts when clients send messages, submit requests, or when appointments need attention.
+        </p>
+
+        {notifEditing && notifForm ? (
+          <div className="space-y-2">
+            {notifChannels.map(({ key, label, icon: Icon, desc }) => (
+              <label key={key} className="flex items-center gap-4 cursor-pointer p-3 rounded-xl hover:bg-cream/50 border border-transparent hover:border-cream transition-colors">
+                <input
+                  type="checkbox"
+                  checked={!!notifForm[key]}
+                  onChange={e => setNotifForm(f => ({ ...f!, [key]: e.target.checked }))}
+                  className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold flex-shrink-0"
+                />
+                <Icon className="w-5 h-5 text-taupe flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-medium text-espresso">{label}</span>
+                  <p className="text-xs text-taupe">{desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {(userData?.notify_app ?? true) && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">
+                <Smartphone className="w-3 h-3" /> In-app
+              </span>
+            )}
+            {(userData?.notify_email ?? true) && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">
+                <Mail className="w-3 h-3" /> Email
+              </span>
+            )}
+            {!!userData?.notify_sms && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">
+                <MessageSquare className="w-3 h-3" /> SMS
+              </span>
+            )}
+            {!(userData?.notify_app ?? true) && !(userData?.notify_email ?? true) && !userData?.notify_sms && (
+              <span className="text-xs text-taupe">None selected</span>
+            )}
+          </div>
+        )}
+      </Card>
+
       {/* Browser/Desktop Notifications */}
       {typeof Notification !== 'undefined' && (
         <Card>
           <CardHeader title="Desktop Notifications" />
           <div className="space-y-3">
             <p className="text-sm text-taupe">
-              Get browser notifications when clients send messages, submit requests, or when appointments need attention.
+              Get browser notifications when clients send messages, submit requests, or when appointments need attention — even when you're on another tab.
             </p>
             {browserNotifStatus === 'granted' ? (
               <div className="flex items-center gap-2 text-sm text-green-600 font-medium">

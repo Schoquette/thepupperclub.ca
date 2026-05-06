@@ -55,6 +55,7 @@ export default function TemplateEditorPage() {
   });
 
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState('');
 
   useEffect(() => {
     if (template) {
@@ -68,13 +69,25 @@ export default function TemplateEditorPage() {
   useEffect(() => {
     if (!id) return;
     let revoked = false;
+    setPdfError('');
     api.get(`/admin/document-templates/${id}/pdf`, { responseType: 'blob' })
       .then(res => {
         if (revoked) return;
+        if (res.data.type && !res.data.type.includes('pdf')) {
+          setPdfError('Server returned non-PDF response. The template file may be missing.');
+          return;
+        }
         const url = URL.createObjectURL(res.data);
         setPdfBlobUrl(url);
       })
-      .catch(() => setPdfBlobUrl(null));
+      .catch((err) => {
+        if (!revoked) {
+          const status = err.response?.status;
+          setPdfError(status === 404
+            ? 'PDF file not found on server. Try re-uploading the template.'
+            : `Failed to load PDF (${status || 'network error'}).`);
+        }
+      });
     return () => { revoked = true; if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
   }, [id]);
 
@@ -303,8 +316,15 @@ export default function TemplateEditorPage() {
                 title="Template PDF"
               />
             ) : (
-              <div className="flex items-center justify-center" style={{ height: 700 }}>
-                <p className="text-taupe text-sm">Loading PDF...</p>
+              <div className="flex items-center justify-center flex-col gap-3" style={{ height: 700 }}>
+                {pdfError ? (
+                  <>
+                    <p className="text-red-500 text-sm font-medium">{pdfError}</p>
+                    <p className="text-xs text-taupe">You can still add and position fields — they'll align when the PDF is available.</p>
+                  </>
+                ) : (
+                  <p className="text-taupe text-sm">Loading PDF...</p>
+                )}
               </div>
             )}
 
