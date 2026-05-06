@@ -24,8 +24,10 @@ class ClientInvitationMail extends Mailable
 
     public function build(): static
     {
+        $replyAddr = config('services.resend.inbound_address') ?: config('mail.from.address');
         $mailable = $this
             ->subject("Welcome to The Pupper Club! Set your password")
+            ->replyTo($replyAddr)
             ->view('emails.client-invitation');
 
         // Embed logo as CID inline attachment (same as broadcast emails)

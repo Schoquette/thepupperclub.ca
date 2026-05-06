@@ -124,8 +124,10 @@ class ReportCardService
                 'portalUrl'          => $portalUrl,
             ])->render();
 
+            $replyAddr = config('services.resend.inbound_address') ?: config('mail.from.address');
             $mail->to($client->email, $client->name)
                  ->subject($customSubject ?? 'Visit Report Card — The Pupper Club')
+                 ->replyTo($replyAddr)
                  ->html($html);
 
             // Embed logo as inline CID attachment
