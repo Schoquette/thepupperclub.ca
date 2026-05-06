@@ -105,6 +105,118 @@ Route::get('/fix-dog-size-enum-9x7k', function () {
     }
 });
 
+// Temporary: create document tables (REMOVE after running)
+Route::get('/create-document-tables-9x7k', function () {
+    $results = [];
+    try {
+        // 1. Create client_documents if missing
+        if (!\Illuminate\Support\Facades\Schema::hasTable('client_documents')) {
+            \Illuminate\Support\Facades\DB::statement("
+                CREATE TABLE client_documents (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    user_id BIGINT UNSIGNED NOT NULL,
+                    dog_id BIGINT UNSIGNED NULL,
+                    type ENUM('vaccination_record','vet_record','service_agreement','liability_waiver','intake_form','other') NOT NULL,
+                    filename VARCHAR(255) NOT NULL,
+                    mime_type VARCHAR(255) NOT NULL,
+                    size_bytes INT UNSIGNED NOT NULL,
+                    storage_path VARCHAR(255) NOT NULL,
+                    uploaded_by ENUM('admin','client') NOT NULL DEFAULT 'client',
+                    signature_requested_at TIMESTAMP NULL,
+                    signature_token VARCHAR(64) NULL,
+                    signed_at TIMESTAMP NULL,
+                    signer_name VARCHAR(255) NULL,
+                    signer_ip VARCHAR(255) NULL,
+                    signature_data LONGTEXT NULL,
+                    signed_pdf_path VARCHAR(255) NULL,
+                    created_at TIMESTAMP NULL,
+                    updated_at TIMESTAMP NULL,
+                    CONSTRAINT client_documents_user_id_foreign FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    CONSTRAINT client_documents_dog_id_foreign FOREIGN KEY (dog_id) REFERENCES dogs(id) ON DELETE SET NULL,
+                    UNIQUE KEY client_documents_signature_token_unique (signature_token)
+                )
+            ");
+            $results[] = 'client_documents table created';
+        } else {
+            // Add signature columns if missing
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('client_documents', 'signature_requested_at')) {
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN signature_requested_at TIMESTAMP NULL AFTER uploaded_by");
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN signature_token VARCHAR(64) NULL AFTER signature_requested_at");
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN signed_at TIMESTAMP NULL AFTER signature_token");
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN signer_name VARCHAR(255) NULL AFTER signed_at");
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN signer_ip VARCHAR(255) NULL AFTER signer_name");
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN signature_data LONGTEXT NULL AFTER signer_ip");
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN signed_pdf_path VARCHAR(255) NULL AFTER signature_data");
+                $results[] = 'signature columns added to client_documents';
+            }
+            $results[] = 'client_documents already exists';
+        }
+
+        // 2. Create document_templates if missing
+        if (!\Illuminate\Support\Facades\Schema::hasTable('document_templates')) {
+            \Illuminate\Support\Facades\DB::statement("
+                CREATE TABLE document_templates (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT NULL,
+                    pdf_storage_path VARCHAR(255) NOT NULL,
+                    pdf_filename VARCHAR(255) NOT NULL,
+                    page_count INT UNSIGNED NOT NULL DEFAULT 1,
+                    created_by BIGINT UNSIGNED NULL,
+                    created_at TIMESTAMP NULL,
+                    updated_at TIMESTAMP NULL,
+                    CONSTRAINT document_templates_created_by_foreign FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+                )
+            ");
+            $results[] = 'document_templates table created';
+        } else {
+            $results[] = 'document_templates already exists';
+        }
+
+        // 3. Create document_template_fields if missing
+        if (!\Illuminate\Support\Facades\Schema::hasTable('document_template_fields')) {
+            \Illuminate\Support\Facades\DB::statement("
+                CREATE TABLE document_template_fields (
+                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    template_id BIGINT UNSIGNED NOT NULL,
+                    label VARCHAR(255) NOT NULL,
+                    field_type VARCHAR(50) NOT NULL,
+                    page INT UNSIGNED NOT NULL DEFAULT 1,
+                    x DECIMAL(8,2) NOT NULL DEFAULT 0,
+                    y DECIMAL(8,2) NOT NULL DEFAULT 0,
+                    width DECIMAL(8,2) NOT NULL DEFAULT 20,
+                    height DECIMAL(8,2) NOT NULL DEFAULT 5,
+                    required TINYINT(1) NOT NULL DEFAULT 1,
+                    sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+                    default_value VARCHAR(255) NULL,
+                    created_at TIMESTAMP NULL,
+                    updated_at TIMESTAMP NULL,
+                    CONSTRAINT dtf_template_id_foreign FOREIGN KEY (template_id) REFERENCES document_templates(id) ON DELETE CASCADE
+                )
+            ");
+            $results[] = 'document_template_fields table created';
+        } else {
+            $results[] = 'document_template_fields already exists';
+        }
+
+        // 4. Add template columns to client_documents if missing
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('client_documents', 'template_id')) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN template_id BIGINT UNSIGNED NULL AFTER uploaded_by");
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'draft' AFTER template_id");
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN field_values JSON NULL AFTER status");
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN sent_at TIMESTAMP NULL AFTER field_values");
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE client_documents ADD COLUMN expires_at TIMESTAMP NULL AFTER sent_at");
+            $results[] = 'template columns added to client_documents';
+        } else {
+            $results[] = 'template columns already exist on client_documents';
+        }
+
+        return response()->json(['message' => 'Done', 'results' => $results]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage(), 'results' => $results], 500);
+    }
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
