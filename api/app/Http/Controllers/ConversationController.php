@@ -94,10 +94,14 @@ class ConversationController extends Controller
             // Notify client via their preferred channels
             $client = User::find($clientId);
             if ($client) {
+                $htmlBody = self::buildMessageEmailHtml(e($request->body));
                 app(NotificationDispatcher::class)->notify(
                     $client,
                     'New message from The Pupper Club',
                     $request->body,
+                    $htmlBody,
+                    [],
+                    $user->email,
                 );
             }
         }
@@ -143,10 +147,14 @@ class ConversationController extends Controller
             // Notify client via their preferred channels
             $client = User::find($clientId);
             if ($client) {
+                $htmlBody = self::buildMessageEmailHtml('You received a new photo message.');
                 app(NotificationDispatcher::class)->notify(
                     $client,
                     'New photo from The Pupper Club',
                     'You received a new photo message. Open the app to view it.',
+                    $htmlBody,
+                    [],
+                    $user->email,
                 );
             }
         }
@@ -307,5 +315,25 @@ class ConversationController extends Controller
                 $table->foreign('reply_to_id')->references('id')->on('messages')->nullOnDelete();
             });
         }
+    }
+
+    /**
+     * Build HTML body for message notification emails with reply instructions and portal button.
+     */
+    private static function buildMessageEmailHtml(string $messageContent): string
+    {
+        $portalUrl = 'https://thepupperclub.ca/client/messages';
+
+        return '<p>' . nl2br($messageContent) . '</p>'
+            . '<p style="margin-top:24px;color:#5a4a44;font-size:14px;">'
+            . 'To write back, reply directly to this email, or click the button below to reply in the portal.'
+            . '</p>'
+            . '<div style="text-align:center;margin:28px 0;">'
+            . '<a href="' . $portalUrl . '" style="'
+            . 'display:inline-block;background:#3B2F2A;color:#F6F3EE;'
+            . 'padding:14px 32px;border-radius:10px;text-decoration:none;'
+            . 'font-weight:600;font-size:15px;letter-spacing:0.3px;'
+            . '">Reply in Portal</a>'
+            . '</div>';
     }
 }
