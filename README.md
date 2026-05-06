@@ -52,12 +52,12 @@ thepupperclub.ca/
 - **Invoicing**: Create, send, pay via Stripe, PDF export, subscription billing with pause/resume
 - **Messaging**: Conversations with photo attachments, emoji reactions, reply threading, date separators
 - **Report Cards**: Post-visit reports with multi-photo support, per-dog checklists/notes, customizable templates per client, branded email with dog photo
-- **Document Management**: Upload PDF, Word (.doc/.docx), and images; self-hosted digital signatures with encrypted tokens; template system with visual field editor; authenticated preview via blob URL
+- **Document Management**: Upload PDF, Word (.doc/.docx), and images; self-hosted digital signatures (DocuSign-style full-screen signing experience) with encrypted tokens; template system with visual field editor (drag-to-position, corner resize handles, client/company recipient roles); counter-signing workflow (client signs -> admin counter-signs -> fully executed certificate); authenticated preview via blob URL
 - **Intake Forms**: 45-field intake form with branded PDF export (blue headings, black text, sentence case), Google Places address autocomplete for parent and vet addresses
 - **Auto-Mileage**: Automatic driving distance calculation on appointment completion via Google Maps Distance Matrix API (home -> client1 -> client2 -> ... -> home)
 - **Report Exports**: Download mileage, walk history, and billing reports as CSV or PDF
 - **Team Management**: Invite members, home address with Google Places autocomplete (Canadian addresses), role management
-- **Notifications**: Expo push notifications, multi-channel dispatch (app, email, SMS via Twilio), desktop/browser notifications (Web Notifications API), client notification preferences, admin email notifications
+- **Notifications**: Expo push notifications, multi-channel dispatch (app, email, SMS via Twilio), desktop/browser notifications (Web Notifications API), client notification preferences (app/email/SMS on `client_profiles`), admin notification preferences (app/email/SMS on `users` table), message notification emails include "Reply in Portal" button and reply-to address for two-way email
 - **Broadcast System**: Gmail-style rich text editor, system and marketing templates, inline image support, "also send email" override
 - **Two-Way Communication**: Chat messages dispatched to client's preferred channels, inbound email webhook for email replies, one-way SMS alerts with "Reply in app or by email" note
 - **Email System**: Resend HTTP API transport (custom Guzzle-based transport since GoDaddy blocks SMTP), branded email templates with CID inline logo, editable system email templates (8 templates with token-based customization), email log tracking all sent emails
@@ -95,11 +95,20 @@ thepupperclub.ca/
 
 #### Web Portal Pages (38+ pages)
 
-**Admin Pages** (23): Dashboard (with check-in, revenue stats, email/error logs), Clients list, Client detail, Dogs list, Intake form, Calendar, Service requests (with Stripe billing on approval), Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Template editor (with zoom controls), Broadcast messages, Email logs, Error logs, Audit logs, Settings (desktop notifications, password)
+**Admin Pages** (23): Dashboard (with check-in, revenue stats, email/error logs), Clients list, Client detail (with editable billing method/walks-per-week, plan history table), Dogs list, Intake form, Calendar, Service requests (with Stripe billing on approval), Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Template editor (react-pdf per-page rendering, drag-to-position fields, corner resize handles, client/company recipient roles, role-based color coding), Broadcast messages, Email logs, Error logs, Audit logs, Settings (notification preferences for app/email/SMS, desktop notifications, password)
 
-**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, desktop notifications, notification preferences, account deletion)
+**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions for Safari, Chrome iOS, and Android), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, desktop notifications, notification preferences, account deletion)
 
-**Shared**: Login, Set password, Forgot/reset password, Document signing
+**Shared**: Login, Set password, Forgot/reset password, Document signing (DocuSign-style full-screen, counter-sign support)
+
+#### PWA Support
+
+The web portal includes Progressive Web App features for a native-like home screen experience:
+
+- **Web manifest** (`web/public/manifest.json`) with app name, theme color (#3B2F2A), and icons (192x192, 512x512)
+- **Apple touch icon** (`web/public/apple-touch-icon.png`) — 180x180 with full logo on cream background
+- **Favicon** — leaping dog silhouette (`web/public/images/favicon-32.png`, `favicon-16.png`)
+- Dashboard includes instructions for adding to home screen on Safari, Chrome (iOS), and Android
 
 #### Reusable UI Components
 
@@ -130,7 +139,7 @@ Button, Input, Card, Badge, Modal, LoadingSpinner, MessageBubble (with emoji rea
 - Contact form wired to the Laravel API `/api/contact` endpoint
 - **SEO**: Open Graph tags, canonical links, JSON-LD structured data (LocalBusiness, FAQPage, Service schemas), robots.txt, sitemap.xml
 - **Legal**: Privacy Policy (BC PIPA compliant), Terms of Service (CASL compliant)
-- Custom favicon (leaping dog silhouette)
+- Custom favicon (leaping dog silhouette on cream background)
 
 #### Pages
 
@@ -211,7 +220,7 @@ This job builds everything from source in CI and deploys via FTP — nothing nee
    - `VITE_GOOGLE_MAPS_KEY` (from GitHub Secrets)
 5. **PHP setup** — installs PHP 8.2 for Composer
 6. **Install Composer dependencies** — runs `composer install --no-dev --optimize-autoloader` in `/api`, creating required storage directories first
-7. **Deploy API via FTP** — uploads the entire `/api` directory (including `vendor/`) to `api/` on the server, excluding `.git`, `node_modules`, storage logs/cache/sessions/views, and `.env`
+7. **Deploy API via FTP** — uploads the entire `/api` directory (including `vendor/`) to `api/` on the server, excluding `.git`, `node_modules`, storage logs/cache/sessions/views, `storage/app/**` (preserves uploaded documents/photos/templates), and `.env`
 8. **Deploy web portal via FTP** — uploads the built `/web/dist/` contents to the server root (`./`)
 9. **Wipe server config cache** — uses `dangerous-clean-slate` to delete `api/bootstrap/cache/` on the server, preventing stale cached config
 10. **Clear Laravel caches** — hits `clear-cache` endpoint to run `config:clear`, `route:clear`, `view:clear`
@@ -285,7 +294,7 @@ Migrations covering:
 - **Invoices** — line items, Stripe payment intents, PDF generation, invoice numbers (`PC-YYYY-NNNN`)
 - **Conversations & Messages** — threaded messaging with photo attachments, emoji reactions, reply threading (`reply_to_id`), notification type messages
 - **Documents** — client documents with digital signature support, templates with visual field editor
-- **Document Templates** — PDF templates with positioned form fields (name, checkbox, date, signature, dog_name, open_text)
+- **Document Templates** — PDF templates with positioned form fields (name, checkbox, date, signature, dog_name, open_text), `assigned_to` role per field (client/company), counter-sign fields (`countersign_token`, `countersigned_at`, `countersigner_name`, `countersigner_ip`, `countersign_signature_data`, `countersign_field_values`)
 - **System Email Templates** — admin-customizable email overrides with token support
 - **Onboarding Steps** — multi-step client onboarding flow
 - **Error Logs** — API exception tracking (type, message, context, URL, user)
@@ -375,7 +384,7 @@ npx expo start
 | `TWILIO_SID` | Twilio account SID (for SMS) |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | Twilio phone number |
-| `RESEND_INBOUND_ADDRESS` | `reply@thepupperclub.ca` (for two-way email) |
+| `RESEND_INBOUND_ADDRESS` | Reply-to address for inbound email routing (e.g. `reply@thepupperclub.ca`) |
 
 **Web (`web/.env`):**
 
@@ -393,7 +402,7 @@ npx expo start
 2. **Team addresses**: Set each team member's home address on the Team page (Admin -> Team) — required for automatic mileage calculation
 3. **Resend**: Verify `thepupperclub.ca` domain in Resend dashboard before sending from `hello@thepupperclub.ca`
 4. **Stripe webhook**: Register `https://thepupperclub.ca/api/webhooks/stripe` in Stripe dashboard
-5. **Resend inbound email**: Set up inbound webhook URL to `https://thepupperclub.ca/api/webhooks/email` for two-way email replies
+5. **Inbound email**: Set up email routing so replies to `RESEND_INBOUND_ADDRESS` are forwarded to `https://thepupperclub.ca/api/webhooks/email`. Options: Resend inbound webhooks, or Cloudflare Email Routing (if DNS is on Cloudflare) with a forwarding service
 6. **Twilio**: Create account, get phone number, add credentials to `.env` for SMS notifications
 7. **Cloudflare**: Add `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN` to GitHub Secrets for automatic cache purging on deploy
 
