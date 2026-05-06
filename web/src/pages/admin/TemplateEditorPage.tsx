@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 
+type AssignedTo = 'client' | 'company';
+
 interface Field {
   id?: number;
   label: string;
   field_type: string;
+  assigned_to: AssignedTo;
   page: number;
   x: number;
   y: number;
@@ -29,8 +32,27 @@ const FIELD_TYPES = [
   { value: 'open_text', label: 'Open Text',  color: '#9C7DBB' },
 ];
 
+const ROLES: { value: AssignedTo; label: string; color: string; bg: string }[] = [
+  { value: 'client',  label: 'Client',           color: '#6492D8', bg: 'bg-blue/10' },
+  { value: 'company', label: 'The Pupper Club',  color: '#C9A24D', bg: 'bg-gold/10' },
+];
+
+const roleColor = (role: AssignedTo) => ROLES.find(r => r.value === role)?.color ?? '#999';
+const roleLabel = (role: AssignedTo) => ROLES.find(r => r.value === role)?.label ?? role;
 const fieldColor = (type: string) => FIELD_TYPES.find(f => f.value === type)?.color ?? '#999';
 const fieldLabel = (type: string) => FIELD_TYPES.find(f => f.value === type)?.label ?? type;
+
+type DragState = {
+  idx: number;
+  mode: 'move' | 'resize';
+  startX: number;
+  startY: number;
+  origX: number;
+  origY: number;
+  origW: number;
+  origH: number;
+  corner?: string;
+};
 
 export default function TemplateEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,12 +63,14 @@ export default function TemplateEditorPage() {
   const [fields, setFields] = useState<Field[]>([]);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [addType, setAddType] = useState('name');
+  const [addRole, setAddRole] = useState<AssignedTo>('client');
   const [currentPage, setCurrentPage] = useState(1);
-  const [dragging, setDragging] = useState<{ idx: number; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [dragging, setDragging] = useState<DragState | null>(null);
   const [saved, setSaved] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDesc, setTemplateDesc] = useState('');
   const [zoom, setZoom] = useState(1);
+  const [roleFilter, setRoleFilter] = useState<AssignedTo | 'all'>('all');
 
   const { data: template, isLoading } = useQuery({
     queryKey: ['document-template', id],
@@ -59,13 +83,16 @@ export default function TemplateEditorPage() {
 
   useEffect(() => {
     if (template) {
-      setFields(template.fields?.map((f: any, i: number) => ({ ...f, sort_order: f.sort_order ?? i })) ?? []);
+      setFields(template.fields?.map((f: any, i: number) => ({
+        ...f,
+        assigned_to: f.assigned_to ?? 'client',
+        sort_order: f.sort_order ?? i,
+      })) ?? []);
       setTemplateName(template.name);
       setTemplateDesc(template.description ?? '');
     }
   }, [template]);
 
-  // Fetch PDF as authenticated blob
   useEffect(() => {
     if (!id) return;
     let revoked = false;
@@ -110,6 +137,7 @@ export default function TemplateEditorPage() {
     const newField: Field = {
       label: fieldLabel(addType),
       field_type: addType,
+      assigned_to: addRole,
       page: currentPage,
       x: 10,
       y: 10 + (fields.filter(f => f.page === currentPage).length * 8),
@@ -132,17 +160,38 @@ export default function TemplateEditorPage() {
     setFields(prev => prev.map((f, i) => i === idx ? { ...f, ...updates } : f));
   };
 
-  // Drag handling
+  // Move drag
   const handleMouseDown = useCallback((e: React.MouseEvent, idx: number) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedIdx(idx);
     setDragging({
       idx,
+      mode: 'move',
       startX: e.clientX,
       startY: e.clientY,
       origX: fields[idx].x,
       origY: fields[idx].y,
+      origW: fields[idx].width,
+      origH: fields[idx].height,
+    });
+  }, [fields]);
+
+  // Resize drag from corners
+  const handleResizeDown = useCallback((e: React.MouseEvent, idx: number, corner: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIdx(idx);
+    setDragging({
+      idx,
+      mode: 'resize',
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: fields[idx].x,
+      origY: fields[idx].y,
+      origW: fields[idx].width,
+      origH: fields[idx].height,
+      corner,
     });
   }, [fields]);
 
@@ -156,9 +205,36 @@ export default function TemplateEditorPage() {
     const handleMove = (e: MouseEvent) => {
       const dx = ((e.clientX - dragging.startX) / rect.width) * 100;
       const dy = ((e.clientY - dragging.startY) / rect.height) * 100;
-      const newX = Math.max(0, Math.min(100 - fields[dragging.idx].width, dragging.origX + dx));
-      const newY = Math.max(0, Math.min(100 - fields[dragging.idx].height, dragging.origY + dy));
-      updateField(dragging.idx, { x: Math.round(newX * 100) / 100, y: Math.round(newY * 100) / 100 });
+
+      if (dragging.mode === 'move') {
+        const newX = Math.max(0, Math.min(100 - fields[dragging.idx].width, dragging.origX + dx));
+        const newY = Math.max(0, Math.min(100 - fields[dragging.idx].height, dragging.origY + dy));
+        updateField(dragging.idx, {
+          x: Math.round(newX * 100) / 100,
+          y: Math.round(newY * 100) / 100,
+        });
+      } else if (dragging.mode === 'resize') {
+        const corner = dragging.corner!;
+        let newX = dragging.origX;
+        let newY = dragging.origY;
+        let newW = dragging.origW;
+        let newH = dragging.origH;
+
+        if (corner.includes('r')) { newW = Math.max(3, dragging.origW + dx); }
+        if (corner.includes('l')) { newX = dragging.origX + dx; newW = Math.max(3, dragging.origW - dx); }
+        if (corner.includes('b')) { newH = Math.max(2, dragging.origH + dy); }
+        if (corner.includes('t')) { newY = dragging.origY + dy; newH = Math.max(2, dragging.origH - dy); }
+
+        newX = Math.max(0, Math.min(97, newX));
+        newY = Math.max(0, Math.min(98, newY));
+
+        updateField(dragging.idx, {
+          x: Math.round(newX * 100) / 100,
+          y: Math.round(newY * 100) / 100,
+          width: Math.round(newW * 100) / 100,
+          height: Math.round(newH * 100) / 100,
+        });
+      }
     };
 
     const handleUp = () => setDragging(null);
@@ -172,7 +248,13 @@ export default function TemplateEditorPage() {
   }, [dragging, fields]);
 
   const pageFields = fields.filter(f => f.page === currentPage);
+  const visiblePageFields = roleFilter === 'all'
+    ? pageFields
+    : pageFields.filter(f => f.assigned_to === roleFilter);
   const totalPages = template?.page_count ?? 1;
+
+  const clientFieldCount = fields.filter(f => f.assigned_to === 'client').length;
+  const companyFieldCount = fields.filter(f => f.assigned_to === 'company').length;
 
   if (isLoading) {
     return (
@@ -181,6 +263,31 @@ export default function TemplateEditorPage() {
       </div>
     );
   }
+
+  // Resize handle component
+  const ResizeHandle = ({ corner, idx }: { corner: string; idx: number }) => {
+    const cursors: Record<string, string> = {
+      tl: 'nw-resize', tr: 'ne-resize', bl: 'sw-resize', br: 'se-resize',
+      t: 'n-resize', b: 's-resize', l: 'w-resize', r: 'e-resize',
+    };
+    const positions: Record<string, React.CSSProperties> = {
+      tl: { top: -4, left: -4 },
+      tr: { top: -4, right: -4 },
+      bl: { bottom: -4, left: -4 },
+      br: { bottom: -4, right: -4 },
+    };
+    return (
+      <div
+        onMouseDown={e => handleResizeDown(e, idx, corner)}
+        className="absolute w-2.5 h-2.5 bg-white border-2 border-espresso rounded-sm z-30"
+        style={{
+          cursor: cursors[corner],
+          ...positions[corner],
+          pointerEvents: 'auto',
+        }}
+      />
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -239,6 +346,23 @@ export default function TemplateEditorPage() {
         <Card padding="none">
           {/* Toolbar */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-cream flex-wrap">
+            {/* Role selector for new fields */}
+            <div className="flex rounded-lg border border-taupe/30 overflow-hidden">
+              {ROLES.map(r => (
+                <button
+                  key={r.value}
+                  onClick={() => setAddRole(r.value)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                    addRole === r.value
+                      ? 'text-white'
+                      : 'text-espresso hover:bg-cream'
+                  }`}
+                  style={addRole === r.value ? { backgroundColor: r.color } : {}}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <select
               value={addType}
               onChange={e => setAddType(e.target.value)}
@@ -248,7 +372,7 @@ export default function TemplateEditorPage() {
                 <option key={ft.value} value={ft.value}>{ft.label}</option>
               ))}
             </select>
-            <Button onClick={addField} variant="outline">
+            <Button onClick={addField} variant="outline" size="sm">
               + Add Field
             </Button>
             {totalPages > 1 && (
@@ -274,33 +398,51 @@ export default function TemplateEditorPage() {
             )}
           </div>
 
-          {/* Zoom controls */}
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}
-              className="px-2.5 py-1 text-sm rounded border border-taupe/30 text-espresso hover:bg-cream"
-            >
-              &minus;
-            </button>
-            <span className="text-sm text-espresso w-14 text-center">{Math.round(zoom * 100)}%</span>
-            <button
-              onClick={() => setZoom(z => Math.min(2, z + 0.1))}
-              className="px-2.5 py-1 text-sm rounded border border-taupe/30 text-espresso hover:bg-cream"
-            >
-              +
-            </button>
-            {zoom !== 1 && (
+          {/* Role filter + zoom */}
+          <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-cream/50">
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-taupe mr-1">Show:</span>
+              {[
+                { value: 'all' as const, label: 'All' },
+                ...ROLES.map(r => ({ value: r.value as AssignedTo | 'all', label: r.label })),
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setRoleFilter(opt.value)}
+                  className={`px-2.5 py-1 text-xs rounded-full font-medium transition-colors ${
+                    roleFilter === opt.value
+                      ? 'bg-espresso text-cream'
+                      : 'text-taupe hover:bg-cream'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setZoom(1)}
-                className="px-2 py-1 text-xs text-blue hover:underline"
+                onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}
+                className="px-2 py-0.5 text-sm rounded border border-taupe/30 text-espresso hover:bg-cream"
               >
-                Reset
+                &minus;
               </button>
-            )}
+              <span className="text-xs text-espresso w-10 text-center">{Math.round(zoom * 100)}%</span>
+              <button
+                onClick={() => setZoom(z => Math.min(2, z + 0.1))}
+                className="px-2 py-0.5 text-sm rounded border border-taupe/30 text-espresso hover:bg-cream"
+              >
+                +
+              </button>
+              {zoom !== 1 && (
+                <button onClick={() => setZoom(1)} className="px-2 py-0.5 text-xs text-blue hover:underline">
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
 
           {/* PDF + overlay container */}
-          <div className="overflow-auto bg-gray-100 rounded-lg" style={{ maxHeight: '80vh' }}>
+          <div className="overflow-auto bg-gray-100 rounded-b-lg" style={{ maxHeight: '80vh' }}>
           <div
             ref={containerRef}
             className="relative"
@@ -330,10 +472,10 @@ export default function TemplateEditorPage() {
 
             {/* Field overlays */}
             <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
-              {pageFields.map((field) => {
+              {visiblePageFields.map((field) => {
                 const globalIdx = fields.indexOf(field);
                 const isSelected = selectedIdx === globalIdx;
-                const color = fieldColor(field.field_type);
+                const color = roleColor(field.assigned_to);
                 return (
                   <div
                     key={globalIdx}
@@ -347,13 +489,23 @@ export default function TemplateEditorPage() {
                       top: `${field.y}%`,
                       width: `${field.width}%`,
                       height: `${field.height}%`,
-                      backgroundColor: color + (isSelected ? 'DD' : '99'),
+                      backgroundColor: color + (isSelected ? 'DD' : '88'),
+                      borderLeft: `3px solid ${color}`,
                       pointerEvents: 'auto',
                       zIndex: isSelected ? 20 : 10,
                     }}
-                    title={field.label}
+                    title={`${roleLabel(field.assigned_to)}: ${field.label}`}
                   >
                     <span className="truncate px-1">{field.label}</span>
+                    {/* Resize handles on selected */}
+                    {isSelected && (
+                      <>
+                        <ResizeHandle corner="tl" idx={globalIdx} />
+                        <ResizeHandle corner="tr" idx={globalIdx} />
+                        <ResizeHandle corner="bl" idx={globalIdx} />
+                        <ResizeHandle corner="br" idx={globalIdx} />
+                      </>
+                    )}
                   </div>
                 );
               })}
@@ -364,33 +516,72 @@ export default function TemplateEditorPage() {
 
         {/* Field list / properties panel */}
         <div className="space-y-3">
+          {/* Field list grouped by role */}
           <Card>
             <h3 className="font-display text-espresso text-sm mb-3">
               Fields ({fields.length})
             </h3>
-            <div className="space-y-1 max-h-64 overflow-y-auto">
-              {fields.length === 0 && (
-                <p className="text-xs text-taupe py-3 text-center">
-                  No fields yet. Select a type and click "+ Add Field" to place one on the document.
-                </p>
-              )}
-              {fields.map((field, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => { setSelectedIdx(idx); setCurrentPage(field.page); }}
-                  className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
-                    selectedIdx === idx ? 'bg-cream' : 'hover:bg-cream/50'
-                  }`}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: fieldColor(field.field_type) }}
-                  />
-                  <span className="flex-1 truncate text-espresso">{field.label}</span>
-                  <span className="text-taupe">p{field.page}</span>
-                </button>
-              ))}
-            </div>
+            {fields.length === 0 && (
+              <p className="text-xs text-taupe py-3 text-center">
+                No fields yet. Select a recipient and type, then click "+ Add Field".
+              </p>
+            )}
+
+            {/* Client fields */}
+            {clientFieldCount > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: roleColor('client') }} />
+                  <span className="text-xs font-semibold text-espresso uppercase tracking-wide">Client ({clientFieldCount})</span>
+                </div>
+                <div className="space-y-0.5">
+                  {fields.filter(f => f.assigned_to === 'client').map(field => {
+                    const idx = fields.indexOf(field);
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => { setSelectedIdx(idx); setCurrentPage(field.page); }}
+                        className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                          selectedIdx === idx ? 'bg-blue/10' : 'hover:bg-cream/50'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: fieldColor(field.field_type) }} />
+                        <span className="flex-1 truncate text-espresso">{field.label}</span>
+                        <span className="text-taupe">p{field.page}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Company fields */}
+            {companyFieldCount > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: roleColor('company') }} />
+                  <span className="text-xs font-semibold text-espresso uppercase tracking-wide">The Pupper Club ({companyFieldCount})</span>
+                </div>
+                <div className="space-y-0.5">
+                  {fields.filter(f => f.assigned_to === 'company').map(field => {
+                    const idx = fields.indexOf(field);
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => { setSelectedIdx(idx); setCurrentPage(field.page); }}
+                        className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                          selectedIdx === idx ? 'bg-gold/10' : 'hover:bg-cream/50'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: fieldColor(field.field_type) }} />
+                        <span className="flex-1 truncate text-espresso">{field.label}</span>
+                        <span className="text-taupe">p{field.page}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Selected field properties */}
@@ -403,6 +594,25 @@ export default function TemplateEditorPage() {
                   value={fields[selectedIdx].label}
                   onChange={e => updateField(selectedIdx, { label: e.target.value })}
                 />
+                <div>
+                  <label className="block text-sm font-medium text-espresso mb-1">Recipient</label>
+                  <div className="flex rounded-lg border border-taupe/30 overflow-hidden">
+                    {ROLES.map(r => (
+                      <button
+                        key={r.value}
+                        onClick={() => updateField(selectedIdx, { assigned_to: r.value })}
+                        className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
+                          fields[selectedIdx].assigned_to === r.value
+                            ? 'text-white'
+                            : 'text-espresso hover:bg-cream'
+                        }`}
+                        style={fields[selectedIdx].assigned_to === r.value ? { backgroundColor: r.color } : {}}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-espresso mb-1">Type</label>
                   <select
@@ -476,6 +686,16 @@ export default function TemplateEditorPage() {
 
           {/* Legend */}
           <Card>
+            <h3 className="font-display text-espresso text-sm mb-2">Recipients</h3>
+            <div className="space-y-1.5 mb-3">
+              {ROLES.map(r => (
+                <div key={r.value} className="flex items-center gap-2 text-xs">
+                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: r.color }} />
+                  <span className="text-espresso font-medium">{r.label}</span>
+                  <span className="text-taupe">— fills {r.value === 'client' ? 'first' : 'after client signs'}</span>
+                </div>
+              ))}
+            </div>
             <h3 className="font-display text-espresso text-sm mb-2">Field Types</h3>
             <div className="space-y-1">
               {FIELD_TYPES.map(ft => (

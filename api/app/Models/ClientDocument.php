@@ -29,6 +29,12 @@ class ClientDocument extends Model
         'signer_ip',
         'signature_data',
         'signed_pdf_path',
+        'countersign_token',
+        'countersigned_at',
+        'countersigner_name',
+        'countersigner_ip',
+        'countersign_signature_data',
+        'countersign_field_values',
     ];
 
     protected function casts(): array
@@ -39,6 +45,8 @@ class ClientDocument extends Model
             'sent_at'                => 'datetime',
             'expires_at'             => 'datetime',
             'field_values'           => 'array',
+            'countersigned_at'       => 'datetime',
+            'countersign_field_values' => 'array',
         ];
     }
 

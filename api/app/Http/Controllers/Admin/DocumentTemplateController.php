@@ -110,6 +110,7 @@ class DocumentTemplateController extends Controller
             'fields'                => 'present|array',
             'fields.*.label'        => 'required|string|max:255',
             'fields.*.field_type'   => 'required|string|in:name,checkbox,date,signature,dog_name,open_text',
+            'fields.*.assigned_to'  => 'sometimes|string|in:client,company',
             'fields.*.page'         => 'required|integer|min:1',
             'fields.*.x'            => 'required|numeric|min:0|max:100',
             'fields.*.y'            => 'required|numeric|min:0|max:100',

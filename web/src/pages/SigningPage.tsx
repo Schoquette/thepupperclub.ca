@@ -200,9 +200,13 @@ export default function SigningPage() {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
           </div>
-          <h2 className="text-2xl font-display text-espresso mb-2">Document Signed!</h2>
+          <h2 className="text-2xl font-display text-espresso mb-2">
+            {data?.is_countersign ? 'Document Counter-Signed!' : 'Document Signed!'}
+          </h2>
           <p className="text-taupe text-sm">
-            Thank you, {signerName}. Your signature has been recorded and a certificate has been generated.
+            {data?.is_countersign
+              ? `Thank you, ${signerName}. Your counter-signature has been recorded and the document is now complete.`
+              : `Thank you, ${signerName}. Your signature has been recorded.${data?.signer_role === 'client' ? '' : ''}`}
           </p>
           <p className="text-taupe text-xs mt-4">You can close this window.</p>
         </div>
@@ -222,7 +226,9 @@ export default function SigningPage() {
           <img src="/logo.png" alt="The Pupper Club" className="w-7 h-7 object-contain" />
           <div>
             <div className="font-display text-sm tracking-wide">THE PUPPER CLUB</div>
-            <div className="text-xs text-cream/60">Document Signing</div>
+            <div className="text-xs text-cream/60">
+              {data?.is_countersign ? 'Counter-Signature' : 'Document Signing'}
+            </div>
           </div>
         </div>
         <div className="text-sm text-cream/80">{data?.filename}</div>
@@ -231,7 +237,9 @@ export default function SigningPage() {
       {/* Action banner */}
       <div className="bg-gold/90 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
         <p className="text-sm font-medium text-espresso">
-          Please review this document, then sign below.
+          {data?.is_countersign
+            ? 'The client has signed. Please review and counter-sign below.'
+            : 'Please review this document, then sign below.'}
         </p>
         {!showSignPanel && (
           <button

@@ -125,6 +125,30 @@ Route::get('/add-user-notify-cols-9x7k', function () {
     return response()->json(['message' => 'notify_app, notify_email, notify_sms added to users table.']);
 });
 
+// Temporary: add assigned_to to template fields + countersign columns (REMOVE after running)
+Route::get('/add-signing-cols-9x7k', function () {
+    $results = [];
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('document_template_fields', 'assigned_to')) {
+        \Illuminate\Support\Facades\Schema::table('document_template_fields', function ($t) {
+            $t->string('assigned_to', 20)->default('client')->after('field_type');
+        });
+        $results[] = 'added assigned_to to document_template_fields';
+    }
+    $countersignCols = ['countersign_token', 'countersigned_at', 'countersigner_name', 'countersigner_ip', 'countersign_signature_data', 'countersign_field_values'];
+    foreach ($countersignCols as $col) {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('client_documents', $col)) {
+            \Illuminate\Support\Facades\Schema::table('client_documents', function ($t) use ($col) {
+                if ($col === 'countersigned_at') $t->timestamp($col)->nullable();
+                elseif ($col === 'countersign_field_values') $t->json($col)->nullable();
+                elseif ($col === 'countersign_signature_data') $t->longText($col)->nullable();
+                else $t->string($col, 255)->nullable();
+            });
+            $results[] = "added $col to client_documents";
+        }
+    }
+    return response()->json(['results' => $results ?: ['all columns already exist']]);
+});
+
 // Temporary: create email_logs and error_logs tables (REMOVE after running)
 Route::get('/create-log-tables-9x7k', function () {
     $results = [];

@@ -11,6 +11,7 @@ class DocumentTemplateField extends Model
         'template_id',
         'label',
         'field_type',
+        'assigned_to',
         'page',
         'x',
         'y',
