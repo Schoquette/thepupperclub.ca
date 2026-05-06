@@ -2,7 +2,9 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Document, Page, pdfjs } from 'react-pdf';
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const publicApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000',
@@ -14,12 +16,15 @@ interface TemplateField {
   id: number;
   label: string;
   field_type: string;
+  assigned_to: string;
   page: number;
   x: number;
   y: number;
   width: number;
   height: number;
   required: boolean;
+  sort_order: number;
+  default_value: string;
   value: string;
 }
 
@@ -27,6 +32,7 @@ export default function SigningPage() {
   const { token } = useParams<{ token: string }>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const signSectionRef = useRef<HTMLDivElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [signerName, setSignerName] = useState('');
@@ -38,6 +44,12 @@ export default function SigningPage() {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [showSignPanel, setShowSignPanel] = useState(false);
 
+  // PDF state
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [numPages, setNumPages] = useState(0);
+  const [pageWidth, setPageWidth] = useState(700);
+  const [focusedField, setFocusedField] = useState<number | null>(null);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['signing', token],
     queryFn: () => publicApi.get(`/api/signing/${token}`).then(r => r.data.data),
@@ -46,6 +58,29 @@ export default function SigningPage() {
 
   const hasFields = data?.has_fields && data?.fields?.length > 0;
   const fields: TemplateField[] = data?.fields ?? [];
+
+  // Load PDF as ArrayBuffer for react-pdf
+  useEffect(() => {
+    if (!token) return;
+    const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+    fetch(`${apiBase}/api/signing/${token}/document`)
+      .then(r => r.arrayBuffer())
+      .then(setPdfData)
+      .catch(() => {});
+  }, [token]);
+
+  // Track container width for responsive PDF
+  useEffect(() => {
+    const container = pdfContainerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setPageWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [data]);
 
   useEffect(() => {
     if (data?.field_values) {
@@ -171,6 +206,128 @@ export default function SigningPage() {
     setTimeout(() => signSectionRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
+  // Find unfilled required fields for progress indicator
+  const totalRequired = fields.filter(f => f.required && f.field_type !== 'signature').length;
+  const filledRequired = fields.filter(f => {
+    if (!f.required || f.field_type === 'signature') return false;
+    const val = fieldValues[f.id];
+    if (f.field_type === 'checkbox') return val === 'true' || val === '1';
+    return val && val.trim().length > 0;
+  }).length;
+
+  // Scroll to next empty required field
+  const scrollToNextField = () => {
+    const nextEmpty = fields.find(f => {
+      if (!f.required || f.field_type === 'signature') return false;
+      const val = fieldValues[f.id];
+      if (f.field_type === 'checkbox') return val !== 'true' && val !== '1';
+      return !val || !val.trim();
+    });
+    if (nextEmpty) {
+      const el = document.getElementById(`field-overlay-${nextEmpty.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setFocusedField(nextEmpty.id);
+        setTimeout(() => {
+          const input = el.querySelector('input, textarea') as HTMLElement;
+          input?.focus();
+        }, 400);
+      }
+    } else {
+      handleContinueToSign();
+    }
+  };
+
+  // Render a field overlay on the PDF
+  const renderFieldOverlay = (field: TemplateField) => {
+    const isFocused = focusedField === field.id;
+    const val = fieldValues[field.id] || '';
+    const isEmpty = field.field_type === 'checkbox' ? (val !== 'true' && val !== '1') : !val.trim();
+    const borderColor = isFocused ? '#C9A24D' : isEmpty && field.required ? '#6492D8' : '#C8BFB6';
+
+    const style: React.CSSProperties = {
+      position: 'absolute',
+      left: `${field.x}%`,
+      top: `${field.y}%`,
+      width: `${field.width}%`,
+      height: `${field.height}%`,
+      zIndex: 10,
+    };
+
+    if (field.field_type === 'signature') {
+      return (
+        <div key={field.id} style={style}>
+          <button
+            onClick={handleContinueToSign}
+            className="w-full h-full rounded border-2 border-dashed flex items-center justify-center text-xs font-medium transition-colors"
+            style={{
+              borderColor: '#C9A24D',
+              backgroundColor: 'rgba(201,162,77,0.08)',
+              color: '#C9A24D',
+            }}
+          >
+            Sign Here
+          </button>
+        </div>
+      );
+    }
+
+    if (field.field_type === 'checkbox') {
+      return (
+        <div key={field.id} id={`field-overlay-${field.id}`} style={style} className="flex items-center">
+          <label className="flex items-center gap-1.5 cursor-pointer bg-white/90 rounded px-1.5 py-0.5 shadow-sm border" style={{ borderColor }}>
+            <input
+              type="checkbox"
+              checked={val === 'true' || val === '1'}
+              onChange={e => updateFieldValue(field.id, e.target.checked ? 'true' : 'false')}
+              onFocus={() => setFocusedField(field.id)}
+              onBlur={() => setFocusedField(null)}
+              className="h-3.5 w-3.5 rounded border-taupe text-gold focus:ring-gold"
+            />
+            <span className="text-[10px] text-espresso leading-tight">{field.label}</span>
+          </label>
+        </div>
+      );
+    }
+
+    return (
+      <div key={field.id} id={`field-overlay-${field.id}`} style={style}>
+        {field.field_type === 'date' ? (
+          <input
+            type="date"
+            value={val}
+            onChange={e => updateFieldValue(field.id, e.target.value)}
+            onFocus={() => setFocusedField(field.id)}
+            onBlur={() => setFocusedField(null)}
+            className="w-full h-full rounded text-xs text-espresso bg-white/90 shadow-sm focus:outline-none focus:ring-2 focus:ring-gold/50 px-1.5"
+            style={{ border: `1.5px solid ${borderColor}` }}
+          />
+        ) : field.field_type === 'open_text' ? (
+          <textarea
+            value={val}
+            onChange={e => updateFieldValue(field.id, e.target.value)}
+            onFocus={() => setFocusedField(field.id)}
+            onBlur={() => setFocusedField(null)}
+            placeholder={field.label}
+            className="w-full h-full rounded text-xs text-espresso bg-white/90 shadow-sm focus:outline-none focus:ring-2 focus:ring-gold/50 px-1.5 py-1 resize-none"
+            style={{ border: `1.5px solid ${borderColor}` }}
+          />
+        ) : (
+          <input
+            type="text"
+            value={val}
+            onChange={e => updateFieldValue(field.id, e.target.value)}
+            onFocus={() => setFocusedField(field.id)}
+            onBlur={() => setFocusedField(null)}
+            placeholder={field.label}
+            className="w-full h-full rounded text-xs text-espresso bg-white/90 shadow-sm focus:outline-none focus:ring-2 focus:ring-gold/50 px-1.5"
+            style={{ border: `1.5px solid ${borderColor}` }}
+          />
+        )}
+      </div>
+    );
+  };
+
   // ── States ──────────────────────────────────────────────────────────────────
 
   if (isLoading) {
@@ -185,7 +342,7 @@ export default function SigningPage() {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <div className="text-4xl mb-4">🔒</div>
+          <div className="text-4xl mb-4">&#128274;</div>
           <h2 className="text-xl font-display text-espresso mb-2">Link Not Found</h2>
           <p className="text-taupe text-sm">This signing link is invalid, expired, or has already been used.</p>
         </div>
@@ -206,7 +363,7 @@ export default function SigningPage() {
           <p className="text-taupe text-sm">
             {data?.is_countersign
               ? `Thank you, ${signerName}. Your counter-signature has been recorded and the document is now complete.`
-              : `Thank you, ${signerName}. Your signature has been recorded.${data?.signer_role === 'client' ? '' : ''}`}
+              : `Thank you, ${signerName}. Your signature has been recorded.`}
           </p>
           <p className="text-taupe text-xs mt-4">You can close this window.</p>
         </div>
@@ -215,8 +372,6 @@ export default function SigningPage() {
   }
 
   const canSubmit = signerName.trim() && hasSignature && agreed && requiredFieldsFilled;
-  const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
-  const docUrl  = `${apiBase}/api/signing/${token}/document`;
 
   return (
     <div className="min-h-screen bg-[#525659] flex flex-col">
@@ -231,34 +386,61 @@ export default function SigningPage() {
             </div>
           </div>
         </div>
-        <div className="text-sm text-cream/80">{data?.filename}</div>
+        <div className="text-sm text-cream/80 truncate ml-4">{data?.filename}</div>
       </div>
 
       {/* Action banner */}
       <div className="bg-gold/90 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
         <p className="text-sm font-medium text-espresso">
-          {data?.is_countersign
+          {hasFields
+            ? `Fill in the highlighted fields below (${filledRequired}/${totalRequired}), then sign.`
+            : data?.is_countersign
             ? 'The client has signed. Please review and counter-sign below.'
             : 'Please review this document, then sign below.'}
         </p>
         {!showSignPanel && (
           <button
-            onClick={handleContinueToSign}
-            className="bg-blue text-cream text-sm font-semibold px-5 py-1.5 rounded-lg hover:bg-blue/90 transition-colors flex items-center gap-1.5"
+            onClick={hasFields && filledRequired < totalRequired ? scrollToNextField : handleContinueToSign}
+            className="bg-blue text-cream text-sm font-semibold px-5 py-1.5 rounded-lg hover:bg-blue/90 transition-colors flex items-center gap-1.5 whitespace-nowrap ml-3"
           >
-            Continue to Sign <ChevronDown className="w-4 h-4" />
+            {hasFields && filledRequired < totalRequired ? (
+              <>Next Field <ChevronDown className="w-4 h-4" /></>
+            ) : (
+              <>Continue to Sign <ChevronDown className="w-4 h-4" /></>
+            )}
           </button>
         )}
       </div>
 
-      {/* PDF viewer — fills available space */}
-      <div className="flex-1 flex items-stretch">
-        <iframe
-          src={docUrl}
-          className="w-full border-0"
-          style={{ minHeight: 'calc(100vh - 200px)' }}
-          title="Document to sign"
-        />
+      {/* PDF viewer with field overlays */}
+      <div className="flex-1 overflow-y-auto bg-[#525659]" ref={pdfContainerRef}>
+        <div className="max-w-4xl mx-auto py-4 px-2">
+          {pdfData ? (
+            <Document
+              file={{ data: pdfData }}
+              onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+              loading={<div className="text-center py-20 text-cream/60">Loading PDF...</div>}
+              error={<div className="text-center py-20 text-red-400">Failed to load PDF</div>}
+            >
+              {Array.from({ length: numPages }, (_, i) => (
+                <div key={i} className="relative mb-4 shadow-lg">
+                  <Page
+                    pageNumber={i + 1}
+                    width={pageWidth > 900 ? 880 : pageWidth - 16}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                  />
+                  {/* Field overlays for this page */}
+                  {fields
+                    .filter(f => (f.page || 1) === i + 1)
+                    .map(field => renderFieldOverlay(field))}
+                </div>
+              ))}
+            </Document>
+          ) : (
+            <div className="text-center py-20 text-cream/60">Loading document...</div>
+          )}
+        </div>
       </div>
 
       {/* Sign panel — slides in from bottom */}
@@ -284,55 +466,16 @@ export default function SigningPage() {
             </div>
 
             <div ref={signSectionRef} className="px-6 py-6 max-w-2xl mx-auto space-y-6">
-              {/* Template form fields */}
-              {hasFields && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-espresso uppercase tracking-wide">Required Information</h3>
-                  {fields
-                    .filter(f => f.field_type !== 'signature')
-                    .sort((a, b) => (a as any).sort_order - (b as any).sort_order)
-                    .map(field => (
-                      <div key={field.id}>
-                        <label className="block text-sm font-medium text-espresso mb-1">
-                          {field.label} {field.required && <span className="text-red-400">*</span>}
-                        </label>
-                        {field.field_type === 'checkbox' ? (
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={fieldValues[field.id] === 'true' || fieldValues[field.id] === '1'}
-                              onChange={e => updateFieldValue(field.id, e.target.checked ? 'true' : 'false')}
-                              className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
-                            />
-                            <span className="text-sm text-espresso">{field.label}</span>
-                          </label>
-                        ) : field.field_type === 'date' ? (
-                          <input
-                            type="date"
-                            value={fieldValues[field.id] || ''}
-                            onChange={e => updateFieldValue(field.id, e.target.value)}
-                            className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
-                          />
-                        ) : field.field_type === 'open_text' ? (
-                          <textarea
-                            value={fieldValues[field.id] || ''}
-                            onChange={e => updateFieldValue(field.id, e.target.value)}
-                            rows={3}
-                            className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
-                            placeholder={`Enter ${field.label.toLowerCase()}...`}
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={fieldValues[field.id] || ''}
-                            onChange={e => updateFieldValue(field.id, e.target.value)}
-                            className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
-                            placeholder={`Enter ${field.label.toLowerCase()}...`}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  <div className="border-b border-cream" />
+              {/* Show unfilled required fields warning */}
+              {hasFields && !requiredFieldsFilled && (
+                <div className="bg-blue/10 border border-blue/30 rounded-lg px-4 py-3 text-sm text-espresso">
+                  <strong>Some required fields are not filled in.</strong> Please scroll through the document and complete all highlighted fields before signing.
+                  <button
+                    onClick={() => { setShowSignPanel(false); scrollToNextField(); }}
+                    className="block mt-2 text-blue font-semibold hover:underline"
+                  >
+                    Go to next empty field
+                  </button>
                 </div>
               )}
 
@@ -439,7 +582,7 @@ export default function SigningPage() {
               </button>
 
               <p className="text-center text-xs text-taupe pb-2">
-                Secured by The Pupper Club · Signature certificate generated upon submission
+                Secured by The Pupper Club
               </p>
             </div>
           </div>
@@ -449,14 +592,16 @@ export default function SigningPage() {
       {/* Fixed bottom bar when sign panel is closed */}
       {!showSignPanel && (
         <div className="sticky bottom-0 bg-white border-t border-cream px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <p className="text-sm text-taupe hidden sm:block">
-            Review the document above, then click to sign.
-          </p>
+          <div className="text-sm text-taupe hidden sm:block">
+            {hasFields && filledRequired < totalRequired
+              ? `${filledRequired} of ${totalRequired} required fields completed`
+              : 'Review the document above, then click to sign.'}
+          </div>
           <button
-            onClick={handleContinueToSign}
+            onClick={hasFields && filledRequired < totalRequired ? scrollToNextField : handleContinueToSign}
             className="bg-gold text-espresso text-sm font-semibold px-8 py-3 rounded-xl hover:bg-gold/90 transition-colors shadow-lg w-full sm:w-auto"
           >
-            Continue to Sign
+            {hasFields && filledRequired < totalRequired ? 'Next Field' : 'Continue to Sign'}
           </button>
         </div>
       )}
