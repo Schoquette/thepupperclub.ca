@@ -36,8 +36,11 @@ class AppointmentService
         $scheduledCheck = Carbon::parse($scheduledTime->format('Y-m-d H:i:s'), 'America/Vancouver');
         abort_if($scheduledCheck->lt($nowPacific), 422, 'Cannot schedule appointments in the past.');
 
-        $this->validateBuffer($scheduledTime, null);
-        $this->validateBlockCapacity($data['client_time_block'], $scheduledTime->toDateString());
+        // Skip buffer/capacity checks if force flag is set (admin override)
+        if (empty($data['force'])) {
+            $this->validateBuffer($scheduledTime, null);
+            $this->validateBlockCapacity($data['client_time_block'], $scheduledTime->toDateString());
+        }
 
         if (!Schema::hasColumn('appointments', 'assigned_to')) {
             Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {

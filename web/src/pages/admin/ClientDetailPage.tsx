@@ -1077,9 +1077,10 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
     onSuccess: () => { setEditing(false); onSaved(); },
   });
 
+  const [justActivated, setJustActivated] = useState(false);
   const activate = useMutation({
     mutationFn: () => api.patch(`/admin/dogs/${dog.id}`, dogPayload({ ...buildDogForm(dog), is_active: true }, clientId)),
-    onSuccess: onSaved,
+    onSuccess: () => { setJustActivated(true); onSaved(); setTimeout(() => setJustActivated(false), 2500); },
   });
 
   const handleChange = (partial: Partial<DogForm>) => setForm(prev => ({ ...prev, ...partial }));
@@ -1130,17 +1131,21 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
               </div>
             </div>
             <div className="flex gap-1.5 flex-shrink-0">
-              {!dog.is_active && (
+              {!dog.is_active && !justActivated && (
                 <Button size="sm" variant="outline" loading={activate.isPending} onClick={() => activate.mutate()}>
                   Activate
                 </Button>
+              )}
+              {justActivated && (
+                <span className="text-sm font-medium text-green-600 px-2 py-1">Activated!</span>
               )}
               <Button size="sm" variant="outline" onClick={() => setShowProfile(true)}>Full Profile</Button>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>
             </div>
           </div>
           <div className="flex gap-2 mt-2 flex-wrap">
-            {!dog.is_active && <Badge variant="red">Pending Review</Badge>}
+            {!dog.is_active && !justActivated && <Badge variant="red">Pending Review</Badge>}
+            {justActivated && <Badge variant="green">Active</Badge>}
             {dog.bite_history && <Badge variant="red">Bite History</Badge>}
             {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
             {dog.off_leash_approved && <Badge variant="green">Off-Leash Approved</Badge>}

@@ -102,6 +102,7 @@ class AppointmentController extends Controller
         }
 
         $data = $request->validate($rules);
+        $data['force'] = filter_var($request->input('force', false), FILTER_VALIDATE_BOOLEAN);
 
         $appointment = $this->service->create($data);
 

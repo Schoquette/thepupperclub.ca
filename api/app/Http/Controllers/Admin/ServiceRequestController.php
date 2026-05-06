@@ -105,6 +105,7 @@ class ServiceRequestController extends Controller
             'scheduled_time'    => $data['scheduled_time'],
             'client_time_block' => $serviceRequest->preferred_time_block,
             'duration_minutes'  => $durations[$serviceRequest->service_type] ?? 30,
+            'force'             => true, // Admin already sees conflict warnings in UI
         ]);
 
         // Add charge to client's next invoice (unless included in plan)

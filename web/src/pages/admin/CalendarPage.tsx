@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
@@ -80,6 +80,83 @@ function formatDuration(d: number): string {
   if (d >= 480) return 'All day';
   if (d >= 60) return `${Math.floor(d / 60)}h${d % 60 ? ` ${d % 60}m` : ''}`;
   return `${d} min`;
+}
+
+const BUFFER_MINUTES = 15;
+
+type ScheduleWarning = {
+  type: 'overlap' | 'buffer';
+  clientName: string;
+  time: string;
+};
+
+function getScheduleWarnings(
+  assignedTo: string,
+  scheduledTime: string,
+  durationMinutes: number,
+  appointments: any[],
+  excludeId?: number,
+): ScheduleWarning[] {
+  if (!assignedTo || !scheduledTime || !durationMinutes) return [];
+
+  const assignedToNum = parseInt(assignedTo);
+  if (isNaN(assignedToNum)) return [];
+
+  const newStart = new Date(scheduledTime).getTime();
+  const newEnd = newStart + durationMinutes * 60_000;
+
+  if (isNaN(newStart)) return [];
+
+  const warnings: ScheduleWarning[] = [];
+
+  for (const appt of appointments) {
+    if (appt.id === excludeId) continue;
+    if (appt.status === 'cancelled') continue;
+    if (appt.assigned_admin?.id !== assignedToNum) continue;
+
+    const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const otherStart = new Date(localStr).getTime();
+    const otherEnd = otherStart + appt.duration_minutes * 60_000;
+
+    if (isNaN(otherStart)) continue;
+
+    const clientName = appt.user?.name || 'Unknown';
+    const timeLabel = formatTime12(
+      `${String(new Date(otherStart).getHours()).padStart(2, '0')}:${String(new Date(otherStart).getMinutes()).padStart(2, '0')}`
+    );
+
+    // Check overlap: apptStart < otherEnd AND apptEnd > otherStart
+    if (newStart < otherEnd && newEnd > otherStart) {
+      warnings.push({ type: 'overlap', clientName, time: timeLabel });
+      continue;
+    }
+
+    // Check buffer: gap between appointments < 15 min
+    const gapAfter = otherStart - newEnd; // gap when other is after new
+    const gapBefore = newStart - otherEnd; // gap when new is after other
+
+    if ((gapAfter >= 0 && gapAfter < BUFFER_MINUTES * 60_000) ||
+        (gapBefore >= 0 && gapBefore < BUFFER_MINUTES * 60_000)) {
+      warnings.push({ type: 'buffer', clientName, time: timeLabel });
+    }
+  }
+
+  return warnings;
+}
+
+function ScheduleWarningBanner({ warnings }: { warnings: ScheduleWarning[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 space-y-1">
+      {warnings.map((w, i) => (
+        <p key={i} className="text-sm text-amber-800 font-medium">
+          {w.type === 'overlap'
+            ? `Warning: This overlaps with ${w.clientName} at ${w.time}`
+            : `Warning: Less than 15 min buffer before/after ${w.clientName} at ${w.time}`}
+        </p>
+      ))}
+    </div>
+  );
 }
 
 const DAYS_OF_WEEK = [
@@ -179,6 +256,19 @@ export default function AdminCalendarPage() {
     mood: 'good', energy_level: 'normal', distance_km: '', notes: '',
   });
   const [photos, setPhotos] = useState<File[]>([]);
+  const [mileageFrom, setMileageFrom] = useState('');
+
+  // Auto-fetch mileage when Complete Visit modal opens
+  useEffect(() => {
+    if (!completing || !selected) return;
+    setMileageFrom('');
+    api.get(`/admin/time-mileage/appointment/${selected.id}`)
+      .then(res => {
+        setReportForm(f => ({ ...f, distance_km: String(res.data.data.distance_km) }));
+        setMileageFrom(res.data.data.from || '');
+      })
+      .catch(() => {}); // silently fail if Maps not configured
+  }, [completing, selected?.id]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-appointments', range],
@@ -417,6 +507,14 @@ export default function AdminCalendarPage() {
     }
     return {};
   }, []);
+
+  // Schedule overlap/buffer warnings for the new appointment form
+  const newFormWarnings = useMemo(() => getScheduleWarnings(
+    newForm.assigned_to,
+    newForm.scheduled_time,
+    newForm.duration_minutes,
+    data ?? [],
+  ), [newForm.assigned_to, newForm.scheduled_time, newForm.duration_minutes, data]);
 
   return (
     <div className="space-y-6">
@@ -672,29 +770,8 @@ export default function AdminCalendarPage() {
               <input type="number" step="0.1" className="input" value={reportForm.distance_km}
                 placeholder="e.g. 3.5"
                 onChange={e => setReportForm(f => ({ ...f, distance_km: e.target.value }))} />
-              {selected.user?.clientProfile?.address && (
-                <button
-                  type="button"
-                  className="text-xs text-blue hover:underline mt-1"
-                  onClick={async () => {
-                    try {
-                      // Build address list: find today's appointments in order and calculate route
-                      const todaysAppts = (data ?? [])
-                        .filter((a: any) => a.scheduled_time?.startsWith(selected.scheduled_time?.substring(0, 10)))
-                        .filter((a: any) => a.user?.clientProfile?.address)
-                        .sort((a: any, b: any) => a.scheduled_time.localeCompare(b.scheduled_time));
-                      const addresses = todaysAppts.map((a: any) => {
-                        const p = a.user.clientProfile;
-                        return [p.address, p.city, p.province].filter(Boolean).join(', ');
-                      });
-                      if (addresses.length < 2) return;
-                      const res = await api.post('/admin/time-mileage/estimate', { addresses });
-                      setReportForm(f => ({ ...f, distance_km: String(res.data.data.total_km) }));
-                    } catch { /* silently fail if Google Maps not configured */ }
-                  }}
-                >
-                  Auto-calculate from today's route
-                </button>
+              {mileageFrom && (
+                <p className="text-xs text-taupe mt-1">Auto-calculated from: {mileageFrom}</p>
               )}
             </div>
             <div>
@@ -877,6 +954,9 @@ export default function AdminCalendarPage() {
             </div>
           </div>
 
+          {/* Schedule overlap/buffer warnings */}
+          <ScheduleWarningBanner warnings={newFormWarnings} />
+
           {/* Notes */}
           <div>
             <label className="label">Notes (optional)</label>
@@ -1029,6 +1109,7 @@ export default function AdminCalendarPage() {
             setEditForm={setEditForm}
             editError={editError}
             teamMembers={teamMembers}
+            appointments={data ?? []}
             onCancel={() => { setEditing(false); setEditForm(null); setEditError(''); }}
             onSave={handleEditSave}
             isPending={updateAppointment.isPending}
@@ -1133,11 +1214,12 @@ export default function AdminCalendarPage() {
   );
 }
 
-function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, onCancel, onSave, isPending }: {
+function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, appointments, onCancel, onSave, isPending }: {
   editForm: any;
   setEditForm: (fn: any) => void;
   editError: string;
   teamMembers: any;
+  appointments: any[];
   onCancel: () => void;
   onSave: () => void;
   isPending: boolean;
@@ -1161,6 +1243,15 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, on
 
   const dateStr = editForm.scheduled_time ? editForm.scheduled_time.substring(0, 10) : '';
   const timeStr = editForm.scheduled_time ? editForm.scheduled_time.substring(11, 16) || '' : '';
+
+  // Schedule overlap/buffer warnings for the edit form
+  const editWarnings = useMemo(() => getScheduleWarnings(
+    editForm.assigned_to,
+    editForm.scheduled_time,
+    editForm.duration_minutes,
+    appointments,
+    editForm.id,
+  ), [editForm.assigned_to, editForm.scheduled_time, editForm.duration_minutes, appointments, editForm.id]);
 
   return (
     <div className="space-y-4">
@@ -1273,6 +1364,9 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, on
           </select>
         </div>
       </div>
+
+      {/* Schedule overlap/buffer warnings */}
+      <ScheduleWarningBanner warnings={editWarnings} />
 
       {/* Notes */}
       <div>

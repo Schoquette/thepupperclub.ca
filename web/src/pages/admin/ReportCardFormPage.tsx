@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { format } from 'date-fns';
+import { format, addMinutes } from 'date-fns';
 
 interface TemplateItem {
   key: string;
@@ -103,7 +103,11 @@ export default function AdminReportCardFormPage() {
     setClientId(String(qsAppointment.user_id));
     setAppointmentId(String(qsAppointment.id));
     if (qsAppointment.scheduled_time) {
-      setArrivalTime(format(new Date(qsAppointment.scheduled_time), "yyyy-MM-dd'T'HH:mm"));
+      const start = new Date(qsAppointment.scheduled_time);
+      setArrivalTime(format(start, "yyyy-MM-dd'T'HH:mm"));
+      if (qsAppointment.duration_minutes) {
+        setDepartureTime(format(addMinutes(start, qsAppointment.duration_minutes), "yyyy-MM-dd'T'HH:mm"));
+      }
     }
     if (qsAppointment.dogs?.length) {
       setDogIds(qsAppointment.dogs.map((d: any) => d.id));
@@ -470,7 +474,11 @@ export default function AdminReportCardFormPage() {
                     (a: any) => String(a.id) === e.target.value
                   );
                   if (appt?.scheduled_time) {
-                    setArrivalTime(format(new Date(appt.scheduled_time), "yyyy-MM-dd'T'HH:mm"));
+                    const start = new Date(appt.scheduled_time);
+                    setArrivalTime(format(start, "yyyy-MM-dd'T'HH:mm"));
+                    if (appt.duration_minutes) {
+                      setDepartureTime(format(addMinutes(start, appt.duration_minutes), "yyyy-MM-dd'T'HH:mm"));
+                    }
                   }
                 }
               }}
@@ -566,7 +574,7 @@ export default function AdminReportCardFormPage() {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.heic,.HEIC"
             multiple
             className="hidden"
             onChange={(e) => {

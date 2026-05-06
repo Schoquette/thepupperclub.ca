@@ -497,6 +497,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Time & Mileage
         Route::get('/time-mileage',              [Admin\TimeMileageController::class, 'report']);
         Route::post('/time-mileage/estimate',    [Admin\TimeMileageController::class, 'mileageEstimate']);
+        Route::get('/time-mileage/appointment/{appointment}', [Admin\TimeMileageController::class, 'appointmentMileage']);
 
         // Report exports
         Route::get('/reports/export',        [Admin\ReportExportController::class, 'export']);
