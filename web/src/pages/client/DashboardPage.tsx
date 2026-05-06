@@ -75,19 +75,24 @@ export default function ClientDashboardPage() {
               <p className="text-xs text-taupe mt-1 mb-2">
                 Add a shortcut to your home screen for quick access — it works just like an app!
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-espresso">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-espresso">
                 <div className="bg-white/60 rounded-lg p-2.5">
-                  <div className="font-semibold mb-1">iPhone / iPad</div>
+                  <div className="font-semibold mb-1">iPhone (Safari)</div>
                   <ol className="list-decimal list-inside space-y-0.5 text-taupe">
-                    <li>Open this page in <strong className="text-espresso">Safari</strong></li>
-                    <li>Tap the <strong className="text-espresso">Share</strong> button (square with arrow)</li>
+                    <li>Tap the <strong className="text-espresso">Share</strong> button (square with arrow) at the bottom</li>
                     <li>Scroll down and tap <strong className="text-espresso">Add to Home Screen</strong></li>
                   </ol>
                 </div>
                 <div className="bg-white/60 rounded-lg p-2.5">
-                  <div className="font-semibold mb-1">Android</div>
+                  <div className="font-semibold mb-1">iPhone (Chrome)</div>
                   <ol className="list-decimal list-inside space-y-0.5 text-taupe">
-                    <li>Open this page in <strong className="text-espresso">Chrome</strong></li>
+                    <li>Tap the <strong className="text-espresso">Share</strong> icon beside the URL bar</li>
+                    <li>Tap <strong className="text-espresso">Add to Home Screen</strong></li>
+                  </ol>
+                </div>
+                <div className="bg-white/60 rounded-lg p-2.5">
+                  <div className="font-semibold mb-1">Android (Chrome)</div>
+                  <ol className="list-decimal list-inside space-y-0.5 text-taupe">
                     <li>Tap the <strong className="text-espresso">three-dot menu</strong> (top right)</li>
                     <li>Tap <strong className="text-espresso">Add to Home screen</strong></li>
                   </ol>
