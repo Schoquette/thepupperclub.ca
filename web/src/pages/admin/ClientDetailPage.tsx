@@ -862,12 +862,63 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
           {billingMethod === 'credit_card' && !cp.stripe_payment_method_id && (
             <p className="text-xs text-red-500">Client must add a card on file before subscribing via credit card.</p>
           )}
-          <p className="text-xs text-taupe">
-            Billing method: <span className="font-semibold text-espresso">
-              {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
-            </span>
-          </p>
-          <div className="space-y-2">
+
+          {/* Editable billing info */}
+          <div className="text-sm space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-taupe">Billing method</span>
+              {billingEditing ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="border border-taupe/30 rounded px-2 py-0.5 text-sm"
+                    defaultValue={billingMethod}
+                    onChange={e => updateBilling.mutate(e.target.value)}
+                  >
+                    <option value="credit_card">Credit Card</option>
+                    <option value="e_transfer">E-Transfer</option>
+                    <option value="interac_pad">Interac/PAD</option>
+                    <option value="cash">Cash</option>
+                  </select>
+                  <button className="text-xs text-taupe hover:text-espresso" onClick={() => setBillingEditing(false)}>cancel</button>
+                </div>
+              ) : (
+                <button
+                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  onClick={() => setBillingEditing(true)}
+                >
+                  {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
+                </button>
+              )}
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-taupe">Walks/week</span>
+              {walksEditing ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="border border-taupe/30 rounded px-2 py-0.5 text-sm w-16"
+                    defaultValue={cp.walks_per_week ?? ''}
+                    onChange={e => {
+                      const v = e.target.value ? parseInt(e.target.value) : null;
+                      updateWalks.mutate(v);
+                    }}
+                  >
+                    <option value="">—</option>
+                    {[1,2,3,4,5,6,7].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <button className="text-xs text-taupe hover:text-espresso" onClick={() => setWalksEditing(false)}>cancel</button>
+                </div>
+              ) : (
+                <button
+                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  onClick={() => setWalksEditing(true)}
+                >
+                  {cp.walks_per_week ? `${cp.walks_per_week}/week` : 'Not set'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-3 border-t border-cream">
             <label className="label">Start Subscription</label>
             <select
               className="input"
