@@ -17,9 +17,9 @@ class DocumentController extends Controller
             abort(401, 'Not authenticated');
         }
 
-        // Admin can access any document; client can only access their own
-        if ($user->role !== 'admin' && $document->user_id !== $user->id) {
-            abort(403, "Access denied. Role: {$user->role}, doc owner: {$document->user_id}, you: {$user->id}");
+        // Admin/superadmin can access any document; client can only access their own
+        if (!in_array($user->role, ['admin', 'superadmin']) && $document->user_id !== $user->id) {
+            abort(403);
         }
 
         if (!Storage::disk('local')->exists($document->storage_path)) {
