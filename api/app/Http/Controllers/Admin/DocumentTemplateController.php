@@ -249,7 +249,7 @@ class DocumentTemplateController extends Controller
             'signature_token'       => $token,
         ]);
 
-        $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:5174'), '/');
+        $frontendUrl = rtrim(env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
         $signingUrl  = "{$frontendUrl}/sign/{$token}";
 
         // Send notification to client

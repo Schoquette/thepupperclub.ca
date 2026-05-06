@@ -18,7 +18,7 @@ class TeamInvitationMail extends Mailable
         public string $token,
         public ?string $tempPassword
     ) {
-        $frontendUrl = config('services.frontend_url');
+        $frontendUrl = rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
         $this->setPasswordUrl = "{$frontendUrl}/set-password?token={$token}&email=" . urlencode($user->email);
     }
 

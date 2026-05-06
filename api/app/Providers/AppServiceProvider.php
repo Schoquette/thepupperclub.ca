@@ -46,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Point password reset links to the frontend, not the API
         ResetPassword::createUrlUsing(function ($user, string $token) {
-            $frontendUrl = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
+            $frontendUrl = rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
             return "{$frontendUrl}/reset-password/{$token}?email=" . urlencode($user->email);
         });
 

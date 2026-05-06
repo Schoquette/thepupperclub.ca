@@ -147,9 +147,9 @@ class InvoiceService
         ];
 
         $portalUrls = [
-            'invoice'  => config('app.frontend_url') . '/client/invoices',
-            'reminder' => config('app.frontend_url') . '/client/billing',
-            'paid'     => config('app.frontend_url') . '/client/invoices',
+            'invoice'  => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/invoices',
+            'reminder' => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/billing',
+            'paid'     => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/invoices',
         ];
 
         $title = $titles[$type] ?? $titles['invoice'];
@@ -227,7 +227,7 @@ class InvoiceService
             'customer'             => $stripeCustomerId,
             'payment_method'       => $paymentMethodId,
             'confirm'              => true,
-            'return_url'           => config('app.frontend_url') . '/client/invoices',
+            'return_url'           => rtrim(config('services.frontend_url') ?: env('FRONTEND_URL', 'https://thepupperclub.ca'), '/') . '/client/invoices',
             'metadata'             => ['invoice_id' => $invoice->id],
         ]);
 

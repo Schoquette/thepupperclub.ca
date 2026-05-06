@@ -455,7 +455,7 @@ class NotificationController extends Controller
 
     private function sampleTokenValues(): array
     {
-        $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:5174'), '/');
+        $frontendUrl = rtrim(env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
         return [
             '{client_name}'     => 'Jane Smith',
             '{client_first_name}' => 'Jane',
