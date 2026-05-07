@@ -12,9 +12,12 @@
   </div>
   @endif
 
-  @if($photoUrl)
+  {{-- All visit photos --}}
+  @if(!empty($photoUrls))
   <div style="margin: 0 -40px 20px; overflow: hidden;">
-    <img src="{{ $photoUrl }}" alt="Visit photo" style="width: 100%; max-height: 320px; object-fit: cover; display: block;">
+    @foreach($photoUrls as $i => $url)
+    <img src="{{ $url }}" alt="Visit photo {{ $i + 1 }}" style="width: 100%; max-height: 320px; object-fit: cover; display: block;{{ $i > 0 ? ' margin-top: 8px;' : '' }}">
+    @endforeach
   </div>
   @endif
 
@@ -38,28 +41,38 @@
   </table>
   @endif
 
-  @if(count($checklist))
-  <div style="margin-bottom: 20px;">
-    <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #C8BFB6; margin-bottom: 14px;">Activities & Care</div>
-    <div>
-      @foreach($checklist as $item)
-      <span style="display: inline-block; background: #F6F3EE; border-radius: 20px; padding: 6px 12px; font-size: 13px; color: #3B2F2A; margin: 0 6px 6px 0; font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;">
-        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #C9A24D; vertical-align: middle; margin-right: 6px;"></span>{{ $item }}
-      </span>
-      @endforeach
-    </div>
-    @if($specialTrip)
-    <div style="background: #FDF8EE; border: 1px solid rgba(201,162,77,0.2); border-radius: 12px; padding: 12px 16px; margin-top: 12px; font-size: 13px; font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;">
-      <strong style="color: #C9A24D;">Special Trip:</strong> {{ $specialTrip }}
+  {{-- Per-dog sections --}}
+  @foreach($dogSections as $section)
+    @if($section['name'])
+    <div style="margin-bottom: 6px; margin-top: 24px; padding-bottom: 6px; border-bottom: 2px solid #C9A24D;">
+      <span style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 16px; font-weight: 700; color: #3B2F2A;">{{ $section['name'] }}</span>
     </div>
     @endif
-  </div>
-  @endif
 
-  @if($report->notes)
-  <div style="margin-bottom: 20px;">
-    <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #C8BFB6; margin-bottom: 14px;">Notes</div>
-    <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #3B2F2A;">{{ $report->notes }}</div>
+    @if(count($section['checklist']))
+    <div style="margin-bottom: 16px;">
+      <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #C8BFB6; margin-bottom: 14px;">Activities & Care</div>
+      <div>
+        @foreach($section['checklist'] as $item)
+        <span style="display: inline-block; background: #F6F3EE; border-radius: 20px; padding: 6px 12px; font-size: 13px; color: #3B2F2A; margin: 0 6px 6px 0; font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #C9A24D; vertical-align: middle; margin-right: 6px;"></span>{{ $item }}
+        </span>
+        @endforeach
+      </div>
+    </div>
+    @endif
+
+    @if(!empty($section['notes']))
+    <div style="margin-bottom: 16px;">
+      <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #C8BFB6; margin-bottom: 8px;">{{ $section['name'] ? 'Notes for ' . $section['name'] : 'Notes' }}</div>
+      <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #3B2F2A; background: #F6F3EE; border-radius: 12px; padding: 14px 16px;">{{ $section['notes'] }}</div>
+    </div>
+    @endif
+  @endforeach
+
+  @if($specialTrip)
+  <div style="background: #FDF8EE; border: 1px solid rgba(201,162,77,0.2); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;">
+    <strong style="color: #C9A24D;">Special Trip:</strong> {{ $specialTrip }}
   </div>
   @endif
 

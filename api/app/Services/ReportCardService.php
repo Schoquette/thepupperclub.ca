@@ -54,24 +54,66 @@ class ReportCardService
         $dogs = $report->appointment?->dogs ?? $client->dogs;
         $dogNames = $dogs->pluck('name')->implode(', ') ?: 'your pup';
 
-        $checklist = collect($report->checklist ?? [])
-            ->filter(fn($v, $k) => $k !== 'special_trip_details' && (bool)$v)
-            ->keys()
-            ->map(fn($k) => ucwords(str_replace('_', ' ', $k)))
-            ->values()
-            ->all();
+        // Build a map of dog ID → name for per-dog sections
+        $dogNameMap = $dogs->pluck('name', 'id')->toArray();
 
-        $photoUrl = $report->report_photo_path
-            ? rtrim(config('app.url'), '/') . '/api/admin/report-cards/' . $report->id . '/photo'
-            : null;
+        // Build per-dog sections from dog_data (or fall back to flat checklist)
+        $dogSections = [];
+        $dogData = $report->dog_data;
+        if (!empty($dogData) && is_array($dogData)) {
+            foreach ($dogData as $key => $section) {
+                $name = $dogNameMap[$key] ?? ($key === '_general' ? null : "Dog #{$key}");
+                $items = collect($section['checklist'] ?? [])
+                    ->filter(fn($v) => (bool)$v)
+                    ->keys()
+                    ->map(fn($k) => ucwords(str_replace('_', ' ', $k)))
+                    ->values()
+                    ->all();
+                $dogSections[] = [
+                    'name'      => $name,
+                    'checklist' => $items,
+                    'notes'     => $section['notes'] ?? '',
+                ];
+            }
+        } else {
+            // Flat checklist fallback
+            $items = collect($report->checklist ?? [])
+                ->filter(fn($v, $k) => $k !== 'special_trip_details' && (bool)$v)
+                ->keys()
+                ->map(fn($k) => ucwords(str_replace('_', ' ', $k)))
+                ->values()
+                ->all();
+            $dogSections[] = [
+                'name'      => null,
+                'checklist' => $items,
+                'notes'     => $report->notes ?? '',
+            ];
+        }
+
+        // Flat checklist for token replacement (merged)
+        $checklist = collect($dogSections)->flatMap(fn($s) => $s['checklist'])->unique()->values()->all();
+
+        // Build photo URLs (multi-photo support)
+        $baseUrl = rtrim(config('app.url'), '/');
+        $photoPaths = $report->photo_paths ?? [];
+        if (empty($photoPaths) && $report->report_photo_path) {
+            $photoPaths = [$report->report_photo_path];
+        }
+        $photoUrls = [];
+        foreach ($photoPaths as $i => $path) {
+            $photoUrls[] = "{$baseUrl}/api/admin/report-cards/{$report->id}/photos/{$i}";
+        }
+
+        // Legacy single photo URL for token replacement
+        $photoUrl = $photoUrls[0] ?? null;
 
         // Get first dog's profile photo URL
         $firstDog = $dogs->first();
         $dogPhotoUrl = ($firstDog && $firstDog->photo_path)
-            ? rtrim(config('app.url'), '/') . '/api/admin/dogs/' . $firstDog->id . '/photo'
+            ? "{$baseUrl}/api/admin/dogs/{$firstDog->id}/photo"
             : null;
 
-        Mail::send([], [], function ($mail) use ($client, $report, $dogNames, $checklist, $photoUrl, $dogPhotoUrl) {
+        Mail::send([], [], function ($mail) use ($client, $report, $dogNames, $checklist, $photoUrl, $dogPhotoUrl, $photoUrls, $dogSections) {
             $arrivalTime   = $report->arrival_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
             $departureTime = $report->departure_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
             $visitDate     = $report->arrival_time?->setTimezone('America/Vancouver')->format('F j, Y') ?? '';
@@ -112,10 +154,12 @@ class ReportCardService
                 'client'             => $client,
                 'report'             => $report,
                 'dogNames'           => $dogNames,
+                'dogSections'        => $dogSections,
                 'checklist'          => $checklist,
                 'specialTrip'        => ($report->checklist['special_trip'] ?? false)
                                          ? ($report->special_trip_details ?: 'Yes')
                                          : null,
+                'photoUrls'          => $photoUrls,
                 'photoUrl'           => $photoUrl,
                 'dogPhotoUrl'        => $dogPhotoUrl,
                 'arrivalTime'        => $arrivalTime,
