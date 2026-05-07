@@ -648,6 +648,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/invoices/{invoice}/pay',       [Client\InvoiceController::class, 'pay']);
         Route::post('/invoices/{invoice}/tip',       [Client\InvoiceController::class, 'tip']);
         Route::post('/billing/setup-intent',         [Client\InvoiceController::class, 'setupIntent']);
+        Route::post('/billing/setup-intent-pad',     [Client\InvoiceController::class, 'setupIntentPad']);
         Route::post('/billing/payment-method',       [Client\InvoiceController::class, 'savePaymentMethod']);
         Route::get('/billing/payment-method',        [Client\InvoiceController::class, 'paymentMethod']);
     });

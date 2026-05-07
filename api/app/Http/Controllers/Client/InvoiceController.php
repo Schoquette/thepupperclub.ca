@@ -101,6 +101,42 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Create a Stripe SetupIntent for Canadian pre-authorized debit (ACSS).
+     */
+    public function setupIntentPad(Request $request): JsonResponse
+    {
+        Stripe::setApiKey(config('services.stripe.secret'));
+
+        $user    = $request->user();
+        $profile = $user->clientProfile;
+
+        if (!$profile?->stripe_customer_id) {
+            $customer = \Stripe\Customer::create([
+                'email' => $user->email,
+                'name'  => $user->name,
+            ]);
+            $profile->update(['stripe_customer_id' => $customer->id]);
+        }
+
+        $intent = SetupIntent::create([
+            'customer'              => $profile->stripe_customer_id,
+            'payment_method_types'  => ['acss_debit'],
+            'payment_method_options' => [
+                'acss_debit' => [
+                    'currency'        => 'cad',
+                    'mandate_options'  => [
+                        'payment_schedule'  => 'interval',
+                        'interval_description' => 'Monthly on the 1st',
+                        'transaction_type'     => 'personal',
+                    ],
+                ],
+            ],
+        ]);
+
+        return response()->json(['client_secret' => $intent->client_secret]);
+    }
+
+    /**
      * Save a confirmed payment method as the default for this client.
      */
     public function savePaymentMethod(Request $request): JsonResponse
@@ -140,7 +176,19 @@ class InvoiceController extends Controller
         try {
             Stripe::setApiKey(config('services.stripe.secret'));
             $pm = \Stripe\PaymentMethod::retrieve($profile->stripe_payment_method_id);
+
+            if ($pm->type === 'acss_debit') {
+                return response()->json(['data' => [
+                    'type'             => 'acss_debit',
+                    'bank_name'        => $pm->acss_debit?->bank_name,
+                    'institution_number' => $pm->acss_debit?->institution_number,
+                    'transit_number'   => $pm->acss_debit?->transit_number,
+                    'last4'            => $pm->acss_debit?->last4,
+                ]]);
+            }
+
             return response()->json(['data' => [
+                'type'     => 'card',
                 'brand'    => $pm->card?->brand,
                 'last4'    => $pm->card?->last4,
                 'exp_month' => $pm->card?->exp_month,

@@ -63,10 +63,156 @@ function AddCardForm({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+function PadSetupForm({ onSuccess }: { onSuccess: () => void }) {
+  const stripe = useStripe();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [institutionNumber, setInstitutionNumber] = useState('');
+  const [transitNumber, setTransitNumber] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [email, setEmail] = useState('');
+
+  // Load user info for pre-fill
+  const { data: profile } = useQuery({
+    queryKey: ['client-profile-pad'],
+    queryFn: () => api.get('/client/profile').then(r => r.data.data),
+  });
+
+  React.useEffect(() => {
+    if (profile) {
+      setAccountHolder(profile.name || '');
+      setEmail(profile.email || '');
+    }
+  }, [profile]);
+
+  const handleSave = async () => {
+    if (!stripe) return;
+    if (!institutionNumber || !transitNumber || !accountNumber || !accountHolder || !email) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    if (institutionNumber.length !== 3) {
+      setError('Institution number must be 3 digits.');
+      return;
+    }
+    if (transitNumber.length !== 5) {
+      setError('Transit number must be 5 digits.');
+      return;
+    }
+    if (accountNumber.length < 5 || accountNumber.length > 12) {
+      setError('Account number must be between 5 and 12 digits.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.post('/client/billing/setup-intent-pad');
+      const clientSecret = data.client_secret;
+
+      const { setupIntent, error: setupError } = await stripe.confirmAcssDebitSetup(clientSecret, {
+        payment_method: {
+          billing_details: {
+            name: accountHolder,
+            email: email,
+          },
+          acss_debit: {
+            institution_number: institutionNumber,
+            transit_number: transitNumber,
+            account_number: accountNumber,
+          },
+        },
+      });
+
+      if (setupError) throw new Error(setupError.message);
+      await api.post('/client/billing/payment-method', {
+        payment_method_id: setupIntent!.payment_method,
+      });
+      onSuccess();
+    } catch (e: any) {
+      setError(e.message || 'Failed to set up bank account.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-taupe">Enter your Canadian bank account details below.</p>
+      <div>
+        <label className="text-xs font-medium text-taupe block mb-1">Account Holder Name</label>
+        <input
+          type="text"
+          className="input w-full"
+          value={accountHolder}
+          onChange={e => setAccountHolder(e.target.value)}
+          placeholder="Full name on the account"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-medium text-taupe block mb-1">Email</label>
+        <input
+          type="email"
+          className="input w-full"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="your@email.com"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-medium text-taupe block mb-1">Institution # (3 digits)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={3}
+            className="input w-full"
+            value={institutionNumber}
+            onChange={e => setInstitutionNumber(e.target.value.replace(/\D/g, '').slice(0, 3))}
+            placeholder="e.g. 001"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-taupe block mb-1">Transit # (5 digits)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={5}
+            className="input w-full"
+            value={transitNumber}
+            onChange={e => setTransitNumber(e.target.value.replace(/\D/g, '').slice(0, 5))}
+            placeholder="e.g. 12345"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs font-medium text-taupe block mb-1">Account Number (5-12 digits)</label>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={12}
+          className="input w-full"
+          value={accountNumber}
+          onChange={e => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 12))}
+          placeholder="Your account number"
+        />
+      </div>
+      <p className="text-xs text-taupe">
+        You can find these numbers on a cheque or in your online banking app.
+      </p>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <Button loading={loading} onClick={handleSave} className="w-full">
+        Authorize Pre-Authorized Debit
+      </Button>
+    </div>
+  );
+}
+
 const METHOD_OPTIONS = [
   { value: 'credit_card', label: 'Credit Card (2% fee)', icon: CreditCard },
   { value: 'e_transfer', label: 'E-Transfer (no fee)', icon: ArrowRightLeft },
-  { value: 'interac_pad', label: 'Debit Card (no fee)', icon: Building2 },
+  { value: 'interac_pad', label: 'Pre-Authorized Debit (no fee)', icon: Building2 },
   { value: 'cash', label: 'Cash (no fee)', icon: Banknote },
 ];
 
@@ -167,7 +313,7 @@ export default function ClientBillingPage() {
                     <div className="text-xs text-taupe mt-0.5">Send to sophie@thepupperclub.ca before your billing date</div>
                   )}
                   {opt.value === 'interac_pad' && selected && (
-                    <div className="text-xs text-taupe mt-0.5">Use your Visa Debit or debit card — no surcharge applied</div>
+                    <div className="text-xs text-taupe mt-0.5">Set up automatic bank account debits — no fees applied</div>
                   )}
                   {opt.value === 'cash' && selected && (
                     <div className="text-xs text-taupe mt-0.5">Leave at your service address before your billing date</div>
@@ -230,50 +376,55 @@ export default function ClientBillingPage() {
         </Card>
       )}
 
-      {/* Interac / PAD setup */}
+      {/* Pre-Authorized Debit (PAD) setup */}
       {currentMethod === 'interac_pad' && (
         <Card>
-          <CardHeader title="Interac / PAD Setup" />
-          {pm ? (
+          <CardHeader title="Pre-Authorized Debit Setup" />
+          {pm && pm.type === 'acss_debit' && !addingCard ? (
             <div className="space-y-4">
               <div className="flex items-center gap-4 bg-cream/40 rounded-xl p-4">
                 <Building2 className="w-8 h-8 text-taupe" />
                 <div>
-                  <div className="font-semibold text-espresso capitalize">{pm.brand} ending in {pm.last4}</div>
-                  <div className="text-xs text-taupe">Expires {pm.exp_month}/{pm.exp_year}</div>
+                  <div className="font-semibold text-espresso">
+                    {pm.bank_name || 'Bank Account'} ending in {pm.last4}
+                  </div>
+                  <div className="text-xs text-taupe">
+                    Institution {pm.institution_number} &middot; Transit {pm.transit_number}
+                  </div>
                 </div>
               </div>
-              {!addingCard && (
-                <button
-                  className="text-sm text-gold hover:text-espresso font-medium transition-colors"
-                  onClick={() => setAddingCard(true)}
-                >
-                  Replace debit card
-                </button>
-              )}
+              <button
+                className="text-sm text-gold hover:text-espresso font-medium transition-colors"
+                onClick={() => setAddingCard(true)}
+              >
+                Replace bank account
+              </button>
             </div>
           ) : (
-            <p className="text-sm text-taupe mb-4">Add your Visa Debit or debit card for automatic payments with no surcharge.</p>
-          )}
-
-          {(!pm || addingCard) && (
-            <div className="mt-4">
-              <Elements stripe={stripePromise}>
-                <AddCardForm
-                  onSuccess={() => {
-                    setAddingCard(false);
-                    qc.invalidateQueries({ queryKey: ['client-payment-method'] });
-                  }}
-                />
-              </Elements>
-              <p className="text-xs text-taupe mt-2">Enter your Visa Debit or debit card details above. No surcharge applies to debit cards.</p>
-            </div>
+            <>
+              {pm && pm.type !== 'acss_debit' && !addingCard ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-taupe">You currently have a card on file. Set up a bank account for pre-authorized debit instead.</p>
+                  <Button size="sm" onClick={() => setAddingCard(true)}>Set Up Bank Account</Button>
+                </div>
+              ) : (
+                <Elements stripe={stripePromise}>
+                  <PadSetupForm
+                    onSuccess={() => {
+                      setAddingCard(false);
+                      qc.invalidateQueries({ queryKey: ['client-payment-method'] });
+                    }}
+                  />
+                </Elements>
+              )}
+            </>
           )}
 
           <div className="mt-4 p-3 bg-gold/5 border border-gold/20 rounded-lg">
             <p className="text-xs text-espresso">
-              No additional fees for debit card payments.
-              Your payment information is securely stored by Stripe and never touches our servers.
+              No additional fees for pre-authorized debit payments.
+              Your bank account information is securely stored by Stripe and never touches our servers.
+              By setting up PAD, you authorize The Pupper Club to debit your account for monthly invoices.
             </p>
           </div>
         </Card>
