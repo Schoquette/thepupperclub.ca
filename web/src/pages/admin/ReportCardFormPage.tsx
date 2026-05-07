@@ -504,7 +504,7 @@ export default function AdminReportCardFormPage() {
                 { value: '', label: appointmentsData ? 'Select a visit…' : 'Loading…' },
                 ...(appointmentsData ?? []).map((a: any) => ({
                   value: String(a.id),
-                  label: `${format(new Date(a.scheduled_time), 'EEE MMM d, h:mm a')} — ${a.service_type.replace(/_/g, ' ')}`,
+                  label: `${format(new Date(a.scheduled_time), 'EEE MMM d, h:mm a')} — ${a.service_type === 'walk_30' ? '30-Minute Visit' : a.service_type === 'walk_60' ? '60-Minute Visit' : a.service_type.replace(/_/g, ' ')}`,
                 })),
               ]}
             />
@@ -515,7 +515,7 @@ export default function AdminReportCardFormPage() {
         {!isNew && report?.appointment && (
           <div className="mb-4 text-xs text-taupe bg-cream rounded-lg px-3 py-2">
             Visit: {format(new Date(report.appointment.scheduled_time), 'EEEE, MMM d, h:mm a')}
-            {' '}— {report.appointment.service_type?.replace(/_/g, ' ')}
+            {' '}— {report.appointment.service_type === 'walk_30' ? '30-Minute Visit' : report.appointment.service_type === 'walk_60' ? '60-Minute Visit' : report.appointment.service_type?.replace(/_/g, ' ')}
           </div>
         )}
 

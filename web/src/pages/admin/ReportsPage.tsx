@@ -48,6 +48,8 @@ function getPresetRange(preset: Preset): { start: string; end: string } {
 }
 
 function formatServiceType(type: string): string {
+  if (type === 'walk_30') return '30-Minute Visit';
+  if (type === 'walk_60') return '60-Minute Visit';
   return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 

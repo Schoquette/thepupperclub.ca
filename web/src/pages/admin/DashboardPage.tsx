@@ -53,7 +53,7 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
       </div>
       <div className="flex items-center gap-4 text-sm text-taupe">
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {TIME_BLOCK_LABELS[appointment.client_time_block]}</span>
-        <span className="flex items-center gap-1"><Dog className="w-3.5 h-3.5" /> {appointment.service_type.replace('_', ' ')}</span>
+        <span className="flex items-center gap-1"><Dog className="w-3.5 h-3.5" /> {appointment.service_type === 'walk_30' ? '30-Minute Visit' : appointment.service_type === 'walk_60' ? '60-Minute Visit' : appointment.service_type.replace('_', ' ')}</span>
       </div>
       {!isDone && (
         <div className="flex gap-2 mt-1">

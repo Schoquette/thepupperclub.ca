@@ -35,8 +35,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const SERVICE_LABELS: Record<string, string> = {
-  walk_30:      '30-Min Visit',
-  walk_60:      '60-Min Visit',
+  walk_30:      '30-Minute Visit',
+  walk_60:      '60-Minute Visit',
   drop_in:      'Drop-In Visit',
   overnight:    'Overnight Stay',
   day_boarding: 'Day Boarding',

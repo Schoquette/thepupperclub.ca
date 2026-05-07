@@ -103,7 +103,7 @@ function AvailabilityTimeline({ date, selectedTime, serviceDuration }: { date: s
               key={apt.id}
               className="absolute top-4 bottom-1 rounded bg-blue/60 flex items-center justify-center overflow-hidden"
               style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }}
-              title={`${apt.user?.name ?? 'Appointment'} · ${format(dt, 'h:mm a')} · ${apt.service_type.replace(/_/g, ' ')}`}
+              title={`${apt.user?.name ?? 'Appointment'} · ${format(dt, 'h:mm a')} · ${apt.service_type === 'walk_30' ? '30-Minute Visit' : apt.service_type === 'walk_60' ? '60-Minute Visit' : apt.service_type.replace(/_/g, ' ')}`}
             >
               <span className="text-[8px] text-white font-medium truncate px-0.5">
                 {apt.user?.name?.split(' ')[0] ?? ''}
@@ -135,8 +135,8 @@ function AvailabilityTimeline({ date, selectedTime, serviceDuration }: { date: s
 }
 
 const SERVICE_TYPES = [
-  { value: 'walk_30', label: '30-Min Walk' },
-  { value: 'walk_60', label: '60-Min Walk' },
+  { value: 'walk_30', label: '30-Minute Visit' },
+  { value: 'walk_60', label: '60-Minute Visit' },
   { value: 'drop_in', label: 'Drop-In Visit' },
   { value: 'day_boarding', label: 'Day Boarding' },
   { value: 'overnight', label: 'Overnight' },
@@ -155,7 +155,7 @@ function blankCreateForm() {
 }
 
 const SERVICE_LABELS: Record<string, string> = {
-  walk_30: '30-Min Visit', walk_60: '60-Min Visit', drop_in: 'Drop-In',
+  walk_30: '30-Minute Visit', walk_60: '60-Minute Visit', drop_in: 'Drop-In',
   overnight: 'Overnight', day_boarding: 'Day Boarding',
 };
 
@@ -655,7 +655,7 @@ export default function AdminServiceRequestsPage() {
             <div className="bg-cream rounded-lg p-4 text-sm">
               <div className="font-semibold">{selected.user?.name} — {selected.dogs?.map((d: any) => d.name).join(', ')}</div>
               <div className="text-taupe mt-1">
-                {selected.service_type.replace(/_/g, ' ')} · {TIME_BLOCK_LABELS[selected.preferred_time_block as keyof typeof TIME_BLOCK_LABELS]} · {format(new Date(selected.preferred_date), 'EEEE, MMM d')}
+                {selected.service_type === 'walk_30' ? '30-Minute Visit' : selected.service_type === 'walk_60' ? '60-Minute Visit' : selected.service_type.replace(/_/g, ' ')} · {TIME_BLOCK_LABELS[selected.preferred_time_block as keyof typeof TIME_BLOCK_LABELS]} · {format(new Date(selected.preferred_date), 'EEEE, MMM d')}
               </div>
             </div>
 
@@ -754,7 +754,7 @@ export default function AdminServiceRequestsPage() {
                             label="Description"
                             value={billingDescription}
                             onChange={e => setBillingDescription(e.target.value)}
-                            placeholder="e.g. 30-Min Visit (extra)"
+                            placeholder="e.g. 30-Minute Visit (extra)"
                           />
                         </div>
                         <Input

@@ -134,7 +134,7 @@ export default function AdminReportCardsPage() {
                       <div className="text-sm font-semibold text-espresso">{appt.user?.name}</div>
                       <div className="text-xs text-taupe mt-0.5">
                         {dogNames && <span>{dogNames} — </span>}
-                        {appt.service_type?.replace(/_/g, ' ')}
+                        {appt.service_type === 'walk_30' ? '30-Minute Visit' : appt.service_type === 'walk_60' ? '60-Minute Visit' : appt.service_type?.replace(/_/g, ' ')}
                       </div>
                     </div>
                     <div className="text-xs text-taupe flex-shrink-0">
@@ -183,7 +183,7 @@ export default function AdminReportCardsPage() {
                               : ''}
                           {r.appointment?.service_type && (
                             <span className="ml-1.5 text-taupe/70">
-                              — {r.appointment.service_type.replace(/_/g, ' ')}
+                              — {r.appointment.service_type === 'walk_30' ? '30-Minute Visit' : r.appointment.service_type === 'walk_60' ? '60-Minute Visit' : r.appointment.service_type.replace(/_/g, ' ')}
                             </span>
                           )}
                         </div>
