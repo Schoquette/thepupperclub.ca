@@ -662,7 +662,7 @@ export default function ClientAppointmentsPage() {
                 className="rounded accent-gold mt-0.5"
               />
               <span className="text-xs text-espresso leading-relaxed">
-                I understand that we will do our best to reschedule, but if we are unable to find a time, this appointment will be lost.
+                I understand that The Pupper Club will do their best to reschedule, but if they are unable to find a time, this appointment will be lost.
               </span>
             </label>
             <p className="text-xs text-taupe">Your walker will be notified of this cancellation.</p>
