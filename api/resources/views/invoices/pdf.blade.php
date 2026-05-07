@@ -8,7 +8,7 @@
 
     /* Branded header */
     .header-bar {
-      background: #C8BFB6;
+      background: #F6F3EE;
       padding: 28px 40px;
       color: #3B2F2A;
       border-bottom: 3px solid #C9A24D;
@@ -47,7 +47,7 @@
 
     /* Line items table */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    .items-table thead tr { background: #C8BFB6; color: #3B2F2A; }
+    .items-table thead tr { background: #F6F3EE; color: #3B2F2A; }
     .items-table thead th { padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
     .items-table tbody tr { border-bottom: 1px solid #e9e4df; }
     .items-table tbody tr:nth-child(even) { background: #FAFAF8; }

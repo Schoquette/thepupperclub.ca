@@ -215,7 +215,7 @@ export default function ClientInvoiceDetailPage() {
         )}
 
         {/* Branded header */}
-        <div className="bg-taupe px-8 py-5 flex items-center justify-between">
+        <div className="bg-cream px-8 py-5 flex items-center justify-between">
           <img src="/logo.png" alt="The Pupper Club" className="h-12" />
           <div className="text-right text-espresso/70 text-xs leading-relaxed">
             <div className="font-display text-sm text-espresso tracking-wide">INVOICE</div>
@@ -279,7 +279,7 @@ export default function ClientInvoiceDetailPage() {
           <div className="overflow-x-auto mb-6">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-taupe text-espresso">
+                <tr className="bg-cream text-espresso">
                   <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider">Description</th>
                   <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider">Date</th>
                   <th className="py-2.5 px-3 text-center text-xs font-semibold uppercase tracking-wider w-16">Qty</th>
