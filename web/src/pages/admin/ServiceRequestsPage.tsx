@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format, parseISO } from 'date-fns';
+import { ChevronUp, ChevronDown, Filter } from 'lucide-react';
 
 const TIME_BLOCK_LABELS = {
   early_morning: '7–11 AM', morning: '7–11 AM', midday: '11 AM–2 PM',
@@ -152,6 +153,22 @@ function blankCreateForm() {
   return { user_id: '', dog_ids: [] as number[], service_type: 'walk_60', preferred_time_block: 'morning', preferred_date: '', notes: '' };
 }
 
+const SERVICE_LABELS: Record<string, string> = {
+  walk_30: '30-Min Visit', walk_60: '60-Min Visit', drop_in: 'Drop-In',
+  overnight: 'Overnight', day_boarding: 'Day Boarding',
+};
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'declined', label: 'Declined' },
+  { value: 'counter_offered', label: 'Counter Offered' },
+];
+
+type SortField = 'date' | 'client' | 'service' | 'status';
+type SortDir = 'asc' | 'desc';
+
 export default function AdminServiceRequestsPage() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<any>(null);
@@ -173,11 +190,57 @@ export default function AdminServiceRequestsPage() {
   const [createForm, setCreateForm] = useState(blankCreateForm);
   const [createError, setCreateError] = useState('');
 
+  // Filters
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterClient, setFilterClient] = useState('');
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
   const { data, isLoading } = useQuery({
     queryKey: ['admin-service-requests'],
     queryFn: () => api.get('/admin/service-requests').then(r => r.data),
     refetchInterval: 30_000,
   });
+
+  // Build unique client list for filter dropdown
+  const clientOptions = useMemo(() => {
+    const all: any[] = data?.data ?? [];
+    const map = new Map<number, string>();
+    all.forEach((sr: any) => { if (sr.user) map.set(sr.user.id, sr.user.name); });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [data]);
+
+  // Filter + sort
+  const filteredRequests = useMemo(() => {
+    let list: any[] = data?.data ?? [];
+    if (filterStatus) list = list.filter((sr: any) => sr.status === filterStatus);
+    if (filterClient) list = list.filter((sr: any) => sr.user_id === Number(filterClient));
+    list = [...list].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'date': {
+          const da = a.preferred_date ? new Date(a.preferred_date).getTime() : 0;
+          const db = b.preferred_date ? new Date(b.preferred_date).getTime() : 0;
+          cmp = da - db; break;
+        }
+        case 'client': cmp = (a.user?.name ?? '').localeCompare(b.user?.name ?? ''); break;
+        case 'service': cmp = (a.service_type ?? '').localeCompare(b.service_type ?? ''); break;
+        case 'status': cmp = (a.status ?? '').localeCompare(b.status ?? ''); break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }, [data, filterStatus, filterClient, sortField, sortDir]);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir(field === 'date' ? 'desc' : 'asc'); }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ChevronUp className="w-3 h-3 text-taupe/40" />;
+    return sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-espresso" /> : <ChevronDown className="w-3 h-3 text-espresso" />;
+  };
 
   // Fetch Stripe products for billing picker
   const { data: stripeProducts } = useQuery({
@@ -366,48 +429,121 @@ export default function AdminServiceRequestsPage() {
         </div>
       </Modal>
 
-      <div className="space-y-3">
-        {data?.data?.map((sr: any) => (
-          <Card key={sr.id} padding="sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold text-espresso text-sm">{sr.user?.name}</div>
-                <div className="text-xs text-taupe mt-0.5">
-                  {sr.service_type.replace(/_/g, ' ')} · {TIME_BLOCK_LABELS[sr.preferred_time_block as keyof typeof TIME_BLOCK_LABELS]} · {format(new Date(sr.preferred_date), 'MMM d')}
-                </div>
-                {sr.notes && <div className="text-xs text-taupe mt-1 italic">"{sr.notes}"</div>}
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={statusBadge(sr.status)}>{sr.status.replace('_', ' ')}</Badge>
-                {sr.status === 'pending' && (
-                  <Button size="sm" onClick={() => {
-                    setSelected(sr);
-                    setAction('approve');
-                    setAdminResponse('');
-                    setApiError(null);
-                    setBillingType('included_in_plan');
-                    setBillingDescription('');
-                    setBillingAmount('');
-                    const date = sr.preferred_date ? String(sr.preferred_date).substring(0, 10) : '';
-                    const time = TIME_BLOCK_DEFAULTS[sr.preferred_time_block] ?? '09:00';
-                    setScheduledDate(date);
-                    setScheduledTime(time);
-                    setCounterDate(date);
-                    setCounterTime(time);
-                  }}>
-                    Review
-                  </Button>
-                )}
-              </div>
-            </div>
-          </Card>
-        ))}
-        {data?.data?.length === 0 && (
-          <Card>
-            <p className="text-center py-8 text-taupe">No service requests.</p>
-          </Card>
-        )}
-      </div>
+      {/* Filters */}
+      <Card padding="sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <Filter className="w-4 h-4 text-taupe" />
+          <select
+            className="input !py-1.5 !text-sm w-auto min-w-[140px]"
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+          >
+            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select
+            className="input !py-1.5 !text-sm w-auto min-w-[160px]"
+            value={filterClient}
+            onChange={e => setFilterClient(e.target.value)}
+          >
+            <option value="">All Clients</option>
+            {clientOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
+          {(filterStatus || filterClient) && (
+            <button
+              onClick={() => { setFilterStatus(''); setFilterClient(''); }}
+              className="text-xs text-blue hover:underline font-medium"
+            >
+              Clear filters
+            </button>
+          )}
+          <span className="text-xs text-taupe ml-auto">{filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}</span>
+        </div>
+      </Card>
+
+      {/* Table */}
+      <Card padding="none">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-cream text-left">
+                {([
+                  ['date', 'Date'],
+                  ['client', 'Client'],
+                  ['service', 'Service'],
+                ] as [SortField, string][]).map(([field, label]) => (
+                  <th key={field} className="px-4 py-3 font-medium text-taupe">
+                    <button onClick={() => toggleSort(field)} className="flex items-center gap-1 hover:text-espresso">
+                      {label} <SortIcon field={field} />
+                    </button>
+                  </th>
+                ))}
+                <th className="px-4 py-3 font-medium text-taupe">Time</th>
+                <th className="px-4 py-3 font-medium text-taupe">Dogs</th>
+                <th className="px-4 py-3 font-medium text-taupe">Notes</th>
+                <th className="px-4 py-3 font-medium text-taupe">
+                  <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-espresso">
+                    Status <SortIcon field="status" />
+                  </button>
+                </th>
+                <th className="px-4 py-3 font-medium text-taupe text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRequests.map((sr: any) => (
+                <tr key={sr.id} className="border-b border-cream/60 hover:bg-cream/30 transition-colors">
+                  <td className="px-4 py-3 text-espresso whitespace-nowrap">
+                    {sr.preferred_date ? format(new Date(sr.preferred_date), 'MMM d, yyyy') : '—'}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-espresso whitespace-nowrap">{sr.user?.name ?? '—'}</td>
+                  <td className="px-4 py-3 text-espresso whitespace-nowrap">
+                    {SERVICE_LABELS[sr.service_type] ?? sr.service_type?.replace(/_/g, ' ')}
+                  </td>
+                  <td className="px-4 py-3 text-taupe whitespace-nowrap">
+                    {TIME_BLOCK_LABELS[sr.preferred_time_block as keyof typeof TIME_BLOCK_LABELS] ?? sr.preferred_time_block}
+                  </td>
+                  <td className="px-4 py-3 text-espresso whitespace-nowrap">
+                    {sr.dogs?.map((d: any) => d.name).join(', ') || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-taupe max-w-[200px] truncate" title={sr.notes ?? ''}>
+                    {sr.notes ? <span className="italic">"{sr.notes}"</span> : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={statusBadge(sr.status)}>{sr.status.replace('_', ' ')}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {sr.status === 'pending' && (
+                      <Button size="sm" onClick={() => {
+                        setSelected(sr);
+                        setAction('approve');
+                        setAdminResponse('');
+                        setApiError(null);
+                        setBillingType('included_in_plan');
+                        setBillingDescription('');
+                        setBillingAmount('');
+                        const date = sr.preferred_date ? String(sr.preferred_date).substring(0, 10) : '';
+                        const time = TIME_BLOCK_DEFAULTS[sr.preferred_time_block] ?? '09:00';
+                        setScheduledDate(date);
+                        setScheduledTime(time);
+                        setCounterDate(date);
+                        setCounterTime(time);
+                      }}>
+                        Review
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filteredRequests.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-taupe">
+                    {(filterStatus || filterClient) ? 'No requests match your filters.' : 'No service requests.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); setScheduledDate(''); setScheduledTime(''); setAdminResponse(''); setCounterDate(''); setCounterTime(''); }} title="Respond to Request">
         {selected && (
