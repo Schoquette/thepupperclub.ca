@@ -18,10 +18,11 @@ const DAY_OPTIONS = [
 ];
 
 const TIME_OPTIONS = [
-  { value: 'morning_7_10', label: 'Morning (7–10am)' },
-  { value: 'midday_11_2', label: 'Midday (11am–2pm)' },
-  { value: 'afternoon_3_6', label: 'Afternoon (3–6pm)' },
-  { value: 'evening_6_9', label: 'Evening (6–9pm)' },
+  { value: 'early_morning', label: 'Early Morning (6–9 AM)' },
+  { value: 'morning', label: 'Morning (9 AM–12 PM)' },
+  { value: 'midday', label: 'Midday (12–3 PM)' },
+  { value: 'afternoon', label: 'Afternoon (3–6 PM)' },
+  { value: 'evening', label: 'Evening (6–9 PM)' },
 ];
 
 export default function ClientProfilePage() {

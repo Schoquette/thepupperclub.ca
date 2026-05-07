@@ -44,18 +44,19 @@ const SERVICE_LABELS: Record<string, string> = {
 };
 
 const TIME_BLOCKS = [
-  { value: 'morning',       label: 'Morning (7–11 AM)' },
-  { value: 'midday',        label: 'Midday (11 AM–2 PM)' },
-  { value: 'afternoon',     label: 'Afternoon (2–5 PM)' },
-  { value: 'evening',       label: 'Evening (5–8 PM)' },
+  { value: 'early_morning',  label: 'Early Morning (6–9 AM)' },
+  { value: 'morning',       label: 'Morning (9 AM–12 PM)' },
+  { value: 'midday',        label: 'Midday (12–3 PM)' },
+  { value: 'afternoon',     label: 'Afternoon (3–6 PM)' },
+  { value: 'evening',       label: 'Evening (6–9 PM)' },
 ];
 
 const TIME_BLOCK_LABELS: Record<string, string> = {
-  early_morning: '7–11 AM',
-  morning:       '7–11 AM',
-  midday:        '11 AM–2 PM',
-  afternoon:     '2–5 PM',
-  evening:       '5–8 PM',
+  early_morning: '6–9 AM',
+  morning:       '9 AM–12 PM',
+  midday:        '12–3 PM',
+  afternoon:     '3–6 PM',
+  evening:       '6–9 PM',
 };
 
 function getTimeBlockLabel(block?: string): string {

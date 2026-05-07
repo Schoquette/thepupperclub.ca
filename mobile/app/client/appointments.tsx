@@ -9,10 +9,11 @@ import api from '@/lib/api';
 import { format } from 'date-fns';
 
 const TIME_BLOCKS = [
-  { value: 'morning',       label: '7–11 AM' },
-  { value: 'midday',        label: '11 AM–2 PM' },
-  { value: 'afternoon',     label: '2–5 PM' },
-  { value: 'evening',       label: '5–8 PM' },
+  { value: 'early_morning', label: '6–9 AM' },
+  { value: 'morning',       label: '9 AM–12 PM' },
+  { value: 'midday',        label: '12–3 PM' },
+  { value: 'afternoon',     label: '3–6 PM' },
+  { value: 'evening',       label: '6–9 PM' },
 ];
 
 const SERVICE_TYPES = [

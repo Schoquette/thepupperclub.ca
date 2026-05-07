@@ -8,8 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 
 const TIME_BLOCK_LABELS = {
-  early_morning: '7–11 AM', morning: '7–11 AM', midday: '11 AM–2 PM',
-  afternoon: '2–5 PM', evening: '5–8 PM',
+  early_morning: '6–9 AM', morning: '9 AM–12 PM', midday: '12–3 PM',
+  afternoon: '3–6 PM', evening: '6–9 PM',
 };
 
 const STATUS_COLORS = {

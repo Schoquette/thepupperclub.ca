@@ -12,8 +12,8 @@ import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle, Aler
 import { PawIcon } from '@/components/ui/PawIcon';
 
 const TIME_BLOCK_LABELS: Record<string, string> = {
-  early_morning: '7–11 AM', morning: '7–11 AM', midday: '11 AM–2 PM',
-  afternoon: '2–5 PM', evening: '5–8 PM',
+  early_morning: '6–9 AM', morning: '9 AM–12 PM', midday: '12–3 PM',
+  afternoon: '3–6 PM', evening: '6–9 PM',
 };
 
 function WalkCard({ appointment }: { appointment: Appointment }) {

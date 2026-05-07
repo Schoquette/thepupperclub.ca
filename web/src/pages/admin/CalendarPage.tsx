@@ -40,19 +40,21 @@ const SERVICE_TYPES = [
 ];
 
 const TIME_BLOCKS = [
-  { value: 'morning',       label: '7–11 AM',    startHour: 7,  endHour: 11 },
-  { value: 'midday',        label: '11 AM–2 PM', startHour: 11, endHour: 14 },
-  { value: 'afternoon',     label: '2–5 PM',     startHour: 14, endHour: 17 },
-  { value: 'evening',       label: '5–8 PM',     startHour: 17, endHour: 20 },
+  { value: 'early_morning', label: '6–9 AM',      startHour: 6,  endHour: 9 },
+  { value: 'morning',       label: '9 AM–12 PM',  startHour: 9,  endHour: 12 },
+  { value: 'midday',        label: '12–3 PM',     startHour: 12, endHour: 15 },
+  { value: 'afternoon',     label: '3–6 PM',      startHour: 15, endHour: 18 },
+  { value: 'evening',       label: '6–9 PM',      startHour: 18, endHour: 21 },
 ];
 
 function getTimeBlock(dateTimeStr: string): string {
   if (!dateTimeStr) return 'morning';
   const hour = new Date(dateTimeStr).getHours();
-  if (hour >= 17) return 'evening';
-  if (hour >= 14) return 'afternoon';
-  if (hour >= 11) return 'midday';
-  return 'morning';
+  if (hour >= 18) return 'evening';
+  if (hour >= 15) return 'afternoon';
+  if (hour >= 12) return 'midday';
+  if (hour >= 9) return 'morning';
+  return 'early_morning';
 }
 
 const TIME_SLOTS: string[] = [];
@@ -842,7 +844,7 @@ export default function AdminCalendarPage() {
             const days = (profile?.preferred_walk_days ?? []).map((d: string) =>
               ({ monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' })[d] || d);
             const times = (profile?.preferred_walk_times ?? []).map((t: string) =>
-              ({ morning_7_10: 'Morning (7–10am)', midday_11_2: 'Midday (11am–2pm)', afternoon_3_6: 'Afternoon (3–6pm)', evening_6_9: 'Evening (6–9pm)' })[t] || t);
+              ({ early_morning: 'Early Morning (6–9am)', morning: 'Morning (9am–12pm)', midday: 'Midday (12–3pm)', afternoon: 'Afternoon (3–6pm)', evening: 'Evening (6–9pm)', morning_7_10: 'Morning (9am–12pm)', midday_11_2: 'Midday (12–3pm)', afternoon_3_6: 'Afternoon (3–6pm)', evening_6_9: 'Evening (6–9pm)' })[t] || t);
             return (days.length > 0 || times.length > 0) ? (
               <div className="text-xs text-blue-600 mt-1.5 space-y-0.5">
                 {days.length > 0 && <div>Preferred Days: {days.join(', ')}</div>}
@@ -1796,7 +1798,7 @@ function SchedulingRow({ client, onSchedule, onNavigate }: { client: any; onSche
   };
 
   const dayLabels: Record<string, string> = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
-  const timeLabels: Record<string, string> = { morning_7_10: 'Morning', midday_11_2: 'Midday', afternoon_3_6: 'Afternoon', evening_6_9: 'Evening' };
+  const timeLabels: Record<string, string> = { early_morning: 'Early Morning', morning: 'Morning', midday: 'Midday', afternoon: 'Afternoon', evening: 'Evening', morning_7_10: 'Morning', midday_11_2: 'Midday', afternoon_3_6: 'Afternoon', evening_6_9: 'Evening' };
   const prefDays = (c.preferred_days || []).map((d: string) => dayLabels[d] || d);
   const prefTimes = (c.preferred_times || []).map((t: string) => timeLabels[t] || t);
 
