@@ -106,6 +106,17 @@ Route::get('/test-email-9x7k', function () {
     return response()->json(['message' => 'Test email sent. Check your inbox.']);
 });
 
+// Temporary: add adoptaversary column to dogs table (REMOVE after running)
+Route::get('/add-adoptaversary-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'adoptaversary')) {
+        \Illuminate\Support\Facades\Schema::table('dogs', function ($t) {
+            $t->date('adoptaversary')->nullable()->after('date_of_birth');
+        });
+        return response()->json(['message' => 'adoptaversary column added to dogs table.']);
+    }
+    return response()->json(['message' => 'adoptaversary column already exists.']);
+});
+
 // Temporary: fix dogs.size enum to include toy and xl (REMOVE after running)
 Route::get('/fix-dog-size-enum-9x7k', function () {
     try {

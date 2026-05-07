@@ -91,7 +91,7 @@ interface Medication {
 
 const EMPTY_FORM = {
   name: '', breed: '', size: '', sex: '',
-  date_of_birth: '', weight_kg: '',
+  date_of_birth: '', adoptaversary: '', weight_kg: '',
   colour: '', microchip_number: '',
   spayed_neutered: false, special_instructions: '',
   vet_name: '', vet_phone: '', vet_address: '',
@@ -126,6 +126,7 @@ function dogToForm(dog: any): DogForm {
     size: dog.size ?? '',
     sex: dog.sex ?? '',
     date_of_birth: dog.date_of_birth ? dog.date_of_birth.slice(0, 10) : '',
+    adoptaversary: dog.adoptaversary ? dog.adoptaversary.slice(0, 10) : '',
     weight_kg: dog.weight_kg ?? '',
     colour: dog.colour ?? '',
     microchip_number: dog.microchip_number ?? '',
@@ -373,7 +374,8 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Colour / Markings" value={form.colour} onChange={e => setForm(f => ({ ...f, colour: e.target.value }))} />
-            <Input label="Date of Birth" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
+            <Input label="Date of Birth (or est.)" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
+            <Input label="Adopt-aversary" type="date" value={form.adoptaversary} onChange={e => setForm(f => ({ ...f, adoptaversary: e.target.value }))} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input label="Weight (lbs)" type="number" value={form.weight_kg} onChange={e => setForm(f => ({ ...f, weight_kg: e.target.value }))} />
@@ -558,7 +560,8 @@ export default function ClientDogsPage() {
                 <DetailRow label="Breed" value={dog.breed} />
                 <DetailRow label="Size" value={SIZE_LABELS[dog.size] ?? dog.size} />
                 <DetailRow label="Sex" value={dog.sex === 'male' ? 'Male' : dog.sex === 'female' ? 'Female' : null} />
-                <DetailRow label="Date of Birth" value={dog.date_of_birth ? new Date(dog.date_of_birth).toLocaleDateString('en-CA') : null} />
+                <DetailRow label="Date of Birth (or est.)" value={dog.date_of_birth ? new Date(dog.date_of_birth).toLocaleDateString('en-CA') : null} />
+                {dog.adoptaversary && <DetailRow label="Adopt-aversary" value={new Date(dog.adoptaversary).toLocaleDateString('en-CA')} />}
                 <DetailRow label="Weight" value={dog.weight_kg ? `${dog.weight_kg} lbs` : null} />
                 <DetailRow label="Colour" value={dog.colour} />
                 <DetailRow label="Microchip" value={dog.microchip_number} />

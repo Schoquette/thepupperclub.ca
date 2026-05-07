@@ -19,6 +19,7 @@ class Dog extends Model
         'name',
         'breed',
         'date_of_birth',
+        'adoptaversary',
         'size',
         'sex',
         'weight_kg',
@@ -62,6 +63,7 @@ class Dog extends Model
     {
         return [
             'date_of_birth'                     => 'date',
+            'adoptaversary'                     => 'date',
             'weight_kg'                         => 'decimal:2',
             'spayed_neutered'                   => 'boolean',
             'bite_history'                      => 'boolean',

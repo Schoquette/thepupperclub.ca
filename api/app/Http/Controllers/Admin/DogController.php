@@ -118,6 +118,7 @@ class DogController extends Controller
             'name'               => 'required|string|max:100',
             'breed'              => 'nullable|string|max:100',
             'date_of_birth'      => 'nullable|date',
+            'adoptaversary'      => 'nullable|date',
             'size'               => 'nullable|in:toy,small,medium,large,extra_large,xl',
             'sex'                => 'nullable|in:male,female',
             'weight_kg'          => 'nullable|numeric|min:0',

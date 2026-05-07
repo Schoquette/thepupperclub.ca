@@ -21,6 +21,7 @@ interface DogData {
   breed: string;
   colour: string;
   date_of_birth: string;
+  adoptaversary: string;
   weight_kg: string;
   size: string;
   sex: string;
@@ -98,6 +99,7 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     breed: '',
     colour: '',
     date_of_birth: '',
+    adoptaversary: '',
     weight_kg: '',
     size: '',
     sex: '',
@@ -136,6 +138,7 @@ function buildForm(data: any): FormData {
     breed: d.breed ?? '',
     colour: d.colour ?? '',
     date_of_birth: d.date_of_birth?.split('T')[0] ?? '',
+    adoptaversary: d.adoptaversary?.split('T')[0] ?? '',
     weight_kg: d.weight_kg != null ? String(d.weight_kg) : '',
     size: d.size ?? '',
     sex: d.sex ?? '',
@@ -668,10 +671,16 @@ function DogCard({
                   : <input className={fieldCls} value={dog.colour} onChange={e => set({ colour: e.target.value })} placeholder="Golden" />
                 }
               </FieldRow>
-              <FieldRow label="Date of Birth">
+              <FieldRow label="Date of Birth (or est.)">
                 {readOnly
                   ? <ReadValue value={dog.date_of_birth} />
                   : <input type="date" className={fieldCls} value={dog.date_of_birth} onChange={e => set({ date_of_birth: e.target.value })} />
+                }
+              </FieldRow>
+              <FieldRow label="Adopt-aversary">
+                {readOnly
+                  ? <ReadValue value={dog.adoptaversary} />
+                  : <input type="date" className={fieldCls} value={dog.adoptaversary} onChange={e => set({ adoptaversary: e.target.value })} />
                 }
               </FieldRow>
               <FieldRow label="Weight (lbs)">
