@@ -2,7 +2,7 @@
 
 @section('body')
   <div style="text-align: center; margin-bottom: 24px;">
-    <h2 style="margin: 0 0 6px; font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: #3B2F2A;">Visit Report Card</h2>
+    <h2 style="margin: 0 0 6px; font-family: 'Playfair Display SC', Georgia, 'Times New Roman', serif; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: #3B2F2A;">Visit Report Card</h2>
     <div style="color: #C9A24D; font-size: 15px; font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;">{{ $dogNames }}</div>
   </div>
 
