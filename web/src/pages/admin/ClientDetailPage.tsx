@@ -1870,6 +1870,15 @@ export default function AdminClientDetailPage() {
     },
   });
 
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const toggleStatus = useMutation({
+    mutationFn: (newStatus: string) => api.patch(`/admin/clients/${id}`, { status: newStatus }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-client', id] });
+      setShowDeactivateConfirm(false);
+    },
+  });
+
   const [accessSuccess, setAccessSuccess] = useState('');
   const saveAccess = useMutation({
     mutationFn: (f: HomeAccessForm) => api.patch(`/admin/clients/${id}/home-access`, f),
@@ -1921,6 +1930,15 @@ export default function AdminClientDetailPage() {
           {client.status === 'pending' && (
             <Button variant="outline" size="sm" loading={resend.isPending} onClick={() => resend.mutate()}>
               Resend Invite
+            </Button>
+          )}
+          {client.status !== 'pending' && (
+            <Button
+              variant={client.status === 'active' ? 'danger' : 'outline'}
+              size="sm"
+              onClick={() => setShowDeactivateConfirm(true)}
+            >
+              {client.status === 'active' ? 'Deactivate' : 'Reactivate'}
             </Button>
           )}
         </div>
@@ -2308,6 +2326,35 @@ export default function AdminClientDetailPage() {
       )}
 
       {/* Delete confirmation modal */}
+      {showDeactivateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
+            <h3 className="text-lg font-display text-espresso">
+              {client.status === 'active' ? 'Deactivate Client' : 'Reactivate Client'}
+            </h3>
+            <p className="text-sm text-taupe">
+              {client.status === 'active'
+                ? <>Are you sure you want to deactivate <strong>{client.name}</strong>? They will no longer be able to log in.</>
+                : <>Reactivate <strong>{client.name}</strong>? They will be able to log in again.</>
+              }
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowDeactivateConfirm(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant={client.status === 'active' ? 'danger' : 'primary'}
+                size="sm"
+                loading={toggleStatus.isPending}
+                onClick={() => toggleStatus.mutate(client.status === 'active' ? 'inactive' : 'active')}
+              >
+                {client.status === 'active' ? 'Yes, Deactivate' : 'Yes, Reactivate'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
