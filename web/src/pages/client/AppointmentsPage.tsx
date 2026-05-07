@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay, addMinutes } from 'date-fns';
+import { format, parse, startOfWeek, endOfWeek, getDay, addMinutes } from 'date-fns';
 import { enCA } from 'date-fns/locale';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
@@ -391,6 +391,9 @@ export default function ClientAppointmentsPage() {
         </div>
         </CalendarErrorBoundary>
       </Card>
+
+      {/* Visit History */}
+      <ClientVisitHistory appointments={appointments ?? []} />
 
       {/* Pending requests */}
       {Array.isArray(requests) && requests.filter((r: any) => r.status === 'pending').length > 0 && (
@@ -967,5 +970,112 @@ export default function ClientAppointmentsPage() {
         )}
       </Modal>
     </div>
+  );
+}
+
+function ClientVisitHistory({ appointments }: { appointments: any[] }) {
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(true);
+
+  const completed = useMemo(() => {
+    if (!appointments) return [];
+    return appointments
+      .filter((a: any) => a.status === 'completed')
+      .sort((a: any, b: any) => new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime());
+  }, [appointments]);
+
+  const grouped = useMemo(() => {
+    if (completed.length === 0) return [];
+    const map = new Map<string, { weekStart: Date; weekEnd: Date; visits: any[] }>();
+    for (const appt of completed) {
+      const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      const d = new Date(localStr);
+      const ws = startOfWeek(d, { weekStartsOn: 0 });
+      const we = endOfWeek(d, { weekStartsOn: 0 });
+      const key = format(ws, 'yyyy-MM-dd');
+      if (!map.has(key)) {
+        map.set(key, { weekStart: ws, weekEnd: we, visits: [] });
+      }
+      map.get(key)!.visits.push(appt);
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => b.weekStart.getTime() - a.weekStart.getTime()
+    );
+  }, [completed]);
+
+  if (grouped.length === 0) return null;
+
+  const serviceLabel = (type: string) => SERVICE_LABELS[type] ?? type?.replace(/_/g, ' ');
+
+  return (
+    <Card>
+      <button
+        className="w-full flex items-center justify-between"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <h2 className="font-display text-base text-espresso">Visit History</h2>
+        <svg
+          className={`w-5 h-5 text-taupe transition-transform ${expanded ? '' : '-rotate-90'}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-5">
+          {grouped.map(group => (
+            <div key={format(group.weekStart, 'yyyy-MM-dd')}>
+              <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2 px-1">
+                {format(group.weekStart, 'MMM d')} &ndash; {format(group.weekEnd, 'MMM d, yyyy')}
+                <span className="ml-2 text-taupe/60 font-normal normal-case">
+                  ({group.visits.length} visit{group.visits.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+              <div className="divide-y divide-cream rounded-xl border border-cream overflow-hidden">
+                {group.visits.map((appt: any) => {
+                  const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+                  const d = new Date(localStr);
+                  const dogs = appt.dogs?.map((dog: any) => dog.name).join(', ') || '';
+                  const hasReport = !!appt.visit_report;
+
+                  return (
+                    <div key={appt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-cream/30 transition-colors">
+                      <div className="flex-shrink-0 w-12 text-center">
+                        <div className="text-xs font-bold text-espresso">{format(d, 'EEE')}</div>
+                        <div className="text-lg font-bold text-gold leading-tight">{format(d, 'd')}</div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-espresso">
+                          {serviceLabel(appt.service_type)}
+                        </div>
+                        <div className="text-xs text-taupe">
+                          {dogs}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right text-xs text-taupe">
+                        {format(d, 'h:mm a')}
+                      </div>
+                      {hasReport ? (
+                        <button
+                          onClick={() => navigate(`/client/report-cards`)}
+                          className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                        >
+                          Report Card
+                        </button>
+                      ) : (
+                        <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-cream text-taupe">
+                          No Report
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
