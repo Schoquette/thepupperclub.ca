@@ -766,6 +766,9 @@ export default function AdminCalendarPage() {
       {/* Upcoming Birthdays */}
       <UpcomingBirthdays birthdays={birthdaysData ?? []} />
 
+      {/* Visit History */}
+      <VisitHistory />
+
       {/* Appointment detail modal */}
       <Modal open={!!selected && !completing && !editing} onClose={() => setSelected(null)} title="Appointment" size="lg">
         {selected && (
@@ -1805,6 +1808,127 @@ function UpcomingBirthdays({ birthdays }: { birthdays: any[] }) {
           );
         })}
       </div>
+    </Card>
+  );
+}
+
+// ── Visit History ───────────────────────────────────────────────────────────
+
+function VisitHistory() {
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(true);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['visit-history'],
+    queryFn: () => api.get('/admin/appointments', {
+      params: { status: 'completed', start: '2020-01-01', end: format(new Date(), 'yyyy-MM-dd\'T\'23:59:59') },
+    }).then(r => r.data.data),
+  });
+
+  const grouped = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    // Group by calendar week (Sunday start)
+    const map = new Map<string, { weekStart: Date; weekEnd: Date; visits: any[] }>();
+    for (const appt of data) {
+      const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      const d = new Date(localStr);
+      const ws = startOfWeek(d, { weekStartsOn: 0 });
+      const we = endOfWeek(d, { weekStartsOn: 0 });
+      const key = format(ws, 'yyyy-MM-dd');
+      if (!map.has(key)) {
+        map.set(key, { weekStart: ws, weekEnd: we, visits: [] });
+      }
+      map.get(key)!.visits.push(appt);
+    }
+    // Sort weeks descending (most recent first)
+    return Array.from(map.values()).sort(
+      (a, b) => b.weekStart.getTime() - a.weekStart.getTime()
+    );
+  }, [data]);
+
+  if (isLoading || grouped.length === 0) return null;
+
+  const serviceLabel = (type: string) => {
+    if (type === 'walk_30') return '30-Minute Visit';
+    if (type === 'walk_60') return '60-Minute Visit';
+    return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  return (
+    <Card>
+      <button
+        className="w-full flex items-center justify-between"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <h2 className="text-lg font-display text-espresso">Visit History</h2>
+        <svg
+          className={`w-5 h-5 text-taupe transition-transform ${expanded ? '' : '-rotate-90'}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-5">
+          {grouped.map(group => (
+            <div key={format(group.weekStart, 'yyyy-MM-dd')}>
+              <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2 px-1">
+                {format(group.weekStart, 'MMM d')} &ndash; {format(group.weekEnd, 'MMM d, yyyy')}
+                <span className="ml-2 text-taupe/60 font-normal normal-case">
+                  ({group.visits.length} visit{group.visits.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+              <div className="divide-y divide-cream rounded-xl border border-cream overflow-hidden">
+                {group.visits.map((appt: any) => {
+                  const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+                  const d = new Date(localStr);
+                  const dogs = appt.dogs?.map((dog: any) => dog.name).join(', ') || '';
+                  const hasReport = !!appt.visit_report;
+
+                  return (
+                    <div key={appt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-cream/30 transition-colors">
+                      <div className="flex-shrink-0 w-12 text-center">
+                        <div className="text-xs font-bold text-espresso">{format(d, 'EEE')}</div>
+                        <div className="text-lg font-bold text-gold leading-tight">{format(d, 'd')}</div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-espresso">
+                          <button
+                            className="hover:text-gold transition-colors text-left"
+                            onClick={() => navigate(`/admin/clients/${appt.user_id}`)}
+                          >
+                            {appt.user?.name ?? 'Unknown'}
+                          </button>
+                        </div>
+                        <div className="text-xs text-taupe">
+                          {dogs && <span>{dogs} &mdash; </span>}
+                          {serviceLabel(appt.service_type)}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right text-xs text-taupe">
+                        {format(d, 'h:mm a')}
+                      </div>
+                      {hasReport ? (
+                        <button
+                          onClick={() => navigate(`/admin/report-cards/${appt.visit_report.id}`)}
+                          className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                        >
+                          Report Card
+                        </button>
+                      ) : (
+                        <span className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium bg-cream text-taupe">
+                          No Report
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
