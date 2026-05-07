@@ -65,6 +65,7 @@ class AppointmentController extends Controller
 
         $sr = ServiceRequest::create([
             'user_id'              => $user->id,
+            'appointment_id'       => $appointment->id,
             'service_type'         => $appointment->service_type,
             'preferred_time_block' => $data['preferred_time_block'],
             'preferred_date'       => $data['preferred_date'],
@@ -107,6 +108,7 @@ class AppointmentController extends Controller
 
         $sr = ServiceRequest::create([
             'user_id'              => $user->id,
+            'appointment_id'       => $appointment->id,
             'service_type'         => $appointment->service_type,
             'preferred_time_block' => $appointment->client_time_block ?? 'morning',
             'preferred_date'       => $appointment->scheduled_time->toDateString(),
@@ -168,6 +170,7 @@ class AppointmentController extends Controller
 
         $sr = ServiceRequest::create([
             'user_id'              => $user->id,
+            'appointment_id'       => $appointment->id,
             'service_type'         => $appointment->service_type,
             'preferred_time_block' => $appointment->client_time_block ?? 'morning',
             'preferred_date'       => $appointment->scheduled_time->toDateString(),

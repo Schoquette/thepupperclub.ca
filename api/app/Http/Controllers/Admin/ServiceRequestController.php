@@ -99,15 +99,26 @@ class ServiceRequestController extends Controller
             'day_boarding' => 480, 'overnight' => 1440,
         ];
 
-        $this->appointmentService->create([
-            'user_id'           => $serviceRequest->user_id,
-            'dog_ids'           => $serviceRequest->dogs->pluck('id')->all(),
-            'service_type'      => $serviceRequest->service_type,
-            'scheduled_time'    => $data['scheduled_time'],
-            'client_time_block' => $serviceRequest->preferred_time_block,
-            'duration_minutes'  => $durations[$serviceRequest->service_type] ?? 30,
-            'force'             => true, // Admin already sees conflict warnings in UI
-        ]);
+        // For time_change requests, move the existing appointment instead of creating a new one
+        if ($serviceRequest->request_type === 'time_change' && $serviceRequest->appointment_id) {
+            $appointment = \App\Models\Appointment::find($serviceRequest->appointment_id);
+            if ($appointment) {
+                $appointment->update([
+                    'scheduled_time'    => $data['scheduled_time'],
+                    'client_time_block' => $serviceRequest->preferred_time_block,
+                ]);
+            }
+        } else {
+            $this->appointmentService->create([
+                'user_id'           => $serviceRequest->user_id,
+                'dog_ids'           => $serviceRequest->dogs->pluck('id')->all(),
+                'service_type'      => $serviceRequest->service_type,
+                'scheduled_time'    => $data['scheduled_time'],
+                'client_time_block' => $serviceRequest->preferred_time_block,
+                'duration_minutes'  => $durations[$serviceRequest->service_type] ?? 30,
+                'force'             => true, // Admin already sees conflict warnings in UI
+            ]);
+        }
 
         // Add charge to client's next invoice (unless included in plan)
         $billingType = $data['billing_type'] ?? 'included_in_plan';

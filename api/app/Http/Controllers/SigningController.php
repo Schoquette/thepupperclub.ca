@@ -290,6 +290,8 @@ class SigningController extends Controller
                     'body'      => "I've signed the document \"{$document->filename}\". Awaiting your counter-signature.",
                     'metadata'  => ['system' => true, 'document_id' => $document->id],
                 ]);
+                $conversation->increment('unread_count_admin');
+                $conversation->update(['last_message_at' => now()]);
             }
         } else {
             // No company fields — generate certificate immediately
@@ -305,6 +307,8 @@ class SigningController extends Controller
                     'body'      => "I've signed the document \"{$document->filename}\".",
                     'metadata'  => ['system' => true, 'document_id' => $document->id],
                 ]);
+                $conversation->increment('unread_count_admin');
+                $conversation->update(['last_message_at' => now()]);
 
                 $clientName = $document->user?->name ?? $data['signer_name'];
                 $title = "Document signed — {$document->filename}";

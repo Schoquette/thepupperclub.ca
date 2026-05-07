@@ -10,6 +10,7 @@ class ServiceRequest extends Model
 {
     protected $fillable = [
         'user_id',
+        'appointment_id',
         'service_type',
         'preferred_time_block',
         'preferred_date',
@@ -33,6 +34,11 @@ class ServiceRequest extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
     }
 
     public function dogs(): BelongsToMany

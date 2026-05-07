@@ -147,6 +147,18 @@ Route::get('/add-appt-distance-9x7k', function () {
     return response()->json(['message' => 'distance_km column already exists.']);
 });
 
+// Temporary: add appointment_id to service_requests (REMOVE after running)
+Route::get('/add-sr-appointment-id-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('service_requests', 'appointment_id')) {
+        \Illuminate\Support\Facades\Schema::table('service_requests', function ($t) {
+            $t->unsignedBigInteger('appointment_id')->nullable()->after('user_id');
+            $t->foreign('appointment_id')->references('id')->on('appointments')->nullOnDelete();
+        });
+        return response()->json(['message' => 'appointment_id column added to service_requests.']);
+    }
+    return response()->json(['message' => 'appointment_id column already exists.']);
+});
+
 // Temporary: add adoptaversary column to dogs table (REMOVE after running)
 Route::get('/add-adoptaversary-9x7k', function () {
     if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'adoptaversary')) {

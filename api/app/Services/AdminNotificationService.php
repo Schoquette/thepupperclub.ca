@@ -61,6 +61,10 @@ class AdminNotificationService
             'body'      => $body,
             'metadata'  => ['title' => $title],
         ]);
+
+        // Mark conversation as unread for admin
+        $conversation->increment('unread_count_admin');
+        $conversation->update(['last_message_at' => now()]);
     }
 
     private function notifyAdmin(string $title, string $body): void
