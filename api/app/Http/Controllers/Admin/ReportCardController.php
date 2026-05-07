@@ -110,8 +110,6 @@ class ReportCardController extends Controller
 
     public function update(Request $request, VisitReport $reportCard): JsonResponse
     {
-        abort_unless(!$reportCard->sent_at, 422, 'Cannot edit a sent report card.');
-
         $data = $request->validate([
             'arrival_time'         => 'sometimes|nullable|date',
             'departure_time'       => 'sometimes|nullable|date',
@@ -171,8 +169,6 @@ class ReportCardController extends Controller
 
     public function send(VisitReport $reportCard): JsonResponse
     {
-        abort_if($reportCard->sent_at, 422, 'Report card already sent.');
-
         $this->service->send($reportCard);
 
         return response()->json(['message' => 'Report card sent.', 'data' => $reportCard->fresh()]);

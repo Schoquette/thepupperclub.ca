@@ -237,6 +237,7 @@ export default function AdminReportCardFormPage() {
   const allPhotos = [...existingPhotoUrls, ...newPreviews];
   const enabledItems = templateItems.filter((i) => i.enabled);
   const isSent = !isNew && !!report?.sent_at;
+  const [editing, setEditing] = useState(false);
 
   // Determine section keys for rendering
   const sectionKeys = dogIds.length > 0 ? dogIds.map(String) : [GENERAL_KEY];
@@ -244,8 +245,10 @@ export default function AdminReportCardFormPage() {
   clientDogs.forEach(d => { dogNameMap[String(d.id)] = d.name; });
 
   // Helpers to update per-dog state
+  const locked = isSent && !editing;
+
   const toggleCheck = (sectionKey: string, checkKey: string) => {
-    if (isSent) return;
+    if (locked) return;
     setDogData(prev => ({
       ...prev,
       [sectionKey]: {
@@ -397,7 +400,7 @@ export default function AdminReportCardFormPage() {
           ←
         </button>
         <h1 className="page-title text-xl flex-1">
-          {isNew ? 'New Report Card' : isSent ? 'Report Card' : 'Edit Report Card'}
+          {isNew ? 'New Report Card' : isSent && !editing ? 'Report Card' : 'Edit Report Card'}
         </h1>
         {!isNew && !isSent && (
           <button
@@ -406,6 +409,11 @@ export default function AdminReportCardFormPage() {
           >
             Delete
           </button>
+        )}
+        {isSent && !editing && (
+          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+            Edit
+          </Button>
         )}
       </div>
 
@@ -451,7 +459,7 @@ export default function AdminReportCardFormPage() {
                   <button
                     key={dog.id}
                     type="button"
-                    disabled={isSent}
+                    disabled={locked}
                     onClick={() =>
                       setDogIds((prev) =>
                         selected ? prev.filter((did) => did !== dog.id) : [...prev, dog.id]
@@ -461,7 +469,7 @@ export default function AdminReportCardFormPage() {
                       selected
                         ? 'bg-gold text-white'
                         : 'bg-cream text-espresso hover:bg-gold/20'
-                    } ${isSent ? 'cursor-default' : 'cursor-pointer'}`}
+                    } ${locked ? 'cursor-default' : 'cursor-pointer'}`}
                   >
                     {dog.name}
                   </button>
@@ -523,7 +531,7 @@ export default function AdminReportCardFormPage() {
         )}
 
         {/* Template customization */}
-        {clientId && !isSent && (
+        {clientId && !locked && (
           <div className="mb-4 flex justify-end">
             <button
               onClick={() => {
@@ -547,7 +555,7 @@ export default function AdminReportCardFormPage() {
               {existingPhotoUrls.map((url, i) => (
                 <div key={`existing-${i}`} className="relative group">
                   <img src={url} alt={`Visit photo ${i + 1}`} className="w-full h-32 object-cover rounded-xl" />
-                  {!isSent && (
+                  {!locked && (
                     <button
                       onClick={() => {
                         deletePhoto.mutate(i);
@@ -573,7 +581,7 @@ export default function AdminReportCardFormPage() {
               ))}
             </div>
           )}
-          {!isSent && (
+          {!locked && (
             <button
               onClick={() => fileRef.current?.click()}
               className="w-full border-2 border-dashed border-taupe/30 rounded-xl py-6 text-taupe text-sm hover:border-gold hover:text-gold transition-colors"
@@ -603,7 +611,7 @@ export default function AdminReportCardFormPage() {
             step={900}
             value={arrivalTime}
             onChange={(e) => setArrivalTime(e.target.value)}
-            disabled={isSent}
+            disabled={locked}
           />
           <Input
             label="Departure Time"
@@ -611,7 +619,7 @@ export default function AdminReportCardFormPage() {
             step={900}
             value={departureTime}
             onChange={(e) => setDepartureTime(e.target.value)}
-            disabled={isSent}
+            disabled={locked}
           />
         </div>
 
@@ -646,7 +654,7 @@ export default function AdminReportCardFormPage() {
                       <label
                         key={item.key}
                         className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-colors ${
-                          isSent ? 'cursor-default' : 'cursor-pointer hover:bg-gold/5'
+                          locked ? 'cursor-default' : 'cursor-pointer hover:bg-gold/5'
                         } ${
                           section.checklist[item.key]
                             ? 'bg-gold/10 border border-gold/30'
@@ -658,7 +666,7 @@ export default function AdminReportCardFormPage() {
                           checked={!!section.checklist[item.key]}
                           onChange={() => toggleCheck(sectionKey, item.key)}
                           className="accent-gold"
-                          disabled={isSent}
+                          disabled={locked}
                         />
                         <span className="text-sm text-espresso">{item.label}</span>
                       </label>
@@ -676,14 +684,14 @@ export default function AdminReportCardFormPage() {
                 onChange={(e) => setDogNotes(sectionKey, e.target.value)}
                 rows={3}
                 placeholder={isMultiDog ? `How was ${dogName}'s visit?` : 'How did the visit go? Any observations for the client…'}
-                disabled={isSent}
+                disabled={locked}
               />
             </div>
           );
         })}
 
         {/* Special trip details (shared across all dogs) */}
-        {enabledItems.find((i) => i.key === 'special_trip') && !isSent && (
+        {enabledItems.find((i) => i.key === 'special_trip') && !locked && (
           <div className="mb-5">
             <Input
               label="Special trip details"
@@ -693,7 +701,7 @@ export default function AdminReportCardFormPage() {
             />
           </div>
         )}
-        {isSent && report?.special_trip_details && (
+        {locked && report?.special_trip_details && (
           <div className="mb-5 text-sm text-taupe bg-gold/5 border border-gold/20 rounded-lg px-3 py-2">
             <span className="font-semibold text-gold">Special Trip: </span>
             {report.special_trip_details}
@@ -701,7 +709,7 @@ export default function AdminReportCardFormPage() {
         )}
 
         {/* Action buttons */}
-        {!isSent && (
+        {!locked && (
           <div className="flex gap-3 justify-end pt-2 border-t border-cream">
             {isNew ? (
               <>
@@ -719,6 +727,28 @@ export default function AdminReportCardFormPage() {
                   onClick={() => { setError(''); createAndSend.mutate(); }}
                 >
                   Send to Client
+                </Button>
+              </>
+            ) : editing ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditing(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  loading={updateReport.isPending}
+                  onClick={() => { setError(''); updateReport.mutate(); }}
+                >
+                  Save
+                </Button>
+                <Button
+                  loading={sendReport.isPending}
+                  onClick={() => { setError(''); sendReport.mutate(); }}
+                >
+                  Update & Resend
                 </Button>
               </>
             ) : (
