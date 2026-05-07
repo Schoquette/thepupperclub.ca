@@ -21,8 +21,11 @@ interface Row {
   service_type: string;
   address: string | null;
   assigned_to: string | null;
+  scheduled_time: string | null;
+  scheduled_minutes: number | null;
   check_in: string | null;
   check_out: string | null;
+  actual_minutes: number | null;
   duration_minutes: number | null;
   distance_km: number | null;
   status: string;
@@ -80,6 +83,7 @@ export default function TimeMileagePage() {
   const [customEnd, setCustomEnd] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [timeMode, setTimeMode] = useState<'actual' | 'scheduled'>('actual');
 
   // Load team members for filter
   const { data: teamMembers } = useQuery<any[]>({
@@ -107,6 +111,9 @@ export default function TimeMileagePage() {
     enabled: !!range.start && !!range.end,
   });
 
+  const getDuration = (row: Row) =>
+    timeMode === 'actual' ? (row.actual_minutes ?? row.scheduled_minutes) : row.scheduled_minutes;
+
   // Group rows by date for daily subtotals
   const grouped = useMemo(() => {
     if (!data?.rows) return [];
@@ -119,10 +126,10 @@ export default function TimeMileagePage() {
     return Array.from(map.entries()).map(([date, rows]) => ({
       date,
       rows,
-      totalMinutes: rows.reduce((s, r) => s + (r.duration_minutes ?? 0), 0),
+      totalMinutes: rows.reduce((s, r) => s + (getDuration(r) ?? 0), 0),
       totalKm: rows.reduce((s, r) => s + (r.distance_km ?? 0), 0),
     }));
-  }, [data?.rows]);
+  }, [data?.rows, timeMode]); // eslint-disable-line
 
   return (
     <div className="space-y-6">
@@ -146,6 +153,26 @@ export default function TimeMileagePage() {
                   }`}
                 >
                   {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Time mode toggle */}
+          <div>
+            <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">Time</div>
+            <div className="flex gap-1 bg-cream rounded-full p-0.5">
+              {(['actual', 'scheduled'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setTimeMode(mode)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize transition-colors ${
+                    timeMode === mode
+                      ? 'bg-gold text-white'
+                      : 'text-espresso hover:text-gold'
+                  }`}
+                >
+                  {mode}
                 </button>
               ))}
             </div>
@@ -200,7 +227,10 @@ export default function TimeMileagePage() {
       </Card>
 
       {/* Summary cards */}
-      {data?.summary && (
+      {data?.summary && (() => {
+        const totalMin = grouped.reduce((s, g) => s + g.totalMinutes, 0);
+        const totalKm = grouped.reduce((s, g) => s + g.totalKm, 0);
+        return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card padding="sm">
             <div className="text-2xl mb-1">📋</div>
@@ -209,21 +239,22 @@ export default function TimeMileagePage() {
           </Card>
           <Card padding="sm">
             <div className="text-2xl mb-1">⏱️</div>
-            <div className="text-2xl font-bold text-espresso">{formatDuration(data.summary.total_minutes)}</div>
-            <div className="text-xs text-taupe mt-0.5">Total Time</div>
+            <div className="text-2xl font-bold text-espresso">{formatDuration(totalMin)}</div>
+            <div className="text-xs text-taupe mt-0.5">Total Time ({timeMode})</div>
           </Card>
           <Card padding="sm">
             <div className="text-2xl mb-1">🚗</div>
-            <div className="text-2xl font-bold text-blue">{data.summary.total_km} km</div>
+            <div className="text-2xl font-bold text-blue">{totalKm.toFixed(1)} km</div>
             <div className="text-xs text-taupe mt-0.5">Total Distance</div>
           </Card>
           <Card padding="sm">
             <div className="text-2xl mb-1">⏰</div>
-            <div className="text-2xl font-bold text-espresso">{data.summary.total_hours}</div>
+            <div className="text-2xl font-bold text-espresso">{(totalMin / 60).toFixed(1)}</div>
             <div className="text-xs text-taupe mt-0.5">Total Hours</div>
           </Card>
         </div>
-      )}
+        );
+      })()}
 
       {/* Detailed table */}
       {isLoading ? (
@@ -243,8 +274,8 @@ export default function TimeMileagePage() {
                   <th className="py-3 px-3">Service</th>
                   <th className="py-3 px-3">Team Member</th>
                   <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3">Check In</th>
-                  <th className="py-3 px-3">Check Out</th>
+                  <th className="py-3 px-3">{timeMode === 'actual' ? 'Check In' : 'Scheduled'}</th>
+                  <th className="py-3 px-3">{timeMode === 'actual' ? 'Check Out' : ''}</th>
                   <th className="py-3 px-3 text-right">Duration</th>
                   <th className="py-3 px-3 text-right">Mileage</th>
                 </tr>
@@ -294,9 +325,9 @@ export default function TimeMileagePage() {
                             {row.status === 'checked_in' ? 'Checked In' : row.status === 'completed' ? 'Completed' : 'Scheduled'}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-taupe">{row.check_in ?? '—'}</td>
-                        <td className="py-2.5 px-3 text-taupe">{row.check_out ?? '—'}</td>
-                        <td className="py-2.5 px-3 text-right font-medium text-espresso">{formatDuration(row.duration_minutes)}</td>
+                        <td className="py-2.5 px-3 text-taupe">{timeMode === 'actual' ? (row.check_in ?? '—') : (row.scheduled_time ?? '—')}</td>
+                        <td className="py-2.5 px-3 text-taupe">{timeMode === 'actual' ? (row.check_out ?? '—') : ''}</td>
+                        <td className="py-2.5 px-3 text-right font-medium text-espresso">{formatDuration(getDuration(row))}</td>
                         <td className="py-2.5 px-3 text-right font-medium text-espresso">
                           {row.distance_km != null ? `${row.distance_km} km` : '—'}
                         </td>
@@ -306,13 +337,19 @@ export default function TimeMileagePage() {
                   );
                 })}
                 {/* Grand total row */}
-                <tr className="bg-espresso/5 font-semibold text-espresso">
-                  <td colSpan={7} className="py-3 px-3">
-                    Total ({data?.summary.total_visits} visits)
-                  </td>
-                  <td className="py-3 px-3 text-right">{formatDuration(data?.summary.total_minutes ?? 0)}</td>
-                  <td className="py-3 px-3 text-right">{data?.summary.total_km ?? 0} km</td>
-                </tr>
+                {(() => {
+                  const grandMin = grouped.reduce((s, g) => s + g.totalMinutes, 0);
+                  const grandKm = grouped.reduce((s, g) => s + g.totalKm, 0);
+                  return (
+                  <tr className="bg-espresso/5 font-semibold text-espresso">
+                    <td colSpan={7} className="py-3 px-3">
+                      Total ({data?.summary.total_visits} visits)
+                    </td>
+                    <td className="py-3 px-3 text-right">{formatDuration(grandMin)}</td>
+                    <td className="py-3 px-3 text-right">{grandKm.toFixed(1)} km</td>
+                  </tr>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

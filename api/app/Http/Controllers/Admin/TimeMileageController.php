@@ -41,27 +41,31 @@ class TimeMileageController extends Controller
         $rows = $appointments->map(function (Appointment $appt) {
             $checkIn  = $appt->check_in_time;
             $checkOut = $appt->check_out_time;
-            $minutes  = ($checkIn && $checkOut)
+            $actualMinutes  = ($checkIn && $checkOut)
                 ? $checkIn->diffInMinutes($checkOut)
-                : ($appt->duration_minutes ?? null);
+                : null;
+            $scheduledMinutes = $appt->duration_minutes ?? null;
             $address  = trim(implode(', ', array_filter([
                 $appt->user?->clientProfile?->address,
                 $appt->user?->clientProfile?->city,
             ])));
 
             return [
-                'id'              => $appt->id,
-                'date'            => $appt->scheduled_time->toDateString(),
-                'client_name'     => $appt->user?->name ?? '—',
-                'dogs'            => $appt->dogs->pluck('name')->join(', '),
-                'service_type'    => $appt->service_type,
-                'address'         => $address ?: null,
-                'assigned_to'     => $appt->assignedAdmin?->name ?? null,
-                'check_in'        => $checkIn?->format('g:i A'),
-                'check_out'       => $checkOut?->format('g:i A'),
-                'duration_minutes' => $minutes,
-                'distance_km'     => $appt->visitReport?->distance_km ?? $appt->distance_km,
-                'status'          => $appt->status,
+                'id'                  => $appt->id,
+                'date'                => $appt->scheduled_time->toDateString(),
+                'client_name'         => $appt->user?->name ?? '—',
+                'dogs'                => $appt->dogs->pluck('name')->join(', '),
+                'service_type'        => $appt->service_type,
+                'address'             => $address ?: null,
+                'assigned_to'         => $appt->assignedAdmin?->name ?? null,
+                'scheduled_time'      => $appt->scheduled_time->format('g:i A'),
+                'scheduled_minutes'   => $scheduledMinutes,
+                'check_in'            => $checkIn?->format('g:i A'),
+                'check_out'           => $checkOut?->format('g:i A'),
+                'actual_minutes'      => $actualMinutes,
+                'duration_minutes'    => $actualMinutes ?? $scheduledMinutes,
+                'distance_km'         => $appt->visitReport?->distance_km ?? $appt->distance_km ?? null,
+                'status'              => $appt->status,
             ];
         });
 
