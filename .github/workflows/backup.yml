@@ -1,0 +1,140 @@
+# Nightly Database Backup
+#
+# SETUP REQUIRED:
+#
+# 1. GoDaddy Remote MySQL Access:
+#    Go to cPanel -> Remote MySQL and whitelist the IP addresses that
+#    GitHub Actions runners use, or add '%' to allow all remote connections.
+#    Without this, the mysqldump connection will be refused and the workflow
+#    will fall back to the API-based backup method.
+#
+# 2. Add these secrets to your GitHub repo (Settings -> Secrets and variables -> Actions):
+#    - DB_HOST       : Your GoDaddy MySQL hostname (e.g., xyz.db.1and1.com)
+#    - DB_PORT       : MySQL port (usually 3306)
+#    - DB_DATABASE   : The database name
+#    - DB_USERNAME   : The database username
+#    - DB_PASSWORD   : The database password
+#    - BACKUP_API_TOKEN : A Laravel Sanctum token for an admin user (fallback method)
+#
+# The fallback API method requires a GET /api/admin/backup/download endpoint
+# on your Laravel app that returns a database export when called with a valid
+# admin Bearer token.
+
+name: Nightly Database Backup
+
+on:
+  schedule:
+    # 4 AM Pacific = 11:00 UTC (PDT) / 12:00 UTC (PST)
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Backup MySQL Database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Set date variable
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mysql-client
+
+      - name: Dump database via mysqldump
+        id: mysqldump
+        continue-on-error: true
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          echo "Connecting to ${DB_HOST}:${DB_PORT:-3306}..."
+          mysqldump \
+            --host="$DB_HOST" \
+            --port="${DB_PORT:-3306}" \
+            --user="$DB_USERNAME" \
+            --password="$DB_PASSWORD" \
+            --single-transaction \
+            --routines \
+            --triggers \
+            --set-gtid-purged=OFF \
+            --column-statistics=0 \
+            "$DB_DATABASE" | gzip > backup.sql.gz
+
+          # Verify the dump is not empty
+          if [ ! -s backup.sql.gz ]; then
+            echo "::error::Backup file is empty"
+            exit 1
+          fi
+
+          SIZE=$(du -h backup.sql.gz | cut -f1)
+          echo "Backup successful. Size: ${SIZE}"
+          echo "method=mysqldump" >> "$GITHUB_OUTPUT"
+
+      - name: Fallback — download backup via API
+        if: steps.mysqldump.outcome == 'failure'
+        id: api_backup
+        env:
+          BACKUP_API_TOKEN: ${{ secrets.BACKUP_API_TOKEN }}
+        run: |
+          echo "::warning::mysqldump failed. Falling back to API backup endpoint."
+
+          HTTP_CODE=$(curl -s -o backup.zip -w "%{http_code}" \
+            -H "Authorization: Bearer ${BACKUP_API_TOKEN}" \
+            -H "Accept: application/octet-stream" \
+            --max-time 300 \
+            "https://thepupperclub.ca/api/admin/backup/download")
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::API backup failed with HTTP status ${HTTP_CODE}"
+            cat backup.zip 2>/dev/null || true
+            exit 1
+          fi
+
+          if [ ! -s backup.zip ]; then
+            echo "::error::API backup returned an empty file"
+            exit 1
+          fi
+
+          SIZE=$(du -h backup.zip | cut -f1)
+          echo "API backup successful. Size: ${SIZE}"
+          echo "method=api" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if both methods failed
+        if: steps.mysqldump.outcome == 'failure' && steps.api_backup.outcome == 'failure'
+        run: |
+          echo "::error::Both mysqldump and API backup methods failed."
+          exit 1
+
+      - name: Upload mysqldump artifact
+        if: steps.mysqldump.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ steps.date.outputs.date }}
+          path: backup.sql.gz
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload API backup artifact
+        if: steps.mysqldump.outcome == 'failure' && steps.api_backup.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ steps.date.outputs.date }}
+          path: backup.zip
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          METHOD="${{ steps.mysqldump.outcome == 'success' && 'mysqldump' || 'api' }}"
+          echo "### Database Backup Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Date:** ${{ steps.date.outputs.date }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Method:** ${METHOD}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Artifact:** db-backup-${{ steps.date.outputs.date }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Retention:** 30 days" >> "$GITHUB_STEP_SUMMARY"
