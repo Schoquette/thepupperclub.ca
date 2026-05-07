@@ -66,7 +66,7 @@ function AddCardForm({ onSuccess }: { onSuccess: () => void }) {
 const METHOD_OPTIONS = [
   { value: 'credit_card', label: 'Credit Card (2% fee)', icon: CreditCard },
   { value: 'e_transfer', label: 'E-Transfer (no fee)', icon: ArrowRightLeft },
-  { value: 'interac_pad', label: 'Interac / PAD (no fee)', icon: Building2 },
+  { value: 'interac_pad', label: 'Debit Card (no fee)', icon: Building2 },
   { value: 'cash', label: 'Cash (no fee)', icon: Banknote },
 ];
 
@@ -167,7 +167,7 @@ export default function ClientBillingPage() {
                     <div className="text-xs text-taupe mt-0.5">Send to sophie@thepupperclub.ca before your billing date</div>
                   )}
                   {opt.value === 'interac_pad' && selected && (
-                    <div className="text-xs text-taupe mt-0.5">Set up Interac/Visa Debit or Bank Debit (PAD) through Stripe</div>
+                    <div className="text-xs text-taupe mt-0.5">Use your Visa Debit or debit card — no surcharge applied</div>
                   )}
                   {opt.value === 'cash' && selected && (
                     <div className="text-xs text-taupe mt-0.5">Leave at your service address before your billing date</div>
@@ -230,7 +230,7 @@ export default function ClientBillingPage() {
         </Card>
       )}
 
-      {/* Interac / PAD setup — Stripe debit setup */}
+      {/* Interac / PAD setup */}
       {currentMethod === 'interac_pad' && (
         <Card>
           <CardHeader title="Interac / PAD Setup" />
@@ -248,12 +248,12 @@ export default function ClientBillingPage() {
                   className="text-sm text-gold hover:text-espresso font-medium transition-colors"
                   onClick={() => setAddingCard(true)}
                 >
-                  Replace payment method
+                  Replace debit card
                 </button>
               )}
             </div>
           ) : (
-            <p className="text-sm text-taupe mb-4">Set up your Interac/Visa Debit or bank account for automatic payments.</p>
+            <p className="text-sm text-taupe mb-4">Add your Visa Debit or debit card for automatic payments with no surcharge.</p>
           )}
 
           {(!pm || addingCard) && (
@@ -266,12 +266,13 @@ export default function ClientBillingPage() {
                   }}
                 />
               </Elements>
+              <p className="text-xs text-taupe mt-2">Enter your Visa Debit or debit card details above. No surcharge applies to debit cards.</p>
             </div>
           )}
 
           <div className="mt-4 p-3 bg-gold/5 border border-gold/20 rounded-lg">
             <p className="text-xs text-espresso">
-              No additional fees for Interac/PAD payments.
+              No additional fees for debit card payments.
               Your payment information is securely stored by Stripe and never touches our servers.
             </p>
           </div>
