@@ -45,6 +45,7 @@ import ClientDogsPage from './pages/client/DogsPage';
 import ClientAppointmentsPage from './pages/client/AppointmentsPage';
 import ClientMessagesPage from './pages/client/MessagesPage';
 import ClientInvoicesPage from './pages/client/InvoicesPage';
+import ClientInvoiceDetailPage from './pages/client/InvoiceDetailPage';
 import ClientBillingPage from './pages/client/BillingPage';
 import ClientReportCardsPage from './pages/client/ReportCardsPage';
 import ClientDocumentsPage from './pages/client/DocumentsPage';
@@ -123,6 +124,7 @@ export default function App() {
         <Route path="appointments" element={<ClientAppointmentsPage />} />
         <Route path="messages" element={<ClientMessagesPage />} />
         <Route path="invoices" element={<ClientInvoicesPage />} />
+        <Route path="invoices/:id" element={<ClientInvoiceDetailPage />} />
         <Route path="billing" element={<ClientBillingPage />} />
         <Route path="report-cards" element={<ClientReportCardsPage />} />
         <Route path="documents" element={<ClientDocumentsPage />} />

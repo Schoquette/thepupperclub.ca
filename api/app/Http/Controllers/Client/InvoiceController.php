@@ -27,6 +27,15 @@ class InvoiceController extends Controller
         return response()->json($invoices);
     }
 
+    public function show(Request $request, Invoice $invoice): JsonResponse
+    {
+        abort_unless($invoice->user_id === $request->user()->id, 403);
+
+        return response()->json([
+            'data' => $invoice->load(['user.clientProfile', 'lineItems']),
+        ]);
+    }
+
     public function pay(Request $request, Invoice $invoice): JsonResponse
     {
         abort_unless($invoice->user_id === $request->user()->id, 403);
