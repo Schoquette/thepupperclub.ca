@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format, parseISO } from 'date-fns';
-import { ChevronUp, ChevronDown, Filter } from 'lucide-react';
+import { ChevronUp, ChevronDown, Filter, Download } from 'lucide-react';
 
 const TIME_BLOCK_LABELS = {
   early_morning: '6–9 AM', morning: '9 AM–12 PM', midday: '12–3 PM',
@@ -159,6 +159,26 @@ const SERVICE_LABELS: Record<string, string> = {
   overnight: 'Overnight', day_boarding: 'Day Boarding',
 };
 
+const REQUEST_TYPE_LABELS: Record<string, string> = {
+  new_visit: 'New Service',
+  time_change: 'Modification',
+  extension: 'Modification',
+  special_service: 'Modification',
+};
+
+const REQUEST_TYPE_DETAIL: Record<string, string> = {
+  new_visit: 'New Service',
+  time_change: 'Time Change',
+  extension: 'Extension',
+  special_service: 'Add-on Service',
+};
+
+const TYPE_FILTER_OPTIONS = [
+  { value: '', label: 'All Types' },
+  { value: 'new_visit', label: 'New Service' },
+  { value: 'modification', label: 'Modification' },
+];
+
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
@@ -194,6 +214,9 @@ export default function AdminServiceRequestsPage() {
   // Filters
   const [filterStatus, setFilterStatus] = useState('');
   const [filterClient, setFilterClient] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -216,6 +239,10 @@ export default function AdminServiceRequestsPage() {
     let list: any[] = data?.data ?? [];
     if (filterStatus) list = list.filter((sr: any) => sr.status === filterStatus);
     if (filterClient) list = list.filter((sr: any) => sr.user_id === Number(filterClient));
+    if (filterType === 'new_visit') list = list.filter((sr: any) => (sr.request_type ?? 'new_visit') === 'new_visit');
+    if (filterType === 'modification') list = list.filter((sr: any) => ['time_change', 'extension', 'special_service'].includes(sr.request_type));
+    if (dateFrom) list = list.filter((sr: any) => sr.preferred_date && String(sr.preferred_date).slice(0, 10) >= dateFrom);
+    if (dateTo) list = list.filter((sr: any) => sr.preferred_date && String(sr.preferred_date).slice(0, 10) <= dateTo);
     list = [...list].sort((a, b) => {
       let cmp = 0;
       switch (sortField) {
@@ -241,6 +268,50 @@ export default function AdminServiceRequestsPage() {
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronUp className="w-3 h-3 text-taupe/40" />;
     return sortDir === 'asc' ? <ChevronUp className="w-3 h-3 text-espresso" /> : <ChevronDown className="w-3 h-3 text-espresso" />;
+  };
+
+  const exportCSV = () => {
+    const headers = ['Date', 'Client', 'Service', 'Time', 'Dogs', 'Type', 'Notes', 'Status'];
+    const rows = filteredRequests.map((sr: any) => [
+      sr.preferred_date ? format(new Date(sr.preferred_date), 'yyyy-MM-dd') : '',
+      sr.user?.name ?? '',
+      SERVICE_LABELS[sr.service_type] ?? sr.service_type?.replace(/_/g, ' ') ?? '',
+      TIME_BLOCK_LABELS[sr.preferred_time_block as keyof typeof TIME_BLOCK_LABELS] ?? sr.preferred_time_block ?? '',
+      sr.dogs?.map((d: any) => d.name).join(', ') ?? '',
+      REQUEST_TYPE_DETAIL[sr.request_type ?? 'new_visit'] ?? '',
+      (sr.notes ?? '').replace(/"/g, '""'),
+      sr.status?.replace(/_/g, ' ') ?? '',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `service-requests-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const exportPDF = () => {
+    const printWin = window.open('', '_blank');
+    if (!printWin) return;
+    const rows = filteredRequests.map((sr: any) => `
+      <tr>
+        <td>${sr.preferred_date ? format(new Date(sr.preferred_date), 'MMM d, yyyy') : ''}</td>
+        <td>${sr.user?.name ?? ''}</td>
+        <td>${SERVICE_LABELS[sr.service_type] ?? sr.service_type?.replace(/_/g, ' ') ?? ''}</td>
+        <td>${TIME_BLOCK_LABELS[sr.preferred_time_block as keyof typeof TIME_BLOCK_LABELS] ?? ''}</td>
+        <td>${sr.dogs?.map((d: any) => d.name).join(', ') ?? ''}</td>
+        <td>${REQUEST_TYPE_DETAIL[sr.request_type ?? 'new_visit'] ?? ''}</td>
+        <td>${sr.status?.replace(/_/g, ' ') ?? ''}</td>
+      </tr>`).join('');
+    printWin.document.write(`<!DOCTYPE html><html><head><title>Service Requests</title>
+      <style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f5f5f5;font-weight:600}
+      h1{font-size:18px;margin-bottom:4px}p{font-size:11px;color:#888;margin-bottom:12px}</style></head>
+      <body><h1>Service Requests</h1><p>Exported ${format(new Date(), 'MMM d, yyyy h:mm a')}</p>
+      <table><thead><tr><th>Date</th><th>Client</th><th>Service</th><th>Time</th><th>Dogs</th><th>Type</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table></body></html>`);
+    printWin.document.close();
+    printWin.onload = () => { printWin.print(); };
   };
 
   // Fetch Stripe products for billing picker
@@ -449,15 +520,35 @@ export default function AdminServiceRequestsPage() {
             <option value="">All Clients</option>
             {clientOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
-          {(filterStatus || filterClient) && (
+          <select
+            className="input !py-1.5 !text-sm w-auto min-w-[140px]"
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+          >
+            {TYPE_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <input type="date" className="input !py-1.5 !text-sm w-auto" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="From date" />
+          <span className="text-xs text-taupe">to</span>
+          <input type="date" className="input !py-1.5 !text-sm w-auto" value={dateTo} onChange={e => setDateTo(e.target.value)} title="To date" />
+          {(filterStatus || filterClient || filterType || dateFrom || dateTo) && (
             <button
-              onClick={() => { setFilterStatus(''); setFilterClient(''); }}
+              onClick={() => { setFilterStatus(''); setFilterClient(''); setFilterType(''); setDateFrom(''); setDateTo(''); }}
               className="text-xs text-blue hover:underline font-medium"
             >
               Clear filters
             </button>
           )}
-          <span className="text-xs text-taupe ml-auto">{filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-cream">
+          <span className="text-xs text-taupe">{filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}</span>
+          <div className="flex gap-2">
+            <button onClick={() => exportCSV()} className="flex items-center gap-1 text-xs text-espresso hover:text-blue font-medium">
+              <Download className="w-3 h-3" /> CSV
+            </button>
+            <button onClick={() => exportPDF()} className="flex items-center gap-1 text-xs text-espresso hover:text-blue font-medium">
+              <Download className="w-3 h-3" /> PDF
+            </button>
+          </div>
         </div>
       </Card>
 
@@ -480,6 +571,7 @@ export default function AdminServiceRequestsPage() {
                 ))}
                 <th className="px-4 py-3 font-medium text-taupe">Time</th>
                 <th className="px-4 py-3 font-medium text-taupe">Dogs</th>
+                <th className="px-4 py-3 font-medium text-taupe">Type</th>
                 <th className="px-4 py-3 font-medium text-taupe">Notes</th>
                 <th className="px-4 py-3 font-medium text-taupe">
                   <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-espresso">
@@ -504,6 +596,17 @@ export default function AdminServiceRequestsPage() {
                   </td>
                   <td className="px-4 py-3 text-espresso whitespace-nowrap">
                     {sr.dogs?.map((d: any) => d.name).join(', ') || '—'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {(() => {
+                      const rt = sr.request_type ?? 'new_visit';
+                      const isNew = rt === 'new_visit';
+                      return (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${isNew ? 'bg-blue/10 text-blue' : 'bg-gold/10 text-gold'}`}>
+                          {REQUEST_TYPE_DETAIL[rt] ?? rt}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-taupe max-w-[200px] truncate" title={sr.notes ?? ''}>
                     {sr.notes ? <span className="italic">"{sr.notes}"</span> : '—'}
@@ -536,7 +639,7 @@ export default function AdminServiceRequestsPage() {
               ))}
               {filteredRequests.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-taupe">
+                  <td colSpan={9} className="px-4 py-12 text-center text-taupe">
                     {(filterStatus || filterClient) ? 'No requests match your filters.' : 'No service requests.'}
                   </td>
                 </tr>

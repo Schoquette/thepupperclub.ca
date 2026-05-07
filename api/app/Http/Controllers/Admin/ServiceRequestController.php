@@ -54,6 +54,7 @@ class ServiceRequestController extends Controller
             'preferred_date'       => $data['preferred_date'],
             'notes'                => $data['notes'] ?? null,
             'status'               => 'pending',
+            'request_type'         => 'new_visit',
         ]);
 
         $sr->dogs()->attach($data['dog_ids']);

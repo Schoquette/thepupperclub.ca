@@ -117,6 +117,25 @@ Route::get('/add-notif-prefs-9x7k', function () {
     return response()->json(['message' => 'notification_preferences column already exists.']);
 });
 
+// Temporary: add request_type column to service_requests (REMOVE after running)
+Route::get('/add-request-type-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('service_requests', 'request_type')) {
+        \Illuminate\Support\Facades\Schema::table('service_requests', function ($t) {
+            $t->string('request_type')->nullable()->after('status');
+        });
+        // Backfill existing records by parsing notes
+        \App\Models\ServiceRequest::whereNull('request_type')->each(function ($sr) {
+            $notes = $sr->notes ?? '';
+            if (str_starts_with($notes, 'Time change request')) $sr->update(['request_type' => 'time_change']);
+            elseif (str_starts_with($notes, 'Extension request')) $sr->update(['request_type' => 'extension']);
+            elseif (str_starts_with($notes, 'Special service')) $sr->update(['request_type' => 'special_service']);
+            else $sr->update(['request_type' => 'new_visit']);
+        });
+        return response()->json(['message' => 'request_type column added and backfilled.']);
+    }
+    return response()->json(['message' => 'request_type column already exists.']);
+});
+
 // Temporary: add adoptaversary column to dogs table (REMOVE after running)
 Route::get('/add-adoptaversary-9x7k', function () {
     if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'adoptaversary')) {

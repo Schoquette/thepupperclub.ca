@@ -68,6 +68,7 @@ class AppointmentController extends Controller
             'service_type'         => $appointment->service_type,
             'preferred_time_block' => $data['preferred_time_block'],
             'preferred_date'       => $data['preferred_date'],
+            'request_type'         => 'time_change',
             'notes'                => trim(
                 "Time change request for appointment #{$appointment->id} on "
                 . $appointment->scheduled_time->format('M j, Y \a\t g:i A')
@@ -109,6 +110,7 @@ class AppointmentController extends Controller
             'service_type'         => $appointment->service_type,
             'preferred_time_block' => $appointment->client_time_block ?? 'morning',
             'preferred_date'       => $appointment->scheduled_time->toDateString(),
+            'request_type'         => 'extension',
             'notes'                => trim(
                 "Extension request: +{$data['extra_minutes']} minutes for appointment on "
                 . $appointment->scheduled_time->format('M j, Y \a\t g:i A')
@@ -169,6 +171,7 @@ class AppointmentController extends Controller
             'service_type'         => $appointment->service_type,
             'preferred_time_block' => $appointment->client_time_block ?? 'morning',
             'preferred_date'       => $appointment->scheduled_time->toDateString(),
+            'request_type'         => 'special_service',
             'notes'                => implode("\n", $noteLines),
         ]);
 
@@ -249,6 +252,7 @@ class AppointmentController extends Controller
             'service_type'        => $data['service_type'],
             'preferred_time_block'=> $data['preferred_time_block'],
             'preferred_date'      => $data['preferred_date'],
+            'request_type'        => 'new_visit',
             'notes'               => $notes ?: null,
         ]);
 

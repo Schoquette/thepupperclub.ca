@@ -19,6 +19,7 @@ class ServiceRequest extends Model
         'counter_time_block',
         'counter_time',
         'counter_date',
+        'request_type',
     ];
 
     protected function casts(): array
