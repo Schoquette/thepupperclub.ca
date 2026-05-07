@@ -35,6 +35,7 @@ class ReportExportController extends Controller
         }
 
         $appointments = Appointment::with($eagerLoads)
+            ->whereNot('status', 'cancelled')
             ->whereBetween('scheduled_time', [$start, $end])
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->orderBy('scheduled_time')
@@ -212,6 +213,7 @@ class ReportExportController extends Controller
         }
 
         $appointments = Appointment::with($eagerLoads)
+            ->whereNot('status', 'cancelled')
             ->whereBetween('scheduled_time', [$start, $end])
             ->when($userId, fn($q) => $q->where('user_id', $userId))
             ->orderBy('scheduled_time')
