@@ -836,6 +836,20 @@ export default function AdminCalendarPage() {
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
+          {newForm.user_id && (() => {
+            const cl = (clientsData ?? []).find((c: any) => String(c.id) === String(newForm.user_id));
+            const profile = cl?.client_profile;
+            const days = (profile?.preferred_walk_days ?? []).map((d: string) =>
+              ({ monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' })[d] || d);
+            const times = (profile?.preferred_walk_times ?? []).map((t: string) =>
+              ({ morning_7_10: 'Morning (7–10am)', midday_11_2: 'Midday (11am–2pm)', afternoon_3_6: 'Afternoon (3–6pm)', evening_6_9: 'Evening (6–9pm)' })[t] || t);
+            return (days.length > 0 || times.length > 0) ? (
+              <div className="text-xs text-blue-600 mt-1.5 space-y-0.5">
+                {days.length > 0 && <div>Preferred Days: {days.join(', ')}</div>}
+                {times.length > 0 && <div>Preferred Times: {times.join(', ')}</div>}
+              </div>
+            ) : null;
+          })()}
           </div>
 
           {/* Dogs */}
@@ -1781,11 +1795,23 @@ function SchedulingRow({ client, onSchedule, onNavigate }: { client: any; onSche
     paused: 'text-taupe bg-cream',
   };
 
+  const dayLabels: Record<string, string> = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+  const timeLabels: Record<string, string> = { morning_7_10: 'Morning', midday_11_2: 'Midday', afternoon_3_6: 'Afternoon', evening_6_9: 'Evening' };
+  const prefDays = (c.preferred_days || []).map((d: string) => dayLabels[d] || d);
+  const prefTimes = (c.preferred_times || []).map((t: string) => timeLabels[t] || t);
+
   return (
     <div className="flex items-center gap-3 py-2.5">
       <button className="flex-1 min-w-0 text-left" onClick={onNavigate}>
         <div className="text-sm font-semibold text-espresso hover:text-gold transition-colors">{c.name}</div>
         <div className="text-xs text-taupe">{c.dogs?.join(', ')}{c.plan ? ` — ${c.plan}` : ''}</div>
+        {(prefDays.length > 0 || prefTimes.length > 0) && (
+          <div className="text-xs text-blue-600 mt-0.5">
+            {prefDays.length > 0 && <span>Preferred Days: {prefDays.join(', ')}</span>}
+            {prefDays.length > 0 && prefTimes.length > 0 && <span> · </span>}
+            {prefTimes.length > 0 && <span>Times: {prefTimes.join(', ')}</span>}
+          </div>
+        )}
       </button>
       <div className="flex items-center gap-2">
         <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${statusColors[c.status] ?? ''}`}>

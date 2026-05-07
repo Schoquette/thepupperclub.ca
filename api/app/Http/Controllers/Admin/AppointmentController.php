@@ -47,7 +47,7 @@ class AppointmentController extends Controller
         // Get active clients with a walks_per_week quota
         $clients = User::where('role', 'client')
             ->whereHas('clientProfile', fn($q) => $q->whereNotNull('walks_per_week')->where('walks_per_week', '>', 0))
-            ->with('clientProfile:id,user_id,subscription_plan,walks_per_week,subscription_paused_from')
+            ->with('clientProfile:id,user_id,subscription_plan,walks_per_week,subscription_paused_from,preferred_walk_days,preferred_walk_times')
             ->with('dogs:id,user_id,name')
             ->get();
 
@@ -72,6 +72,8 @@ class AppointmentController extends Controller
                 'diff'      => $scheduled - $quota,
                 'status'    => $isPaused ? 'paused' : ($scheduled >= $quota ? ($scheduled > $quota ? 'over' : 'ok') : 'under'),
                 'dogs'      => $client->dogs->pluck('name')->toArray(),
+                'preferred_days'  => $client->clientProfile->preferred_walk_days ?? [],
+                'preferred_times' => $client->clientProfile->preferred_walk_times ?? [],
             ];
         })->sortBy('diff')->values();
 
