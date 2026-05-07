@@ -14,6 +14,10 @@ interface Props {
   onChange: (fields: AddressFields) => void;
   label?: string;
   types?: string[];
+  /** Called with the place name when an establishment is selected */
+  onNameSelect?: (name: string) => void;
+  inputLabel?: string;
+  placeholder?: string;
 }
 
 let googleLoaded = false;
@@ -48,13 +52,18 @@ function loadGooglePlaces(apiKey: string): Promise<void> {
   });
 }
 
-export default function AddressAutocomplete({ value, onChange, label, types = ['address'] }: Props) {
+export default function AddressAutocomplete({
+  value, onChange, label, types = ['address'],
+  onNameSelect, inputLabel, placeholder,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [ready, setReady] = useState(googleLoaded);
   const [searchValue, setSearchValue] = useState(value.street);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onNameSelectRef = useRef(onNameSelect);
+  onNameSelectRef.current = onNameSelect;
 
   useEffect(() => {
     const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_KEY;
@@ -101,12 +110,14 @@ export default function AddressAutocomplete({ value, onChange, label, types = ['
         }
       }
 
-      const streetAddr = [streetNumber, route].filter(Boolean).join(' ');
-      // If it's an establishment, prepend the business name
-      const placeName = place.name && place.name !== streetAddr ? place.name : '';
-      fields.street = [placeName, streetAddr].filter(Boolean).join(', ');
+      fields.street = [streetNumber, route].filter(Boolean).join(' ');
       setSearchValue(fields.street);
       onChangeRef.current(fields);
+
+      // Pass the business name back if callback provided
+      if (onNameSelectRef.current && place.name) {
+        onNameSelectRef.current(place.name);
+      }
     });
 
     autocompleteRef.current = autocomplete;
@@ -127,12 +138,14 @@ export default function AddressAutocomplete({ value, onChange, label, types = ['
         <div className="text-xs font-semibold text-taupe uppercase tracking-wide">{label}</div>
       )}
       <div>
-        <label className="block text-sm font-medium text-espresso mb-1">Street Address</label>
+        <label className="block text-sm font-medium text-espresso mb-1">
+          {inputLabel ?? 'Street Address'}
+        </label>
         <input
           ref={inputRef}
           type="text"
           className="input text-sm w-full"
-          placeholder="Start typing an address..."
+          placeholder={placeholder ?? 'Start typing an address...'}
           value={searchValue}
           onChange={e => {
             setSearchValue(e.target.value);

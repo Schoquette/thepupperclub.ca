@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -407,6 +407,121 @@ function SectionCard({ children, id }: { children: React.ReactNode; id?: string 
   return (
     <div id={id} className="bg-white rounded-2xl shadow-card p-6 space-y-4">
       {children}
+    </div>
+  );
+}
+
+// ── Vet section with dual autocomplete ────────────────────────────────────────
+
+function VetSection({ form, update, fieldCls }: { form: FormData; update: (p: Partial<FormData>) => void; fieldCls: string }) {
+  // Split vet_address into parts for structured fields
+  const [vetParts, setVetParts] = useState(() => {
+    const parts = (form.vet_address || '').split(',').map(s => s.trim());
+    return { street: parts[0] || '', city: parts[1] || '', province: parts[2] || '', postal_code: parts[3] || '' };
+  });
+
+  const syncToForm = (fields: typeof vetParts) => {
+    setVetParts(fields);
+    update({ vet_address: [fields.street, fields.city, fields.province, fields.postal_code].filter(Boolean).join(', ') });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Clinic name — establishment search fills name + all address fields */}
+      <VetClinicSearch
+        value={form.vet_clinic_name}
+        onChange={(name) => update({ vet_clinic_name: name })}
+        onPlaceSelect={(name, addr) => {
+          update({ vet_clinic_name: name });
+          syncToForm(addr);
+        }}
+      />
+      <div>
+        <label className="block text-sm font-medium text-espresso mb-1">Phone</label>
+        <input type="tel" className={fieldCls} value={form.vet_phone} onChange={e => update({ vet_phone: e.target.value })} placeholder="(604) 555-0200" />
+      </div>
+      {/* Address fields with street autocomplete */}
+      <AddressAutocomplete
+        value={vetParts}
+        onChange={syncToForm}
+      />
+    </div>
+  );
+}
+
+function VetClinicSearch({ value, onChange, onPlaceSelect }: {
+  value: string;
+  onChange: (name: string) => void;
+  onPlaceSelect: (name: string, addr: { street: string; city: string; province: string; postal_code: string }) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const [ready, setReady] = useState(false);
+  const onPlaceSelectRef = useRef(onPlaceSelect);
+  onPlaceSelectRef.current = onPlaceSelect;
+
+  useEffect(() => {
+    const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_KEY;
+    if (!apiKey) { setReady(false); return; }
+
+    // Reuse the same loader from AddressAutocomplete
+    const check = () => {
+      if (typeof google !== 'undefined' && google.maps?.places) { setReady(true); return; }
+      const script = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (script) { script.addEventListener('load', () => setReady(true)); return; }
+      // Load it ourselves
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      s.async = true;
+      s.onload = () => setReady(true);
+      document.head.appendChild(s);
+    };
+    check();
+  }, []);
+
+  useEffect(() => {
+    if (!inputRef.current || !ready || autocompleteRef.current) return;
+
+    const ac = new google.maps.places.Autocomplete(inputRef.current, {
+      componentRestrictions: { country: 'ca' },
+      types: ['establishment'],
+      fields: ['address_components', 'name'],
+    });
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place.address_components) return;
+
+      const addr = { street: '', city: '', province: '', postal_code: '' };
+      let streetNumber = '';
+      let route = '';
+      for (const c of place.address_components) {
+        const t = c.types[0];
+        if (t === 'street_number') streetNumber = c.long_name;
+        else if (t === 'route') route = c.long_name;
+        else if (t === 'locality') addr.city = c.long_name;
+        else if (t === 'administrative_area_level_1') addr.province = c.short_name;
+        else if (t === 'postal_code') addr.postal_code = c.long_name;
+      }
+      addr.street = [streetNumber, route].filter(Boolean).join(' ');
+      onPlaceSelectRef.current(place.name || '', addr);
+    });
+
+    autocompleteRef.current = ac;
+  }, [ready]);
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-espresso mb-1">Clinic Name</label>
+      <input
+        ref={inputRef}
+        type="text"
+        className="input text-sm w-full"
+        placeholder="Search by clinic name..."
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
+      <p className="text-xs text-taupe mt-1">Search to auto-fill the address below</p>
     </div>
   );
 }
@@ -1179,30 +1294,17 @@ export default function IntakeFormPage() {
         {/* ── Section 2: Veterinarian ──────────────────────────────────────── */}
         <SectionCard id="section-2">
           <SectionHeading>2. Veterinarian</SectionHeading>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FieldRow label="Clinic Name">
-              {readOnly
-                ? <ReadValue value={form.vet_clinic_name} />
-                : <input className={fieldCls} value={form.vet_clinic_name} onChange={e => update({ vet_clinic_name: e.target.value })} placeholder="Port Moody Animal Hospital" />
-              }
-            </FieldRow>
-            <FieldRow label="Phone">
-              {readOnly
-                ? <ReadValue value={form.vet_phone} />
-                : <input type="tel" className={fieldCls} value={form.vet_phone} onChange={e => update({ vet_phone: e.target.value })} placeholder="(604) 555-0200" />
-              }
-            </FieldRow>
-          </div>
-          <FieldRow label="Address">
-            {readOnly
-              ? <ReadValue value={form.vet_address} />
-              : <div className="w-full"><AddressAutocomplete
-                  types={['establishment']}
-                  value={{ street: form.vet_address, city: '', province: '', postal_code: '' }}
-                  onChange={({ street, city, province, postal_code }) => update({ vet_address: [street, city, province, postal_code].filter(Boolean).join(', ') })}
-                /></div>
-            }
-          </FieldRow>
+          {readOnly ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FieldRow label="Clinic Name"><ReadValue value={form.vet_clinic_name} /></FieldRow>
+                <FieldRow label="Phone"><ReadValue value={form.vet_phone} /></FieldRow>
+              </div>
+              <FieldRow label="Address"><ReadValue value={form.vet_address} /></FieldRow>
+            </>
+          ) : (
+            <VetSection form={form} update={update} fieldCls={fieldCls} />
+          )}
         </SectionCard>
 
         {/* ── Section 3: Dog(s) Details ────────────────────────────────────── */}
