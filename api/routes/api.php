@@ -584,6 +584,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Audit logs
         Route::get('/audit-logs', [Admin\AuditLogController::class, 'index']);
 
+        // Backup
+        Route::get('/backup/download', [Admin\BackupController::class, 'download']);
+
         // Conversations (admin inbox)
         Route::get('/conversations',                                    [ConversationController::class, 'inbox']);
         Route::patch('/conversations/{conversation}/status',            [ConversationController::class, 'updateStatus']);

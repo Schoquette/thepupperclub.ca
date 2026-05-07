@@ -4,7 +4,7 @@ import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Lock, Bell, Settings, Mail, MessageSquare, Smartphone } from 'lucide-react';
+import { Lock, Bell, Settings, Mail, MessageSquare, Smartphone, Download, Database } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const qc = useQueryClient();
@@ -14,6 +14,29 @@ export default function AdminSettingsPage() {
     queryKey: ['auth-me'],
     queryFn: () => api.get('/auth/me').then(r => r.data.data),
   });
+
+  // Backup
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupMsg, setBackupMsg] = useState('');
+
+  const downloadBackup = async () => {
+    setBackupLoading(true);
+    setBackupMsg('');
+    try {
+      const res = await api.get('/admin/backup/download', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `thepupperclub-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setBackupMsg('Backup downloaded successfully.');
+    } catch (err: any) {
+      setBackupMsg('Failed to download backup. Please try again.');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
 
   // Password
   const [pwForm, setPwForm] = useState({ current_password: '', password: '', password_confirmation: '' });
@@ -218,6 +241,27 @@ export default function AdminSettingsPage() {
               Update Password
             </Button>
           </div>
+        </div>
+      </Card>
+
+      {/* Backup & Export */}
+      <Card>
+        <CardHeader title="Backup & Export" />
+        <div className="space-y-3">
+          <p className="text-sm text-taupe">
+            Download a full database backup as a ZIP file containing CSV exports of all important tables (users, dogs, appointments, invoices, messages, and more).
+          </p>
+          {backupMsg && (
+            <p className={`text-sm font-medium ${backupMsg.includes('successfully') ? 'text-green-600' : 'text-red-500'}`}>{backupMsg}</p>
+          )}
+          <Button
+            size="sm"
+            loading={backupLoading}
+            onClick={downloadBackup}
+          >
+            <Database className="w-4 h-4 mr-1.5" />
+            {backupLoading ? 'Preparing Backup...' : 'Download Database Backup'}
+          </Button>
         </div>
       </Card>
     </div>

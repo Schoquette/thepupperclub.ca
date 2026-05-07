@@ -1113,9 +1113,11 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
     onSuccess: () => { setJustActivated(true); onSaved(); setTimeout(() => setJustActivated(false), 2500); },
   });
 
+  const [archiveMsg, setArchiveMsg] = useState('');
   const archive = useMutation({
     mutationFn: (archived: boolean) => api.patch(`/admin/dogs/${dog.id}`, dogPayload({ ...buildDogForm(dog), is_archived: archived }, clientId)),
-    onSuccess: () => { onSaved(); },
+    onSuccess: (_, archived) => { setArchiveMsg(archived ? 'Archived!' : 'Unarchived!'); onSaved(); setTimeout(() => setArchiveMsg(''), 2500); },
+    onError: (e: any) => { setArchiveMsg((e as any).response?.data?.message || 'Archive failed.'); setTimeout(() => setArchiveMsg(''), 4000); },
   });
 
   const handleChange = (partial: Partial<DogForm>) => setForm(prev => ({ ...prev, ...partial }));
@@ -1191,6 +1193,9 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
           </div>
           {activate.isError && (
             <p className="text-xs text-red-600 mt-1">{(activate.error as any)?.response?.data?.message || 'Activation failed.'}</p>
+          )}
+          {archiveMsg && (
+            <p className={`text-xs mt-1 ${archiveMsg.includes('!') ? 'text-green-600' : 'text-red-600'}`}>{archiveMsg}</p>
           )}
           <div className="flex gap-2 mt-2 flex-wrap">
             {dog.is_archived && <Badge variant="red">Archived</Badge>}
