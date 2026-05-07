@@ -1196,7 +1196,10 @@ export default function IntakeFormPage() {
           <FieldRow label="Address">
             {readOnly
               ? <ReadValue value={form.vet_address} />
-              : <SimpleAddressInput className={fieldCls} value={form.vet_address} onChange={v => update({ vet_address: v })} placeholder="2630 Clarke St, Port Moody BC V3H 1Z5" />
+              : <div className="w-full"><AddressAutocomplete
+                  value={{ street: form.vet_address, city: '', province: '', postal_code: '' }}
+                  onChange={({ street, city, province, postal_code }) => update({ vet_address: [street, city, province, postal_code].filter(Boolean).join(', ') })}
+                /></div>
             }
           </FieldRow>
         </SectionCard>
