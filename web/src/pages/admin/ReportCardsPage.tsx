@@ -46,6 +46,26 @@ export default function AdminReportCardsPage() {
     return reports.filter((r: any) => String(r.user_id) === clientFilter);
   }, [reports, clientFilter]);
 
+  // Group report cards by date
+  const groupedReports = useMemo(() => {
+    const map = new Map<string, any[]>();
+    filteredReports.forEach((r: any) => {
+      const dateStr = r.arrival_time
+        ? new Date(r.arrival_time).toDateString()
+        : r.appointment?.scheduled_time
+          ? new Date(r.appointment.scheduled_time).toDateString()
+          : new Date(r.created_at).toDateString();
+      const existing = map.get(dateStr) ?? [];
+      existing.push(r);
+      map.set(dateStr, existing);
+    });
+    return Array.from(map.entries()).map(([dateStr, items]) => ({
+      dateStr,
+      date: new Date(dateStr),
+      items,
+    }));
+  }, [filteredReports]);
+
   if (isLoading) return <PageLoader />;
 
   return (
@@ -131,44 +151,55 @@ export default function AdminReportCardsPage() {
         </div>
       )}
 
-      {/* Existing Report Cards */}
+      {/* Existing Report Cards grouped by day */}
       {filteredReports.length === 0 ? (
         <Card>
           <p className="text-center py-8 text-taupe">No report cards found.</p>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filteredReports.map((r: any) => (
-            <Link key={r.id} to={`/admin/report-cards/${r.id}`}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-espresso text-sm">
-                      {r.user?.name ?? '—'}
-                    </div>
-                    <div className="text-xs text-taupe mt-0.5">
-                      {r.arrival_time
-                        ? format(new Date(r.arrival_time), 'MMM d, yyyy · h:mm a')
-                        : r.appointment?.scheduled_time
-                          ? format(new Date(r.appointment.scheduled_time), 'MMM d, yyyy · h:mm a')
-                          : format(new Date(r.created_at), 'MMM d, yyyy')}
-                      {r.appointment?.service_type && (
-                        <span className="ml-1.5 text-taupe/70">
-                          — {r.appointment.service_type.replace(/_/g, ' ')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      r.sent_at ? 'bg-green-50 text-green-700' : 'bg-cream text-taupe'
-                    }`}
-                  >
-                    {r.sent_at ? 'Sent' : 'Draft'}
-                  </span>
+        <div className="space-y-6">
+          {groupedReports.map((group) => (
+            <div key={group.dateStr}>
+              <h3 className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2 px-1">
+                {format(group.date, 'EEEE, MMMM d, yyyy')}
+              </h3>
+              <Card padding="none">
+                <div className="divide-y divide-cream">
+                  {group.items.map((r: any) => (
+                    <Link
+                      key={r.id}
+                      to={`/admin/report-cards/${r.id}`}
+                      className="flex items-center gap-4 px-5 py-4 hover:bg-cream/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-espresso text-sm">
+                          {r.user?.name ?? '—'}
+                        </div>
+                        <div className="text-xs text-taupe mt-0.5">
+                          {r.arrival_time
+                            ? format(new Date(r.arrival_time), 'h:mm a')
+                            : r.appointment?.scheduled_time
+                              ? format(new Date(r.appointment.scheduled_time), 'h:mm a')
+                              : ''}
+                          {r.appointment?.service_type && (
+                            <span className="ml-1.5 text-taupe/70">
+                              — {r.appointment.service_type.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                          r.sent_at ? 'bg-green-50 text-green-700' : 'bg-cream text-taupe'
+                        }`}
+                      >
+                        {r.sent_at ? 'Sent' : 'Draft'}
+                      </span>
+                    </Link>
+                  ))}
                 </div>
               </Card>
-            </Link>
+            </div>
           ))}
         </div>
       )}
