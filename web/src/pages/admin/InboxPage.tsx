@@ -23,12 +23,14 @@ function ConversationRow({ conv, onClick }: { conv: any; onClick: () => void }) 
           {isUnread && (
             <Badge variant="gold">{conv.unread_count_admin}</Badge>
           )}
-          <span className={`text-xs ml-auto ${
-            conv.status === 'needs_follow_up' ? 'text-red-500' :
-            conv.status === 'resolved' ? 'text-green-600' : 'text-taupe'
-          }`}>
-            {conv.status?.replace('_', ' ')}
-          </span>
+          {conv.status && conv.status !== 'open' && (
+            <span className={`text-xs ml-auto ${
+              conv.status === 'needs_follow_up' ? 'text-red-500' :
+              conv.status === 'resolved' ? 'text-green-600' : 'text-taupe'
+            }`}>
+              {conv.status.replace(/_/g, ' ')}
+            </span>
+          )}
         </div>
         <p className={`text-sm truncate mt-0.5 ${isUnread ? 'text-espresso font-medium' : 'text-taupe'}`}>
           {conv.last_message?.body || 'No messages yet'}
