@@ -476,6 +476,18 @@ export default function AdminCalendarPage() {
     }));
   };
 
+  // Cancelled appointments this week
+  const cancelledThisWeek = useMemo(() => {
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+    return (data ?? []).filter((appt: any) => {
+      if (appt.status !== 'cancelled') return false;
+      const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      const d = new Date(localStr);
+      return d >= weekStart && d <= weekEnd;
+    });
+  }, [data, currentDate]);
+
   const appointmentEvents = (data ?? []).filter((appt: any) => appt.status !== 'cancelled').map((appt: any) => {
     // Parse as local time — strip trailing Z/offset so JS doesn't convert from UTC
     const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
@@ -543,6 +555,40 @@ export default function AdminCalendarPage() {
           setCreatingAppt(true);
         }}
       />
+
+      {/* Cancellation Notices */}
+      {cancelledThisWeek.length > 0 && (
+        <Card padding="none">
+          <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center gap-2">
+            <span className="text-red-500 font-semibold text-sm">Cancellations This Week ({cancelledThisWeek.length})</span>
+          </div>
+          <div className="divide-y divide-cream">
+            {cancelledThisWeek.map((appt: any) => {
+              const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+              const d = new Date(localStr);
+              return (
+                <div key={appt.id} className="flex items-center gap-4 px-5 py-3">
+                  <div className="h-8 w-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {appt.user?.name?.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-semibold text-espresso">{appt.user?.name}</span>
+                    <span className="text-sm text-taupe ml-2">
+                      {appt.dogs?.map((d: any) => d.name).join(', ')}
+                    </span>
+                  </div>
+                  <div className="text-sm text-taupe flex-shrink-0">
+                    {format(d, 'EEE, MMM d')} at {format(d, 'h:mm a')}
+                  </div>
+                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                    Cancelled
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {isLoading ? <PageLoader /> : (
         <Card padding="none" className="overflow-hidden">
