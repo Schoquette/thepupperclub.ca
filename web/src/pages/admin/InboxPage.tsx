@@ -15,11 +15,11 @@ function ConversationRow({ conv, onClick }: { conv: any; onClick: () => void }) 
       onClick={onClick}
     >
       <div className={`h-10 w-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${isUnread ? 'bg-gold' : 'bg-taupe/60'}`}>
-        {conv.user?.name?.charAt(0)}
+        {conv.user?.name?.charAt(0) || '?'}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`text-sm ${isUnread ? 'font-bold text-espresso' : 'font-semibold text-espresso'}`}>{conv.user?.name}</span>
+          <span className={`text-sm ${isUnread ? 'font-bold text-espresso' : 'font-semibold text-espresso'}`}>{conv.user?.name || conv.user?.email || `Client #${conv.user_id}`}</span>
           {isUnread && (
             <Badge variant="gold">{conv.unread_count_admin}</Badge>
           )}
