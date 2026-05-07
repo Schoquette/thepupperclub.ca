@@ -159,6 +159,17 @@ Route::get('/add-sr-appointment-id-9x7k', function () {
     return response()->json(['message' => 'appointment_id column already exists.']);
 });
 
+// Temporary: add is_archived to dogs table (REMOVE after running)
+Route::get('/add-dog-archived-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'is_archived')) {
+        \Illuminate\Support\Facades\Schema::table('dogs', function ($t) {
+            $t->boolean('is_archived')->default(false)->after('is_active');
+        });
+        return response()->json(['message' => 'is_archived column added to dogs.']);
+    }
+    return response()->json(['message' => 'is_archived column already exists.']);
+});
+
 // Temporary: add adoptaversary column to dogs table (REMOVE after running)
 Route::get('/add-adoptaversary-9x7k', function () {
     if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'adoptaversary')) {

@@ -83,6 +83,7 @@ class DogController extends Controller
         $dogs = Dog::with('user')
             ->whereNotNull('date_of_birth')
             ->where('is_active', true)
+            ->where(fn($q) => $q->where('is_archived', false)->orWhereNull('is_archived'))
             ->get()
             ->map(function ($dog) {
                 $dob = \Carbon\Carbon::parse($dog->date_of_birth);
@@ -138,6 +139,7 @@ class DogController extends Controller
             'medications.*.notes'     => 'nullable|string',
             'special_instructions'   => 'nullable|string',
             'is_active'          => 'sometimes|boolean',
+            'is_archived'        => 'sometimes|boolean',
             'off_leash_approved' => 'sometimes|boolean',
             'media_consent'      => 'sometimes|boolean',
             'buddy_walks_ok'     => 'sometimes|boolean',

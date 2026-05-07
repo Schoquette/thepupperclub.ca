@@ -94,6 +94,7 @@ interface DogForm {
   medications: Medication[];
   special_instructions: string;
   is_active: boolean;
+  is_archived: boolean;
   off_leash_approved: boolean;
   media_consent: boolean;
   buddy_walks_ok: boolean;
@@ -120,6 +121,7 @@ function buildDogForm(dog?: any): DogForm {
     medications:        dog?.medications ?? [],
     special_instructions: dog?.special_instructions ?? '',
     is_active:          dog?.is_active ?? true,
+    is_archived:        dog?.is_archived ?? false,
     off_leash_approved: dog?.off_leash_approved ?? false,
     media_consent:      dog?.media_consent ?? false,
     buddy_walks_ok:     dog?.buddy_walks_ok ?? false,
@@ -148,6 +150,7 @@ function dogPayload(f: DogForm, userId: number) {
     medications:        f.medications.length ? f.medications : null,
     special_instructions: f.special_instructions || null,
     is_active:          f.is_active,
+    is_archived:        f.is_archived,
     off_leash_approved: f.off_leash_approved,
     media_consent:      f.media_consent,
     buddy_walks_ok:     f.buddy_walks_ok,
@@ -1110,6 +1113,11 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
     onSuccess: () => { setJustActivated(true); onSaved(); setTimeout(() => setJustActivated(false), 2500); },
   });
 
+  const archive = useMutation({
+    mutationFn: (archived: boolean) => api.patch(`/admin/dogs/${dog.id}`, dogPayload({ ...buildDogForm(dog), is_archived: archived }, clientId)),
+    onSuccess: () => { onSaved(); },
+  });
+
   const handleChange = (partial: Partial<DogForm>) => setForm(prev => ({ ...prev, ...partial }));
   const handleBool = (k: keyof DogForm, v: boolean) => setForm(prev => ({ ...prev, [k]: v }));
   const handleMedChange = (i: number, k: keyof Medication, v: string) =>
@@ -1169,6 +1177,14 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
               {dogSaveMsg && !justActivated && (
                 <span className="text-sm font-medium text-green-600 px-2 py-1">{dogSaveMsg}</span>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                loading={archive.isPending}
+                onClick={() => archive.mutate(!dog.is_archived)}
+              >
+                {dog.is_archived ? 'Unarchive' : 'Archive'}
+              </Button>
               <Button size="sm" variant="outline" onClick={() => setShowProfile(true)}>Full Profile</Button>
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>
             </div>
@@ -1177,7 +1193,8 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
             <p className="text-xs text-red-600 mt-1">{(activate.error as any)?.response?.data?.message || 'Activation failed.'}</p>
           )}
           <div className="flex gap-2 mt-2 flex-wrap">
-            {!dog.is_active && !justActivated && <Badge variant="red">Pending Review</Badge>}
+            {dog.is_archived && <Badge variant="red">Archived</Badge>}
+            {!dog.is_active && !justActivated && !dog.is_archived && <Badge variant="red">Pending Review</Badge>}
             {justActivated && <Badge variant="green">Active</Badge>}
             {dog.bite_history && <Badge variant="red">Bite History</Badge>}
             {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
@@ -1200,7 +1217,8 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
         <div className="space-y-4 max-h-[70vh] overflow-y-auto">
           {/* Tags */}
           <div className="flex gap-2 flex-wrap">
-            {dog.is_active ? <Badge variant="green">Active</Badge> : <Badge variant="red">Pending Review</Badge>}
+            {dog.is_archived && <Badge variant="red">Archived</Badge>}
+            {!dog.is_archived && (dog.is_active ? <Badge variant="green">Active</Badge> : <Badge variant="red">Pending Review</Badge>)}
             {dog.bite_history && <Badge variant="red">Bite History</Badge>}
             {dog.has_expired_vaccinations && <Badge variant="gold">Vaccines Expiring</Badge>}
             {dog.off_leash_approved && <Badge variant="green">Off-Leash Approved</Badge>}

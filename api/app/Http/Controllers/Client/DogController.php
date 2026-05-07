@@ -19,7 +19,7 @@ class DogController extends Controller
     public function index(Request $request): JsonResponse
     {
         return response()->json([
-            'data' => $request->user()->dogs()->with('vaccinationRecords')->get(),
+            'data' => $request->user()->dogs()->where('is_archived', false)->with('vaccinationRecords')->get(),
         ]);
     }
 
