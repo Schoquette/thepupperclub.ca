@@ -519,6 +519,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Report cards
         Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
+        Route::get('/report-cards/due',                            [AdminReportCardController::class, 'due']);
         Route::post('/report-cards',                               [AdminReportCardController::class, 'store']);
         Route::get('/report-cards/{reportCard}',                   [AdminReportCardController::class, 'show']);
         Route::post('/report-cards/{reportCard}',                  [AdminReportCardController::class, 'update']); // POST for multipart

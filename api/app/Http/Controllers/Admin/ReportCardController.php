@@ -31,6 +31,21 @@ class ReportCardController extends Controller
         return response()->json($query->paginate(20));
     }
 
+    /**
+     * Past completed/checked-in appointments that don't have a report card yet.
+     */
+    public function due(Request $request): JsonResponse
+    {
+        $query = \App\Models\Appointment::with(['user:id,name,email', 'dogs'])
+            ->whereIn('status', ['completed', 'checked_in'])
+            ->where('scheduled_time', '<', now())
+            ->doesntHave('visitReport')
+            ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
+            ->orderByDesc('scheduled_time');
+
+        return response()->json(['data' => $query->get()]);
+    }
+
     public function show(VisitReport $reportCard): JsonResponse
     {
         return response()->json(['data' => $reportCard->load(['user:id,name,email', 'appointment.dogs'])]);
