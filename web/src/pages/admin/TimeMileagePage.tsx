@@ -79,6 +79,7 @@ export default function TimeMileagePage() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   // Load team members for filter
   const { data: teamMembers } = useQuery<any[]>({
@@ -249,23 +250,38 @@ export default function TimeMileagePage() {
                 </tr>
               </thead>
               <tbody>
-                {grouped.map(group => (
+                {grouped.map(group => {
+                  const isCollapsed = !!collapsed[group.date];
+                  return (
                   <React.Fragment key={group.date}>
                     {/* Date header row */}
-                    <tr className="bg-cream/50">
-                      <td colSpan={9} className="py-2 px-3 font-semibold text-espresso text-sm">
-                        {format(new Date(group.date + 'T00:00'), 'EEEE, MMM d, yyyy')}
-                        <span className="text-taupe font-normal ml-3">
-                          {group.rows.length} visit{group.rows.length !== 1 ? 's' : ''}
-                          {' · '}{formatDuration(group.totalMinutes)}
-                          {' · '}{group.totalKm.toFixed(1)} km
-                        </span>
+                    <tr
+                      className="bg-gold/10 border-l-4 border-l-gold cursor-pointer select-none hover:bg-gold/15 transition-colors"
+                      onClick={() => setCollapsed(prev => ({ ...prev, [group.date]: !prev[group.date] }))}
+                    >
+                      <td colSpan={9} className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <svg
+                            className={`w-4 h-4 text-gold flex-shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                          <span className="font-bold text-espresso">
+                            {format(new Date(group.date + 'T00:00'), 'EEEE, MMMM d, yyyy')}
+                          </span>
+                          <span className="text-xs text-taupe font-medium bg-white/60 px-2 py-0.5 rounded-full">
+                            {group.rows.length} visit{group.rows.length !== 1 ? 's' : ''}
+                            {' · '}{formatDuration(group.totalMinutes)}
+                            {' · '}{group.totalKm.toFixed(1)} km
+                          </span>
+                        </div>
                       </td>
                     </tr>
                     {/* Visit rows */}
-                    {group.rows.map(row => (
+                    {!isCollapsed && group.rows.map(row => (
                       <tr key={row.id} className="border-b border-cream/50 hover:bg-cream/30 transition-colors">
-                        <td className="py-2.5 px-3 font-medium text-espresso">{row.client_name}</td>
+                        <td className="py-2.5 px-3 pl-8 font-medium text-espresso">{row.client_name}</td>
                         <td className="py-2.5 px-3 text-taupe">{row.dogs || '—'}</td>
                         <td className="py-2.5 px-3 text-taupe">{formatServiceType(row.service_type)}</td>
                         <td className="py-2.5 px-3 text-taupe">{row.assigned_to ?? '—'}</td>
@@ -287,7 +303,8 @@ export default function TimeMileagePage() {
                       </tr>
                     ))}
                   </React.Fragment>
-                ))}
+                  );
+                })}
                 {/* Grand total row */}
                 <tr className="bg-espresso/5 font-semibold text-espresso">
                   <td colSpan={7} className="py-3 px-3">
