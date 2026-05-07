@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body { font-family: Arial, sans-serif; color: #3B2F2A; font-size: 13px; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #3B2F2A; font-size: 13px; margin: 0; padding: 0; }
     .page { padding: 0; }
 
     /* Branded header */
@@ -11,13 +11,10 @@
       background: #F6F3EE;
       padding: 28px 40px;
       color: #3B2F2A;
-      border-bottom: 3px solid #C9A24D;
     }
     .header-bar table { width: 100%; }
     .header-bar td { vertical-align: middle; }
-    .brand-name { font-size: 22px; letter-spacing: 2px; font-weight: bold; color: #3B2F2A; }
-    .brand-tagline { font-size: 11px; color: rgba(59,47,42,0.6); margin-top: 4px; }
-    .invoice-label { font-size: 18px; letter-spacing: 2px; color: #3B2F2A; text-align: right; }
+    .invoice-label { font-size: 14px; letter-spacing: 2px; color: #3B2F2A; text-align: right; font-weight: bold; }
     .invoice-meta-text { font-size: 12px; color: rgba(59,47,42,0.6); text-align: right; margin-top: 4px; }
 
     /* Gold accent */
@@ -88,13 +85,17 @@
   <div class="void-watermark">VOID</div>
   @endif
 
-  {{-- Branded header --}}
+  {{-- Branded header with logo --}}
   <div class="header-bar">
     <table>
       <tr>
         <td>
-          <div class="brand-name">THE PUPPER CLUB</div>
-          <div class="brand-tagline">Curated Dog Care</div>
+          @if(isset($logoPath) && file_exists($logoPath))
+            <img src="{{ $logoPath }}" alt="The Pupper Club" style="height: 50px;" />
+          @else
+            <div style="font-size: 22px; letter-spacing: 2px; font-weight: bold; color: #3B2F2A;">THE PUPPER CLUB</div>
+            <div style="font-size: 11px; color: rgba(59,47,42,0.6); margin-top: 4px;">Curated Dog Care</div>
+          @endif
         </td>
         <td style="text-align: right;">
           <div class="invoice-label">INVOICE</div>
@@ -216,7 +217,6 @@
       $methodLabel = match($billingMethod) {
         'credit_card' => 'Credit Card',
         'e_transfer' => 'E-Transfer',
-        'interac_pad' => 'Interac/PAD',
         'cash' => 'Cash',
         default => $billingMethod ? ucwords(str_replace('_', ' ', $billingMethod)) : null,
       };
@@ -231,10 +231,6 @@
       @elseif($billingMethod === 'e_transfer')
       <p style="margin: 0; font-size: 12px; color: #5a4a44;">
         Please send your e-Transfer to <strong>sophie@thepupperclub.ca</strong> before the due date.
-      </p>
-      @elseif($billingMethod === 'interac_pad')
-      <p style="margin: 0; font-size: 12px; color: #5a4a44;">
-        Charged automatically via Interac/Visa Debit or Bank Debit (PAD) through Stripe.
       </p>
       @elseif($billingMethod === 'cash')
       <p style="margin: 0; font-size: 12px; color: #5a4a44;">

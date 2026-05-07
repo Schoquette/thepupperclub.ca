@@ -155,6 +155,7 @@ class InvoiceController extends Controller
     {
         $pdf = Pdf::loadView('invoices.pdf', [
             'invoice' => $invoice->load(['user.clientProfile', 'lineItems']),
+            'logoPath' => resource_path('images/logo.png'),
         ]);
 
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
