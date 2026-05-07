@@ -28,12 +28,11 @@ class MileageService
 
         $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
 
-        // Get all completed appointments for this team member on this day, ordered by check-in time
+        // Get all past appointments for this team member on this day, ordered by scheduled time
         $appointments = Appointment::with(['user.clientProfile', 'visitReport'])
-            ->where('status', 'completed')
+            ->whereIn('status', ['scheduled', 'checked_in', 'completed'])
             ->whereDate('scheduled_time', $date->toDateString())
             ->when($hasAssignedTo && $teamMemberId, fn($q) => $q->where('assigned_to', $teamMemberId))
-            ->orderBy('check_in_time')
             ->orderBy('scheduled_time')
             ->get();
 
@@ -98,11 +97,12 @@ class MileageService
 
             $totalKm = round($legDistance + $returnDistance, 1);
 
-            // Update the visit report with calculated mileage
+            // Update the visit report with calculated mileage, or the appointment directly
             $report = $stop['appointment']->visitReport;
             if ($report) {
                 $report->update(['distance_km' => $totalKm]);
             }
+            $stop['appointment']->update(['distance_km' => $totalKm]);
         }
     }
 

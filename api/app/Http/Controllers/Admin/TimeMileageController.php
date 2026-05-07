@@ -31,8 +31,9 @@ class TimeMileageController extends Controller
         if ($hasAssignedTo) $eagerLoads[] = 'assignedAdmin:id,name';
 
         $appointments = Appointment::with($eagerLoads)
-            ->where('status', 'completed')
+            ->whereIn('status', ['scheduled', 'checked_in', 'completed'])
             ->whereBetween('scheduled_time', [$start, $end])
+            ->where('scheduled_time', '<=', now())
             ->when($hasAssignedTo && $request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->orderBy('scheduled_time')
             ->get();
@@ -40,7 +41,9 @@ class TimeMileageController extends Controller
         $rows = $appointments->map(function (Appointment $appt) {
             $checkIn  = $appt->check_in_time;
             $checkOut = $appt->check_out_time;
-            $minutes  = ($checkIn && $checkOut) ? $checkIn->diffInMinutes($checkOut) : null;
+            $minutes  = ($checkIn && $checkOut)
+                ? $checkIn->diffInMinutes($checkOut)
+                : ($appt->duration_minutes ?? null);
             $address  = trim(implode(', ', array_filter([
                 $appt->user?->clientProfile?->address,
                 $appt->user?->clientProfile?->city,
@@ -57,7 +60,8 @@ class TimeMileageController extends Controller
                 'check_in'        => $checkIn?->format('g:i A'),
                 'check_out'       => $checkOut?->format('g:i A'),
                 'duration_minutes' => $minutes,
-                'distance_km'     => $appt->visitReport?->distance_km,
+                'distance_km'     => $appt->visitReport?->distance_km ?? $appt->distance_km,
+                'status'          => $appt->status,
             ];
         });
 

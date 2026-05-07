@@ -25,6 +25,7 @@ interface Row {
   check_out: string | null;
   duration_minutes: number | null;
   distance_km: number | null;
+  status: string;
 }
 
 interface Summary {
@@ -228,7 +229,7 @@ export default function TimeMileagePage() {
         <PageLoader />
       ) : grouped.length === 0 ? (
         <Card>
-          <p className="text-center text-taupe py-8">No completed visits in this period.</p>
+          <p className="text-center text-taupe py-8">No visits in this period.</p>
         </Card>
       ) : (
         <Card>
@@ -240,6 +241,7 @@ export default function TimeMileagePage() {
                   <th className="py-3 px-3">Dogs</th>
                   <th className="py-3 px-3">Service</th>
                   <th className="py-3 px-3">Team Member</th>
+                  <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3">Check In</th>
                   <th className="py-3 px-3">Check Out</th>
                   <th className="py-3 px-3 text-right">Duration</th>
@@ -251,7 +253,7 @@ export default function TimeMileagePage() {
                   <React.Fragment key={group.date}>
                     {/* Date header row */}
                     <tr className="bg-cream/50">
-                      <td colSpan={8} className="py-2 px-3 font-semibold text-espresso text-sm">
+                      <td colSpan={9} className="py-2 px-3 font-semibold text-espresso text-sm">
                         {format(new Date(group.date + 'T00:00'), 'EEEE, MMM d, yyyy')}
                         <span className="text-taupe font-normal ml-3">
                           {group.rows.length} visit{group.rows.length !== 1 ? 's' : ''}
@@ -267,6 +269,15 @@ export default function TimeMileagePage() {
                         <td className="py-2.5 px-3 text-taupe">{row.dogs || '—'}</td>
                         <td className="py-2.5 px-3 text-taupe">{formatServiceType(row.service_type)}</td>
                         <td className="py-2.5 px-3 text-taupe">{row.assigned_to ?? '—'}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                            row.status === 'completed' ? 'bg-green-50 text-green-600' :
+                            row.status === 'checked_in' ? 'bg-gold/10 text-gold' :
+                            'bg-blue/10 text-blue'
+                          }`}>
+                            {row.status === 'checked_in' ? 'Checked In' : row.status === 'completed' ? 'Completed' : 'Scheduled'}
+                          </span>
+                        </td>
                         <td className="py-2.5 px-3 text-taupe">{row.check_in ?? '—'}</td>
                         <td className="py-2.5 px-3 text-taupe">{row.check_out ?? '—'}</td>
                         <td className="py-2.5 px-3 text-right font-medium text-espresso">{formatDuration(row.duration_minutes)}</td>
@@ -279,7 +290,7 @@ export default function TimeMileagePage() {
                 ))}
                 {/* Grand total row */}
                 <tr className="bg-espresso/5 font-semibold text-espresso">
-                  <td colSpan={6} className="py-3 px-3">
+                  <td colSpan={7} className="py-3 px-3">
                     Total ({data?.summary.total_visits} visits)
                   </td>
                   <td className="py-3 px-3 text-right">{formatDuration(data?.summary.total_minutes ?? 0)}</td>

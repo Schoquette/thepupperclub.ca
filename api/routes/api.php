@@ -136,6 +136,17 @@ Route::get('/add-request-type-9x7k', function () {
     return response()->json(['message' => 'request_type column already exists.']);
 });
 
+// Temporary: add distance_km column to appointments (REMOVE after running)
+Route::get('/add-appt-distance-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('appointments', 'distance_km')) {
+        \Illuminate\Support\Facades\Schema::table('appointments', function ($t) {
+            $t->decimal('distance_km', 6, 1)->nullable()->after('check_out_time');
+        });
+        return response()->json(['message' => 'distance_km column added to appointments.']);
+    }
+    return response()->json(['message' => 'distance_km column already exists.']);
+});
+
 // Temporary: add adoptaversary column to dogs table (REMOVE after running)
 Route::get('/add-adoptaversary-9x7k', function () {
     if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'adoptaversary')) {

@@ -35,6 +35,7 @@ class Appointment extends Model
         'check_in_time',
         'check_out_time',
         'pre_visit_notification_sent',
+        'distance_km',
     ];
 
     protected function casts(): array
