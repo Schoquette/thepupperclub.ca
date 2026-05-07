@@ -253,11 +253,7 @@ export default function AdminCalendarPage() {
 
   // Visit completion report form (legacy – still used for check-out)
   const [completing, setCompleting] = useState(false);
-  const [reportForm, setReportForm] = useState({
-    eliminated: false, ate_well: false, drank_water: false,
-    mood: 'good', energy_level: 'normal', distance_km: '', notes: '',
-  });
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [reportForm, setReportForm] = useState({ distance_km: '', notes: '' });
   const [mileageFrom, setMileageFrom] = useState('');
 
   // Auto-fetch mileage when Complete Visit modal opens
@@ -329,17 +325,15 @@ export default function AdminCalendarPage() {
   const [completeError, setCompleteError] = useState('');
   const complete = useMutation({
     mutationFn: async (id: number) => {
-      const fd = new FormData();
-      Object.entries(reportForm).forEach(([k, v]) => fd.append(k, String(v)));
-      photos.forEach(p => fd.append('photos[]', p));
-      return api.post(`/admin/appointments/${id}/complete`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const payload: Record<string, any> = {};
+      if (reportForm.distance_km) payload.distance_km = reportForm.distance_km;
+      if (reportForm.notes) payload.notes = reportForm.notes;
+      return api.post(`/admin/appointments/${id}/complete`, payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-appointments'] });
       setSelected(null); setCompleting(false);
-      setPhotos([]); setCompleteError('');
+      setCompleteError('');
       setCalSuccess('Visit completed!'); setTimeout(() => setCalSuccess(''), 2500);
     },
     onError: (err: any) => { setCompleteError(err.response?.data?.message || 'Failed to complete visit.'); },

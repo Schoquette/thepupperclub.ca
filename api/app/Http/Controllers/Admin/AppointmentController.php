@@ -210,15 +210,15 @@ class AppointmentController extends Controller
         abort_unless($appointment->status === 'checked_in', 422, 'Appointment is not checked in.');
 
         $data = $request->validate([
-            'eliminated'   => 'required|boolean',
-            'ate_well'     => 'required|boolean',
-            'drank_water'  => 'required|boolean',
-            'mood'         => 'required|in:great,good,okay,anxious,unwell',
-            'energy_level' => 'required|in:high,normal,low',
+            'eliminated'   => 'sometimes|boolean',
+            'ate_well'     => 'sometimes|boolean',
+            'drank_water'  => 'sometimes|boolean',
+            'mood'         => 'sometimes|in:great,good,okay,anxious,unwell',
+            'energy_level' => 'sometimes|in:high,normal,low',
             'distance_km'  => 'nullable|numeric|min:0',
             'notes'        => 'nullable|string',
-            'photos'       => 'required|array|min:1',
-            'photos.*'     => 'required|file|image|max:10240',
+            'photos'       => 'sometimes|array',
+            'photos.*'     => 'file|image|max:10240',
         ]);
 
         $appointment->update([
@@ -226,14 +226,18 @@ class AppointmentController extends Controller
             'check_out_time' => now(),
         ]);
 
-        $photoPaths = collect($request->file('photos'))
-            ->map(fn($photo) => $photo->store('private/photos', 'local'))
-            ->all();
+        $photoPaths = $request->hasFile('photos')
+            ? collect($request->file('photos'))
+                ->map(fn($photo) => $photo->store('private/photos', 'local'))
+                ->all()
+            : [];
 
-        $report = $appointment->visitReport()->create(array_merge(
-            $data,
-            ['photo_paths' => $photoPaths]
-        ));
+        $reportData = collect($data)->except('photos')->toArray();
+        if (!empty($photoPaths)) {
+            $reportData['photo_paths'] = $photoPaths;
+        }
+
+        $report = $appointment->visitReport()->create($reportData);
 
         // Auto-calculate mileage for the day using Google Maps
         try {
