@@ -288,9 +288,10 @@ export default function AdminReportCardFormPage() {
 
   const createReport = useMutation({
     mutationFn: () => api.post('/admin/report-cards', makePayload(true), fdConfig),
-    onSuccess: (res) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
-      navigate(`/admin/report-cards/${res.data.data.id}`);
+      qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
+      navigate('/admin/report-cards');
     },
     onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to save.'),
   });
@@ -302,9 +303,10 @@ export default function AdminReportCardFormPage() {
       await api.post(`/admin/report-cards/${newId}/send`);
       return newId;
     },
-    onSuccess: (newId) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
-      navigate(`/admin/report-cards/${newId}`);
+      qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
+      navigate('/admin/report-cards');
     },
     onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to send.'),
   });
@@ -330,11 +332,9 @@ export default function AdminReportCardFormPage() {
       return api.post(`/admin/report-cards/${id}/send`);
     },
     onSuccess: () => {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-      setNewPhotos([]);
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
-      qc.invalidateQueries({ queryKey: ['admin-report-card', id] });
+      qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
+      navigate('/admin/report-cards');
     },
     onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to send.'),
   });
