@@ -44,7 +44,7 @@
       color: #3B2F2A;
     }
     .email-body h2 {
-      font-family: Georgia, 'Times New Roman', serif;
+      font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;
       font-size: 22px;
       margin: 0 0 20px;
       color: #3B2F2A;

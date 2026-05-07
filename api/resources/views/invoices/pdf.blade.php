@@ -8,17 +8,17 @@
 
     /* Branded header */
     .header-bar {
-      background: #F6F3EE;
+      background: #6492D8;
       padding: 28px 40px;
-      color: #3B2F2A;
+      color: #FFFFFF;
       border-bottom: 3px solid #C9A24D;
     }
     .header-bar table { width: 100%; }
     .header-bar td { vertical-align: middle; }
-    .brand-name { font-size: 22px; letter-spacing: 2px; font-weight: bold; color: #3B2F2A; }
-    .brand-tagline { font-size: 11px; color: #C8BFB6; margin-top: 4px; }
-    .invoice-label { font-size: 18px; letter-spacing: 2px; color: #C9A24D; text-align: right; }
-    .invoice-meta-text { font-size: 12px; color: #C8BFB6; text-align: right; margin-top: 4px; }
+    .brand-name { font-size: 22px; letter-spacing: 2px; font-weight: bold; color: #FFFFFF; }
+    .brand-tagline { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+    .invoice-label { font-size: 18px; letter-spacing: 2px; color: #FFFFFF; text-align: right; }
+    .invoice-meta-text { font-size: 12px; color: rgba(255,255,255,0.7); text-align: right; margin-top: 4px; }
 
     /* Gold accent */
     .gold-bar { height: 4px; background: #C9A24D; }
