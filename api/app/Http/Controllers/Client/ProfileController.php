@@ -53,6 +53,10 @@ class ProfileController extends Controller
             'secondary_notify_email'   => 'sometimes|boolean',
             'secondary_notify_sms'     => 'sometimes|boolean',
             'billing_method'           => 'sometimes|in:credit_card,e_transfer,interac_pad,cash',
+            'preferred_walk_days'      => 'sometimes|array',
+            'preferred_walk_days.*'    => 'string',
+            'preferred_walk_times'     => 'sometimes|array',
+            'preferred_walk_times.*'   => 'string',
         ]);
 
         $user = $request->user();

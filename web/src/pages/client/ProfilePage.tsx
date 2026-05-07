@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -8,6 +8,21 @@ import { ProvinceSelect } from '@/components/ui/ProvinceSelect';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { CheckCircle, Dog, CreditCard, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const DAY_OPTIONS = [
+  { value: 'monday', label: 'Mon' },
+  { value: 'tuesday', label: 'Tue' },
+  { value: 'wednesday', label: 'Wed' },
+  { value: 'thursday', label: 'Thu' },
+  { value: 'friday', label: 'Fri' },
+];
+
+const TIME_OPTIONS = [
+  { value: 'morning_7_10', label: 'Morning (7–10am)' },
+  { value: 'midday_11_2', label: 'Midday (11am–2pm)' },
+  { value: 'afternoon_3_6', label: 'Afternoon (3–6pm)' },
+  { value: 'evening_6_9', label: 'Evening (6–9pm)' },
+];
 
 export default function ClientProfilePage() {
   const qc = useQueryClient();
@@ -203,6 +218,12 @@ export default function ClientProfilePage() {
         ))}
       </div>
 
+      {/* Visit Preferences */}
+      <VisitPreferencesCard profile={p} />
+
+      {/* Home Access */}
+      <HomeAccessCard />
+
       {/* Confirm button — shown when admin submitted intake but client hasn't confirmed */}
       {needsReview && !editing && (
         <div className="space-y-2">
@@ -218,5 +239,242 @@ export default function ClientProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Visit Preferences ─────────────────────────────────────────────────────────
+
+function VisitPreferencesCard({ profile }: { profile: any }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [days, setDays] = useState<string[]>(profile?.preferred_walk_days ?? []);
+  const [times, setTimes] = useState<string[]>(profile?.preferred_walk_times ?? []);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    setDays(profile?.preferred_walk_days ?? []);
+    setTimes(profile?.preferred_walk_times ?? []);
+  }, [profile]);
+
+  const save = useMutation({
+    mutationFn: () => api.patch('/client/profile', { preferred_walk_days: days, preferred_walk_times: times }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-profile'] });
+      setEditing(false);
+      setSuccessMsg('Saved!');
+      setTimeout(() => setSuccessMsg(''), 2500);
+    },
+    onError: () => {},
+  });
+
+  const toggleDay = (d: string) => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+  const toggleTime = (t: string) => setTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+
+  const dayLabels = Object.fromEntries(DAY_OPTIONS.map(o => [o.value, o.label]));
+  const timeLabels = Object.fromEntries(TIME_OPTIONS.map(o => [o.value, o.label]));
+
+  return (
+    <Card>
+      <CardHeader
+        title="Visit Preferences"
+        action={
+          <div className="flex items-center gap-2">
+            {successMsg && <span className="text-sm text-green-600 font-medium">{successMsg}</span>}
+            {editing ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setEditing(false); setDays(profile?.preferred_walk_days ?? []); setTimes(profile?.preferred_walk_times ?? []); }}>Cancel</Button>
+                <Button size="sm" loading={save.isPending} onClick={() => save.mutate()}>Save</Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>
+            )}
+          </div>
+        }
+      />
+      {editing ? (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-espresso mb-2">Preferred Days</label>
+            <div className="flex gap-2 flex-wrap">
+              {DAY_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleDay(opt.value)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                    days.includes(opt.value)
+                      ? 'bg-gold text-white border-gold'
+                      : 'border-taupe text-espresso hover:border-gold/60 hover:bg-cream'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-espresso mb-2">Preferred Time Slots</label>
+            <div className="flex gap-2 flex-wrap">
+              {TIME_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => toggleTime(opt.value)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                    times.includes(opt.value)
+                      ? 'bg-gold text-white border-gold'
+                      : 'border-taupe text-espresso hover:border-gold/60 hover:bg-cream'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <dl className="space-y-3 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-taupe">Preferred Days</dt>
+            <dd className="text-espresso font-medium">
+              {(profile?.preferred_walk_days ?? []).length > 0
+                ? (profile.preferred_walk_days as string[]).map(d => dayLabels[d] || d).join(', ')
+                : '—'}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-taupe">Preferred Times</dt>
+            <dd className="text-espresso font-medium">
+              {(profile?.preferred_walk_times ?? []).length > 0
+                ? (profile.preferred_walk_times as string[]).map(t => timeLabels[t] || t).join(', ')
+                : '—'}
+            </dd>
+          </div>
+        </dl>
+      )}
+    </Card>
+  );
+}
+
+// ── Home Access ───────────────────────────────────────────────────────────────
+
+function HomeAccessCard() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const { data: access, isLoading } = useQuery({
+    queryKey: ['client-home-access'],
+    queryFn: () => api.get('/client/home-access').then(r => r.data.data),
+  });
+
+  const [form, setForm] = useState({
+    entry_instructions: '',
+    lockbox_code: '',
+    door_code: '',
+    alarm_code: '',
+    key_location: '',
+    parking_instructions: '',
+    notes: '',
+  });
+
+  useEffect(() => {
+    if (access) {
+      setForm({
+        entry_instructions: access.entry_instructions ?? '',
+        lockbox_code: access.lockbox_code === '****' ? '' : (access.lockbox_code ?? ''),
+        door_code: access.door_code === '****' ? '' : (access.door_code ?? ''),
+        alarm_code: access.alarm_code === '****' ? '' : (access.alarm_code ?? ''),
+        key_location: access.key_location ?? '',
+        parking_instructions: access.parking_instructions ?? '',
+        notes: access.notes ?? '',
+      });
+    }
+  }, [access]);
+
+  const save = useMutation({
+    mutationFn: () => {
+      // Don't send masked values — only send if changed
+      const payload = { ...form };
+      if (!payload.lockbox_code) delete (payload as any).lockbox_code;
+      if (!payload.door_code) delete (payload as any).door_code;
+      if (!payload.alarm_code) delete (payload as any).alarm_code;
+      return api.patch('/client/home-access', payload);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-home-access'] });
+      setEditing(false);
+      setSuccessMsg('Saved!');
+      setTimeout(() => setSuccessMsg(''), 2500);
+    },
+    onError: () => {},
+  });
+
+  const startEdit = () => {
+    setForm({
+      entry_instructions: access?.entry_instructions ?? '',
+      lockbox_code: '',
+      door_code: '',
+      alarm_code: '',
+      key_location: access?.key_location ?? '',
+      parking_instructions: access?.parking_instructions ?? '',
+      notes: access?.notes ?? '',
+    });
+    setEditing(true);
+  };
+
+  if (isLoading) return null;
+
+  const fields: [string, string | null][] = [
+    ['Entry Instructions', access?.entry_instructions],
+    ['Lockbox Code', access?.lockbox_code],
+    ['Door Code', access?.door_code],
+    ['Alarm Code', access?.alarm_code],
+    ['Key Location', access?.key_location],
+    ['Parking', access?.parking_instructions],
+    ['Notes', access?.notes],
+  ];
+
+  return (
+    <Card>
+      <CardHeader
+        title="Home Access"
+        action={
+          <div className="flex items-center gap-2">
+            {successMsg && <span className="text-sm text-green-600 font-medium">{successMsg}</span>}
+            {editing ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button size="sm" loading={save.isPending} onClick={() => save.mutate()}>Save</Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" onClick={startEdit}>Edit</Button>
+            )}
+          </div>
+        }
+      />
+      {editing ? (
+        <div className="space-y-3">
+          <Input label="Entry Instructions" value={form.entry_instructions} onChange={e => setForm(f => ({ ...f, entry_instructions: e.target.value }))} placeholder="How to get into the home" />
+          <div className="grid grid-cols-3 gap-3">
+            <Input label="Lockbox Code" value={form.lockbox_code} onChange={e => setForm(f => ({ ...f, lockbox_code: e.target.value }))} placeholder={access?.lockbox_code ? 'Leave blank to keep current' : ''} />
+            <Input label="Door Code" value={form.door_code} onChange={e => setForm(f => ({ ...f, door_code: e.target.value }))} placeholder={access?.door_code ? 'Leave blank to keep current' : ''} />
+            <Input label="Alarm Code" value={form.alarm_code} onChange={e => setForm(f => ({ ...f, alarm_code: e.target.value }))} placeholder={access?.alarm_code ? 'Leave blank to keep current' : ''} />
+          </div>
+          <Input label="Key Location" value={form.key_location} onChange={e => setForm(f => ({ ...f, key_location: e.target.value }))} placeholder="Under the mat, in the mailbox…" />
+          <Input label="Parking Instructions" value={form.parking_instructions} onChange={e => setForm(f => ({ ...f, parking_instructions: e.target.value }))} placeholder="Driveway, street parking…" />
+          <Input label="Notes" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else we should know" />
+        </div>
+      ) : (
+        <dl className="space-y-3 text-sm">
+          {fields.map(([label, value]) => (
+            <div key={label} className="flex justify-between">
+              <dt className="text-taupe">{label}</dt>
+              <dd className="text-espresso font-medium">{value || '—'}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </Card>
   );
 }
