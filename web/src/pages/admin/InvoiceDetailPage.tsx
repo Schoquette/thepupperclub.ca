@@ -345,11 +345,11 @@ export default function AdminInvoiceDetailPage() {
           </div>
         )}
 
-        {/* Branded header — gold bar with logo */}
-        <div className="bg-espresso px-8 py-5 flex items-center justify-between">
-          <img src="/logo.png" alt="The Pupper Club" className="h-12 brightness-0 invert" />
-          <div className="text-right text-cream/80 text-xs leading-relaxed">
-            <div className="font-display text-sm text-cream tracking-wide">INVOICE</div>
+        {/* Branded header */}
+        <div className="bg-taupe px-8 py-5 flex items-center justify-between">
+          <img src="/logo.png" alt="The Pupper Club" className="h-12" />
+          <div className="text-right text-espresso/70 text-xs leading-relaxed">
+            <div className="font-display text-sm text-espresso tracking-wide">INVOICE</div>
             <div>{invoice.invoice_number}</div>
             <div>{format(new Date(invoice.created_at), 'MMMM d, yyyy')}</div>
           </div>
@@ -509,7 +509,7 @@ export default function AdminInvoiceDetailPage() {
               <div className="overflow-x-auto mb-6">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-espresso text-cream">
+                  <tr className="bg-taupe text-espresso">
                     <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider">Description</th>
                     <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider">Date</th>
                     <th className="py-2.5 px-3 text-center text-xs font-semibold uppercase tracking-wider w-16">Qty</th>

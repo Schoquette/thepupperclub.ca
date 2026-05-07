@@ -8,17 +8,17 @@
 
     /* Branded header */
     .header-bar {
-      background: #6492D8;
+      background: #C8BFB6;
       padding: 28px 40px;
-      color: #FFFFFF;
+      color: #3B2F2A;
       border-bottom: 3px solid #C9A24D;
     }
     .header-bar table { width: 100%; }
     .header-bar td { vertical-align: middle; }
-    .brand-name { font-size: 22px; letter-spacing: 2px; font-weight: bold; color: #FFFFFF; }
-    .brand-tagline { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 4px; }
-    .invoice-label { font-size: 18px; letter-spacing: 2px; color: #FFFFFF; text-align: right; }
-    .invoice-meta-text { font-size: 12px; color: rgba(255,255,255,0.7); text-align: right; margin-top: 4px; }
+    .brand-name { font-size: 22px; letter-spacing: 2px; font-weight: bold; color: #3B2F2A; }
+    .brand-tagline { font-size: 11px; color: rgba(59,47,42,0.6); margin-top: 4px; }
+    .invoice-label { font-size: 18px; letter-spacing: 2px; color: #3B2F2A; text-align: right; }
+    .invoice-meta-text { font-size: 12px; color: rgba(59,47,42,0.6); text-align: right; margin-top: 4px; }
 
     /* Gold accent */
     .gold-bar { height: 4px; background: #C9A24D; }
@@ -47,7 +47,7 @@
 
     /* Line items table */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    .items-table thead tr { background: #6492D8; color: #F6F3EE; }
+    .items-table thead tr { background: #C8BFB6; color: #3B2F2A; }
     .items-table thead th { padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
     .items-table tbody tr { border-bottom: 1px solid #e9e4df; }
     .items-table tbody tr:nth-child(even) { background: #FAFAF8; }
