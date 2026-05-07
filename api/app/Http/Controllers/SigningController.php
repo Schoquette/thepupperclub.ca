@@ -70,7 +70,7 @@ class SigningController extends Controller
                 . 'Review &amp; Sign Document</a></p>'
                 . '<p style="font-size:13px;color:#C8BFB6;">This link is unique to you. Once signed, it cannot be reused.</p>';
 
-            app(NotificationDispatcher::class)->notify($client, $title, $body, $htmlBody);
+            app(NotificationDispatcher::class)->notify($client, $title, $body, $htmlBody, type: 'documents');
         }
 
         return response()->json([

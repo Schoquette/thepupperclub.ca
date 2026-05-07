@@ -23,8 +23,16 @@ class NotificationDispatcher
      * @param string|null $htmlBody  Optional HTML body for email (falls back to $body)
      * @param array  $data    Optional data payload for push notifications
      */
-    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null): void
+    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null, ?string $type = null): void
     {
+        // Check if client has opted out of this notification type
+        if ($type && $user->role === 'client' && $user->clientProfile) {
+            $typePrefs = $user->clientProfile->notification_preferences ?? [];
+            if (isset($typePrefs[$type]) && $typePrefs[$type] === false) {
+                return;
+            }
+        }
+
         $prefs = $this->getPreferences($user);
 
         // App / Push notification (default)

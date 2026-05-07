@@ -174,7 +174,7 @@ class InvoiceService
             $plainBody .= " Service period: {$billingPeriod}.";
         }
 
-        app(NotificationDispatcher::class)->notify($client, $title, $plainBody, $htmlBody);
+        app(NotificationDispatcher::class)->notify($client, $title, $plainBody, $htmlBody, type: 'invoices');
     }
 
     public function markPaid(Invoice $invoice): void

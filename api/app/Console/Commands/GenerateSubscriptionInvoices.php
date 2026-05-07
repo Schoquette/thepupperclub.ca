@@ -120,7 +120,7 @@ class GenerateSubscriptionInvoices extends Command
                 'portalUrl'     => rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/billing',
             ])->render();
 
-            $dispatcher->notify($client, $title, $body, $htmlBody);
+            $dispatcher->notify($client, $title, $body, $htmlBody, type: 'invoices');
             $this->info("Billing reminder sent to {$client->name} for {$billingDate}.");
         }
     }

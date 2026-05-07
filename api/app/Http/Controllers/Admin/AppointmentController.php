@@ -176,6 +176,7 @@ class AppointmentController extends Controller
                 $appointment->user,
                 $title,
                 $body,
+                type: 'appointment_updates',
             );
         }
 

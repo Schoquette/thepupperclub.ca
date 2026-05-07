@@ -403,7 +403,7 @@ export default function ClientAppointmentsPage() {
                   <div className="text-sm text-espresso capitalize">
                     {SERVICE_LABELS[req.service_type] ?? req.service_type?.replace(/_/g, ' ')} · {TIME_BLOCKS.find(t => t.value === req.preferred_time_block)?.label}
                     {req.preferred_date && (
-                      <span className="text-taupe"> · {format(new Date(req.preferred_date + 'T00:00:00'), 'MMM d, yyyy')}</span>
+                      <span className="text-taupe"> · {format(new Date(req.preferred_date.slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

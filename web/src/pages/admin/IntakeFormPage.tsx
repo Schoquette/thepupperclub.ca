@@ -498,7 +498,7 @@ function VetClinicSearch({ value, onChange, onPlaceSelect }: {
         else if (t === 'postal_code') addr.postal_code = c.long_name;
       }
       addr.street = [streetNumber, route].filter(Boolean).join(' ');
-      onPlaceSelectRef.current(place.name || '', addr);
+      onPlaceSelectRef.current((place as any).name || '', addr);
     });
     autocompleteRef.current = ac;
   }, [ready]);

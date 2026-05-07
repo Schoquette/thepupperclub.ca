@@ -115,8 +115,8 @@ export default function AddressAutocomplete({
       onChangeRef.current(fields);
 
       // Pass the business name back if callback provided
-      if (onNameSelectRef.current && place.name) {
-        onNameSelectRef.current(place.name);
+      if (onNameSelectRef.current && (place as any).name) {
+        onNameSelectRef.current((place as any).name);
       }
     });
 

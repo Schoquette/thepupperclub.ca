@@ -102,6 +102,7 @@ class ConversationController extends Controller
                     $htmlBody,
                     [],
                     $user->email,
+                    type: 'messages',
                 );
             }
         }
@@ -155,6 +156,7 @@ class ConversationController extends Controller
                     $htmlBody,
                     [],
                     $user->email,
+                    type: 'messages',
                 );
             }
         }

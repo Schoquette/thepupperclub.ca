@@ -132,10 +132,10 @@ export default function ClientSettingsPage() {
         </div>
       </Card>
 
-      {/* Notification Preferences */}
+      {/* Notification Channels */}
       <Card>
         <CardHeader
-          title="Notification Preferences"
+          title="Notification Channels"
           action={
             notifEditing ? (
               <div className="flex gap-2">
@@ -148,9 +148,6 @@ export default function ClientSettingsPage() {
                   notify_app: p.notify_app ?? true,
                   notify_email: p.notify_email ?? false,
                   notify_sms: p.notify_sms ?? false,
-                  secondary_notify_app: p.secondary_notify_app ?? false,
-                  secondary_notify_email: p.secondary_notify_email ?? false,
-                  secondary_notify_sms: p.secondary_notify_sms ?? false,
                 });
                 setNotifEditing(true);
               }}>
@@ -161,75 +158,37 @@ export default function ClientSettingsPage() {
         />
         {notifSuccessMsg && <span className="text-sm text-green-600 font-medium">{notifSuccessMsg}</span>}
         {notifError && <p className="text-sm text-red-600">{notifError}</p>}
+        <p className="text-xs text-taupe mb-3">Choose how you receive notifications.</p>
         {notifEditing && notifForm ? (
-          <div className="space-y-4">
-            <p className="text-xs text-taupe">Choose how each contact receives updates about appointments, messages, and more.</p>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Primary Contact</p>
-                <div className="space-y-2">
-                  {[
-                    { key: 'notify_app', label: 'App notifications' },
-                    { key: 'notify_email', label: 'Email' },
-                    { key: 'notify_sms', label: 'Text message (SMS)' },
-                  ].map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
-                      <input
-                        type="checkbox"
-                        checked={!!notifForm[key]}
-                        onChange={e => setNotifForm(f => ({ ...f!, [key]: e.target.checked }))}
-                        className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
-                      />
-                      <span className="text-sm text-espresso">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Secondary Contact</p>
-                <div className="space-y-2">
-                  {[
-                    { key: 'secondary_notify_app', label: 'App notifications' },
-                    { key: 'secondary_notify_email', label: 'Email' },
-                    { key: 'secondary_notify_sms', label: 'Text message (SMS)' },
-                  ].map(({ key, label }) => (
-                    <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
-                      <input
-                        type="checkbox"
-                        checked={!!notifForm[key]}
-                        onChange={e => setNotifForm(f => ({ ...f!, [key]: e.target.checked }))}
-                        className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
-                      />
-                      <span className="text-sm text-espresso">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div className="space-y-2">
+            {[
+              { key: 'notify_app', label: 'App / Push notifications' },
+              { key: 'notify_email', label: 'Email' },
+              { key: 'notify_sms', label: 'Text message (SMS)' },
+            ].map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
+                <input
+                  type="checkbox"
+                  checked={!!notifForm[key]}
+                  onChange={e => setNotifForm(f => ({ ...f!, [key]: e.target.checked }))}
+                  className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                />
+                <span className="text-sm text-espresso">{label}</span>
+              </label>
+            ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Primary Contact</p>
-              <div className="flex flex-wrap gap-2">
-                {(p.notify_app ?? true) && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>}
-                {!!p.notify_email && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>}
-                {!!p.notify_sms && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>}
-                {!(p.notify_app ?? true) && !p.notify_email && !p.notify_sms && <span className="text-xs text-taupe">None selected</span>}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-espresso mb-2 uppercase tracking-wide">Secondary Contact</p>
-              <div className="flex flex-wrap gap-2">
-                {!!p.secondary_notify_app && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>}
-                {!!p.secondary_notify_email && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>}
-                {!!p.secondary_notify_sms && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>}
-                {!p.secondary_notify_app && !p.secondary_notify_email && !p.secondary_notify_sms && <span className="text-xs text-taupe">None selected</span>}
-              </div>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {(p.notify_app ?? true) && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>}
+            {!!p.notify_email && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>}
+            {!!p.notify_sms && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>}
+            {!(p.notify_app ?? true) && !p.notify_email && !p.notify_sms && <span className="text-xs text-taupe">None selected</span>}
           </div>
         )}
       </Card>
+
+      {/* Notification Types */}
+      <NotificationTypesCard profile={p} />
 
       {/* Browser/Desktop Notifications */}
       {typeof Notification !== 'undefined' && (
@@ -307,5 +266,99 @@ export default function ClientSettingsPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+const NOTIF_TYPES = [
+  { key: 'messages', label: 'Messages', desc: 'New messages from your walker' },
+  { key: 'visit_checkin', label: 'Visit check-in', desc: 'When your walker arrives' },
+  { key: 'visit_reports', label: 'Visit reports', desc: 'Report card after each visit' },
+  { key: 'appointment_updates', label: 'Appointment changes', desc: 'Rescheduled or cancelled visits' },
+  { key: 'appointment_reminders', label: 'Appointment reminders', desc: 'Day-before visit reminders' },
+  { key: 'invoices', label: 'Invoices & billing', desc: 'New invoices and payment confirmations' },
+  { key: 'service_requests', label: 'Service request updates', desc: 'Approved, declined, or counter-offered' },
+  { key: 'documents', label: 'Documents', desc: 'Signature requests and document updates' },
+];
+
+function NotificationTypesCard({ profile }: { profile: any }) {
+  const qc = useQueryClient();
+  const stored: Record<string, boolean> = profile?.notification_preferences ?? {};
+  const [editing, setEditing] = useState(false);
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({});
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const startEdit = () => {
+    const initial: Record<string, boolean> = {};
+    NOTIF_TYPES.forEach(t => { initial[t.key] = stored[t.key] !== false; });
+    setPrefs(initial);
+    setEditing(true);
+  };
+
+  const save = useMutation({
+    mutationFn: () => api.patch('/client/profile', { notification_preferences: prefs }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-profile'] });
+      setEditing(false);
+      setSuccessMsg('Saved!');
+      setTimeout(() => setSuccessMsg(''), 2500);
+    },
+    onError: () => {},
+  });
+
+  return (
+    <Card>
+      <CardHeader
+        title="Notification Types"
+        action={
+          <div className="flex items-center gap-2">
+            {successMsg && <span className="text-sm text-green-600 font-medium">{successMsg}</span>}
+            {editing ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button size="sm" loading={save.isPending} onClick={() => save.mutate()}>Save</Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="outline" onClick={startEdit}>Edit</Button>
+            )}
+          </div>
+        }
+      />
+      <p className="text-xs text-taupe mb-3">Choose which types of notifications you want to receive. All are enabled by default.</p>
+      {editing ? (
+        <div className="space-y-1">
+          {NOTIF_TYPES.map(t => (
+            <label key={t.key} className="flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
+              <input
+                type="checkbox"
+                checked={prefs[t.key] !== false}
+                onChange={e => setPrefs(p => ({ ...p, [t.key]: e.target.checked }))}
+                className="h-4 w-4 mt-0.5 rounded border-taupe text-gold focus:ring-gold"
+              />
+              <div>
+                <div className="text-sm text-espresso font-medium">{t.label}</div>
+                <div className="text-xs text-taupe">{t.desc}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {NOTIF_TYPES.map(t => {
+            const enabled = stored[t.key] !== false;
+            return (
+              <div key={t.key} className="flex items-center justify-between py-1.5">
+                <div>
+                  <span className="text-sm text-espresso">{t.label}</span>
+                  <span className="text-xs text-taupe ml-2">{t.desc}</span>
+                </div>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${enabled ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
+                  {enabled ? 'On' : 'Off'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }

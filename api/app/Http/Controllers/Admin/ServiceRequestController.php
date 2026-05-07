@@ -236,7 +236,7 @@ class ServiceRequestController extends Controller
         ]);
 
         // Dispatch via client's preferred channels (push, email, SMS)
-        $this->dispatcher->notify($user, $title, $body);
+        $this->dispatcher->notify($user, $title, $body, type: 'service_requests');
     }
 
     private function ensureCounterTimeColumn(): void

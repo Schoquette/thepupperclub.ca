@@ -106,6 +106,17 @@ Route::get('/test-email-9x7k', function () {
     return response()->json(['message' => 'Test email sent. Check your inbox.']);
 });
 
+// Temporary: add notification_preferences JSON column to client_profiles (REMOVE after running)
+Route::get('/add-notif-prefs-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('client_profiles', 'notification_preferences')) {
+        \Illuminate\Support\Facades\Schema::table('client_profiles', function ($t) {
+            $t->json('notification_preferences')->nullable();
+        });
+        return response()->json(['message' => 'notification_preferences column added.']);
+    }
+    return response()->json(['message' => 'notification_preferences column already exists.']);
+});
+
 // Temporary: add adoptaversary column to dogs table (REMOVE after running)
 Route::get('/add-adoptaversary-9x7k', function () {
     if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'adoptaversary')) {

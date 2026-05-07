@@ -57,6 +57,7 @@ class ProfileController extends Controller
             'preferred_walk_days.*'    => 'string',
             'preferred_walk_times'     => 'sometimes|array',
             'preferred_walk_times.*'   => 'string',
+            'notification_preferences' => 'sometimes|array',
         ]);
 
         $user = $request->user();

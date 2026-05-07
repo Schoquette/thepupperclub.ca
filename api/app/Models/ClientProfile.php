@@ -62,6 +62,7 @@ class ClientProfile extends Model
         'notify_app',
         'notify_email',
         'notify_sms',
+        'notification_preferences',
     ];
 
     protected function casts(): array
@@ -89,6 +90,7 @@ class ClientProfile extends Model
             'notify_app'                    => 'boolean',
             'notify_email'                  => 'boolean',
             'notify_sms'                    => 'boolean',
+            'notification_preferences'      => 'array',
         ];
     }
 

@@ -34,7 +34,8 @@ class VisitNotificationService
         $this->dispatcher->notify(
             $user,
             "Your walker has arrived! 🐾",
-            "Your walk is starting now."
+            "Your walk is starting now.",
+            type: 'visit_checkin'
         );
     }
 
@@ -65,7 +66,8 @@ class VisitNotificationService
         $this->dispatcher->notify(
             $user,
             "Walk complete! 🐕",
-            "Your visit report is ready."
+            "Your visit report is ready.",
+            type: 'visit_reports'
         );
     }
 
@@ -74,7 +76,8 @@ class VisitNotificationService
         $this->dispatcher->notify(
             $invoice->user,
             "Payment confirmed 🎉",
-            "Invoice #{$invoice->invoice_number} has been paid."
+            "Invoice #{$invoice->invoice_number} has been paid.",
+            type: 'invoices'
         );
     }
 
@@ -102,7 +105,8 @@ class VisitNotificationService
         $this->dispatcher->notify(
             $user,
             "Walk tomorrow! 🐾",
-            "Your walk is scheduled for tomorrow. Make sure {$dogNames} is ready!"
+            "Your walk is scheduled for tomorrow. Make sure {$dogNames} is ready!",
+            type: 'appointment_reminders'
         );
 
         $appointment->update(['pre_visit_notification_sent' => true]);
