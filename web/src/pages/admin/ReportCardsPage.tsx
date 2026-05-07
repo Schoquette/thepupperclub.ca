@@ -137,10 +137,10 @@ export default function AdminReportCardsPage() {
           <p className="text-center py-8 text-taupe">No report cards found.</p>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filteredReports.map((r: any) => (
             <Link key={r.id} to={`/admin/report-cards/${r.id}`}>
-              <Card padding="sm" className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-espresso text-sm">
