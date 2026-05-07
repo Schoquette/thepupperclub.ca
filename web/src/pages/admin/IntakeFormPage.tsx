@@ -1197,6 +1197,7 @@ export default function IntakeFormPage() {
             {readOnly
               ? <ReadValue value={form.vet_address} />
               : <div className="w-full"><AddressAutocomplete
+                  types={['establishment']}
                   value={{ street: form.vet_address, city: '', province: '', postal_code: '' }}
                   onChange={({ street, city, province, postal_code }) => update({ vet_address: [street, city, province, postal_code].filter(Boolean).join(', ') })}
                 /></div>

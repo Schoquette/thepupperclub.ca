@@ -13,6 +13,7 @@ interface Props {
   value: AddressFields;
   onChange: (fields: AddressFields) => void;
   label?: string;
+  types?: string[];
 }
 
 let googleLoaded = false;
@@ -47,7 +48,7 @@ function loadGooglePlaces(apiKey: string): Promise<void> {
   });
 }
 
-export default function AddressAutocomplete({ value, onChange, label }: Props) {
+export default function AddressAutocomplete({ value, onChange, label, types = ['address'] }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [ready, setReady] = useState(googleLoaded);
@@ -67,8 +68,8 @@ export default function AddressAutocomplete({ value, onChange, label }: Props) {
 
     const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
       componentRestrictions: { country: 'ca' },
-      types: ['address'],
-      fields: ['address_components', 'formatted_address'],
+      types,
+      fields: ['address_components', 'formatted_address', 'name'],
     });
 
     autocomplete.addListener('place_changed', () => {
@@ -100,7 +101,10 @@ export default function AddressAutocomplete({ value, onChange, label }: Props) {
         }
       }
 
-      fields.street = [streetNumber, route].filter(Boolean).join(' ');
+      const streetAddr = [streetNumber, route].filter(Boolean).join(' ');
+      // If it's an establishment, prepend the business name
+      const placeName = place.name && place.name !== streetAddr ? place.name : '';
+      fields.street = [placeName, streetAddr].filter(Boolean).join(', ');
       setSearchValue(fields.street);
       onChangeRef.current(fields);
     });
