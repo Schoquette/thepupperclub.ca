@@ -382,6 +382,80 @@ export default function AdminCalendarPage() {
     },
   });
 
+  const [emailMsg, setEmailMsg] = useState('');
+  const emailSchedule = useMutation({
+    mutationFn: (date: string) => api.post('/admin/appointments/email-schedule', { date }),
+    onSuccess: (res) => { setEmailMsg(res.data.message); setTimeout(() => setEmailMsg(''), 4000); },
+    onError: (err: any) => { setEmailMsg(err.response?.data?.message || 'Failed to send.'); setTimeout(() => setEmailMsg(''), 4000); },
+  });
+
+  const exportCalendarCSV = () => {
+    const visible = (data ?? []).filter((a: any) => a.status !== 'cancelled');
+    if (!visible.length) return;
+    const headers = ['Date', 'Time', 'End', 'Client', 'Dogs', 'Service', 'Address', 'Status'];
+    const rows = visible.map((a: any) => {
+      const localStr = a.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      const d = new Date(localStr);
+      const end = new Date(d.getTime() + a.duration_minutes * 60_000);
+      const addr = a.user?.client_profile?.address || a.user?.clientProfile?.address || '';
+      const city = a.user?.client_profile?.city || a.user?.clientProfile?.city || '';
+      return [
+        format(d, 'yyyy-MM-dd'),
+        format(d, 'h:mm a'),
+        format(end, 'h:mm a'),
+        a.user?.name || '',
+        a.dogs?.map((dog: any) => dog.name).join(', ') || '',
+        a.service_type?.replace(/_/g, ' ') || '',
+        [addr, city].filter(Boolean).join(', '),
+        a.status,
+      ];
+    });
+    const csv = [headers, ...rows].map(r => r.map((c: string) => `"${c}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `schedule-${format(range.start, 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportCalendarPDF = () => {
+    const visible = (data ?? []).filter((a: any) => a.status !== 'cancelled');
+    if (!visible.length) return;
+    const printWin = window.open('', '_blank');
+    if (!printWin) return;
+    let tableRows = '';
+    visible.forEach((a: any) => {
+      const localStr = a.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      const d = new Date(localStr);
+      const end = new Date(d.getTime() + a.duration_minutes * 60_000);
+      const addr = a.user?.client_profile?.address || a.user?.clientProfile?.address || '';
+      const city = a.user?.client_profile?.city || a.user?.clientProfile?.city || '';
+      tableRows += `<tr>
+        <td>${format(d, 'EEE, MMM d')}</td>
+        <td>${format(d, 'h:mm a')} – ${format(end, 'h:mm a')}</td>
+        <td>${a.user?.name || '—'}</td>
+        <td>${a.dogs?.map((dog: any) => dog.name).join(', ') || ''}</td>
+        <td>${(a.service_type || '').replace(/_/g, ' ')}</td>
+        <td>${[addr, city].filter(Boolean).join(', ')}</td>
+      </tr>`;
+    });
+    printWin.document.write(`<!DOCTYPE html><html><head><title>Schedule</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;color:#3B2F2A;}
+      h1{font-size:18px;margin-bottom:4px;}
+      p{font-size:13px;color:#888;margin:0 0 16px;}
+      table{width:100%;border-collapse:collapse;font-size:12px;}
+      th{background:#6492D8;color:#fff;padding:8px;text-align:left;text-transform:uppercase;font-size:10px;letter-spacing:0.5px;}
+      td{padding:8px;border-bottom:1px solid #e9e4df;}</style></head><body>
+      <h1>The Pupper Club — Schedule</h1>
+      <p>${format(range.start, 'MMM d, yyyy')} – ${format(range.end, 'MMM d, yyyy')}</p>
+      <table><thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Dogs</th><th>Service</th><th>Address</th></tr></thead>
+      <tbody>${tableRows}</tbody></table></body></html>`);
+    printWin.document.close();
+    printWin.print();
+  };
+
   const handleDragDrop = useCallback(({ event, start, end }: any) => {
     const appt = event.resource;
     if (appt.status === 'completed' || appt.status === 'cancelled') return;
@@ -537,12 +611,22 @@ export default function AdminCalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="page-title">Calendar</h1>
-        <Button size="sm" onClick={() => { setCreatingAppt(true); setCreateError(''); }}>
-          + New Appointment
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" variant="secondary" onClick={() => emailSchedule.mutate(format(currentDate, 'yyyy-MM-dd'))} disabled={emailSchedule.isPending}>
+            {emailSchedule.isPending ? 'Sending...' : 'Email Today\'s Schedule'}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={exportCalendarCSV}>Export CSV</Button>
+          <Button size="sm" variant="secondary" onClick={exportCalendarPDF}>Export PDF</Button>
+          <Button size="sm" onClick={() => { setCreatingAppt(true); setCreateError(''); }}>
+            + New Appointment
+          </Button>
+        </div>
       </div>
+      {emailMsg && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700 font-medium">{emailMsg}</div>
+      )}
 
       {/* Scheduling Status Dashboard */}
       <SchedulingDashboard

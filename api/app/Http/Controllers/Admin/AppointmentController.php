@@ -274,4 +274,70 @@ class AppointmentController extends Controller
 
         return response()->json(['data' => $appointment->visitReport]);
     }
+
+    /**
+     * Email today's schedule to the requesting admin.
+     */
+    public function emailSchedule(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'date' => 'required|date',
+        ]);
+
+        $date = Carbon::parse($data['date']);
+        $admin = $request->user();
+
+        $appointments = Appointment::with(['user.clientProfile', 'dogs'])
+            ->whereDate('scheduled_time', $date)
+            ->where('status', '!=', 'cancelled')
+            ->orderBy('scheduled_time')
+            ->get();
+
+        if ($appointments->isEmpty()) {
+            return response()->json(['message' => 'No appointments scheduled for ' . $date->format('l, F j, Y') . '.']);
+        }
+
+        $serviceLabels = [
+            'walk_30' => '30-min Visit', 'walk_60' => '60-min Visit',
+            'drop_in' => 'Drop-in', 'day_boarding' => 'Day Boarding',
+            'overnight' => 'Overnight',
+        ];
+
+        // Build schedule rows
+        $rows = '';
+        foreach ($appointments as $appt) {
+            $time = $appt->scheduled_time->setTimezone('America/Vancouver')->format('g:i A');
+            $endTime = $appt->scheduled_time->copy()->addMinutes($appt->duration_minutes)->setTimezone('America/Vancouver')->format('g:i A');
+            $client = $appt->user;
+            $dogs = $appt->dogs->pluck('name')->join(', ');
+            $service = $serviceLabels[$appt->service_type] ?? ucwords(str_replace('_', ' ', $appt->service_type));
+            $address = $client?->clientProfile?->address ?? '';
+            $city = $client?->clientProfile?->city ?? '';
+            $fullAddress = trim($address . ($city ? ', ' . $city : ''));
+
+            $rows .= '<tr>'
+                . '<td style="padding:10px 12px;border-bottom:1px solid #e9e4df;font-size:14px;color:#3B2F2A;white-space:nowrap;"><strong>' . e($time) . '</strong><br><span style="color:#C8BFB6;font-size:12px;">' . e($endTime) . '</span></td>'
+                . '<td style="padding:10px 12px;border-bottom:1px solid #e9e4df;font-size:14px;color:#3B2F2A;"><strong>' . e($client?->name ?? '—') . '</strong><br><span style="color:#C8BFB6;font-size:12px;">' . e($dogs) . '</span></td>'
+                . '<td style="padding:10px 12px;border-bottom:1px solid #e9e4df;font-size:13px;color:#5a4a44;">' . e($service) . '</td>'
+                . '<td style="padding:10px 12px;border-bottom:1px solid #e9e4df;font-size:13px;color:#5a4a44;">' . e($fullAddress) . '</td>'
+                . '</tr>';
+        }
+
+        $htmlBody = '<p style="font-size:13px;color:#C8BFB6;margin:0 0 4px;">Schedule for</p>'
+            . '<p style="font-size:20px;font-weight:700;color:#3B2F2A;margin:0 0 20px;">' . e($date->format('l, F j, Y')) . '</p>'
+            . '<p style="font-size:14px;color:#5a4a44;margin:0 0 20px;">' . $appointments->count() . ' appointment' . ($appointments->count() !== 1 ? 's' : '') . '</p>'
+            . '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">'
+            . '<thead><tr style="background:#6492D8;">'
+            . '<th style="padding:8px 12px;text-align:left;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Time</th>'
+            . '<th style="padding:8px 12px;text-align:left;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Client</th>'
+            . '<th style="padding:8px 12px;text-align:left;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Service</th>'
+            . '<th style="padding:8px 12px;text-align:left;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Address</th>'
+            . '</tr></thead><tbody>' . $rows . '</tbody></table>';
+
+        $title = "Schedule — " . $date->format('M j, Y');
+
+        app(NotificationDispatcher::class)->notify($admin, $title, strip_tags($htmlBody), $htmlBody);
+
+        return response()->json(['message' => 'Schedule emailed to ' . $admin->email . '.']);
+    }
 }

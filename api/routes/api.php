@@ -485,6 +485,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Appointments
         Route::get('/appointments/scheduling-status',        [Admin\AppointmentController::class, 'schedulingStatus']);
+        Route::post('/appointments/email-schedule',          [Admin\AppointmentController::class, 'emailSchedule']);
         Route::get('/appointments',                          [Admin\AppointmentController::class, 'index']);
         Route::post('/appointments',                         [Admin\AppointmentController::class, 'store']);
         Route::get('/appointments/{appointment}',            [Admin\AppointmentController::class, 'show']);
