@@ -44,6 +44,11 @@ class ReportCardController extends Controller
             'body'    => $data['body'],
         ]);
 
+        // Create a message in the admin chat so the comment appears in the inbox
+        $client = $request->user();
+        $body = "{$client->name} commented on their report card: \"{$data['body']}\"";
+        app(AdminNotificationService::class)->notifyWithMessage($client, 'Report Card Comment', $body);
+
         return response()->json(['data' => $comment->load('user'), 'message' => 'Comment posted.']);
     }
 

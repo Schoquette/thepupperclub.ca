@@ -311,11 +311,15 @@ class ConversationController extends Controller
 
     private function ensureReplyColumn(): void
     {
-        if (!Schema::hasColumn('messages', 'reply_to_id')) {
-            Schema::table('messages', function (\Illuminate\Database\Schema\Blueprint $table) {
-                $table->unsignedBigInteger('reply_to_id')->nullable()->after('metadata');
-                $table->foreign('reply_to_id')->references('id')->on('messages')->nullOnDelete();
-            });
+        try {
+            if (!Schema::hasColumn('messages', 'reply_to_id')) {
+                Schema::table('messages', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->unsignedBigInteger('reply_to_id')->nullable()->after('metadata');
+                    $table->foreign('reply_to_id')->references('id')->on('messages')->nullOnDelete();
+                });
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ensureReplyColumn failed: ' . $e->getMessage());
         }
     }
 

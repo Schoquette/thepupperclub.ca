@@ -54,10 +54,11 @@ export default function AdminConversationPage() {
   // Reply state
   const [replyTo, setReplyTo] = useState<{ id: number; sender?: { name: string }; body: string | null; type: string } | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['conversation', clientId],
     queryFn: () => api.get(`/conversations/${clientId}`).then((r) => r.data),
     refetchInterval: 5_000,
+    retry: 2,
   });
 
   useEffect(() => {
@@ -197,6 +198,14 @@ export default function AdminConversationPage() {
   };
 
   if (isLoading) return <PageLoader />;
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
+      <p className="text-red-600 text-sm">Failed to load conversation.</p>
+      <p className="text-taupe text-xs">{(error as any)?.response?.data?.message || (error as Error).message}</p>
+      <button onClick={() => navigate('/admin/inbox')} className="text-gold hover:underline text-sm">← Back to Inbox</button>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-2rem)]">
