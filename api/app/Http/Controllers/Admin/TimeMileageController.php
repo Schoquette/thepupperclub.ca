@@ -14,6 +14,7 @@ class TimeMileageController extends Controller
     public function report(Request $request): JsonResponse
     {
         $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
+        $hasDistanceKm = Schema::hasColumn('appointments', 'distance_km');
 
         $rules = [
             'start' => 'required|date',
@@ -27,7 +28,10 @@ class TimeMileageController extends Controller
         $start = Carbon::parse($request->start)->startOfDay();
         $end   = Carbon::parse($request->end)->endOfDay();
 
-        $eagerLoads = ['user.clientProfile', 'dogs', 'visitReport'];
+        $eagerLoads = ['user.clientProfile', 'dogs'];
+        if (Schema::hasTable('visit_reports')) {
+            $eagerLoads[] = 'visitReport';
+        }
         if ($hasAssignedTo) $eagerLoads[] = 'assignedAdmin:id,name';
 
         $appointments = Appointment::with($eagerLoads)
@@ -38,7 +42,7 @@ class TimeMileageController extends Controller
             ->orderBy('scheduled_time')
             ->get();
 
-        $rows = $appointments->map(function (Appointment $appt) {
+        $rows = $appointments->map(function (Appointment $appt) use ($hasDistanceKm) {
             $checkIn  = $appt->check_in_time;
             $checkOut = $appt->check_out_time;
             $actualMinutes  = ($checkIn && $checkOut)
@@ -49,6 +53,8 @@ class TimeMileageController extends Controller
                 $appt->user?->clientProfile?->address,
                 $appt->user?->clientProfile?->city,
             ])));
+
+            $distanceKm = $appt->visitReport?->distance_km ?? ($hasDistanceKm ? $appt->distance_km : null) ?? null;
 
             return [
                 'id'                  => $appt->id,
@@ -64,7 +70,7 @@ class TimeMileageController extends Controller
                 'check_out'           => $checkOut?->format('g:i A'),
                 'actual_minutes'      => $actualMinutes,
                 'duration_minutes'    => $actualMinutes ?? $scheduledMinutes,
-                'distance_km'         => $appt->visitReport?->distance_km ?? $appt->distance_km ?? null,
+                'distance_km'         => $distanceKm,
                 'status'              => $appt->status,
             ];
         });
