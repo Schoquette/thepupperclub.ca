@@ -46,6 +46,7 @@ class ClientProfile extends Model
         'walks_per_week',
         'subscription_start_date',
         'next_billing_date',
+        'billing_day',
         'subscription_end_date',
         'subscription_paused_from',
         'subscription_paused_until',

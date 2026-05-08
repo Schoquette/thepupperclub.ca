@@ -259,9 +259,8 @@ class GenerateSubscriptionInvoices extends Command
                 $this->error("Auto-charge failed for {$client->name}: {$e->getMessage()}. Invoice sent.");
             }
 
-            // Advance next billing date
-            $nextBilling = Carbon::parse($profile->next_billing_date)->addMonth()->toDateString();
-            $profile->update(['next_billing_date' => $nextBilling]);
+            // Advance next billing date (preserving original billing day)
+            $profile->update(['next_billing_date' => $this->nextBillingDate($profile)]);
         }
     }
 
@@ -298,9 +297,24 @@ class GenerateSubscriptionInvoices extends Command
         $allClients = $manualClients->merge($noPaymentMethod);
 
         foreach ($allClients as $profile) {
-            $nextBilling = Carbon::parse($profile->next_billing_date)->addMonth()->toDateString();
+            $nextBilling = $this->nextBillingDate($profile);
             $profile->update(['next_billing_date' => $nextBilling]);
             $this->info("Advanced billing date for user {$profile->user_id} to {$nextBilling}.");
         }
+    }
+
+    /**
+     * Calculate the next billing date, preserving the original billing day.
+     * e.g. billing_day=31: Jan 31 → Feb 28 → Mar 31 → Apr 30 → May 31
+     */
+    private function nextBillingDate(ClientProfile $profile): string
+    {
+        $current = Carbon::parse($profile->next_billing_date);
+        $billingDay = $profile->billing_day ?? $current->day;
+
+        $next = $current->copy()->addMonth();
+        $next->day = min($billingDay, $next->daysInMonth);
+
+        return $next->toDateString();
     }
 }

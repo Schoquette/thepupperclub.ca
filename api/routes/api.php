@@ -261,6 +261,21 @@ Route::get('/add-signing-cols-9x7k', function () {
     return response()->json(['results' => $results ?: ['all columns already exist']]);
 });
 
+// Temporary: add billing_day to client_profiles (REMOVE after running)
+Route::get('/add-billing-day-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('client_profiles', 'billing_day')) {
+        \Illuminate\Support\Facades\Schema::table('client_profiles', function ($t) {
+            $t->unsignedTinyInteger('billing_day')->nullable()->after('next_billing_date');
+        });
+        // Backfill from existing next_billing_date
+        \Illuminate\Support\Facades\DB::statement(
+            "UPDATE client_profiles SET billing_day = DAY(next_billing_date) WHERE next_billing_date IS NOT NULL"
+        );
+        return response()->json(['message' => 'billing_day added and backfilled from next_billing_date.']);
+    }
+    return response()->json(['message' => 'billing_day already exists.']);
+});
+
 // Temporary: create email_logs and error_logs tables (REMOVE after running)
 Route::get('/create-log-tables-9x7k', function () {
     $results = [];

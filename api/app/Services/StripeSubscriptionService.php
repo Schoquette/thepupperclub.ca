@@ -84,16 +84,25 @@ class StripeSubscriptionService
                 }
             }
 
+            $startDate = $isNewSubscription
+                ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()->startOfDay())
+                : null;
+
             $updateData = [
                 'stripe_subscription_id'  => null,
                 'stripe_price_id'         => $stripePriceId,
                 'subscription_plan'       => $productName,
                 'subscription_amount'     => (string) $amount,
                 'subscription_tier'       => $price->nickname ?? strtolower($productName),
-                'subscription_start_date' => $isNewSubscription ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()) : $profile->subscription_start_date,
-                'next_billing_date'       => $isNewSubscription ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()->startOfDay()) : $profile->next_billing_date,
+                'subscription_start_date' => $isNewSubscription ? $startDate : $profile->subscription_start_date,
+                'next_billing_date'       => $isNewSubscription ? $startDate : $profile->next_billing_date,
                 'subscription_end_date'   => null,
             ];
+
+            // Store the billing day so we can preserve it across months of different lengths
+            if ($isNewSubscription && $startDate) {
+                $updateData['billing_day'] = $startDate->day;
+            }
 
             // Auto-set walks_per_week from plan name if not already customized
             if (Schema::hasColumn('client_profiles', 'walks_per_week')) {
