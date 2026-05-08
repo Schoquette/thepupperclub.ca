@@ -554,6 +554,7 @@ class ClientController extends Controller
                 ->map(function ($sr) {
                     $lineItem = $sr->invoiceLineItem;
                     $invoice = $lineItem?->invoice;
+                    $isVoid = $invoice?->status === 'void';
                     return [
                         'id'                  => $sr->id,
                         'service_type'        => $sr->service_type,
@@ -562,10 +563,10 @@ class ClientController extends Controller
                         'billing_amount'      => (float) ($sr->billing_amount ?? 0),
                         'billing_description' => $sr->billing_description,
                         'dogs'                => $sr->dogs->pluck('name')->join(', '),
-                        'billed'              => $lineItem !== null,
-                        'invoice_id'          => $invoice?->id,
-                        'invoice_number'      => $invoice?->invoice_number,
-                        'invoice_status'      => $invoice?->status,
+                        'billed'              => $lineItem !== null && !$isVoid,
+                        'invoice_id'          => $isVoid ? null : $invoice?->id,
+                        'invoice_number'      => $isVoid ? null : $invoice?->invoice_number,
+                        'invoice_status'      => $isVoid ? null : $invoice?->status,
                         'paid'                => $invoice?->status === 'paid',
                     ];
                 });
