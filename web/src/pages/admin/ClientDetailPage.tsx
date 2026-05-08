@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -2134,8 +2134,12 @@ function buildHomeAccessForm(data?: any): HomeAccessForm {
 export default function AdminClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>('profile');
+  const initialTab = (['profile', 'dogs', 'billing', 'documents', 'access'] as const).includes(
+    searchParams.get('tab') as Tab
+  ) ? (searchParams.get('tab') as Tab) : 'profile';
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ProfileForm | null>(null);
   const [editingAccess, setEditingAccess] = useState(false);

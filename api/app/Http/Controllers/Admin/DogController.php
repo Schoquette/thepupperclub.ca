@@ -17,8 +17,15 @@ class DogController extends Controller
         $query = Dog::with(['user', 'vaccinationRecords'])
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->active !== null, fn($q) => $q->where('is_active', $request->boolean('active')))
+            ->when($request->has('archived'), fn($q) => $q->where('is_archived', $request->boolean('archived')))
+            ->when($request->breed, fn($q) => $q->where('breed', 'like', "%{$request->breed}%"))
             ->when($request->search, function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%");
+                $s = $request->search;
+                $q->where(function ($q2) use ($s) {
+                    $q2->where('name', 'like', "%{$s}%")
+                       ->orWhere('breed', 'like', "%{$s}%")
+                       ->orWhereHas('user', fn($q3) => $q3->where('name', 'like', "%{$s}%"));
+                });
             })
             ->orderBy('name');
 
