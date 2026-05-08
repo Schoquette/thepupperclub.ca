@@ -3,13 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Lato:wght@400;700&display=swap');
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: DejaVu Sans, sans-serif; color: #3B2F2A; font-size: 10px; padding: 24px; }
+    body { font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #3B2F2A; font-size: 10px; padding: 24px; letter-spacing: 0; }
 
     .header { border-bottom: 2px solid #C9A24D; padding-bottom: 12px; margin-bottom: 16px; }
-    .logo   { font-size: 18px; font-weight: bold; color: #3B2F2A; }
+    .logo   { font-family: 'Playfair Display SC', serif; font-size: 18px; font-weight: 700; color: #3B2F2A; letter-spacing: 0; }
     .tagline { font-size: 9px; color: #C8BFB6; margin-top: 2px; }
-    .report-title { font-size: 14px; font-weight: bold; color: #C9A24D; margin-top: 8px; }
+    .report-title { font-family: 'Playfair Display SC', serif; font-size: 14px; font-weight: 700; color: #C9A24D; margin-top: 8px; letter-spacing: 0; }
     .date-range   { font-size: 10px; color: #C8BFB6; margin-top: 2px; }
 
     /* Summary cards */
@@ -21,17 +23,18 @@
       border-right: 2px solid #fff;
       vertical-align: top;
     }
-    .summary .lbl { font-size: 8px; color: #C8BFB6; text-transform: uppercase; letter-spacing: 0.04em; display: block; }
+    .summary .lbl { font-family: 'Playfair Display SC', serif; font-size: 8px; color: #C8BFB6; text-transform: uppercase; letter-spacing: 0; display: block; }
     .summary .val { font-size: 13px; font-weight: bold; color: #3B2F2A; display: block; margin-top: 2px; }
 
     /* Data table */
     table.data { width: 100%; border-collapse: collapse; margin-top: 4px; }
     table.data th {
-      background: #6492D8;
-      color: #F6F3EE;
+      background: #F6F3EE;
+      color: #3B2F2A;
+      font-family: 'Playfair Display SC', serif;
       font-size: 9px;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0;
       padding: 6px 5px;
       text-align: left;
       white-space: nowrap;
@@ -44,7 +47,6 @@
       word-break: break-word;
     }
     table.data tr:nth-child(even) td { background: #FAFAF8; }
-    table.data tr:hover td { background: #F6F3EE; }
 
     .footer {
       margin-top: 20px;

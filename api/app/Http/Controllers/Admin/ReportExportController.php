@@ -44,7 +44,9 @@ class ReportExportController extends Controller
         $rows = $appointments->map(function (Appointment $appt) use ($hasAssignedTo) {
             $duration = $appt->duration_minutes;
             if (!$duration && $appt->check_in_time && $appt->check_out_time) {
-                $duration = $appt->check_in_time->diffInMinutes($appt->check_out_time);
+                $duration = (int) round($appt->check_in_time->diffInMinutes($appt->check_out_time));
+            } else {
+                $duration = $duration ? (int) round($duration) : null;
             }
 
             return [
@@ -173,7 +175,8 @@ class ReportExportController extends Controller
         $rows = $appointments->map(function (Appointment $appt) {
             $checkIn  = $appt->check_in_time;
             $checkOut = $appt->check_out_time;
-            $minutes  = ($checkIn && $checkOut) ? $checkIn->diffInMinutes($checkOut) : null;
+            $minutes  = ($checkIn && $checkOut) ? (int) round($checkIn->diffInMinutes($checkOut)) : null;
+            $km = $appt->visitReport?->distance_km;
 
             return [
                 $appt->scheduled_time->format('Y-m-d'),
@@ -183,21 +186,21 @@ class ReportExportController extends Controller
                 $checkIn?->format('g:i A') ?? '—',
                 $checkOut?->format('g:i A') ?? '—',
                 $minutes ? $minutes . ' min' : '—',
-                $appt->visitReport?->distance_km ?? '—',
+                $km !== null ? round($km, 2) : '—',
             ];
         })->toArray();
 
-        $totalMinutes = $appointments->sum(function ($appt) {
+        $totalMinutes = (int) round($appointments->sum(function ($appt) {
             return ($appt->check_in_time && $appt->check_out_time)
                 ? $appt->check_in_time->diffInMinutes($appt->check_out_time)
                 : 0;
-        });
+        }));
         $totalKm = $appointments->sum(fn($a) => $a->visitReport?->distance_km ?? 0);
 
         $summary = [
             'Total Visits'  => count($rows),
             'Total Time'    => round($totalMinutes / 60, 1) . ' hrs',
-            'Total Mileage' => round($totalKm, 1) . ' km',
+            'Total Mileage' => round($totalKm, 2) . ' km',
         ];
 
         return ['Mileage Report', $columns, $rows, $summary];
@@ -224,7 +227,9 @@ class ReportExportController extends Controller
         $rows = $appointments->map(function (Appointment $appt) use ($hasAssignedTo) {
             $duration = $appt->duration_minutes;
             if (!$duration && $appt->check_in_time && $appt->check_out_time) {
-                $duration = $appt->check_in_time->diffInMinutes($appt->check_out_time);
+                $duration = (int) round($appt->check_in_time->diffInMinutes($appt->check_out_time));
+            } else {
+                $duration = $duration ? (int) round($duration) : null;
             }
 
             return [
@@ -315,7 +320,8 @@ class ReportExportController extends Controller
 
     private function respondPdf(string $title, string $dateRange, array $columns, array $rows, array $summary)
     {
-        $pdf = Pdf::loadView('pdfs.report', compact('title', 'dateRange', 'columns', 'rows', 'summary'))
+        $pdf = Pdf::setOption(['isRemoteEnabled' => true])
+            ->loadView('pdfs.report', compact('title', 'dateRange', 'columns', 'rows', 'summary'))
             ->setPaper('letter', 'landscape');
 
         $filename = str_replace(' ', '_', strtolower($title)) . '_' . now()->format('Y-m-d') . '.pdf';
