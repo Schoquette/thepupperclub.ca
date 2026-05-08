@@ -166,7 +166,8 @@ Route::get('/add-sr-billing-cols-9x7k', function () {
         \Illuminate\Support\Facades\Schema::table('service_requests', function ($t) {
             $t->string('billing_type')->nullable()->after('request_type');
             $t->decimal('billing_amount', 10, 2)->nullable()->after('billing_type');
-            $t->unsignedBigInteger('invoice_line_item_id')->nullable()->after('billing_amount');
+            $t->string('billing_description')->nullable()->after('billing_amount');
+            $t->unsignedBigInteger('invoice_line_item_id')->nullable()->after('billing_description');
             $t->foreign('invoice_line_item_id')->references('id')->on('invoice_line_items')->nullOnDelete();
         });
         $added = ['billing_type', 'billing_amount', 'invoice_line_item_id'];

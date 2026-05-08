@@ -120,24 +120,13 @@ class ServiceRequestController extends Controller
             ]);
         }
 
-        // Add charge to client's next invoice (unless included in plan)
+        // Track billing type and amount — admin will manually add to invoice from billing tab
         $billingType = $data['billing_type'] ?? 'included_in_plan';
         $serviceRequest->update([
-            'billing_type'   => $billingType,
-            'billing_amount' => $billingType === 'charge' ? ($data['billing_amount'] ?? 0) : null,
+            'billing_type'        => $billingType,
+            'billing_amount'      => $billingType === 'charge' ? ($data['billing_amount'] ?? 0) : null,
+            'billing_description' => $billingType === 'charge' ? ($data['billing_description'] ?? null) : null,
         ]);
-
-        if ($billingType === 'charge' && !empty($data['billing_amount']) && $data['billing_amount'] > 0) {
-            $lineItemId = $this->addChargeToNextInvoice(
-                $serviceRequest->user,
-                $data['billing_description'] ?? str_replace('_', ' ', $serviceRequest->service_type),
-                (float) $data['billing_amount'],
-                Carbon::parse($data['scheduled_time'])->toDateString(),
-            );
-            if ($lineItemId) {
-                $serviceRequest->update(['invoice_line_item_id' => $lineItemId]);
-            }
-        }
 
         $scheduledAt = Carbon::parse($data['scheduled_time']);
         $dogNames = $serviceRequest->dogs->pluck('name')->join(' & ');

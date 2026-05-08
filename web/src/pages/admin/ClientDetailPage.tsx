@@ -1422,7 +1422,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
 
   const buildLineItems = (addOns: any[]) =>
     addOns.map((a: any) => ({
-      description: a.service_type.replace(/_/g, ' ') + (a.dogs ? ` (${a.dogs})` : ''),
+      description: a.billing_description || (a.service_type.replace(/_/g, ' ') + (a.dogs ? ` (${a.dogs})` : '')),
       quantity: 1,
       unit_price: a.billing_amount,
       service_date: a.preferred_date,

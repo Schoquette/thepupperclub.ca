@@ -555,17 +555,18 @@ class ClientController extends Controller
                     $lineItem = $sr->invoiceLineItem;
                     $invoice = $lineItem?->invoice;
                     return [
-                        'id'                => $sr->id,
-                        'service_type'      => $sr->service_type,
-                        'preferred_date'    => $sr->preferred_date?->toDateString(),
-                        'notes'             => $sr->notes,
-                        'billing_amount'    => (float) ($sr->billing_amount ?? 0),
-                        'dogs'              => $sr->dogs->pluck('name')->join(', '),
-                        'billed'            => $lineItem !== null,
-                        'invoice_id'        => $invoice?->id,
-                        'invoice_number'    => $invoice?->invoice_number,
-                        'invoice_status'    => $invoice?->status,
-                        'paid'              => $invoice?->status === 'paid',
+                        'id'                  => $sr->id,
+                        'service_type'        => $sr->service_type,
+                        'preferred_date'      => $sr->preferred_date?->toDateString(),
+                        'notes'               => $sr->notes,
+                        'billing_amount'      => (float) ($sr->billing_amount ?? 0),
+                        'billing_description' => $sr->billing_description,
+                        'dogs'                => $sr->dogs->pluck('name')->join(', '),
+                        'billed'              => $lineItem !== null,
+                        'invoice_id'          => $invoice?->id,
+                        'invoice_number'      => $invoice?->invoice_number,
+                        'invoice_status'      => $invoice?->status,
+                        'paid'                => $invoice?->status === 'paid',
                     ];
                 });
         }

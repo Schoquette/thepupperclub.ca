@@ -23,6 +23,7 @@ class ServiceRequest extends Model
         'request_type',
         'billing_type',
         'billing_amount',
+        'billing_description',
         'invoice_line_item_id',
     ];
 
