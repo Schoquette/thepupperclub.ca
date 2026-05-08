@@ -58,8 +58,9 @@ function getPresetRange(preset: Preset): { start: string; end: string } {
 
 function formatDuration(minutes: number | null): string {
   if (minutes == null) return '—';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const rounded = Math.round(Number(minutes));
+  const h = Math.floor(rounded / 60);
+  const m = rounded % 60;
   if (h === 0) return `${m}m`;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }

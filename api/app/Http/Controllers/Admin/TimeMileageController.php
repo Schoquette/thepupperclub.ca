@@ -48,7 +48,7 @@ class TimeMileageController extends Controller
             $checkIn  = $appt->check_in_time;
             $checkOut = $appt->check_out_time;
             $actualMinutes  = ($checkIn && $checkOut)
-                ? $checkIn->diffInMinutes($checkOut)
+                ? (int) round($checkIn->diffInMinutes($checkOut))
                 : null;
             $scheduledMinutes = $appt->duration_minutes ?? null;
             $address  = trim(implode(', ', array_filter([
