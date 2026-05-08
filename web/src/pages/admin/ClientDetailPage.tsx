@@ -1601,27 +1601,31 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
 
       {/* Add-ons */}
       {(add_ons ?? []).length > 0 && (
-        <Card>
-          <CardHeader title={`Add-ons (${(add_ons ?? []).length})`} />
-
-          {/* Action buttons when unbilled items are selected */}
-          {unbilledAddOns.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mb-4 relative">
-              <span className="text-xs text-[#C8BFB6]">
-                {hasSelection ? `${selectedAddOns.size} selected` : 'Select add-ons below'}
+        <Card padding="none">
+          {/* Action bar — visible when items are selected */}
+          {hasSelection ? (
+            <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-[#F6F3EE] border-b border-taupe/20">
+              <span className="text-sm font-medium text-[#3B2F2A]">
+                {selectedAddOns.size} selected
               </span>
+              <button
+                onClick={() => setSelectedAddOns(new Set())}
+                className="text-xs text-[#6492D8] hover:underline font-medium"
+              >
+                Clear selection
+              </button>
               <div className="ml-auto flex gap-2">
                 {editableInvoices.length > 0 && (
                   <div className="relative">
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={!hasSelection || busy}
+                      disabled={busy}
                       onClick={() => setAddToInvoiceOpen(!addToInvoiceOpen)}
                     >
                       Add to Existing Invoice
                     </Button>
-                    {addToInvoiceOpen && hasSelection && (
+                    {addToInvoiceOpen && (
                       <div className="absolute right-0 top-full mt-1 bg-white border border-[#C8BFB6]/50 rounded-lg shadow-lg z-20 min-w-[240px]">
                         <div className="p-2 border-b border-[#F6F3EE] text-xs text-[#C8BFB6] font-medium">
                           Choose an invoice:
@@ -1650,7 +1654,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
                 )}
                 <Button
                   size="sm"
-                  disabled={!hasSelection || busy}
+                  disabled={busy}
                   loading={busy}
                   onClick={handleCreateNewInvoice}
                 >
@@ -1658,70 +1662,96 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
                 </Button>
               </div>
             </div>
-          )}
-
-          <div className="divide-y divide-[#F6F3EE]">
-            {(add_ons ?? []).map((addon: any) => (
-              <div key={addon.id} className="flex items-center gap-3 p-3">
-                {/* Checkbox for unbilled items */}
-                {!addon.billed ? (
-                  <input
-                    type="checkbox"
-                    checked={selectedAddOns.has(addon.id)}
-                    onChange={() => toggleAddOn(addon.id)}
-                    className="w-4 h-4 rounded border-[#C8BFB6] text-[#C9A24D] focus:ring-[#C9A24D] cursor-pointer shrink-0"
-                  />
-                ) : (
-                  <div className="w-4 shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[#3B2F2A]">
-                      {addon.service_type?.replace(/_/g, ' ')}
-                    </span>
-                    {addon.billed ? (
-                      <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
-                        addon.paid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {addon.paid ? 'Paid' : addon.invoice_status ?? 'Billed'}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                        Unbilled
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-[#C8BFB6] mt-0.5">
-                    {addon.preferred_date ? format(new Date(addon.preferred_date + 'T00:00:00'), 'MMM d, yyyy') : '—'}
-                    {addon.dogs ? ` · ${addon.dogs}` : ''}
-                    {addon.notes ? ` · ${addon.notes.slice(0, 50)}` : ''}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-sm text-[#3B2F2A]">
-                    ${Number(addon.billing_amount ?? 0).toFixed(2)}
-                  </span>
-                  {addon.invoice_id && (
-                    <Link to={`/admin/invoices/${addon.invoice_id}`} className="text-xs text-blue hover:underline">
-                      {addon.invoice_number}
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Select all toggle for unbilled */}
-          {unbilledAddOns.length > 1 && (
-            <div className="px-3 py-2 border-t border-[#F6F3EE]">
-              <button
-                onClick={() => toggleAll(unbilledAddOns.map((a: any) => a.id))}
-                className="text-xs text-[#C9A24D] hover:underline font-medium"
-              >
-                {unbilledAddOns.every((a: any) => selectedAddOns.has(a.id)) ? 'Deselect all' : 'Select all unbilled'}
-              </button>
+          ) : (
+            <div className="px-4 py-3 border-b border-taupe/20">
+              <h3 className="font-display text-espresso text-sm">Add-ons ({(add_ons ?? []).length})</h3>
             </div>
           )}
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#F6F3EE] text-left text-xs text-[#C8BFB6] uppercase font-display">
+                  {unbilledAddOns.length > 0 && (
+                    <th className="pl-4 pr-2 py-2.5 w-8">
+                      <input
+                        type="checkbox"
+                        checked={unbilledAddOns.length > 0 && unbilledAddOns.every((a: any) => selectedAddOns.has(a.id))}
+                        onChange={() => toggleAll(unbilledAddOns.map((a: any) => a.id))}
+                        className="w-4 h-4 rounded border-[#C8BFB6] text-[#C9A24D] focus:ring-[#C9A24D] cursor-pointer"
+                      />
+                    </th>
+                  )}
+                  <th className="px-3 py-2.5">Service</th>
+                  <th className="px-3 py-2.5">Description</th>
+                  <th className="px-3 py-2.5">Date</th>
+                  <th className="px-3 py-2.5 text-right">Amount</th>
+                  <th className="px-3 py-2.5">Invoice Status</th>
+                  <th className="px-3 py-2.5">Invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(add_ons ?? []).map((addon: any) => (
+                  <tr
+                    key={addon.id}
+                    className={`border-b border-[#F6F3EE] last:border-0 hover:bg-[#F6F3EE]/50 transition-colors ${
+                      selectedAddOns.has(addon.id) ? 'bg-[#C9A24D]/5' : ''
+                    }`}
+                  >
+                    {unbilledAddOns.length > 0 && (
+                      <td className="pl-4 pr-2 py-2.5">
+                        {!addon.billed ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedAddOns.has(addon.id)}
+                            onChange={() => toggleAddOn(addon.id)}
+                            className="w-4 h-4 rounded border-[#C8BFB6] text-[#C9A24D] focus:ring-[#C9A24D] cursor-pointer"
+                          />
+                        ) : (
+                          <div className="w-4" />
+                        )}
+                      </td>
+                    )}
+                    <td className="px-3 py-2.5 font-medium text-[#3B2F2A] capitalize whitespace-nowrap">
+                      {addon.service_type?.replace(/_/g, ' ')}
+                    </td>
+                    <td className="px-3 py-2.5 text-[#C8BFB6] max-w-[200px] truncate">
+                      {addon.billing_description || addon.dogs || addon.notes?.slice(0, 50) || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-[#C8BFB6] whitespace-nowrap">
+                      {addon.preferred_date ? format(new Date(addon.preferred_date + 'T00:00:00'), 'MMM d, yyyy') : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-[#3B2F2A] whitespace-nowrap">
+                      ${Number(addon.billing_amount ?? 0).toFixed(2)}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {addon.billed ? (
+                        <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
+                          addon.paid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {addon.paid ? 'Paid' : addon.invoice_status ?? 'Billed'}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                          Unbilled
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {addon.invoice_id ? (
+                        <Link to={`/admin/invoices/${addon.invoice_id}`} className="text-xs text-[#6492D8] hover:underline">
+                          {addon.invoice_number}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-[#C8BFB6]">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
 
