@@ -17,8 +17,9 @@ class TimeMileageController extends Controller
         $hasDistanceKm = Schema::hasColumn('appointments', 'distance_km');
 
         $rules = [
-            'start' => 'required|date',
-            'end'   => 'required|date|after_or_equal:start',
+            'start'   => 'required|date',
+            'end'     => 'required|date|after_or_equal:start',
+            'user_id' => 'nullable|integer|exists:users,id',
         ];
         if ($hasAssignedTo) {
             $rules['assigned_to'] = 'nullable|integer|exists:users,id';
@@ -38,6 +39,7 @@ class TimeMileageController extends Controller
             ->whereIn('status', ['scheduled', 'checked_in', 'completed'])
             ->whereBetween('scheduled_time', [$start, $end])
             ->where('scheduled_time', '<=', now())
+            ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->when($hasAssignedTo && $request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->orderBy('scheduled_time')
             ->get();
