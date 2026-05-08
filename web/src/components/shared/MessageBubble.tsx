@@ -407,7 +407,7 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
     return (
       <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-card p-5 border-l-4 border-blue">
         <div className="font-display text-espresso text-sm mb-2">Invoice #{meta.invoice_number}</div>
-        <div className="text-2xl font-bold text-espresso mb-1">${meta.total?.toFixed(2)}</div>
+        <div className="text-2xl font-bold text-espresso mb-1">${Number(meta.total ?? 0).toFixed(2)}</div>
         {meta.due_date && <div className="text-xs text-taupe">Due {meta.due_date}</div>}
         <div className="text-xs text-taupe mt-2">{format(new Date(message.created_at), 'h:mm a')}</div>
       </div>
