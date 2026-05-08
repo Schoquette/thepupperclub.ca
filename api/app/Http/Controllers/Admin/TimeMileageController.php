@@ -42,7 +42,9 @@ class TimeMileageController extends Controller
             ->orderBy('scheduled_time')
             ->get();
 
-        $rows = $appointments->map(function (Appointment $appt) use ($hasDistanceKm) {
+        $hasVisitReports = Schema::hasTable('visit_reports');
+
+        $rows = $appointments->map(function (Appointment $appt) use ($hasAssignedTo, $hasDistanceKm, $hasVisitReports) {
             $checkIn  = $appt->check_in_time;
             $checkOut = $appt->check_out_time;
             $actualMinutes  = ($checkIn && $checkOut)
@@ -54,7 +56,7 @@ class TimeMileageController extends Controller
                 $appt->user?->clientProfile?->city,
             ])));
 
-            $distanceKm = $appt->visitReport?->distance_km ?? ($hasDistanceKm ? $appt->distance_km : null) ?? null;
+            $distanceKm = ($hasVisitReports ? $appt->visitReport?->distance_km : null) ?? ($hasDistanceKm ? $appt->distance_km : null) ?? null;
 
             return [
                 'id'                  => $appt->id,
@@ -63,7 +65,7 @@ class TimeMileageController extends Controller
                 'dogs'                => $appt->dogs->pluck('name')->join(', '),
                 'service_type'        => $appt->service_type,
                 'address'             => $address ?: null,
-                'assigned_to'         => $appt->assignedAdmin?->name ?? null,
+                'assigned_to'         => $hasAssignedTo ? ($appt->assignedAdmin?->name ?? null) : null,
                 'scheduled_time'      => $appt->scheduled_time->format('g:i A'),
                 'scheduled_minutes'   => $scheduledMinutes,
                 'check_in'            => $checkIn?->format('g:i A'),
