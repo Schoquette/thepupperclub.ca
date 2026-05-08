@@ -128,8 +128,8 @@ export default function TimeMileagePage() {
     return Array.from(map.entries()).map(([date, rows]) => ({
       date,
       rows,
-      totalMinutes: rows.reduce((s, r) => s + (getDuration(r) ?? 0), 0),
-      totalKm: rows.reduce((s, r) => s + (r.distance_km ?? 0), 0),
+      totalMinutes: rows.reduce((s, r) => s + Number(getDuration(r) ?? 0), 0),
+      totalKm: rows.reduce((s, r) => s + Number(r.distance_km ?? 0), 0),
     }));
   }, [data?.rows, timeMode]); // eslint-disable-line
 
