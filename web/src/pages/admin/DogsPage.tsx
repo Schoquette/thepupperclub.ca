@@ -66,7 +66,7 @@ export default function AdminDogsPage() {
         search: debouncedSearch || undefined,
         user_id: clientFilter || undefined,
         breed: breedFilter || undefined,
-        ...(statusFilter === 'active' ? { active: '1' } : {}),
+        ...(statusFilter === 'active' ? { active: '1', archived: '0' } : {}),
         ...(statusFilter === 'archived' ? { archived: '1' } : {}),
       },
     }).then(r => r.data),
