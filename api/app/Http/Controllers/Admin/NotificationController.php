@@ -390,18 +390,23 @@ class NotificationController extends Controller
         $this->ensureSystemTemplateTable();
         $custom = SystemEmailTemplate::where('key', $key)->first();
 
-        // Use custom body if saved, otherwise use default
-        $body = $custom?->body ?? $definitions[$key]['default_body'];
+        // For templates with dedicated Blade views AND no customization, render the actual Blade template
+        if (!$custom && $key === 'report_card') {
+            $html = $this->previewReportCardBlade();
+        } else {
+            // Use custom body if saved, otherwise use default
+            $body = $custom?->body ?? $definitions[$key]['default_body'];
 
-        // Replace tokens with sample values
-        $sampleTokens = $this->sampleTokenValues();
-        $html = str_replace(array_keys($sampleTokens), array_values($sampleTokens), $body);
+            // Replace tokens with sample values
+            $sampleTokens = $this->sampleTokenValues();
+            $html = str_replace(array_keys($sampleTokens), array_values($sampleTokens), $body);
 
-        // Wrap in branded layout
-        $html = view('emails.custom', [
-            'content' => $html,
-            'heading' => null,
-        ])->render();
+            // Wrap in branded layout
+            $html = view('emails.custom', [
+                'content' => $html,
+                'heading' => null,
+            ])->render();
+        }
 
         // Replace cid:logo with data URI for preview
         $logoPath = public_path('images/logo-cream-stacked.png');
@@ -411,6 +416,32 @@ class NotificationController extends Controller
         }
 
         return response()->json(['html' => $html]);
+    }
+
+    private function previewReportCardBlade(): string
+    {
+        $sampleChecklist = ['Long Walk', 'Outdoor Play', 'Water Refill', 'Treats Given'];
+        $dogPhotoSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iI0Y2RjNFRSIvPjx0ZXh0IHg9IjUwIiB5PSI1OCIgZm9udC1zaXplPSI0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI0M4QkZCNiI+8J+Qvjwv dGV4dD48L3N2Zz4=';
+        $frontendUrl = rtrim(env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
+
+        return view('emails.report_card', [
+            'client'       => (object) ['name' => 'Jane Smith'],
+            'report'       => (object) ['id' => 0, 'notes' => 'Luna and Milo had a wonderful walk today!', 'checklist' => []],
+            'dogNames'     => 'Luna & Milo',
+            'dogSections'  => [
+                ['name' => 'Luna', 'checklist' => $sampleChecklist, 'notes' => 'Luna was very energetic and loved exploring the trail.'],
+                ['name' => 'Milo', 'checklist' => ['Short Walk', 'Belly Rubs', 'Water Refill'], 'notes' => 'Milo was calm and enjoyed sniffing everything.'],
+            ],
+            'checklist'    => $sampleChecklist,
+            'specialTrip'  => null,
+            'photoUrls'    => [],
+            'photoUrl'     => null,
+            'dogPhotoUrl'  => $dogPhotoSvg,
+            'arrivalTime'  => '10:00 AM',
+            'departureTime'=> '11:30 AM',
+            'visitDate'    => 'April 8, 2026',
+            'portalUrl'    => $frontendUrl . '/client/report-cards',
+        ])->render();
     }
 
     /**
