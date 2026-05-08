@@ -7,6 +7,7 @@ use App\Models\Dog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -23,7 +24,7 @@ class DogController extends Controller
                     $q->where('is_active', false);
                 }
             })
-            ->when($request->has('archived'), function ($q) use ($request) {
+            ->when($request->has('archived') && Schema::hasColumn('dogs', 'is_archived'), function ($q) use ($request) {
                 if ($request->boolean('archived')) {
                     $q->where('is_archived', true);
                 } else {
