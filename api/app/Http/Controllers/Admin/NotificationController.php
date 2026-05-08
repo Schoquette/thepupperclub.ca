@@ -100,14 +100,19 @@ class NotificationController extends Controller
                 ]);
             }
 
+            // Extract images from HTML body and prepare for CID embedding
+            [$emailBody, $inlineImages] = $this->extractInlineImages($userBody);
+
             // Dispatch via client's preferred channels
             $this->dispatcher->notify(
                 $user,
                 $userTitle,
                 $plainBody,
-                $userBody, // HTML version for email
+                $emailBody, // HTML version for email (with CID refs)
                 [],
                 $request->user()->email, // Reply-To admin sender
+                null,
+                $inlineImages,
             );
 
             // If admin explicitly toggled "also send as email" AND user doesn't already have email preference,
@@ -120,17 +125,20 @@ class NotificationController extends Controller
                     try {
                         $senderEmail = $request->user()->email;
                         $logoPath = public_path('images/logo-cream-stacked.png');
-                        Mail::send([], [], function ($message) use ($user, $userTitle, $userBody, $storedFiles, $senderEmail, $logoPath) {
+                        Mail::send([], [], function ($message) use ($user, $userTitle, $emailBody, $storedFiles, $senderEmail, $logoPath, $inlineImages) {
                             $replyAddr = config('services.resend.inbound_address') ?: $senderEmail;
                             $message->to($user->email)
                                 ->subject($userTitle)
                                 ->replyTo($replyAddr)
                                 ->html(view('emails.broadcast', [
                                     'title'       => $userTitle,
-                                    'content'     => $userBody,
+                                    'content'     => $emailBody,
                                     'userName'    => $user->name,
                                     'attachments' => $storedFiles,
                                 ])->render());
+
+                            $symfony = $message->getSymfonyMessage();
+
                             if (file_exists($logoPath)) {
                                 $logoPart = new \Symfony\Component\Mime\Part\DataPart(
                                     file_get_contents($logoPath),
@@ -139,8 +147,21 @@ class NotificationController extends Controller
                                 );
                                 $logoPart->asInline();
                                 $logoPart->setContentId('logo@thepupperclub.ca');
-                                $message->getSymfonyMessage()->addPart($logoPart);
+                                $symfony->addPart($logoPart);
                             }
+
+                            // Embed broadcast images as CID attachments
+                            foreach ($inlineImages as $img) {
+                                $part = new \Symfony\Component\Mime\Part\DataPart(
+                                    $img['data'],
+                                    $img['filename'],
+                                    $img['mime']
+                                );
+                                $part->asInline();
+                                $part->setContentId($img['cid']);
+                                $symfony->addPart($part);
+                            }
+
                             foreach ($storedFiles as $att) {
                                 $message->attach(Storage::disk('local')->path($att['storage_path']), [
                                     'as'   => $att['original_name'],
@@ -199,13 +220,6 @@ class NotificationController extends Controller
             'userName'    => $userName,
             'attachments' => [],
         ])->render();
-
-        // Replace cid:logo with data URI so preview iframe can display it
-        $logoPath = public_path('images/logo-cream-stacked.png');
-        if (file_exists($logoPath)) {
-            $logoData = base64_encode(file_get_contents($logoPath));
-            $emailHtml = str_replace('src="cid:logo@thepupperclub.ca"', 'src="data:image/png;base64,' . $logoData . '"', $emailHtml);
-        }
 
         return response()->json([
             'email_html'  => $emailHtml,
@@ -408,13 +422,6 @@ class NotificationController extends Controller
             ])->render();
         }
 
-        // Replace cid:logo with data URI for preview
-        $logoPath = public_path('images/logo-cream-stacked.png');
-        if (file_exists($logoPath)) {
-            $logoData = base64_encode(file_get_contents($logoPath));
-            $html = str_replace('src="cid:logo@thepupperclub.ca"', 'src="data:image/png;base64,' . $logoData . '"', $html);
-        }
-
         return response()->json(['html' => $html]);
     }
 
@@ -593,7 +600,7 @@ class NotificationController extends Controller
             ? collect(explode(' ', trim($user->name)))->slice(1)->implode(' ')
             : '';
 
-        $dogs     = $user->dogs ?? collect();
+        $dogs     = ($user->dogs ?? collect())->filter(fn($d) => !$d->is_archived);
         $dogNames = $dogs->pluck('name')->join(' & ');
         $firstDog = $dogs->first()?->name ?? '';
 
@@ -607,6 +614,79 @@ class NotificationController extends Controller
         ];
 
         return str_replace(array_keys($tokens), array_values($tokens), $text);
+    }
+
+    /**
+     * Extract <img> tags from HTML, download their content, and return
+     * the modified HTML + array of inline image parts for CID embedding.
+     */
+    private function extractInlineImages(string $html): array
+    {
+        $inlineImages = [];
+        $counter = 0;
+
+        $html = preg_replace_callback('/<img\s[^>]*src=["\']([^"\']+)["\'][^>]*>/i', function ($match) use (&$inlineImages, &$counter) {
+            $src = $match[1];
+
+            // Skip data URIs (already embedded) and CID references
+            if (str_starts_with($src, 'data:') || str_starts_with($src, 'cid:')) {
+                return $match[0];
+            }
+
+            $imageData = null;
+            $mime = 'image/jpeg';
+
+            // Try to load the image
+            try {
+                // Local broadcast image
+                if (str_contains($src, '/broadcast-images/')) {
+                    $filename = basename(parse_url($src, PHP_URL_PATH));
+                    $path = 'broadcast_inline/' . $filename;
+                    if (Storage::disk('local')->exists($path)) {
+                        $imageData = Storage::disk('local')->get($path);
+                        $mime = Storage::disk('local')->mimeType($path) ?: 'image/jpeg';
+                    }
+                }
+
+                // External URL — download it
+                if (!$imageData && str_starts_with($src, 'http')) {
+                    $ctx = stream_context_create(['http' => ['timeout' => 5]]);
+                    $imageData = @file_get_contents($src, false, $ctx);
+                    // Detect mime from content
+                    if ($imageData) {
+                        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+                        $mime = $finfo->buffer($imageData) ?: 'image/jpeg';
+                    }
+                }
+            } catch (\Throwable $e) {
+                // If we can't load the image, leave the original tag
+            }
+
+            if (!$imageData) {
+                return $match[0]; // Keep original if download failed
+            }
+
+            $counter++;
+            $cid = "broadcast-img-{$counter}@thepupperclub.ca";
+            $ext = match ($mime) {
+                'image/png'  => 'png',
+                'image/gif'  => 'gif',
+                'image/webp' => 'webp',
+                default      => 'jpg',
+            };
+
+            $inlineImages[] = [
+                'data'     => $imageData,
+                'filename' => "image-{$counter}.{$ext}",
+                'mime'     => $mime,
+                'cid'      => $cid,
+            ];
+
+            // Replace src with cid: reference
+            return str_replace($src, "cid:{$cid}", $match[0]);
+        }, $html) ?? $html;
+
+        return [$html, $inlineImages];
     }
 
     private function ensureTemplateTable(): void

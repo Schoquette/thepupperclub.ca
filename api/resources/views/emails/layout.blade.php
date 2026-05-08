@@ -127,7 +127,7 @@
     <div class="container" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(59,47,42,0.08);">
       {{-- Header --}}
       <div class="header" style="background-color:#6492D8;padding:32px 40px;text-align:center;">
-        <img src="cid:logo@thepupperclub.ca" alt="The Pupper Club" style="max-width:220px;height:auto;" />
+        <img src="{{ rtrim(config('app.url'), '/') }}/images/logo-cream-stacked.png" alt="The Pupper Club" style="max-width:220px;height:auto;" />
       </div>
 
       {{-- Content --}}
