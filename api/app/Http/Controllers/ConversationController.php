@@ -295,9 +295,10 @@ class ConversationController extends Controller
 
     public function inbox(): JsonResponse
     {
-        $conversations = Conversation::with(['user:id,name,email', 'lastMessage'])
+        $conversations = Conversation::with(['user:id,name,email', 'user.dogs:id,user_id,name', 'lastMessage'])
+            ->has('messages')
             ->orderByDesc('last_message_at')
-            ->paginate(30);
+            ->paginate(50);
 
         return response()->json($conversations);
     }

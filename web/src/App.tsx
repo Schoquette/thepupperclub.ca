@@ -17,7 +17,6 @@ import AdminClientDetailPage from './pages/admin/ClientDetailPage';
 import AdminCalendarPage from './pages/admin/CalendarPage';
 import AdminServiceRequestsPage from './pages/admin/ServiceRequestsPage';
 import AdminInboxPage from './pages/admin/InboxPage';
-import AdminConversationPage from './pages/admin/ConversationPage';
 import AdminInvoicesPage from './pages/admin/InvoicesPage';
 import AdminInvoiceDetailPage from './pages/admin/InvoiceDetailPage';
 import AdminInvoiceCreatePage from './pages/admin/InvoiceCreatePage';
@@ -96,7 +95,7 @@ export default function App() {
         <Route path="calendar" element={<AdminCalendarPage />} />
         <Route path="service-requests" element={<AdminServiceRequestsPage />} />
         <Route path="inbox" element={<AdminInboxPage />} />
-        <Route path="inbox/:clientId" element={<AdminConversationPage />} />
+        <Route path="inbox/:clientId" element={<AdminInboxPage />} />
         <Route path="invoices" element={<AdminInvoicesPage />} />
         <Route path="invoices/new" element={<AdminInvoiceCreatePage />} />
         <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
