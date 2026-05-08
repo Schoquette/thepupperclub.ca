@@ -242,7 +242,7 @@ export default function AdminClientsPage() {
                 <SortHeader label="Dogs" sortKey="dogs" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 <SortHeader label="Plan" sortKey="plan" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 <SortHeader label="Payment" sortKey="billing_method" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-                <SortHeader label="Next Billing" sortKey="next_billing" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
+                <SortHeader label="Renewal Date" sortKey="next_billing" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 <SortHeader label="Intake" sortKey="intake" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
                 <th className="px-6 py-4"></th>
