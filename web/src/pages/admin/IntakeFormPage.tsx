@@ -1137,15 +1137,23 @@ export default function IntakeFormPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/admin/clients/${id}`)}
-            className="text-taupe hover:text-espresso text-sm font-medium transition-colors"
+            onClick={() => navigate(-1)}
+            className="text-taupe hover:text-espresso text-lg"
           >
-            ← Back to Client
+            ←
           </button>
-          <span className="text-taupe/40">|</span>
-          <h1 className="font-display text-espresso text-base">
-            Intake Form — {clientName}
-          </h1>
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-taupe mb-0.5">
+              <a href="/admin/clients" onClick={e => { e.preventDefault(); navigate('/admin/clients'); }} className="hover:text-espresso hover:underline">Clients</a>
+              <span>/</span>
+              <a href={`/admin/clients/${id}`} onClick={e => { e.preventDefault(); navigate(`/admin/clients/${id}`); }} className="hover:text-espresso hover:underline">{clientName}</a>
+              <span>/</span>
+              <span className="text-espresso">Intake Form</span>
+            </div>
+            <h1 className="font-display text-espresso text-base">
+              Intake Form — {clientName}
+            </h1>
+          </div>
           {isSubmitted ? (
             <span className="px-2.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
               Submitted ✓

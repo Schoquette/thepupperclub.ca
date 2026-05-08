@@ -323,10 +323,15 @@ export default function TemplateEditorPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/admin/documents')} className="text-taupe hover:text-espresso text-sm">
-            &larr; Back
-          </button>
-          <h1 className="page-title">Edit Template</h1>
+          <button onClick={() => navigate(-1)} className="text-taupe hover:text-espresso text-lg">&larr;</button>
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-taupe mb-0.5">
+              <a href="/admin/documents" onClick={e => { e.preventDefault(); navigate('/admin/documents'); }} className="hover:text-espresso hover:underline">Documents</a>
+              <span>/</span>
+              <span className="text-espresso">Edit Template</span>
+            </div>
+            <h1 className="page-title">Edit Template</h1>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button

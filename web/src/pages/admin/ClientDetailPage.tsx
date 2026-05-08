@@ -2261,8 +2261,13 @@ export default function AdminClientDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/admin/clients')} className="text-taupe hover:text-espresso">← Back</button>
+        <button onClick={() => navigate(-1)} className="text-taupe hover:text-espresso text-lg">←</button>
         <div className="flex-1">
+          <div className="flex items-center gap-1.5 text-xs text-taupe mb-0.5">
+            <a href="/admin/clients" onClick={e => { e.preventDefault(); navigate('/admin/clients'); }} className="hover:text-espresso hover:underline">Clients</a>
+            <span>/</span>
+            <span className="text-espresso">{client.name}</span>
+          </div>
           <h1 className="page-title">{client.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <Badge variant={statusBadge(client.status)}>{client.status}</Badge>

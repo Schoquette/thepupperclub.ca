@@ -396,12 +396,17 @@ export default function AdminReportCardFormPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/admin/report-cards')} className="text-taupe hover:text-espresso">
-          ←
-        </button>
-        <h1 className="page-title text-xl flex-1">
-          {isNew ? 'New Report Card' : isSent && !editing ? 'Report Card' : 'Edit Report Card'}
-        </h1>
+        <button onClick={() => navigate(-1)} className="text-taupe hover:text-espresso text-lg">←</button>
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5 text-xs text-taupe mb-0.5">
+            <a href="/admin/report-cards" onClick={e => { e.preventDefault(); navigate('/admin/report-cards'); }} className="hover:text-espresso hover:underline">Report Cards</a>
+            <span>/</span>
+            <span className="text-espresso">{isNew ? 'New' : 'Edit'}</span>
+          </div>
+          <h1 className="page-title text-xl">
+            {isNew ? 'New Report Card' : isSent && !editing ? 'Report Card' : 'Edit Report Card'}
+          </h1>
+        </div>
         {!isNew && !isSent && (
           <button
             onClick={() => deleteReport.mutate()}

@@ -54,6 +54,13 @@ export default function AdminConversationPage() {
   // Reply state
   const [replyTo, setReplyTo] = useState<{ id: number; sender?: { name: string }; body: string | null; type: string } | null>(null);
 
+  const { data: clientData } = useQuery({
+    queryKey: ['client-name', clientId],
+    queryFn: () => api.get(`/admin/clients/${clientId}`).then(r => r.data.data),
+    staleTime: 60_000,
+  });
+  const clientName = clientData?.name ?? 'Conversation';
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['conversation', clientId],
     queryFn: () => api.get(`/conversations/${clientId}`).then((r) => r.data),
@@ -203,7 +210,7 @@ export default function AdminConversationPage() {
     <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] gap-4">
       <p className="text-red-600 text-sm">Failed to load conversation.</p>
       <p className="text-taupe text-xs">{(error as any)?.response?.data?.message || (error as Error).message}</p>
-      <button onClick={() => navigate('/admin/inbox')} className="text-gold hover:underline text-sm">← Back to Inbox</button>
+      <button onClick={() => navigate(-1)} className="text-gold hover:underline text-sm">← Back</button>
     </div>
   );
 
@@ -211,10 +218,15 @@ export default function AdminConversationPage() {
     <div className="flex flex-col h-[calc(100vh-2rem)]">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate('/admin/inbox')} className="text-taupe hover:text-espresso">
-          ←
-        </button>
-        <h1 className="page-title text-lg flex-1">Conversation</h1>
+        <button onClick={() => navigate(-1)} className="text-taupe hover:text-espresso text-lg">←</button>
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5 text-xs text-taupe mb-0.5">
+            <a href="/admin/inbox" onClick={e => { e.preventDefault(); navigate('/admin/inbox'); }} className="hover:text-espresso hover:underline">Messages</a>
+            <span>/</span>
+            <span className="text-espresso">{clientName}</span>
+          </div>
+          <h1 className="page-title text-lg">{clientName}</h1>
+        </div>
         <button
           onClick={toggleSearch}
           className={`p-1.5 rounded-lg transition-colors ${searchOpen ? 'bg-gold/10 text-gold' : 'text-taupe hover:text-espresso hover:bg-cream'}`}

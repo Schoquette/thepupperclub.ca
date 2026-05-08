@@ -121,10 +121,15 @@ export default function InvoiceCreatePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/admin/invoices')} className="text-taupe hover:text-espresso text-sm">
-          ← Back
-        </button>
-        <h1 className="page-title">New Invoice</h1>
+        <button onClick={() => navigate(-1)} className="text-taupe hover:text-espresso text-lg">←</button>
+        <div>
+          <div className="flex items-center gap-1.5 text-xs text-taupe mb-0.5">
+            <a href="/admin/invoices" onClick={e => { e.preventDefault(); navigate('/admin/invoices'); }} className="hover:text-espresso hover:underline">Invoices</a>
+            <span>/</span>
+            <span className="text-espresso">New Invoice</span>
+          </div>
+          <h1 className="page-title">New Invoice</h1>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -300,7 +305,7 @@ export default function InvoiceCreatePage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="flex gap-3 justify-end">
-          <Button type="button" variant="outline" onClick={() => navigate('/admin/invoices')}>
+          <Button type="button" variant="outline" onClick={() => navigate(-1)}>
             Cancel
           </Button>
           <Button type="submit" loading={create.isPending}>
