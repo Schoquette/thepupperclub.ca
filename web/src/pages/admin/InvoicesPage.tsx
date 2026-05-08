@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
@@ -11,16 +12,31 @@ import { format } from 'date-fns';
 export default function AdminInvoicesPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState('');
 
   const { data: dashboard } = useQuery({
     queryKey: ['invoices-dashboard'],
     queryFn: () => api.get('/admin/invoices/dashboard').then(r => r.data.data),
   });
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-invoices', filter],
-    queryFn: () => api.get('/admin/invoices', { params: { status: filter || undefined } }).then(r => r.data),
+  const { data: clients } = useQuery({
+    queryKey: ['clients-list'],
+    queryFn: () => api.get('/admin/clients').then(r => r.data.data),
   });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-invoices', filter, clientFilter, monthFilter],
+    queryFn: () => api.get('/admin/invoices', {
+      params: {
+        status: filter || undefined,
+        user_id: clientFilter || undefined,
+        month: monthFilter || undefined,
+      },
+    }).then(r => r.data),
+  });
+
+  const hasActiveFilters = !!(clientFilter || monthFilter);
 
   return (
     <div className="space-y-6">
@@ -45,19 +61,51 @@ export default function AdminInvoicesPage() {
         </div>
       )}
 
-      {/* Filter tabs */}
-      <div className="flex rounded-lg border border-taupe/50 overflow-hidden text-sm w-fit overflow-x-auto">
-        {['', 'draft', 'sent', 'paid', 'overdue'].map(f => (
+      {/* Filters row */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Status tabs */}
+        <div className="flex rounded-lg border border-taupe/50 overflow-hidden text-sm w-fit">
+          {['', 'draft', 'sent', 'paid', 'overdue'].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 font-medium capitalize transition-colors ${
+                filter === f ? 'bg-espresso text-cream' : 'text-espresso hover:bg-cream'
+              }`}
+            >
+              {f || 'All'}
+            </button>
+          ))}
+        </div>
+
+        {/* Client filter */}
+        <select
+          value={clientFilter}
+          onChange={e => setClientFilter(e.target.value)}
+          className="text-sm border border-taupe/50 rounded-lg px-3 py-2 bg-white text-espresso focus:ring-1 focus:ring-gold"
+        >
+          <option value="">All Clients</option>
+          {clients?.map((c: any) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        {/* Month filter */}
+        <input
+          type="month"
+          value={monthFilter}
+          onChange={e => setMonthFilter(e.target.value)}
+          className="text-sm border border-taupe/50 rounded-lg px-3 py-2 bg-white text-espresso focus:ring-1 focus:ring-gold"
+        />
+
+        {hasActiveFilters && (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 font-medium capitalize transition-colors ${
-              filter === f ? 'bg-espresso text-cream' : 'text-espresso hover:bg-cream'
-            }`}
+            onClick={() => { setClientFilter(''); setMonthFilter(''); }}
+            className="text-xs text-taupe hover:text-espresso underline"
           >
-            {f || 'All'}
+            Clear filters
           </button>
-        ))}
+        )}
       </div>
 
       {/* Table */}

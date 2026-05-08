@@ -18,7 +18,7 @@ const NAV = [
   { to: '/admin/clients',          label: 'Clients',    icon: Users },
   { to: '/admin/dogs',             label: 'Dogs',       icon: PawPrint },
   { to: '/admin/inbox',            label: 'Messages',   icon: MessageCircle },
-  { to: '/admin/report-cards',     label: 'Reports',    icon: FileText },
+  { to: '/admin/report-cards',     label: 'Report Cards', icon: FileText },
   { to: '/admin/documents',        label: 'Documents',  icon: FolderOpen },
   { to: '/admin/invoices',         label: 'Invoices',   icon: Receipt },
   { to: '/admin/time-mileage',     label: 'Time & km',  icon: Car },

@@ -523,6 +523,69 @@ class ClientController extends Controller
         return response()->json(['data' => $changes]);
     }
 
+    public function billingSummary(User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+
+        $profile = $client->clientProfile;
+
+        // Upcoming subscription info
+        $subscription = null;
+        if ($profile && $profile->subscription_amount > 0) {
+            $subscription = [
+                'plan'             => $profile->subscription_plan ?? $profile->subscription_tier ?? 'Monthly Subscription',
+                'amount'           => (float) $profile->subscription_amount,
+                'next_billing_date'=> $profile->next_billing_date?->toDateString(),
+                'billing_method'   => $profile->billing_method,
+                'paused'           => !is_null($profile->subscription_paused_from),
+            ];
+        }
+
+        // Add-ons: service requests that were approved with billing_type = 'charge'
+        $hasBillingType = \Illuminate\Support\Facades\Schema::hasColumn('service_requests', 'billing_type');
+        $addOns = collect();
+        if ($hasBillingType) {
+            $addOns = \App\Models\ServiceRequest::with(['dogs', 'invoiceLineItem.invoice'])
+                ->where('user_id', $client->id)
+                ->where('status', 'approved')
+                ->where('billing_type', 'charge')
+                ->orderByDesc('preferred_date')
+                ->get()
+                ->map(function ($sr) {
+                    $lineItem = $sr->invoiceLineItem;
+                    $invoice = $lineItem?->invoice;
+                    return [
+                        'id'                => $sr->id,
+                        'service_type'      => $sr->service_type,
+                        'preferred_date'    => $sr->preferred_date?->toDateString(),
+                        'notes'             => $sr->notes,
+                        'billing_amount'    => (float) ($sr->billing_amount ?? 0),
+                        'dogs'              => $sr->dogs->pluck('name')->join(', '),
+                        'billed'            => $lineItem !== null,
+                        'invoice_id'        => $invoice?->id,
+                        'invoice_number'    => $invoice?->invoice_number,
+                        'invoice_status'    => $invoice?->status,
+                        'paid'              => $invoice?->status === 'paid',
+                    ];
+                });
+        }
+
+        // Recent invoices
+        $invoices = \App\Models\Invoice::with('lineItems')
+            ->where('user_id', $client->id)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'subscription' => $subscription,
+                'add_ons'      => $addOns,
+                'invoices'     => $invoices,
+            ],
+        ]);
+    }
+
     public function destroy(User $client): JsonResponse
     {
         $this->ensureIsClient($client);

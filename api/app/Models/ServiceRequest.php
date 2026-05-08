@@ -21,6 +21,9 @@ class ServiceRequest extends Model
         'counter_time',
         'counter_date',
         'request_type',
+        'billing_type',
+        'billing_amount',
+        'invoice_line_item_id',
     ];
 
     protected function casts(): array
@@ -28,7 +31,13 @@ class ServiceRequest extends Model
         return [
             'preferred_date' => 'date',
             'counter_date'   => 'date',
+            'billing_amount' => 'decimal:2',
         ];
+    }
+
+    public function invoiceLineItem(): BelongsTo
+    {
+        return $this->belongsTo(InvoiceLineItem::class);
     }
 
     public function user(): BelongsTo

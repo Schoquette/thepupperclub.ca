@@ -1392,24 +1392,52 @@ function AddDogCard({ clientId, onSaved }: { clientId: number; onSaved: () => vo
 // ── Billing tab ──────────────────────────────────────────────────────────────
 
 function ClientBillingTab({ clientId }: { clientId: number }) {
-  const { data: invoices, isLoading: invLoading } = useQuery({
-    queryKey: ['client-invoices', clientId],
-    queryFn: () => api.get('/admin/invoices', { params: { user_id: clientId } }).then(r => r.data?.data ?? r.data),
-  });
-  const { data: srData, isLoading: srLoading } = useQuery({
-    queryKey: ['client-service-requests', clientId],
-    queryFn: () => api.get('/admin/service-requests', { params: { user_id: clientId } }).then(r => r.data?.data ?? r.data),
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['client-billing-summary', clientId],
+    queryFn: () => api.get(`/admin/clients/${clientId}/billing-summary`).then(r => r.data.data),
   });
 
-  if (invLoading || srLoading) return <PageLoader />;
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
 
-  const allInvoices: any[] = Array.isArray(invoices) ? invoices : (invoices?.data ?? []);
-  const allRequests: any[] = Array.isArray(srData) ? srData : (srData?.data ?? []);
+  // Create invoice from selected unbilled add-ons
+  const createFromAddOns = async (addOnIds: number[]) => {
+    if (!data) return;
+    const unbilled = data.add_ons.filter((a: any) => !a.billed && addOnIds.includes(a.id));
+    if (!unbilled.length) return;
+    setCreatingInvoice(true);
+    try {
+      const res = await api.post('/admin/invoices', {
+        user_id: clientId,
+        line_items: unbilled.map((a: any) => ({
+          description: a.service_type.replace(/_/g, ' ') + (a.dogs ? ` (${a.dogs})` : ''),
+          quantity: 1,
+          unit_price: a.billing_amount,
+          service_date: a.preferred_date,
+        })),
+      });
+      // Link service requests to created line items
+      queryClient.invalidateQueries({ queryKey: ['client-billing-summary', clientId] });
+      navigate(`/admin/invoices/${res.data.data.id}`);
+    } finally {
+      setCreatingInvoice(false);
+    }
+  };
+
+  if (isLoading) return <PageLoader />;
+  if (!data) return <p className="text-taupe text-sm p-4">Unable to load billing data.</p>;
+
+  const { subscription, add_ons, invoices } = data;
+  const allInvoices: any[] = invoices ?? [];
 
   const overdue = allInvoices.filter((i: any) => i.status === 'overdue');
   const open = allInvoices.filter((i: any) => ['draft', 'sent'].includes(i.status));
   const past = allInvoices.filter((i: any) => ['paid', 'void'].includes(i.status));
-  const pendingRequests = allRequests.filter((r: any) => ['pending', 'approved'].includes(r.status));
+
+  const unbilledAddOns = (add_ons ?? []).filter((a: any) => !a.billed);
+  const billedAddOns = (add_ons ?? []).filter((a: any) => a.billed);
 
   const statusColor = (s: string) => {
     switch (s) {
@@ -1435,7 +1463,10 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
           </span>
         </div>
         <div className="text-xs text-[#C8BFB6] mt-0.5">
-          {inv.user?.name ?? '—'} · {inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}
+          {inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}
+          {inv.billing_period_start && inv.billing_period_end
+            ? ` · ${format(new Date(inv.billing_period_start), 'MMM d')} – ${format(new Date(inv.billing_period_end), 'MMM d')}`
+            : ''}
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -1454,6 +1485,44 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
         </Link>
       </div>
 
+      {/* Upcoming Bill Preview */}
+      {subscription && (
+        <Card>
+          <CardHeader title="Upcoming Bill" subtitle={subscription.paused ? 'Subscription paused' : undefined} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <div>
+              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Plan</div>
+              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">{subscription.plan}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Amount</div>
+              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">${Number(subscription.amount).toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Next Billing</div>
+              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">
+                {subscription.next_billing_date
+                  ? format(new Date(subscription.next_billing_date + 'T00:00:00'), 'MMM d, yyyy')
+                  : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Payment Method</div>
+              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5 capitalize">
+                {subscription.billing_method?.replace(/_/g, ' ') ?? '—'}
+              </div>
+            </div>
+          </div>
+          {unbilledAddOns.length > 0 && (
+            <div className="bg-[#FFF8E1] border border-[#C9A24D]/30 rounded-lg p-3 text-xs text-[#3B2F2A]">
+              <strong>{unbilledAddOns.length} unbilled add-on{unbilledAddOns.length > 1 ? 's' : ''}</strong> totalling $
+              {unbilledAddOns.reduce((s: number, a: any) => s + Number(a.billing_amount ?? 0), 0).toFixed(2)} will be
+              added to the next bill or can be invoiced now.
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Overdue */}
       {overdue.length > 0 && (
         <Card>
@@ -1467,39 +1536,69 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
         </Card>
       )}
 
-      {/* Open / Upcoming */}
-      <Card>
-        <CardHeader title={`Open & Upcoming (${open.length})`} />
-        {open.length > 0 ? (
+      {/* Open / Upcoming Invoices */}
+      {open.length > 0 && (
+        <Card>
+          <CardHeader title={`Open & Upcoming (${open.length})`} />
           <div className="divide-y divide-[#F6F3EE]">
             {open.map((inv: any) => <InvoiceRow key={inv.id} inv={inv} />)}
           </div>
-        ) : (
-          <p className="p-4 text-sm text-[#C8BFB6]">No open invoices.</p>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      {/* Pending Service Requests */}
-      {pendingRequests.length > 0 && (
+      {/* Add-ons */}
+      {(add_ons ?? []).length > 0 && (
         <Card>
-          <CardHeader title={`Pending Service Requests (${pendingRequests.length})`} />
-          <div className="divide-y divide-[#F6F3EE]">
-            {pendingRequests.map((req: any) => (
-              <Link
-                key={req.id}
-                to="/admin/service-requests"
-                className="flex items-center justify-between p-3 hover:bg-[#F6F3EE] transition-colors group"
+          <CardHeader
+            title={`Add-ons (${(add_ons ?? []).length})`}
+            action={unbilledAddOns.length > 0 ? (
+              <Button
+                size="sm"
+                onClick={() => createFromAddOns(unbilledAddOns.map((a: any) => a.id))}
+                loading={creatingInvoice}
+                disabled={creatingInvoice}
               >
-                <div>
-                  <span className="text-sm font-medium text-[#3B2F2A]">{req.service_type?.replace(/_/g, ' ')}</span>
-                  <span className="ml-2 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{req.status}</span>
+                <Plus className="w-3.5 h-3.5 mr-1" /> Invoice All Unbilled
+              </Button>
+            ) : undefined}
+          />
+          <div className="divide-y divide-[#F6F3EE]">
+            {(add_ons ?? []).map((addon: any) => (
+              <div key={addon.id} className="flex items-center justify-between p-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-[#3B2F2A]">
+                      {addon.service_type?.replace(/_/g, ' ')}
+                    </span>
+                    {addon.billed ? (
+                      <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
+                        addon.paid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {addon.paid ? 'Paid' : addon.invoice_status ?? 'Billed'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                        Unbilled
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-[#C8BFB6] mt-0.5">
-                    {req.preferred_date ? format(new Date(req.preferred_date), 'MMM d, yyyy') : '—'}
-                    {req.notes ? ` · ${req.notes.slice(0, 60)}` : ''}
+                    {addon.preferred_date ? format(new Date(addon.preferred_date + 'T00:00:00'), 'MMM d, yyyy') : '—'}
+                    {addon.dogs ? ` · ${addon.dogs}` : ''}
+                    {addon.notes ? ` · ${addon.notes.slice(0, 50)}` : ''}
                   </div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-[#C8BFB6] opacity-0 group-hover:opacity-100 transition-opacity" />
-              </Link>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-sm text-[#3B2F2A]">
+                    ${Number(addon.billing_amount ?? 0).toFixed(2)}
+                  </span>
+                  {addon.invoice_id && (
+                    <Link to={`/admin/invoices/${addon.invoice_id}`} className="text-xs text-blue hover:underline">
+                      {addon.invoice_number}
+                    </Link>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </Card>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -41,8 +41,9 @@ const CC_SURCHARGE = 0.02;
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [userId, setUserId] = useState('');
+  const [userId, setUserId] = useState(searchParams.get('client') ?? '');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);

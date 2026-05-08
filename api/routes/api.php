@@ -159,6 +159,21 @@ Route::get('/add-sr-appointment-id-9x7k', function () {
     return response()->json(['message' => 'appointment_id column already exists.']);
 });
 
+// Temporary: add billing columns to service_requests (REMOVE after running)
+Route::get('/add-sr-billing-cols-9x7k', function () {
+    $added = [];
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('service_requests', 'billing_type')) {
+        \Illuminate\Support\Facades\Schema::table('service_requests', function ($t) {
+            $t->string('billing_type')->nullable()->after('request_type');
+            $t->decimal('billing_amount', 10, 2)->nullable()->after('billing_type');
+            $t->unsignedBigInteger('invoice_line_item_id')->nullable()->after('billing_amount');
+            $t->foreign('invoice_line_item_id')->references('id')->on('invoice_line_items')->nullOnDelete();
+        });
+        $added = ['billing_type', 'billing_amount', 'invoice_line_item_id'];
+    }
+    return response()->json(['message' => $added ? 'Added: ' . implode(', ', $added) : 'Columns already exist.']);
+});
+
 // Temporary: add is_archived to dogs table (REMOVE after running)
 Route::get('/add-dog-archived-9x7k', function () {
     if (!\Illuminate\Support\Facades\Schema::hasColumn('dogs', 'is_archived')) {
@@ -456,6 +471,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/clients/{client}/pause-subscription',  [Admin\ClientController::class, 'pauseSubscription']);
         Route::post('/clients/{client}/resume-subscription', [Admin\ClientController::class, 'resumeSubscription']);
         Route::get('/clients/{client}/subscription-history', [Admin\ClientController::class, 'subscriptionHistory']);
+        Route::get('/clients/{client}/billing-summary',    [Admin\ClientController::class, 'billingSummary']);
 
         // Intake form
         Route::get('/clients/{client}/intake',           [IntakeController::class, 'show']);

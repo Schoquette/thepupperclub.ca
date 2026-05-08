@@ -122,13 +122,21 @@ class ServiceRequestController extends Controller
 
         // Add charge to client's next invoice (unless included in plan)
         $billingType = $data['billing_type'] ?? 'included_in_plan';
+        $serviceRequest->update([
+            'billing_type'   => $billingType,
+            'billing_amount' => $billingType === 'charge' ? ($data['billing_amount'] ?? 0) : null,
+        ]);
+
         if ($billingType === 'charge' && !empty($data['billing_amount']) && $data['billing_amount'] > 0) {
-            $this->addChargeToNextInvoice(
+            $lineItemId = $this->addChargeToNextInvoice(
                 $serviceRequest->user,
                 $data['billing_description'] ?? str_replace('_', ' ', $serviceRequest->service_type),
                 (float) $data['billing_amount'],
                 Carbon::parse($data['scheduled_time'])->toDateString(),
             );
+            if ($lineItemId) {
+                $serviceRequest->update(['invoice_line_item_id' => $lineItemId]);
+            }
         }
 
         $scheduledAt = Carbon::parse($data['scheduled_time']);
@@ -146,8 +154,15 @@ class ServiceRequestController extends Controller
     /**
      * Add a line item charge to the client's next open invoice, or create a new draft.
      */
-    private function addChargeToNextInvoice($client, string $description, float $amount, string $serviceDate): void
+    private function addChargeToNextInvoice($client, string $description, float $amount, string $serviceDate): ?int
     {
+        $lineData = [
+            'description'  => $description,
+            'quantity'     => 1,
+            'unit_price'   => $amount,
+            'service_date' => $serviceDate,
+        ];
+
         // Find an existing draft/sent invoice for this client
         $invoice = \App\Models\Invoice::where('user_id', $client->id)
             ->whereIn('status', ['draft', 'sent'])
@@ -155,27 +170,14 @@ class ServiceRequestController extends Controller
             ->first();
 
         if ($invoice) {
-            // Add line item to existing invoice
-            $this->invoiceService->attachLineItems($invoice, [[
-                'description'  => $description,
-                'quantity'     => 1,
-                'unit_price'   => $amount,
-                'service_date' => $serviceDate,
-            ]]);
+            $this->invoiceService->attachLineItems($invoice, [$lineData]);
             $this->invoiceService->recalculate($invoice);
         } else {
-            // Create a new draft invoice
-            $this->invoiceService->create(
-                $client,
-                [[
-                    'description'  => $description,
-                    'quantity'     => 1,
-                    'unit_price'   => $amount,
-                    'service_date' => $serviceDate,
-                ]],
-                null, // due_date — admin can set later
-            );
+            $invoice = $this->invoiceService->create($client, [$lineData]);
         }
+
+        // Return the ID of the newly created line item
+        return $invoice->lineItems()->latest('id')->value('id');
     }
 
     private function decline(ServiceRequest $serviceRequest, array $data, int $adminId): void
