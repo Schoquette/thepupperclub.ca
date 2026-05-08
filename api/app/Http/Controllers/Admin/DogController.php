@@ -16,7 +16,13 @@ class DogController extends Controller
     {
         $query = Dog::with(['user', 'vaccinationRecords'])
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
-            ->when($request->active !== null, fn($q) => $q->where('is_active', $request->boolean('active')))
+            ->when($request->active !== null, function ($q) use ($request) {
+                if ($request->boolean('active')) {
+                    $q->where(fn($q2) => $q2->where('is_active', true)->orWhereNull('is_active'));
+                } else {
+                    $q->where('is_active', false);
+                }
+            })
             ->when($request->has('archived'), function ($q) use ($request) {
                 if ($request->boolean('archived')) {
                     $q->where('is_archived', true);
