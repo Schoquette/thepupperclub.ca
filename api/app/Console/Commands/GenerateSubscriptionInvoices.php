@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\ClientProfile;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Services\InvoiceService;
 use App\Services\NotificationDispatcher;
@@ -13,23 +14,24 @@ use Illuminate\Support\Facades\Log;
 class GenerateSubscriptionInvoices extends Command
 {
     protected $signature = 'billing:generate-subscription-invoices';
-    protected $description = 'Generate monthly subscription invoices, auto-charge card/PAD clients, and send 3-day advance reminders';
+    protected $description = 'Generate subscription invoices 7 days before billing, auto-charge CC on due date, send reminders';
 
     public function handle(InvoiceService $invoiceService, NotificationDispatcher $dispatcher): void
     {
-        $today = now()->toDateString();
-
         // ── 0. Auto-resume expired pauses ────────────────────────────────────
         $this->autoResumeExpiredPauses();
 
-        // ── 1. Send upcoming-payment reminder (3 days before billing date) ───
+        // ── 1. Generate invoices 7 days before billing date (all clients) ────
+        $this->generateUpcomingInvoices($invoiceService);
+
+        // ── 2. Send payment reminder (3 days before billing date) ────────────
         $this->sendUpcomingReminders($dispatcher);
 
-        // ── 2. Auto-charge CC/Interac-PAD clients whose billing date is today ──
-        $this->autoChargeClients($invoiceService);
+        // ── 3. Auto-charge CC clients on billing date ────────────────────────
+        $this->autoChargeOnDueDate($invoiceService);
 
-        // ── 3. Generate invoices for manual-pay clients (e-transfer, cash) ──
-        $this->generateManualInvoices($invoiceService);
+        // ── 4. Advance billing date for non-CC clients on billing date ───────
+        $this->advanceManualBillingDates();
 
         $this->info('Done.');
     }
@@ -71,6 +73,64 @@ class GenerateSubscriptionInvoices extends Command
             ]);
 
             $this->info("Auto-resumed subscription for user {$profile->user_id} (pause ended {$pausedUntil->toDateString()}).");
+        }
+    }
+
+    /**
+     * Generate & send invoices for ALL clients 7 days before their billing date.
+     * Invoice due date = billing date (first day of service).
+     */
+    private function generateUpcomingInvoices(InvoiceService $invoiceService): void
+    {
+        $today = now()->toDateString();
+        $sevenDaysFromNow = now()->addDays(7)->toDateString();
+
+        // Find clients whose billing date is within the next 7 days (catch-up included)
+        $clients = ClientProfile::whereNotNull('subscription_amount')
+            ->where('subscription_amount', '>', 0)
+            ->whereBetween('next_billing_date', [$today, $sevenDaysFromNow])
+            ->whereNull('stripe_subscription_id')
+            ->whereNull('subscription_paused_from')
+            ->with('user')
+            ->get();
+
+        foreach ($clients as $profile) {
+            $client = $profile->user;
+            if (!$client || $client->status !== 'active') continue;
+
+            $billingDate = Carbon::parse($profile->next_billing_date)->toDateString();
+
+            // Skip if an invoice already exists for this billing period
+            $existingInvoice = Invoice::where('user_id', $client->id)
+                ->where('billing_period_start', $billingDate)
+                ->whereNotIn('status', ['void'])
+                ->first();
+
+            if ($existingInvoice) continue;
+
+            $plan = $profile->subscription_plan ?? 'Monthly Subscription';
+            $amount = (float) $profile->subscription_amount;
+
+            $periodStart = Carbon::parse($billingDate);
+            $periodEnd = $periodStart->copy()->addMonth()->subDay();
+
+            $invoice = $invoiceService->create(
+                $client,
+                [[
+                    'description'  => "Monthly subscription — {$plan}",
+                    'quantity'     => 1,
+                    'unit_price'   => $amount,
+                    'service_date' => $billingDate,
+                ]],
+                $billingDate, // due on the billing date (first day of service)
+                null,
+                null,
+                $periodStart->toDateString(),
+                $periodEnd->toDateString(),
+            );
+
+            $invoiceService->send($invoice);
+            $this->info("Invoice #{$invoice->invoice_number} sent to {$client->name} (due {$billingDate}).");
         }
     }
 
@@ -125,7 +185,12 @@ class GenerateSubscriptionInvoices extends Command
         }
     }
 
-    private function autoChargeClients(InvoiceService $invoiceService): void
+    /**
+     * Auto-charge CC clients on their billing date.
+     * Finds the existing invoice (generated 7 days ago) and charges it.
+     * If no invoice exists (edge case), creates one on the spot.
+     */
+    private function autoChargeOnDueDate(InvoiceService $invoiceService): void
     {
         $today = now()->toDateString();
 
@@ -134,8 +199,8 @@ class GenerateSubscriptionInvoices extends Command
             ->where('next_billing_date', '<=', $today)
             ->whereIn('billing_method', ['credit_card', 'interac_pad'])
             ->whereNotNull('stripe_payment_method_id')
-            ->whereNull('stripe_subscription_id') // skip Stripe-managed subscriptions
-            ->whereNull('subscription_paused_from') // skip paused subscriptions
+            ->whereNull('stripe_subscription_id')
+            ->whereNull('subscription_paused_from')
             ->with('user')
             ->get();
 
@@ -143,26 +208,36 @@ class GenerateSubscriptionInvoices extends Command
             $client = $profile->user;
             if (!$client || $client->status !== 'active') continue;
 
+            $billingDate = Carbon::parse($profile->next_billing_date)->toDateString();
             $plan = $profile->subscription_plan ?? 'Monthly Subscription';
             $amount = (float) $profile->subscription_amount;
 
-            $periodStart = Carbon::parse($today);
-            $periodEnd = $periodStart->copy()->addDays(29);
+            // Look for the invoice that was pre-generated
+            $invoice = Invoice::where('user_id', $client->id)
+                ->where('billing_period_start', $billingDate)
+                ->whereIn('status', ['sent', 'overdue'])
+                ->first();
 
-            $invoice = $invoiceService->create(
-                $client,
-                [[
-                    'description' => "Monthly subscription — {$plan}",
-                    'quantity'    => 1,
-                    'unit_price'  => $amount,
-                    'service_date' => $today,
-                ]],
-                $today,
-                null,
-                null,
-                $periodStart->toDateString(),
-                $periodEnd->toDateString(),
-            );
+            // If no invoice exists (missed generation window), create one now
+            if (!$invoice) {
+                $periodStart = Carbon::parse($billingDate);
+                $periodEnd = $periodStart->copy()->addMonth()->subDay();
+
+                $invoice = $invoiceService->create(
+                    $client,
+                    [[
+                        'description'  => "Monthly subscription — {$plan}",
+                        'quantity'     => 1,
+                        'unit_price'   => $amount,
+                        'service_date' => $billingDate,
+                    ]],
+                    $billingDate,
+                    null,
+                    null,
+                    $periodStart->toDateString(),
+                    $periodEnd->toDateString(),
+                );
+            }
 
             // Attempt to auto-charge
             try {
@@ -171,13 +246,15 @@ class GenerateSubscriptionInvoices extends Command
                 if ($result['status'] === 'succeeded') {
                     $this->info("Auto-charged {$client->name} for \${$amount} (Invoice #{$invoice->invoice_number}).");
                 } else {
-                    // Payment pending or failed — send as unpaid invoice
-                    $invoiceService->send($invoice);
+                    if ($invoice->status === 'draft') {
+                        $invoiceService->send($invoice);
+                    }
                     $this->warn("Auto-charge pending for {$client->name}, invoice sent as unpaid.");
                 }
             } catch (\Exception $e) {
-                // Charge failed — send invoice normally so client can pay manually
-                $invoiceService->send($invoice);
+                if ($invoice->status === 'draft') {
+                    $invoiceService->send($invoice);
+                }
                 Log::warning("Auto-charge failed for client {$client->id}: {$e->getMessage()}");
                 $this->error("Auto-charge failed for {$client->name}: {$e->getMessage()}. Invoice sent.");
             }
@@ -188,103 +265,42 @@ class GenerateSubscriptionInvoices extends Command
         }
     }
 
-    private function generateManualInvoices(InvoiceService $invoiceService): void
+    /**
+     * Advance billing date for non-CC clients (e-transfer, cash) once the billing date passes.
+     * Also handles CC clients without a payment method on file.
+     */
+    private function advanceManualBillingDates(): void
     {
         $today = now()->toDateString();
-        $threeDaysFromNow = now()->addDays(3)->toDateString();
 
-        // E-transfer/cash clients: send invoice 3 days BEFORE billing date so they have time to pay
-        $earlyInvoiceClients = ClientProfile::whereNotNull('subscription_amount')
+        // Non-CC clients whose billing date has passed
+        $manualClients = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
-            ->whereBetween('next_billing_date', [$today, $threeDaysFromNow])
+            ->where('next_billing_date', '<=', $today)
             ->where(function ($q) {
                 $q->whereIn('billing_method', ['e_transfer', 'cash'])
                   ->orWhereNull('billing_method');
             })
             ->whereNull('stripe_subscription_id')
-            ->whereNull('subscription_paused_from') // skip paused subscriptions
-            ->with('user')
+            ->whereNull('subscription_paused_from')
             ->get();
 
-        foreach ($earlyInvoiceClients as $profile) {
-            $client = $profile->user;
-            if (!$client || $client->status !== 'active') continue;
-
-            $plan = $profile->subscription_plan ?? 'Monthly Subscription';
-            $amount = (float) $profile->subscription_amount;
-            $billingDate = $profile->next_billing_date->toDateString();
-
-            $periodStart = Carbon::parse($billingDate);
-            $periodEnd = $periodStart->copy()->addDays(29);
-
-            $invoice = $invoiceService->create(
-                $client,
-                [[
-                    'description'  => "Monthly subscription — {$plan}",
-                    'quantity'     => 1,
-                    'unit_price'   => $amount,
-                    'service_date' => $billingDate,
-                ]],
-                $billingDate, // due on the actual billing date
-                null,
-                null,
-                $periodStart->toDateString(),
-                $periodEnd->toDateString(),
-            );
-
-            $invoiceService->send($invoice);
-
-            // Advance next billing date
-            $nextBilling = Carbon::parse($profile->next_billing_date)->addMonth()->toDateString();
-            $profile->update(['next_billing_date' => $nextBilling]);
-
-            $this->info("Invoice #{$invoice->invoice_number} sent early to {$client->name} (due {$billingDate}).");
-        }
-
-        // CC/PAD clients who don't have a payment method saved — send on due date
+        // CC/PAD clients without a payment method (can't auto-charge, just advance)
         $noPaymentMethod = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
             ->where('next_billing_date', '<=', $today)
             ->whereIn('billing_method', ['credit_card', 'interac_pad'])
             ->whereNull('stripe_payment_method_id')
             ->whereNull('stripe_subscription_id')
-            ->whereNull('subscription_paused_from') // skip paused subscriptions
-            ->with('user')
+            ->whereNull('subscription_paused_from')
             ->get();
 
-        $allClients = $noPaymentMethod;
+        $allClients = $manualClients->merge($noPaymentMethod);
 
         foreach ($allClients as $profile) {
-            $client = $profile->user;
-            if (!$client || $client->status !== 'active') continue;
-
-            $plan = $profile->subscription_plan ?? 'Monthly Subscription';
-            $amount = (float) $profile->subscription_amount;
-
-            $periodStart = Carbon::parse($today);
-            $periodEnd = $periodStart->copy()->addDays(29);
-
-            $invoice = $invoiceService->create(
-                $client,
-                [[
-                    'description' => "Monthly subscription — {$plan}",
-                    'quantity'    => 1,
-                    'unit_price'  => $amount,
-                    'service_date' => $today,
-                ]],
-                $today,
-                null,
-                null,
-                $periodStart->toDateString(),
-                $periodEnd->toDateString(),
-            );
-
-            $invoiceService->send($invoice);
-
             $nextBilling = Carbon::parse($profile->next_billing_date)->addMonth()->toDateString();
             $profile->update(['next_billing_date' => $nextBilling]);
-
-            $this->info("Invoice #{$invoice->invoice_number} created for {$client->name}.");
+            $this->info("Advanced billing date for user {$profile->user_id} to {$nextBilling}.");
         }
     }
 }
