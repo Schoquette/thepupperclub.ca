@@ -588,6 +588,55 @@ class ClientController extends Controller
         ]);
     }
 
+    /**
+     * Generate a draft invoice for the client's upcoming subscription billing period.
+     */
+    public function generateUpcomingInvoice(Request $request, User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+        $profile = $client->clientProfile;
+
+        abort_unless($profile && $profile->subscription_amount > 0, 422, 'Client has no active subscription.');
+
+        $billingDate = $profile->next_billing_date?->toDateString() ?? now()->toDateString();
+        $periodStart = \Carbon\Carbon::parse($billingDate);
+        $periodEnd = $periodStart->copy()->addDays(29);
+        $plan = $profile->subscription_plan ?? 'Monthly Subscription';
+
+        $lineItems = [[
+            'description'  => "Monthly subscription — {$plan}",
+            'quantity'     => 1,
+            'unit_price'   => (float) $profile->subscription_amount,
+            'service_date' => $billingDate,
+        ]];
+
+        // Include any add-on line items passed from the frontend
+        $addOnItems = $request->input('add_on_line_items', []);
+        $lineItems = array_merge($lineItems, $addOnItems);
+
+        $invoiceService = app(\App\Services\InvoiceService::class);
+        $invoice = $invoiceService->create(
+            $client,
+            $lineItems,
+            $billingDate,
+            null,
+            false,
+            $periodStart->toDateString(),
+            $periodEnd->toDateString(),
+        );
+
+        // Link service requests to line items (skip the first one — that's the subscription)
+        $allLineItems = $invoice->lineItems;
+        foreach ($addOnItems as $i => $item) {
+            if (!empty($item['service_request_id']) && isset($allLineItems[$i + 1])) {
+                \App\Models\ServiceRequest::where('id', $item['service_request_id'])
+                    ->update(['invoice_line_item_id' => $allLineItems[$i + 1]->id]);
+            }
+        }
+
+        return response()->json(['data' => $invoice->load('lineItems')], 201);
+    }
+
     public function destroy(User $client): JsonResponse
     {
         $this->ensureIsClient($client);

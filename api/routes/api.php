@@ -479,6 +479,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/clients/{client}/resume-subscription', [Admin\ClientController::class, 'resumeSubscription']);
         Route::get('/clients/{client}/subscription-history', [Admin\ClientController::class, 'subscriptionHistory']);
         Route::get('/clients/{client}/billing-summary',    [Admin\ClientController::class, 'billingSummary']);
+        Route::post('/clients/{client}/generate-upcoming-invoice', [Admin\ClientController::class, 'generateUpcomingInvoice']);
 
         // Intake form
         Route::get('/clients/{client}/intake',           [IntakeController::class, 'show']);

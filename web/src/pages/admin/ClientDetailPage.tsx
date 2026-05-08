@@ -1484,10 +1484,9 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
         setBusy(false);
         return;
       } else {
-        // No open invoices — create a new draft and add items
-        const res = await api.post('/admin/invoices', {
-          user_id: clientId,
-          line_items: buildLineItems(selected),
+        // No open invoices — generate upcoming subscription invoice as draft with add-ons
+        const res = await api.post(`/admin/clients/${clientId}/generate-upcoming-invoice`, {
+          add_on_line_items: buildLineItems(selected),
         });
         queryClient.invalidateQueries({ queryKey: ['client-billing-summary', clientId] });
         setSelectedAddOns(new Set());
@@ -1632,7 +1631,17 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
         ) : subscription && !subscription.paused ? (
           <div className="p-3">
             <button
-              onClick={() => navigate(`/admin/invoices/new?client=${clientId}`)}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const res = await api.post(`/admin/clients/${clientId}/generate-upcoming-invoice`, {});
+                  queryClient.invalidateQueries({ queryKey: ['client-billing-summary', clientId] });
+                  navigate(`/admin/invoices/${res.data.data.id}`);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              disabled={busy}
               className="text-xs text-[#C9A24D] hover:underline font-medium"
             >
               + Generate draft invoice for upcoming billing
