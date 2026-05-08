@@ -62,7 +62,7 @@ thepupperclub.ca/
 - **Two-Way Communication**: Chat messages dispatched to client's preferred channels, inbound email webhook for email replies, one-way SMS alerts with "Reply in app or by email" note
 - **Email System**: Resend HTTP API transport (custom Guzzle-based transport since GoDaddy blocks SMTP), branded email templates with CID inline logo, editable system email templates (8 templates with token-based customization), email log tracking all sent emails
 - **Error & Email Logging**: All API exceptions logged to `error_logs` table, all outbound emails tracked in `email_logs` table, viewable in admin dashboard
-- **Service Request Billing**: Admin can select a Stripe product/price when approving requests (charge added to next invoice) or mark as "Included in Plan"
+- **Service Request Billing**: Admin marks requests as "Included in Plan" or assigns an extra charge on approval. Charges appear as unbilled add-ons on the client's billing tab; admin manually selects add-ons via checkboxes and adds them to an existing invoice or creates a new one
 - **Audit Logging**: Tracks all admin actions
 
 #### Scheduled Commands
@@ -77,7 +77,7 @@ thepupperclub.ca/
 #### API Routes
 
 - **Public**: `/auth/login`, `/auth/forgot-password`, `/auth/reset-password`, `/webhooks/stripe`, `/webhooks/email`, `/contact`, `/signing/{token}`
-- **Admin** (`/admin/*`): Full CRUD for clients, dogs, appointments, invoices, report cards, documents, notifications, audit logs, intake forms, Stripe products, team management, time/mileage reports, report exports, error logs, email logs, service requests with billing
+- **Admin** (`/admin/*`): Full CRUD for clients, dogs, appointments, invoices, report cards, documents, notifications, audit logs, intake forms, Stripe products, team management, time/mileage reports, report exports, error logs, email logs, service requests with billing, client billing summary (add-ons, invoices), add line items to existing invoices
 - **Client** (`/client/*`): Profile, dogs (with full intake fields), appointments, invoices, billing/Stripe setup, report cards, documents, onboarding, intake form
 - **Shared**: Conversations, messages, message reactions, photo serving, document download
 
@@ -95,7 +95,7 @@ thepupperclub.ca/
 
 #### Web Portal Pages (38+ pages)
 
-**Admin Pages** (23): Dashboard (with check-in, revenue stats, email/error logs), Clients list, Client detail (with editable billing method/walks-per-week, plan history table), Dogs list, Intake form, Calendar, Service requests (with Stripe billing on approval), Inbox, Conversation, Invoices, Invoice create, Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Template editor (react-pdf per-page rendering, drag-to-position fields, corner resize handles, client/company recipient roles, role-based color coding), Broadcast messages, Email logs, Error logs, Audit logs, Settings (notification preferences for app/email/SMS, desktop notifications, password)
+**Admin Pages** (23): Dashboard (with check-in, revenue stats, email/error logs), Clients list, Client detail (with tabs: Overview, Dogs, Appointments, Billing, Documents — billing tab shows subscription info, open/overdue invoices, unbilled add-ons with checkboxes for batch invoicing, invoice history), Dogs list (with search, status tabs, client/breed filters), Intake form, Calendar, Service requests (clickable rows with detail/review modals), Inbox, Conversation, Invoices (with client, month, and status filters), Invoice create (pre-selects client from query param), Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Template editor (react-pdf per-page rendering, drag-to-position fields, corner resize handles, client/company recipient roles, role-based color coding), Broadcast messages, Email logs, Error logs, Audit logs, Settings (notification preferences for app/email/SMS, desktop notifications, password)
 
 **Client Pages** (12): Dashboard (with "Add to Home Screen" instructions for Safari, Chrome iOS, and Android), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, desktop notifications, notification preferences, account deletion)
 
@@ -288,7 +288,7 @@ Migrations covering:
 - **Home Access** — encrypted access codes for client homes
 - **Dogs** — breed, age, size (toy/small/medium/large/extra_large/xl), colour, microchip, spayed/neutered, personality (energy level, interactions with dogs/strangers/children, triggers), medical (conditions, allergies, medications as JSON, mobility limitations, recent surgeries), visit preferences (walk style, gear, treats, training commands, avoid list), profile photos, vaccination records, bite history, admin tags (off-leash approved, media consent, buddy walks OK)
 - **Appointments** — scheduling with check-in/complete timestamps, recurring support, team member assignment
-- **Service Requests** — client-submitted requests for schedule changes, time extensions, and special services (editable/cancellable while pending)
+- **Service Requests** — client-submitted requests for schedule changes, time extensions, and special services (editable/cancellable while pending); billing tracking via `billing_type`, `billing_amount`, `billing_description`, `invoice_line_item_id` columns
 - **Visit Reports** — post-visit report cards with multi-photo support, per-dog data (checklists/notes as JSON)
 - **Report Card Templates** — customizable checklist templates per client
 - **Invoices** — line items, Stripe payment intents, PDF generation, invoice numbers (`PC-YYYY-NNNN`)
