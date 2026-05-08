@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -158,7 +159,7 @@ export default function AdminLayout() {
       {/* Main content */}
       <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
         <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8">
-          <Outlet />
+          <ErrorBoundary><Outlet /></ErrorBoundary>
         </div>
       </main>
     </div>
