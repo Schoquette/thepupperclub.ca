@@ -185,7 +185,7 @@ export default function ClientInvoicesPage() {
                 <div className="flex justify-between">
                   <span className="text-taupe">Payment</span>
                   <span className="font-semibold text-espresso">
-                    {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[cp.billing_method as string] ?? cp.billing_method}
+                    {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', cash: 'Cash' }[cp.billing_method as string] ?? cp.billing_method}
                   </span>
                 </div>
               )}
@@ -222,7 +222,7 @@ export default function ClientInvoicesPage() {
                   </div>
                   <div className="flex flex-col items-end gap-1.5" onClick={e => e.stopPropagation()}>
                     <Badge variant={statusBadge(inv.status)}>{inv.status}</Badge>
-                    {(!inv.billing_method || inv.billing_method === 'credit_card' || inv.billing_method === 'interac_pad') && (
+                    {(!inv.billing_method || inv.billing_method === 'credit_card') && (
                       <Button size="sm" onClick={() => setPaying(inv)}>Pay Now</Button>
                     )}
                   </div>

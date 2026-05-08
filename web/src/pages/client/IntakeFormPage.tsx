@@ -1002,7 +1002,7 @@ const BILLING_OPTIONS = [
   { value: '', label: 'Select…' },
   { value: 'credit_card', label: 'Credit Card (2% fee)' },
   { value: 'e_transfer', label: 'E-Transfer (no fee)' },
-  { value: 'interac_pad', label: 'Interac / PAD (no fee)' },
+
   { value: 'cash', label: 'Cash (no fee)' },
 ];
 

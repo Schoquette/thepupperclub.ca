@@ -154,7 +154,7 @@ class GenerateSubscriptionInvoices extends Command
             $plan = $profile->subscription_plan ?? 'subscription';
             $methodLabel = match ($profile->billing_method) {
                 'credit_card' => 'Credit Card',
-                'interac_pad' => 'Interac/PAD',
+
                 'e_transfer'  => 'E-Transfer',
                 'cash'        => 'Cash',
                 default       => $profile->billing_method,
@@ -163,7 +163,7 @@ class GenerateSubscriptionInvoices extends Command
             $title = "Upcoming Payment — The Pupper Club";
             $body = "Your {$plan} payment of \${$amount} CAD will be processed on {$billingDate}.";
 
-            $autoCharge = in_array($profile->billing_method, ['credit_card', 'interac_pad']);
+            $autoCharge = $profile->billing_method === 'credit_card';
             if ($autoCharge) {
                 $body .= " It will be charged to your {$methodLabel} on file automatically.";
             }
@@ -197,7 +197,7 @@ class GenerateSubscriptionInvoices extends Command
         $autoChargeClients = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
             ->where('next_billing_date', '<=', $today)
-            ->whereIn('billing_method', ['credit_card', 'interac_pad'])
+            ->whereIn('billing_method', ['credit_card'])
             ->whereNotNull('stripe_payment_method_id')
             ->whereNull('stripe_subscription_id')
             ->whereNull('subscription_paused_from')
@@ -288,7 +288,7 @@ class GenerateSubscriptionInvoices extends Command
         $noPaymentMethod = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
             ->where('next_billing_date', '<=', $today)
-            ->whereIn('billing_method', ['credit_card', 'interac_pad'])
+            ->whereIn('billing_method', ['credit_card'])
             ->whereNull('stripe_payment_method_id')
             ->whereNull('stripe_subscription_id')
             ->whereNull('subscription_paused_from')

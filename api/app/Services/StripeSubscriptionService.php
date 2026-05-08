@@ -30,7 +30,7 @@ class StripeSubscriptionService
 
     /**
      * Create or update a subscription for a client.
-     * For CC/interac_pad billing: creates a real Stripe Subscription (auto-charges).
+     * For CC billing: creates a real Stripe Subscription (auto-charges).
      * For e-transfer/cash: stores plan locally (invoiced via GenerateSubscriptionInvoices).
      *
      * @param string|null $effectiveDate  When the new plan takes effect (for mid-cycle changes).
@@ -53,7 +53,7 @@ class StripeSubscriptionService
         $billingMethod = $profile->billing_method ?? 'credit_card';
 
         // For non-CC/non-PAD billing, just store locally — no Stripe subscription
-        if (!in_array($billingMethod, ['credit_card', 'interac_pad'])) {
+        if (!in_array($billingMethod, ['credit_card'])) {
             // Cancel any existing Stripe subscription first
             if ($profile->stripe_subscription_id) {
                 try {
@@ -123,7 +123,7 @@ class StripeSubscriptionService
             ];
         }
 
-        // CC/interac_pad billing — create Stripe subscription for auto-charge
+        // CC billing — create Stripe subscription for auto-charge
         // Ensure Stripe customer exists
         if (!$profile->stripe_customer_id) {
             $customer = $this->stripe()->customers->create([

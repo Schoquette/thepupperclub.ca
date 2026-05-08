@@ -275,7 +275,7 @@ export default function InvoiceCreatePage() {
           </label>
           {userId && (
             <p className="text-xs text-taupe mt-2">
-              Client billing method: <span className="font-semibold">{{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[clientBillingMethod] ?? clientBillingMethod}</span>
+              Client billing method: <span className="font-semibold">{{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', cash: 'Cash' }[clientBillingMethod] ?? clientBillingMethod}</span>
             </p>
           )}
         </Card>

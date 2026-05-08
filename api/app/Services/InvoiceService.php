@@ -13,7 +13,6 @@ class InvoiceService
     private const METHOD_LABELS = [
         'credit_card' => 'Credit Card',
         'e_transfer'  => 'E-Transfer',
-        'interac_pad' => 'Interac/PAD',
         'cash'        => 'Cash',
     ];
     private const GST_RATE       = 0.05;

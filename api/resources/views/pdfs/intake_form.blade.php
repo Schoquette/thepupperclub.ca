@@ -203,7 +203,6 @@
         $billingLabel = match($profile->billing_method) {
           'credit_card' => 'Credit Card',
           'e_transfer' => 'E-Transfer',
-          'interac_pad' => 'Interac/PAD',
           'cash' => 'Cash',
           default => intakeFmt($profile->billing_method),
         };

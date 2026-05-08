@@ -22,7 +22,6 @@ interface LineItem {
 const METHOD_LABELS: Record<string, string> = {
   credit_card: 'Credit Card',
   e_transfer: 'E-Transfer',
-  interac_pad: 'Interac/PAD',
   cash: 'Cash',
 };
 
@@ -608,10 +607,7 @@ export default function AdminInvoiceDetailPage() {
                   {method === 'e_transfer' && (
                     <p className="text-taupe text-xs">Please send your e-Transfer to sophie@thepupperclub.ca before the due date.</p>
                   )}
-                  {method === 'interac_pad' && (
-                    <p className="text-taupe text-xs">Charged automatically via Interac/Visa Debit or Bank Debit (PAD) through Stripe.</p>
-                  )}
-                  {method === 'cash' && (
+{method === 'cash' && (
                     <p className="text-taupe text-xs">Cash or cheque can be left at the service address on the first visit of the service period.</p>
                   )}
                 </div>

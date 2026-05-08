@@ -88,7 +88,7 @@ class ClientController extends Controller
             'profile.notify_app'              => 'sometimes|boolean',
             'profile.notify_email'            => 'sometimes|boolean',
             'profile.notify_sms'              => 'sometimes|boolean',
-            'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,interac_pad,cash',
+            'profile.billing_method'          => 'sometimes|in:credit_card,e_transfer,cash',
             'profile.subscription_tier'       => 'sometimes|nullable|string',
             'profile.subscription_plan'       => 'sometimes|nullable|string',
             'profile.subscription_amount'     => 'sometimes|nullable|numeric|min:0',

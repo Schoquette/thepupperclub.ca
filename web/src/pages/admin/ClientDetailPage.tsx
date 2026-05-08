@@ -709,18 +709,17 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                   >
                     <option value="credit_card">Credit Card</option>
                     <option value="e_transfer">E-Transfer</option>
-                    <option value="interac_pad">Interac/PAD</option>
                     <option value="cash">Cash</option>
                   </select>
                   <button className="text-xs text-taupe hover:text-espresso" onClick={() => setBillingEditing(false)}>cancel</button>
                 </div>
               ) : (
                 <button
-                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  className="font-semibold text-espresso hover:text-gold transition-colors inline-flex items-center gap-1"
                   onClick={() => setBillingEditing(true)}
                 >
-                  {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
-                  {!cp.stripe_subscription_id && <span className="text-xs text-taupe ml-1">(local)</span>}
+                  {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', cash: 'Cash' }[billingMethod] ?? billingMethod}
+                  <Pencil className="w-3 h-3 text-taupe" />
                 </button>
               )}
             </div>
@@ -743,10 +742,11 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                 </div>
               ) : (
                 <button
-                  className="font-semibold text-espresso hover:text-gold transition-colors"
+                  className="font-semibold text-espresso hover:text-gold transition-colors inline-flex items-center gap-1"
                   onClick={() => setWalksEditing(true)}
                 >
                   {cp.walks_per_week ? `${cp.walks_per_week}/week` : 'Not set'}
+                  <Pencil className="w-3 h-3 text-taupe" />
                 </button>
               )}
             </div>
@@ -906,7 +906,6 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                   >
                     <option value="credit_card">Credit Card</option>
                     <option value="e_transfer">E-Transfer</option>
-                    <option value="interac_pad">Interac/PAD</option>
                     <option value="cash">Cash</option>
                   </select>
                   <button className="text-xs text-taupe hover:text-espresso" onClick={() => setBillingEditing(false)}>cancel</button>
@@ -916,7 +915,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                   className="font-semibold text-espresso hover:text-gold transition-colors inline-flex items-center gap-1"
                   onClick={() => setBillingEditing(true)}
                 >
-                  {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', interac_pad: 'Interac/PAD', cash: 'Cash' }[billingMethod] ?? billingMethod}
+                  {{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', cash: 'Cash' }[billingMethod] ?? billingMethod}
                   <Pencil className="w-3 h-3 text-taupe" />
                 </button>
               )}
