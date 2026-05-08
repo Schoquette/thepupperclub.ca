@@ -170,7 +170,13 @@ Route::get('/add-sr-billing-cols-9x7k', function () {
             $t->unsignedBigInteger('invoice_line_item_id')->nullable()->after('billing_description');
             $t->foreign('invoice_line_item_id')->references('id')->on('invoice_line_items')->nullOnDelete();
         });
-        $added = ['billing_type', 'billing_amount', 'invoice_line_item_id'];
+        $added = array_merge($added, ['billing_type', 'billing_amount', 'billing_description', 'invoice_line_item_id']);
+    }
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('service_requests', 'billing_description')) {
+        \Illuminate\Support\Facades\Schema::table('service_requests', function ($t) {
+            $t->string('billing_description')->nullable()->after('billing_amount');
+        });
+        $added[] = 'billing_description';
     }
     return response()->json(['message' => $added ? 'Added: ' . implode(', ', $added) : 'Columns already exist.']);
 });
