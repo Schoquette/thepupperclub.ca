@@ -1464,6 +1464,40 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
     }
   };
 
+  const handleAddToUpcomingInvoice = async () => {
+    if (!data) return;
+    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(a.id));
+    if (!selected.length) return;
+    setBusy(true);
+    try {
+      if (editableInvoices.length === 1) {
+        // Add to the single open invoice
+        await api.post(`/admin/invoices/${editableInvoices[0].id}/add-items`, {
+          line_items: buildLineItems(selected),
+        });
+        queryClient.invalidateQueries({ queryKey: ['client-billing-summary', clientId] });
+        setSelectedAddOns(new Set());
+        navigate(`/admin/invoices/${editableInvoices[0].id}`);
+      } else if (editableInvoices.length > 1) {
+        // Multiple open invoices — show picker
+        setAddToInvoiceOpen(!addToInvoiceOpen);
+        setBusy(false);
+        return;
+      } else {
+        // No open invoices — create a new draft and add items
+        const res = await api.post('/admin/invoices', {
+          user_id: clientId,
+          line_items: buildLineItems(selected),
+        });
+        queryClient.invalidateQueries({ queryKey: ['client-billing-summary', clientId] });
+        setSelectedAddOns(new Set());
+        navigate(`/admin/invoices/${res.data.data.id}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (isLoading) return <PageLoader />;
   if (!data) return <p className="text-taupe text-sm p-4">Unable to load billing data.</p>;
 
@@ -1595,6 +1629,15 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
           <div className="divide-y divide-[#F6F3EE]">
             {open.map((inv: any) => <InvoiceRow key={inv.id} inv={inv} />)}
           </div>
+        ) : subscription && !subscription.paused ? (
+          <div className="p-3">
+            <button
+              onClick={() => navigate(`/admin/invoices/new?client=${clientId}`)}
+              className="text-xs text-[#C9A24D] hover:underline font-medium"
+            >
+              + Generate draft invoice for upcoming billing
+            </button>
+          </div>
         ) : !subscription && (
           <p className="p-4 text-sm text-[#C8BFB6]">No open invoices.</p>
         )}
@@ -1616,43 +1659,42 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
                 Clear selection
               </button>
               <div className="ml-auto flex gap-2">
-                {editableInvoices.length > 0 && (
-                  <div className="relative">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => setAddToInvoiceOpen(!addToInvoiceOpen)}
-                    >
-                      Add to Existing Invoice
-                    </Button>
-                    {addToInvoiceOpen && (
-                      <div className="absolute right-0 top-full mt-1 bg-white border border-[#C8BFB6]/50 rounded-lg shadow-lg z-20 min-w-[240px]">
-                        <div className="p-2 border-b border-[#F6F3EE] text-xs text-[#C8BFB6] font-medium">
-                          Choose an invoice:
-                        </div>
-                        {editableInvoices.map((inv: any) => (
-                          <button
-                            key={inv.id}
-                            onClick={() => handleAddToInvoice(inv.id)}
-                            disabled={busy}
-                            className="w-full text-left px-3 py-2 hover:bg-[#F6F3EE] transition-colors flex items-center justify-between"
-                          >
-                            <div>
-                              <div className="text-sm font-medium text-[#3B2F2A]">{inv.invoice_number}</div>
-                              <div className="text-[10px] text-[#C8BFB6]">
-                                {inv.status} · ${Number(inv.total ?? 0).toFixed(2)}
-                              </div>
-                            </div>
-                            <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
-                              {inv.status}
-                            </span>
-                          </button>
-                        ))}
+                <div className="relative">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    loading={busy && !addToInvoiceOpen}
+                    onClick={handleAddToUpcomingInvoice}
+                  >
+                    Add to {editableInvoices.length === 1 ? editableInvoices[0].invoice_number : 'Upcoming Invoice'}
+                  </Button>
+                  {addToInvoiceOpen && editableInvoices.length > 1 && (
+                    <div className="absolute right-0 top-full mt-1 bg-white border border-[#C8BFB6]/50 rounded-lg shadow-lg z-20 min-w-[240px]">
+                      <div className="p-2 border-b border-[#F6F3EE] text-xs text-[#C8BFB6] font-medium">
+                        Choose an invoice:
                       </div>
-                    )}
-                  </div>
-                )}
+                      {editableInvoices.map((inv: any) => (
+                        <button
+                          key={inv.id}
+                          onClick={() => handleAddToInvoice(inv.id)}
+                          disabled={busy}
+                          className="w-full text-left px-3 py-2 hover:bg-[#F6F3EE] transition-colors flex items-center justify-between"
+                        >
+                          <div>
+                            <div className="text-sm font-medium text-[#3B2F2A]">{inv.invoice_number}</div>
+                            <div className="text-[10px] text-[#C8BFB6]">
+                              {inv.status} · ${Number(inv.total ?? 0).toFixed(2)}
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
+                            {inv.status}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <Button
                   size="sm"
                   disabled={busy}
