@@ -113,6 +113,7 @@ class NotificationController extends Controller
                 $request->user()->email, // Reply-To admin sender
                 null,
                 $inlineImages,
+                $storedFiles,
             );
 
             // If admin explicitly toggled "also send as email" AND user doesn't already have email preference,
@@ -241,7 +242,7 @@ class NotificationController extends Controller
         $file->storeAs('broadcast_inline', $filename, 'local');
 
         // Return an API-served URL so no storage symlink is needed
-        $url = config('app.url') . '/api/admin/broadcast-images/' . $filename;
+        $url = '/api/admin/broadcast-images/' . $filename;
 
         return response()->json([
             'url' => $url,

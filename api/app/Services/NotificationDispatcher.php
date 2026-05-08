@@ -23,7 +23,7 @@ class NotificationDispatcher
      * @param string|null $htmlBody  Optional HTML body for email (falls back to $body)
      * @param array  $data    Optional data payload for push notifications
      */
-    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null, ?string $type = null, array $inlineImages = []): void
+    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null, ?string $type = null, array $inlineImages = [], array $fileAttachments = []): void
     {
         // Check if client has opted out of this notification type
         if ($type && $user->role === 'client' && $user->clientProfile) {
@@ -42,7 +42,7 @@ class NotificationDispatcher
 
         // Email
         if ($prefs['notify_email'] && $user->email) {
-            $this->sendEmail($user, $title, $htmlBody ?? nl2br(e($body)), $replyTo, $inlineImages);
+            $this->sendEmail($user, $title, $htmlBody ?? nl2br(e($body)), $replyTo, $inlineImages, $fileAttachments);
         }
 
         // SMS (one-way — log in to respond)
@@ -110,11 +110,11 @@ class NotificationDispatcher
     /**
      * Send a branded email notification.
      */
-    private function sendEmail(User $user, string $title, string $htmlContent, ?string $replyTo = null, array $inlineImages = []): void
+    private function sendEmail(User $user, string $title, string $htmlContent, ?string $replyTo = null, array $inlineImages = [], array $fileAttachments = []): void
     {
         try {
             $logoPath = public_path('images/logo-cream-stacked.png');
-            Mail::send([], [], function ($message) use ($user, $title, $htmlContent, $replyTo, $logoPath, $inlineImages) {
+            Mail::send([], [], function ($message) use ($user, $title, $htmlContent, $replyTo, $logoPath, $inlineImages, $fileAttachments) {
                 // Check for custom general_notification template
                 $customHtml = \App\Http\Controllers\Admin\NotificationController::renderSystemTemplate(
                     'general_notification',
@@ -152,6 +152,15 @@ class NotificationDispatcher
                     $part->asInline();
                     $part->setContentId($img['cid']);
                     $symfony->addPart($part);
+                }
+
+                // File attachments (e.g. broadcast attachments)
+                foreach ($fileAttachments as $att) {
+                    $filePath = \Illuminate\Support\Facades\Storage::disk('local')->path($att['storage_path']);
+                    $message->attach($filePath, [
+                        'as'   => $att['original_name'],
+                        'mime' => $att['mime_type'],
+                    ]);
                 }
 
                 // Reply-To: use inbound address so replies route into the app.
