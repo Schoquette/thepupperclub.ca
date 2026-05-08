@@ -5,7 +5,7 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Lato:wght@400;700&display=swap');
 
-    body { font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #3B2F2A; font-size: 13px; margin: 0; padding: 0; }
+    body { font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #3B2F2A; font-size: 13px; margin: 0; padding: 0; letter-spacing: 0; }
     .page { padding: 0; }
     .font-display { font-family: 'Playfair Display SC', serif; }
 
@@ -17,7 +17,7 @@
     }
     .header-bar table { width: 100%; }
     .header-bar td { vertical-align: middle; }
-    .invoice-label { font-family: 'Playfair Display SC', serif; font-size: 16px; letter-spacing: 3px; color: #3B2F2A; text-align: right; font-weight: 700; }
+    .invoice-label { font-family: 'Playfair Display SC', serif; font-size: 16px; letter-spacing: 0; color: #3B2F2A; text-align: right; font-weight: 700; }
     .invoice-meta-text { font-size: 12px; color: rgba(59,47,42,0.6); text-align: right; margin-top: 4px; }
 
     /* Gold accent */
@@ -26,7 +26,7 @@
     .content { padding: 32px 40px 40px; }
 
     /* Status */
-    .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+    .status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0; }
     .status-paid { background: #d4edda; color: #155724; }
     .status-sent { background: #fff3cd; color: #856404; }
     .status-overdue { background: #f8d7da; color: #721c24; }
@@ -37,7 +37,7 @@
     .parties { margin-bottom: 28px; }
     .parties table { width: 100%; }
     .parties td { vertical-align: top; width: 50%; }
-    .party-label { font-family: 'Playfair Display SC', serif; color: #C9A24D; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin: 0 0 6px; }
+    .party-label { font-family: 'Playfair Display SC', serif; color: #C9A24D; font-size: 10px; text-transform: uppercase; letter-spacing: 0; font-weight: 700; margin: 0 0 6px; }
     .party p { margin: 2px 0; line-height: 1.6; font-size: 12px; }
 
     /* Dates row */
@@ -48,7 +48,7 @@
     /* Line items table */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
     .items-table thead tr { background: #F6F3EE; color: #3B2F2A; }
-    .items-table thead th { font-family: 'Playfair Display SC', serif; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .items-table thead th { font-family: 'Playfair Display SC', serif; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0; }
     .items-table tbody tr { border-bottom: 1px solid #e9e4df; }
     .items-table tbody tr:nth-child(even) { background: #FAFAF8; }
     .items-table tbody td { padding: 10px 12px; font-size: 12px; }
