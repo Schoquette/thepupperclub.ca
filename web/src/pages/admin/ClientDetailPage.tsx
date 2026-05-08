@@ -1532,44 +1532,6 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
         </Link>
       </div>
 
-      {/* Upcoming Bill Preview */}
-      {subscription && (
-        <Card>
-          <CardHeader title="Upcoming Bill" subtitle={subscription.paused ? 'Subscription paused' : undefined} />
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-            <div>
-              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Plan</div>
-              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">{subscription.plan}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Amount</div>
-              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">${Number(subscription.amount).toFixed(2)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Next Billing</div>
-              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">
-                {subscription.next_billing_date
-                  ? format(new Date(subscription.next_billing_date + 'T00:00:00'), 'MMM d, yyyy')
-                  : '—'}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Payment Method</div>
-              <div className="text-sm font-medium text-[#3B2F2A] mt-0.5 capitalize">
-                {subscription.billing_method?.replace(/_/g, ' ') ?? '—'}
-              </div>
-            </div>
-          </div>
-          {unbilledAddOns.length > 0 && (
-            <div className="bg-[#FFF8E1] border border-[#C9A24D]/30 rounded-lg p-3 text-xs text-[#3B2F2A]">
-              <strong>{unbilledAddOns.length} unbilled add-on{unbilledAddOns.length > 1 ? 's' : ''}</strong> totalling $
-              {unbilledAddOns.reduce((s: number, a: any) => s + Number(a.billing_amount ?? 0), 0).toFixed(2)} can be
-              added to an existing invoice or billed separately.
-            </div>
-          )}
-        </Card>
-      )}
-
       {/* Overdue */}
       {overdue.length > 0 && (
         <Card>
@@ -1583,15 +1545,59 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
         </Card>
       )}
 
-      {/* Open / Upcoming Invoices */}
-      {open.length > 0 && (
-        <Card>
-          <CardHeader title={`Open & Upcoming (${open.length})`} />
+      {/* Open & Upcoming — includes subscription preview + draft/sent invoices */}
+      <Card>
+        <CardHeader title={`Open & Upcoming (${open.length})`} />
+
+        {/* Subscription next-bill preview */}
+        {subscription && !subscription.paused && (
+          <div className="bg-[#F6F3EE] rounded-lg p-3 mb-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Plan</div>
+                <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">{subscription.plan}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Amount</div>
+                <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">${Number(subscription.amount).toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Next Billing</div>
+                <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">
+                  {subscription.next_billing_date
+                    ? format(new Date(subscription.next_billing_date + 'T00:00:00'), 'MMM d, yyyy')
+                    : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Payment Method</div>
+                <div className="text-sm font-medium text-[#3B2F2A] mt-0.5 capitalize">
+                  {subscription.billing_method?.replace(/_/g, ' ') ?? '—'}
+                </div>
+              </div>
+            </div>
+            {unbilledAddOns.length > 0 && (
+              <div className="mt-3 bg-[#FFF8E1] border border-[#C9A24D]/30 rounded-lg p-2 text-xs text-[#3B2F2A]">
+                <strong>{unbilledAddOns.length} unbilled add-on{unbilledAddOns.length > 1 ? 's' : ''}</strong> ($
+                {unbilledAddOns.reduce((s: number, a: any) => s + Number(a.billing_amount ?? 0), 0).toFixed(2)}) — add to an invoice below
+              </div>
+            )}
+          </div>
+        )}
+        {subscription?.paused && (
+          <div className="bg-[#F6F3EE] rounded-lg p-3 mb-3 text-sm text-[#C8BFB6]">
+            Subscription paused — {subscription.plan} (${Number(subscription.amount).toFixed(2)}/mo)
+          </div>
+        )}
+
+        {open.length > 0 ? (
           <div className="divide-y divide-[#F6F3EE]">
             {open.map((inv: any) => <InvoiceRow key={inv.id} inv={inv} />)}
           </div>
-        </Card>
-      )}
+        ) : !subscription && (
+          <p className="p-4 text-sm text-[#C8BFB6]">No open invoices.</p>
+        )}
+      </Card>
 
       {/* Add-ons */}
       {(add_ons ?? []).length > 0 && (
