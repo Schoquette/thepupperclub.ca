@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #3B2F2A; font-size: 13px; margin: 0; padding: 0; }
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Lato:wght@400;700&display=swap');
+
+    body { font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #3B2F2A; font-size: 13px; margin: 0; padding: 0; }
     .page { padding: 0; }
+    .font-display { font-family: 'Playfair Display SC', serif; }
 
     /* Branded header */
     .header-bar {
@@ -14,7 +17,7 @@
     }
     .header-bar table { width: 100%; }
     .header-bar td { vertical-align: middle; }
-    .invoice-label { font-size: 14px; letter-spacing: 2px; color: #3B2F2A; text-align: right; font-weight: bold; }
+    .invoice-label { font-family: 'Playfair Display SC', serif; font-size: 16px; letter-spacing: 3px; color: #3B2F2A; text-align: right; font-weight: 700; }
     .invoice-meta-text { font-size: 12px; color: rgba(59,47,42,0.6); text-align: right; margin-top: 4px; }
 
     /* Gold accent */
@@ -34,7 +37,7 @@
     .parties { margin-bottom: 28px; }
     .parties table { width: 100%; }
     .parties td { vertical-align: top; width: 50%; }
-    .party-label { color: #C9A24D; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; margin: 0 0 6px; }
+    .party-label { font-family: 'Playfair Display SC', serif; color: #C9A24D; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin: 0 0 6px; }
     .party p { margin: 2px 0; line-height: 1.6; font-size: 12px; }
 
     /* Dates row */
@@ -45,7 +48,7 @@
     /* Line items table */
     .items-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
     .items-table thead tr { background: #F6F3EE; color: #3B2F2A; }
-    .items-table thead th { padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .items-table thead th { font-family: 'Playfair Display SC', serif; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
     .items-table tbody tr { border-bottom: 1px solid #e9e4df; }
     .items-table tbody tr:nth-child(even) { background: #FAFAF8; }
     .items-table tbody td { padding: 10px 12px; font-size: 12px; }
@@ -56,7 +59,7 @@
     .total-row table { width: 100%; }
     .total-row td { font-size: 12px; }
     .total-row.grand { border-top: 3px solid #C9A24D; border-bottom: none; padding-top: 10px; }
-    .total-row.grand td { font-size: 15px; font-weight: bold; color: #3B2F2A; }
+    .total-row.grand td { font-family: 'Playfair Display SC', serif; font-size: 15px; font-weight: 700; color: #3B2F2A; }
 
     /* Payment method box */
     .payment-box { margin-top: 28px; padding: 14px 16px; background: #F6F3EE; border-radius: 6px; border: 1px solid #e9e4df; }
