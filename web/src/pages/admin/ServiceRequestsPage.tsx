@@ -582,8 +582,24 @@ export default function AdminServiceRequestsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredRequests.map((sr: any) => (
-                <tr key={sr.id} className="border-b border-cream/60 hover:bg-cream/30 transition-colors">
+              {filteredRequests.map((sr: any) => {
+                const openDetail = () => {
+                  setSelected(sr);
+                  setAdminResponse('');
+                  setApiError(null);
+                  setBillingType('included_in_plan');
+                  setBillingDescription('');
+                  setBillingAmount('');
+                  const date = sr.preferred_date ? String(sr.preferred_date).substring(0, 10) : '';
+                  const time = TIME_BLOCK_DEFAULTS[sr.preferred_time_block] ?? '09:00';
+                  setScheduledDate(date);
+                  setScheduledTime(time);
+                  setCounterDate(date);
+                  setCounterTime(time);
+                  setAction(sr.status === 'pending' ? 'approve' : null);
+                };
+                return (
+                <tr key={sr.id} className="border-b border-cream/60 hover:bg-cream/30 transition-colors cursor-pointer" onClick={openDetail}>
                   <td className="px-4 py-3 text-espresso whitespace-nowrap">
                     {sr.preferred_date ? format(new Date(sr.preferred_date), 'MMM d, yyyy') : '—'}
                   </td>
@@ -615,28 +631,13 @@ export default function AdminServiceRequestsPage() {
                     <Badge variant={statusBadge(sr.status)}>{sr.status.replace('_', ' ')}</Badge>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {sr.status === 'pending' && (
-                      <Button size="sm" onClick={() => {
-                        setSelected(sr);
-                        setAction('approve');
-                        setAdminResponse('');
-                        setApiError(null);
-                        setBillingType('included_in_plan');
-                        setBillingDescription('');
-                        setBillingAmount('');
-                        const date = sr.preferred_date ? String(sr.preferred_date).substring(0, 10) : '';
-                        const time = TIME_BLOCK_DEFAULTS[sr.preferred_time_block] ?? '09:00';
-                        setScheduledDate(date);
-                        setScheduledTime(time);
-                        setCounterDate(date);
-                        setCounterTime(time);
-                      }}>
-                        Review
-                      </Button>
-                    )}
+                    <button className="text-blue hover:underline text-sm" onClick={e => { e.stopPropagation(); openDetail(); }}>
+                      {sr.status === 'pending' ? 'Review' : 'View'}
+                    </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {filteredRequests.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-taupe">
@@ -649,7 +650,7 @@ export default function AdminServiceRequestsPage() {
         </div>
       </Card>
 
-      <Modal open={!!action && !!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); setScheduledDate(''); setScheduledTime(''); setAdminResponse(''); setCounterDate(''); setCounterTime(''); }} title="Respond to Request">
+      <Modal open={!!selected} onClose={() => { setSelected(null); setAction(null); setApiError(null); setScheduledDate(''); setScheduledTime(''); setAdminResponse(''); setCounterDate(''); setCounterTime(''); }} title={selected?.status === 'pending' ? 'Respond to Request' : 'Service Request Details'}>
         {selected && (
           <div className="space-y-4">
             <div className="bg-cream rounded-lg p-4 text-sm">
@@ -657,8 +658,36 @@ export default function AdminServiceRequestsPage() {
               <div className="text-taupe mt-1">
                 {selected.service_type === 'walk_30' ? '30-Minute Visit' : selected.service_type === 'walk_60' ? '60-Minute Visit' : selected.service_type.replace(/_/g, ' ')} · {TIME_BLOCK_LABELS[selected.preferred_time_block as keyof typeof TIME_BLOCK_LABELS]} · {format(new Date(selected.preferred_date), 'EEEE, MMM d')}
               </div>
+              {selected.notes && (
+                <div className="text-espresso mt-2 italic">"{selected.notes}"</div>
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant={statusBadge(selected.status)}>{selected.status.replace('_', ' ')}</Badge>
+                {(() => {
+                  const rt = selected.request_type ?? 'new_visit';
+                  const isNew = rt === 'new_visit';
+                  return (
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${isNew ? 'bg-blue/10 text-blue' : 'bg-gold/10 text-gold'}`}>
+                      {REQUEST_TYPE_DETAIL[rt] ?? rt}
+                    </span>
+                  );
+                })()}
+              </div>
+              {selected.admin_response && (
+                <div className="mt-2 pt-2 border-t border-taupe/20 text-espresso">
+                  <span className="text-xs text-taupe font-medium">Admin response:</span> {selected.admin_response}
+                </div>
+              )}
             </div>
 
+            {/* Only show action buttons for pending requests */}
+            {selected.status !== 'pending' && (
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => { setSelected(null); setAction(null); }}>Close</Button>
+              </div>
+            )}
+
+            {selected.status === 'pending' && (<>
             <div className="flex gap-2">
               {(['approve','counter','decline'] as const).map(a => (
                 <button key={a} onClick={() => setAction(a)}
@@ -818,6 +847,7 @@ export default function AdminServiceRequestsPage() {
                 {action === 'approve' ? 'Approve & Create Appointment' : action === 'decline' ? 'Decline Request' : 'Send Counter Offer'}
               </Button>
             </div>
+            </>)}
           </div>
         )}
       </Modal>
