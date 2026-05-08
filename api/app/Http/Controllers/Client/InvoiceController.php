@@ -20,6 +20,7 @@ class InvoiceController extends Controller
     {
         $invoices = $request->user()
             ->invoices()
+            ->whereIn('status', ['sent', 'overdue', 'paid'])
             ->with('lineItems')
             ->orderBy('created_at', 'desc')
             ->paginate(20);
