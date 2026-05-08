@@ -286,8 +286,8 @@ function MileageTab({ data }: { data: any }) {
     return Array.from(map.entries()).map(([date, rows]) => ({
       date,
       rows,
-      totalMinutes: rows.reduce((s: number, r: any) => s + (r.duration_minutes ?? 0), 0),
-      totalKm: rows.reduce((s: number, r: any) => s + (r.distance_km ?? 0), 0),
+      totalMinutes: rows.reduce((s: number, r: any) => s + Number(r.duration_minutes ?? 0), 0),
+      totalKm: rows.reduce((s: number, r: any) => s + Number(r.distance_km ?? 0), 0),
     }));
   }, [data?.rows]);
 
