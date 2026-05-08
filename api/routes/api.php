@@ -261,6 +261,18 @@ Route::get('/add-signing-cols-9x7k', function () {
     return response()->json(['results' => $results ?: ['all columns already exist']]);
 });
 
+// Temporary: add 'approved' to invoices status enum (REMOVE after running)
+Route::get('/add-invoice-approved-9x7k', function () {
+    try {
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE invoices MODIFY COLUMN status ENUM('draft','approved','sent','paid','overdue','void') NOT NULL DEFAULT 'draft'"
+        );
+        return response()->json(['message' => 'invoices.status enum updated to include approved.']);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // Temporary: add billing_day to client_profiles (REMOVE after running)
 Route::get('/add-billing-day-9x7k', function () {
     if (!\Illuminate\Support\Facades\Schema::hasColumn('client_profiles', 'billing_day')) {
@@ -564,6 +576,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/invoices/{invoice}/void',      [Admin\InvoiceController::class, 'void']);
         Route::post('/invoices/{invoice}/add-items',  [Admin\InvoiceController::class, 'addLineItems']);
         Route::post('/invoices/{invoice}/discount',  [Admin\InvoiceController::class, 'applyDiscount']);
+        Route::post('/invoices/{invoice}/approve',   [Admin\InvoiceController::class, 'approve']);
         Route::post('/invoices/{invoice}/send',      [Admin\InvoiceController::class, 'send']);
         Route::post('/invoices/{invoice}/resend',   [Admin\InvoiceController::class, 'resend']);
         Route::post('/invoices/{invoice}/reminder', [Admin\InvoiceController::class, 'sendReminder']);

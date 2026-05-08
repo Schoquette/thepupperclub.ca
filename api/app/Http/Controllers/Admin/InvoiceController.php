@@ -71,7 +71,7 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice): JsonResponse
     {
-        abort_unless(in_array($invoice->status, ['draft', 'sent']), 422, 'Cannot edit a paid or void invoice.');
+        abort_unless(in_array($invoice->status, ['draft', 'approved', 'sent']), 422, 'Cannot edit a paid or void invoice.');
 
         $data = $request->validate([
             'due_date'           => 'sometimes|nullable|date',
@@ -107,7 +107,7 @@ class InvoiceController extends Controller
 
     public function void(Invoice $invoice): JsonResponse
     {
-        abort_unless(in_array($invoice->status, ['draft', 'sent', 'overdue']), 422, 'Cannot void a paid invoice.');
+        abort_unless(in_array($invoice->status, ['draft', 'approved', 'sent', 'overdue']), 422, 'Cannot void a paid invoice.');
         $invoice->update(['status' => 'void']);
 
         // Unlink any add-on service requests so they return to unbilled status
@@ -122,7 +122,7 @@ class InvoiceController extends Controller
 
     public function addLineItems(Request $request, Invoice $invoice): JsonResponse
     {
-        abort_unless(in_array($invoice->status, ['draft', 'sent']), 422, 'Cannot modify a paid or void invoice.');
+        abort_unless(in_array($invoice->status, ['draft', 'approved', 'sent']), 422, 'Cannot modify a paid or void invoice.');
 
         $data = $request->validate([
             'line_items'                       => 'required|array|min:1',
@@ -145,7 +145,7 @@ class InvoiceController extends Controller
 
     public function applyDiscount(Request $request, Invoice $invoice): JsonResponse
     {
-        abort_unless(in_array($invoice->status, ['draft', 'sent']), 422, 'Cannot modify a paid or void invoice.');
+        abort_unless(in_array($invoice->status, ['draft', 'approved', 'sent']), 422, 'Cannot modify a paid or void invoice.');
 
         $data = $request->validate([
             'description' => 'required|string|max:255',
@@ -163,6 +163,13 @@ class InvoiceController extends Controller
         $this->invoiceService->recalculate($invoice);
 
         return response()->json(['data' => $invoice->fresh('lineItems')]);
+    }
+
+    public function approve(Invoice $invoice): JsonResponse
+    {
+        abort_unless($invoice->status === 'draft', 422, 'Only draft invoices can be approved.');
+        $invoice->update(['status' => 'approved']);
+        return response()->json(['data' => $invoice->fresh(), 'message' => 'Invoice approved. It will be sent automatically on the due date.']);
     }
 
     public function send(Invoice $invoice): JsonResponse

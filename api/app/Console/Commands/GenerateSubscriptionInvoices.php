@@ -27,10 +27,13 @@ class GenerateSubscriptionInvoices extends Command
         // ── 2. Send payment reminder (3 days before billing date) ────────────
         $this->sendUpcomingReminders($dispatcher);
 
-        // ── 3. Auto-charge CC clients on billing date ────────────────────────
+        // ── 3. Auto-send approved invoices on their due date ──────────────────
+        $this->sendApprovedInvoices($invoiceService);
+
+        // ── 4. Auto-charge CC clients on billing date ────────────────────────
         $this->autoChargeOnDueDate($invoiceService);
 
-        // ── 4. Advance billing date for non-CC clients on billing date ───────
+        // ── 5. Advance billing date for non-CC clients on billing date ───────
         $this->advanceManualBillingDates();
 
         $this->info('Done.');
@@ -182,6 +185,23 @@ class GenerateSubscriptionInvoices extends Command
 
             $dispatcher->notify($client, $title, $body, $htmlBody, type: 'invoices');
             $this->info("Billing reminder sent to {$client->name} for {$billingDate}.");
+        }
+    }
+
+    /**
+     * Auto-send approved invoices whose due date has arrived.
+     */
+    private function sendApprovedInvoices(InvoiceService $invoiceService): void
+    {
+        $today = now()->toDateString();
+
+        $approvedInvoices = Invoice::where('status', 'approved')
+            ->where('due_date', '<=', $today)
+            ->get();
+
+        foreach ($approvedInvoices as $invoice) {
+            $invoiceService->send($invoice);
+            $this->info("Auto-sent approved invoice #{$invoice->invoice_number} (due {$invoice->due_date->toDateString()}).");
         }
     }
 

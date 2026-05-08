@@ -41,6 +41,7 @@ export function statusBadge(status: string): BadgeVariant {
     case 'sent':      return 'blue';
     case 'overdue':   return 'red';
     case 'draft':     return 'gray';
+    case 'approved':  return 'gold';
     case 'cancelled': return 'red';
     case 'completed': return 'green';
     case 'scheduled': return 'blue';

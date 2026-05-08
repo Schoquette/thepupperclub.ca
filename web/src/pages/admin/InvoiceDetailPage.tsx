@@ -159,6 +159,15 @@ export default function AdminInvoiceDetailPage() {
     onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to void invoice.'),
   });
 
+  const approveInvoice = useMutation({
+    mutationFn: () => api.post(`/admin/invoices/${id}/approve`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
+      showToast('Invoice approved. It will be sent automatically on the due date.');
+    },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to approve invoice.'),
+  });
+
   const applyDiscount = useMutation({
     mutationFn: () => api.post(`/admin/invoices/${id}/discount`, {
       description: discountDesc,
@@ -206,7 +215,7 @@ export default function AdminInvoiceDetailPage() {
   if (!invoice) return <div className="text-center py-12 text-taupe">Invoice not found.</div>;
 
   const isVoid = invoice.status === 'void';
-  const canEdit = ['draft', 'sent'].includes(invoice.status);
+  const canEdit = ['draft', 'sent', 'approved'].includes(invoice.status);
 
   // Compute subtotal/GST with fallback for older invoices missing these values
   const displaySubtotal = Number(invoice.subtotal) || (invoice.line_items ?? []).reduce((s: number, li: any) => s + Number(li.total), 0);
@@ -298,12 +307,31 @@ export default function AdminInvoiceDetailPage() {
             <Button size="sm" variant="outline" onClick={startEditing}>Edit</Button>
           )}
           {invoice.status === 'draft' && !editing && (
+            <>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => approveInvoice.mutate()}
+                loading={approveInvoice.isPending}
+              >
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => { if (confirm('Send this invoice to the client now?')) sendInvoice.mutate(); }}
+                loading={sendInvoice.isPending}
+              >
+                <Send className="w-3.5 h-3.5 mr-1" /> Send Now
+              </Button>
+            </>
+          )}
+          {invoice.status === 'approved' && !editing && (
             <Button
               size="sm"
-              onClick={() => { if (confirm('Send this invoice to the client?')) sendInvoice.mutate(); }}
+              onClick={() => { if (confirm('Send this invoice to the client now?')) sendInvoice.mutate(); }}
               loading={sendInvoice.isPending}
             >
-              <Send className="w-3.5 h-3.5 mr-1" /> Send to Client
+              <Send className="w-3.5 h-3.5 mr-1" /> Send Now
             </Button>
           )}
           {['sent', 'overdue'].includes(invoice.status) && (
@@ -324,7 +352,7 @@ export default function AdminInvoiceDetailPage() {
               </Button>
             </>
           )}
-          {['draft', 'sent', 'overdue'].includes(invoice.status) && (
+          {['draft', 'approved', 'sent', 'overdue'].includes(invoice.status) && (
             <Button
               size="sm"
               variant="outline"
