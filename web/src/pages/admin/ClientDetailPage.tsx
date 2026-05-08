@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/Input';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { Pencil, ArrowUp, ArrowDown } from 'lucide-react';
+import { Pencil, ArrowUp, ArrowDown, Plus, Clock, AlertCircle, FileText, ExternalLink } from 'lucide-react';
+import { format } from 'date-fns';
 
-type Tab = 'profile' | 'dogs' | 'documents' | 'access';
+type Tab = 'profile' | 'dogs' | 'billing' | 'documents' | 'access';
 
 // ── Profile form ──────────────────────────────────────────────────────────────
 
@@ -1388,6 +1389,137 @@ function AddDogCard({ clientId, onSaved }: { clientId: number; onSaved: () => vo
   );
 }
 
+// ── Billing tab ──────────────────────────────────────────────────────────────
+
+function ClientBillingTab({ clientId }: { clientId: number }) {
+  const { data: invoices, isLoading: invLoading } = useQuery({
+    queryKey: ['client-invoices', clientId],
+    queryFn: () => api.get('/admin/invoices', { params: { user_id: clientId } }).then(r => r.data?.data ?? r.data),
+  });
+  const { data: srData, isLoading: srLoading } = useQuery({
+    queryKey: ['client-service-requests', clientId],
+    queryFn: () => api.get('/admin/service-requests', { params: { user_id: clientId } }).then(r => r.data?.data ?? r.data),
+  });
+
+  if (invLoading || srLoading) return <PageLoader />;
+
+  const allInvoices: any[] = Array.isArray(invoices) ? invoices : (invoices?.data ?? []);
+  const allRequests: any[] = Array.isArray(srData) ? srData : (srData?.data ?? []);
+
+  const overdue = allInvoices.filter((i: any) => i.status === 'overdue');
+  const open = allInvoices.filter((i: any) => ['draft', 'sent'].includes(i.status));
+  const past = allInvoices.filter((i: any) => ['paid', 'void'].includes(i.status));
+  const pendingRequests = allRequests.filter((r: any) => ['pending', 'approved'].includes(r.status));
+
+  const statusColor = (s: string) => {
+    switch (s) {
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'sent': return 'bg-yellow-100 text-yellow-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
+      case 'draft': return 'bg-gray-100 text-gray-600';
+      case 'void': return 'bg-gray-100 text-gray-400';
+      default: return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  const InvoiceRow = ({ inv }: { inv: any }) => (
+    <Link
+      to={`/admin/invoices/${inv.id}`}
+      className="flex items-center justify-between p-3 rounded-lg hover:bg-[#F6F3EE] transition-colors group"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-sm text-[#3B2F2A]">{inv.invoice_number}</span>
+          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
+            {inv.status}
+          </span>
+        </div>
+        <div className="text-xs text-[#C8BFB6] mt-0.5">
+          {inv.user?.name ?? '—'} · {inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="font-semibold text-sm text-[#3B2F2A]">${Number(inv.total ?? 0).toFixed(2)}</span>
+        <ExternalLink className="w-3.5 h-3.5 text-[#C8BFB6] opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </Link>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Action bar */}
+      <div className="flex justify-end">
+        <Link to={`/admin/invoices/new?client=${clientId}`}>
+          <Button size="sm"><Plus className="w-4 h-4 mr-1" /> New Invoice</Button>
+        </Link>
+      </div>
+
+      {/* Overdue */}
+      {overdue.length > 0 && (
+        <Card>
+          <CardHeader
+            title={`Overdue (${overdue.length})`}
+            action={<AlertCircle className="w-4 h-4 text-red-500" />}
+          />
+          <div className="divide-y divide-[#F6F3EE]">
+            {overdue.map((inv: any) => <InvoiceRow key={inv.id} inv={inv} />)}
+          </div>
+        </Card>
+      )}
+
+      {/* Open / Upcoming */}
+      <Card>
+        <CardHeader title={`Open & Upcoming (${open.length})`} />
+        {open.length > 0 ? (
+          <div className="divide-y divide-[#F6F3EE]">
+            {open.map((inv: any) => <InvoiceRow key={inv.id} inv={inv} />)}
+          </div>
+        ) : (
+          <p className="p-4 text-sm text-[#C8BFB6]">No open invoices.</p>
+        )}
+      </Card>
+
+      {/* Pending Service Requests */}
+      {pendingRequests.length > 0 && (
+        <Card>
+          <CardHeader title={`Pending Service Requests (${pendingRequests.length})`} />
+          <div className="divide-y divide-[#F6F3EE]">
+            {pendingRequests.map((req: any) => (
+              <Link
+                key={req.id}
+                to="/admin/service-requests"
+                className="flex items-center justify-between p-3 hover:bg-[#F6F3EE] transition-colors group"
+              >
+                <div>
+                  <span className="text-sm font-medium text-[#3B2F2A]">{req.service_type?.replace(/_/g, ' ')}</span>
+                  <span className="ml-2 text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">{req.status}</span>
+                  <div className="text-xs text-[#C8BFB6] mt-0.5">
+                    {req.preferred_date ? format(new Date(req.preferred_date), 'MMM d, yyyy') : '—'}
+                    {req.notes ? ` · ${req.notes.slice(0, 60)}` : ''}
+                  </div>
+                </div>
+                <ExternalLink className="w-3.5 h-3.5 text-[#C8BFB6] opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Past Invoices */}
+      <Card>
+        <CardHeader title={`Past Invoices (${past.length})`} />
+        {past.length > 0 ? (
+          <div className="divide-y divide-[#F6F3EE]">
+            {past.map((inv: any) => <InvoiceRow key={inv.id} inv={inv} />)}
+          </div>
+        ) : (
+          <p className="p-4 text-sm text-[#C8BFB6]">No past invoices.</p>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 // ── Documents tab ─────────────────────────────────────────────────────────────
 
 const DOC_TYPES = [
@@ -1979,7 +2111,7 @@ export default function AdminClientDetailPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-taupe/30">
-        {(['profile', 'dogs', 'documents', 'access'] as const).map(t => (
+        {(['profile', 'dogs', 'billing', 'documents', 'access'] as const).map(t => (
           <button
             key={t}
             onClick={() => { setTab(t); setEditing(false); }}
@@ -2221,6 +2353,11 @@ export default function AdminClientDetailPage() {
           ))}
           <AddDogCard clientId={Number(id)} onSaved={refreshClient} />
         </div>
+      )}
+
+      {/* ── Billing tab ──────────────────────────────────────────────────── */}
+      {tab === 'billing' && (
+        <ClientBillingTab clientId={Number(id)} />
       )}
 
       {/* ── Documents tab ─────────────────────────────────────────────────── */}
