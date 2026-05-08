@@ -281,7 +281,7 @@ export default function AdminInvoiceDetailPage() {
 
       {/* Header bar — invoice number, badge, and action buttons all on one row */}
       <div className="flex items-center gap-3 flex-wrap">
-        <button onClick={() => navigate('/admin/invoices')} className="text-taupe hover:text-espresso text-lg">&larr;</button>
+        <button onClick={() => navigate(-1)} className="text-taupe hover:text-espresso text-lg">&larr;</button>
         <h1 className="font-display text-xl text-espresso whitespace-nowrap">{invoice.invoice_number}</h1>
         <Badge variant={statusBadge(invoice.status)}>{invoice.status}</Badge>
         <div className="flex-1" />

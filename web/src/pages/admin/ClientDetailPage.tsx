@@ -1400,29 +1400,66 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
     queryFn: () => api.get(`/admin/clients/${clientId}/billing-summary`).then(r => r.data.data),
   });
 
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [selectedAddOns, setSelectedAddOns] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [addToInvoiceOpen, setAddToInvoiceOpen] = useState(false);
 
-  // Create invoice from selected unbilled add-ons
-  const createFromAddOns = async (addOnIds: number[]) => {
+  const toggleAddOn = (id: number) => {
+    setSelectedAddOns(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = (ids: number[]) => {
+    setSelectedAddOns(prev => {
+      const allSelected = ids.every(id => prev.has(id));
+      if (allSelected) return new Set();
+      return new Set(ids);
+    });
+  };
+
+  const buildLineItems = (addOns: any[]) =>
+    addOns.map((a: any) => ({
+      description: a.service_type.replace(/_/g, ' ') + (a.dogs ? ` (${a.dogs})` : ''),
+      quantity: 1,
+      unit_price: a.billing_amount,
+      service_date: a.preferred_date,
+    }));
+
+  const handleCreateNewInvoice = async () => {
     if (!data) return;
-    const unbilled = data.add_ons.filter((a: any) => !a.billed && addOnIds.includes(a.id));
-    if (!unbilled.length) return;
-    setCreatingInvoice(true);
+    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(a.id));
+    if (!selected.length) return;
+    setBusy(true);
     try {
       const res = await api.post('/admin/invoices', {
         user_id: clientId,
-        line_items: unbilled.map((a: any) => ({
-          description: a.service_type.replace(/_/g, ' ') + (a.dogs ? ` (${a.dogs})` : ''),
-          quantity: 1,
-          unit_price: a.billing_amount,
-          service_date: a.preferred_date,
-        })),
+        line_items: buildLineItems(selected),
       });
-      // Link service requests to created line items
       queryClient.invalidateQueries({ queryKey: ['client-billing-summary', clientId] });
+      setSelectedAddOns(new Set());
       navigate(`/admin/invoices/${res.data.data.id}`);
     } finally {
-      setCreatingInvoice(false);
+      setBusy(false);
+    }
+  };
+
+  const handleAddToInvoice = async (invoiceId: number) => {
+    if (!data) return;
+    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(a.id));
+    if (!selected.length) return;
+    setBusy(true);
+    try {
+      await api.post(`/admin/invoices/${invoiceId}/add-items`, {
+        line_items: buildLineItems(selected),
+      });
+      queryClient.invalidateQueries({ queryKey: ['client-billing-summary', clientId] });
+      setSelectedAddOns(new Set());
+      setAddToInvoiceOpen(false);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -1435,9 +1472,10 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
   const overdue = allInvoices.filter((i: any) => i.status === 'overdue');
   const open = allInvoices.filter((i: any) => ['draft', 'sent'].includes(i.status));
   const past = allInvoices.filter((i: any) => ['paid', 'void'].includes(i.status));
+  const editableInvoices = allInvoices.filter((i: any) => ['draft', 'sent'].includes(i.status));
 
-  const unbilledAddOns = (add_ons ?? []).filter((a: any) => !a.billed);
-  const billedAddOns = (add_ons ?? []).filter((a: any) => a.billed);
+  const unbilledAddOns: any[] = (add_ons ?? []).filter((a: any) => !a.billed);
+  const hasSelection = selectedAddOns.size > 0;
 
   const statusColor = (s: string) => {
     switch (s) {
@@ -1450,31 +1488,40 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
     }
   };
 
-  const InvoiceRow = ({ inv }: { inv: any }) => (
-    <Link
-      to={`/admin/invoices/${inv.id}`}
-      className="flex items-center justify-between p-3 rounded-lg hover:bg-[#F6F3EE] transition-colors group"
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-sm text-[#3B2F2A]">{inv.invoice_number}</span>
-          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
-            {inv.status}
-          </span>
-        </div>
-        <div className="text-xs text-[#C8BFB6] mt-0.5">
-          {inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}
-          {inv.billing_period_start && inv.billing_period_end
-            ? ` · ${format(new Date(inv.billing_period_start), 'MMM d')} – ${format(new Date(inv.billing_period_end), 'MMM d')}`
-            : ''}
+  const InvoiceRow = ({ inv }: { inv: any }) => {
+    const editable = ['draft', 'sent'].includes(inv.status);
+    return (
+      <div className="flex items-center justify-between p-3 rounded-lg hover:bg-[#F6F3EE] transition-colors group">
+        <Link to={`/admin/invoices/${inv.id}`} className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-sm text-[#3B2F2A]">{inv.invoice_number}</span>
+            <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
+              {inv.status}
+            </span>
+          </div>
+          <div className="text-xs text-[#C8BFB6] mt-0.5">
+            {inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}
+            {inv.billing_period_start && inv.billing_period_end
+              ? ` · ${format(new Date(inv.billing_period_start), 'MMM d')} – ${format(new Date(inv.billing_period_end), 'MMM d')}`
+              : ''}
+            {inv.line_items?.length ? ` · ${inv.line_items.length} item${inv.line_items.length > 1 ? 's' : ''}` : ''}
+          </div>
+        </Link>
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-sm text-[#3B2F2A]">${Number(inv.total ?? 0).toFixed(2)}</span>
+          {editable && (
+            <button
+              onClick={() => navigate(`/admin/invoices/${inv.id}`)}
+              className="text-xs text-[#C9A24D] hover:underline font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              Edit
+            </button>
+          )}
+          <ExternalLink className="w-3.5 h-3.5 text-[#C8BFB6] opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="font-semibold text-sm text-[#3B2F2A]">${Number(inv.total ?? 0).toFixed(2)}</span>
-        <ExternalLink className="w-3.5 h-3.5 text-[#C8BFB6] opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </Link>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -1516,8 +1563,8 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
           {unbilledAddOns.length > 0 && (
             <div className="bg-[#FFF8E1] border border-[#C9A24D]/30 rounded-lg p-3 text-xs text-[#3B2F2A]">
               <strong>{unbilledAddOns.length} unbilled add-on{unbilledAddOns.length > 1 ? 's' : ''}</strong> totalling $
-              {unbilledAddOns.reduce((s: number, a: any) => s + Number(a.billing_amount ?? 0), 0).toFixed(2)} will be
-              added to the next bill or can be invoiced now.
+              {unbilledAddOns.reduce((s: number, a: any) => s + Number(a.billing_amount ?? 0), 0).toFixed(2)} can be
+              added to an existing invoice or billed separately.
             </div>
           )}
         </Card>
@@ -1549,22 +1596,78 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
       {/* Add-ons */}
       {(add_ons ?? []).length > 0 && (
         <Card>
-          <CardHeader
-            title={`Add-ons (${(add_ons ?? []).length})`}
-            action={unbilledAddOns.length > 0 ? (
-              <Button
-                size="sm"
-                onClick={() => createFromAddOns(unbilledAddOns.map((a: any) => a.id))}
-                loading={creatingInvoice}
-                disabled={creatingInvoice}
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" /> Invoice All Unbilled
-              </Button>
-            ) : undefined}
-          />
+          <CardHeader title={`Add-ons (${(add_ons ?? []).length})`} />
+
+          {/* Action buttons when unbilled items are selected */}
+          {unbilledAddOns.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mb-4 relative">
+              <span className="text-xs text-[#C8BFB6]">
+                {hasSelection ? `${selectedAddOns.size} selected` : 'Select add-ons below'}
+              </span>
+              <div className="ml-auto flex gap-2">
+                {editableInvoices.length > 0 && (
+                  <div className="relative">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!hasSelection || busy}
+                      onClick={() => setAddToInvoiceOpen(!addToInvoiceOpen)}
+                    >
+                      Add to Existing Invoice
+                    </Button>
+                    {addToInvoiceOpen && hasSelection && (
+                      <div className="absolute right-0 top-full mt-1 bg-white border border-[#C8BFB6]/50 rounded-lg shadow-lg z-20 min-w-[240px]">
+                        <div className="p-2 border-b border-[#F6F3EE] text-xs text-[#C8BFB6] font-medium">
+                          Choose an invoice:
+                        </div>
+                        {editableInvoices.map((inv: any) => (
+                          <button
+                            key={inv.id}
+                            onClick={() => handleAddToInvoice(inv.id)}
+                            disabled={busy}
+                            className="w-full text-left px-3 py-2 hover:bg-[#F6F3EE] transition-colors flex items-center justify-between"
+                          >
+                            <div>
+                              <div className="text-sm font-medium text-[#3B2F2A]">{inv.invoice_number}</div>
+                              <div className="text-[10px] text-[#C8BFB6]">
+                                {inv.status} · ${Number(inv.total ?? 0).toFixed(2)}
+                              </div>
+                            </div>
+                            <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
+                              {inv.status}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <Button
+                  size="sm"
+                  disabled={!hasSelection || busy}
+                  loading={busy}
+                  onClick={handleCreateNewInvoice}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Create New Invoice
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="divide-y divide-[#F6F3EE]">
             {(add_ons ?? []).map((addon: any) => (
-              <div key={addon.id} className="flex items-center justify-between p-3">
+              <div key={addon.id} className="flex items-center gap-3 p-3">
+                {/* Checkbox for unbilled items */}
+                {!addon.billed ? (
+                  <input
+                    type="checkbox"
+                    checked={selectedAddOns.has(addon.id)}
+                    onChange={() => toggleAddOn(addon.id)}
+                    className="w-4 h-4 rounded border-[#C8BFB6] text-[#C9A24D] focus:ring-[#C9A24D] cursor-pointer shrink-0"
+                  />
+                ) : (
+                  <div className="w-4 shrink-0" />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[#3B2F2A]">
@@ -1601,6 +1704,18 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
               </div>
             ))}
           </div>
+
+          {/* Select all toggle for unbilled */}
+          {unbilledAddOns.length > 1 && (
+            <div className="px-3 py-2 border-t border-[#F6F3EE]">
+              <button
+                onClick={() => toggleAll(unbilledAddOns.map((a: any) => a.id))}
+                className="text-xs text-[#C9A24D] hover:underline font-medium"
+              >
+                {unbilledAddOns.every((a: any) => selectedAddOns.has(a.id)) ? 'Deselect all' : 'Select all unbilled'}
+              </button>
+            </div>
+          )}
         </Card>
       )}
 

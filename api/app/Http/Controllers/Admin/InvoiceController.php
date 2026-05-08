@@ -107,6 +107,27 @@ class InvoiceController extends Controller
         return response()->json(['data' => $invoice->fresh()]);
     }
 
+    public function addLineItems(Request $request, Invoice $invoice): JsonResponse
+    {
+        abort_unless(in_array($invoice->status, ['draft', 'sent']), 422, 'Cannot modify a paid or void invoice.');
+
+        $data = $request->validate([
+            'line_items'                  => 'required|array|min:1',
+            'line_items.*.description'    => 'required|string',
+            'line_items.*.quantity'       => 'required|integer|min:1',
+            'line_items.*.unit_price'     => 'required|numeric',
+            'line_items.*.service_date'   => 'nullable|date',
+        ]);
+
+        $this->invoiceService->attachLineItems($invoice, $data['line_items']);
+        $this->invoiceService->recalculate($invoice);
+
+        // Return the IDs of the newly created line items so callers can link them
+        $newIds = $invoice->lineItems()->latest('id')->limit(count($data['line_items']))->pluck('id');
+
+        return response()->json(['data' => $invoice->fresh('lineItems'), 'new_line_item_ids' => $newIds]);
+    }
+
     public function applyDiscount(Request $request, Invoice $invoice): JsonResponse
     {
         abort_unless(in_array($invoice->status, ['draft', 'sent']), 422, 'Cannot modify a paid or void invoice.');
