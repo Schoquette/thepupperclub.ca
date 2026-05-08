@@ -25,6 +25,9 @@ class ReportCardService
         // ── 1. Chat message ────────────────────────────────────────────────────
         $conversation = Conversation::firstOrCreate(['user_id' => $client->id]);
 
+        $dogs = $report->appointment?->dogs ?? $client->dogs;
+        $dogNames = $dogs->pluck('name')->implode(', ') ?: null;
+
         $conversation->messages()->create([
             'sender_id' => $adminId,
             'type'      => 'visit_report',
@@ -34,9 +37,12 @@ class ReportCardService
                 'arrival_time'        => $report->arrival_time?->toIso8601String(),
                 'departure_time'      => $report->departure_time?->toIso8601String(),
                 'checklist'           => $report->checklist ?? [],
+                'dog_data'            => $report->dog_data,
                 'special_trip_details'=> $report->special_trip_details,
                 'notes'               => $report->notes,
+                'dog_names'           => $dogNames,
                 'has_photo'           => (bool) $report->report_photo_path,
+                'photo_count'         => count($report->photo_paths ?? ($report->report_photo_path ? [1] : [])),
             ],
         ]);
 

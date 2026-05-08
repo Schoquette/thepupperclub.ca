@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import type { Message } from '@pupper/shared';
 import { format } from 'date-fns';
 import api from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Reaction {
   emoji: string;
@@ -338,10 +340,17 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
       .filter(([k, v]) => k !== 'special_trip_details' && v)
       .map(([k]) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()));
 
+    const reportLink = isOwn
+      ? `/admin/report-cards/${meta.report_id}`
+      : '/client/report-cards';
+
     return (
       <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-card overflow-hidden border-l-4 border-gold">
         <div className="bg-espresso px-4 py-3">
           <div className="font-display text-cream text-sm tracking-wide">Visit Report Card 🐾</div>
+          {meta.dog_names && (
+            <div className="text-cream/80 text-xs mt-1">{meta.dog_names}</div>
+          )}
           {(meta.arrival_time || meta.departure_time) && (
             <div className="flex gap-6 mt-2">
               {meta.arrival_time && (
@@ -387,15 +396,25 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
           )}
 
           {meta.notes && (
-            <p className="text-xs text-taupe italic line-clamp-2 mb-2">{meta.notes}</p>
+            <p className="text-sm text-espresso mb-3">{meta.notes}</p>
           )}
 
           {meta.has_photo && (
-            <div className="text-xs text-taupe mb-1">📷 Photo included</div>
+            <div className="text-xs text-taupe mb-2">
+              📷 {(meta.photo_count ?? 1) > 1 ? `${meta.photo_count} photos` : 'Photo included'}
+            </div>
           )}
 
-          <div className="text-xs text-taupe mt-1">
-            {format(new Date(message.created_at), 'h:mm a')}
+          <div className="flex items-center justify-between mt-2">
+            <div className="text-xs text-taupe">
+              {format(new Date(message.created_at), 'h:mm a')}
+            </div>
+            <Link
+              to={reportLink}
+              className="text-xs font-semibold text-gold hover:text-espresso transition-colors"
+            >
+              View Full Report →
+            </Link>
           </div>
         </div>
       </div>
@@ -404,12 +423,31 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
 
   if (message.type === 'invoice') {
     const meta = message.metadata as any;
+    const invoiceLink = isOwn
+      ? `/admin/invoices/${meta.invoice_id}`
+      : `/client/invoices/${meta.invoice_id}`;
+
     return (
       <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-card p-5 border-l-4 border-blue">
         <div className="font-display text-espresso text-sm mb-2">Invoice #{meta.invoice_number}</div>
         <div className="text-2xl font-bold text-espresso mb-1">${Number(meta.total ?? 0).toFixed(2)}</div>
-        {meta.due_date && <div className="text-xs text-taupe">Due {meta.due_date}</div>}
-        <div className="text-xs text-taupe mt-2">{format(new Date(message.created_at), 'h:mm a')}</div>
+        {meta.due_date && <div className="text-xs text-taupe">Due {format(new Date(meta.due_date + 'T00:00'), 'MMMM d, yyyy')}</div>}
+        {meta.billing_period_start && meta.billing_period_end && (
+          <div className="text-xs text-taupe mt-1">
+            {format(new Date(meta.billing_period_start + 'T00:00'), 'MMM d')} – {format(new Date(meta.billing_period_end + 'T00:00'), 'MMM d, yyyy')}
+          </div>
+        )}
+        <div className="flex items-center justify-between mt-3">
+          <div className="text-xs text-taupe">
+            {format(new Date(message.created_at), 'h:mm a')}
+          </div>
+          <Link
+            to={invoiceLink}
+            className="text-xs font-semibold text-gold hover:text-espresso transition-colors"
+          >
+            View Invoice →
+          </Link>
+        </div>
       </div>
     );
   }
