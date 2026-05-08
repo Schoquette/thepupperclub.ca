@@ -1057,7 +1057,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                       {h.new_amount ? `$${Number(h.new_amount).toFixed(2)}/mo` : '—'}
                       {h.proration_amount && Number(h.proration_amount) !== 0 && (
                         <span className={`ml-1 ${Number(h.proration_amount) > 0 ? 'text-blue-600' : 'text-green-600'}`}>
-                          ({Number(h.proration_amount) > 0 ? '+' : ''}${Number(h.proration_amount).toFixed(2)})
+                          (${Number(h.proration_amount).toFixed(2)})
                         </span>
                       )}
                     </td>
