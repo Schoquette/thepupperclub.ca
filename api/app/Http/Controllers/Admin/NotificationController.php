@@ -222,6 +222,10 @@ class NotificationController extends Controller
             'attachments' => [],
         ])->render();
 
+        // Replace CID logo with real URL for browser preview
+        $logoUrl = '/api/images/logo-cream-stacked.png';
+        $emailHtml = str_replace('cid:logo@thepupperclub.ca', $logoUrl, $emailHtml);
+
         return response()->json([
             'email_html'  => $emailHtml,
             'html_body'   => $previewBody,
@@ -422,6 +426,10 @@ class NotificationController extends Controller
                 'heading' => null,
             ])->render();
         }
+
+        // Replace CID logo with real URL for browser preview
+        $logoUrl = '/api/images/logo-cream-stacked.png';
+        $html = str_replace('cid:logo@thepupperclub.ca', $logoUrl, $html);
 
         return response()->json(['html' => $html]);
     }
