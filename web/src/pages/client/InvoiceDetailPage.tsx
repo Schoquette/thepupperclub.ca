@@ -124,6 +124,7 @@ export default function ClientInvoiceDetailPage() {
   const [tipping, setTipping] = useState(false);
   const [tipAmount, setTipAmount] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState('');
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [tipError, setTipError] = useState('');
 
   const { data: invoice, isLoading } = useQuery({
@@ -149,6 +150,7 @@ export default function ClientInvoiceDetailPage() {
   });
 
   const downloadPdf = async () => {
+    setPdfLoading(true);
     try {
       const response = await api.get(`/client/invoices/${id}/pdf`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -161,7 +163,9 @@ export default function ClientInvoiceDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      // silently fail
+      alert('Failed to download PDF.');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -195,8 +199,8 @@ export default function ClientInvoiceDetailPage() {
               <Heart className="w-3.5 h-3.5 mr-1" /> Add Tip
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={downloadPdf}>
-            <Download className="w-3.5 h-3.5 mr-1" /> PDF
+          <Button size="sm" variant="outline" onClick={downloadPdf} loading={pdfLoading} disabled={pdfLoading}>
+            <Download className="w-3.5 h-3.5 mr-1" /> {pdfLoading ? 'Downloading...' : 'PDF'}
           </Button>
         </div>
       </div>

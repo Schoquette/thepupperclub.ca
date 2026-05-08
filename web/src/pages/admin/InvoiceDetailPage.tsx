@@ -35,6 +35,7 @@ export default function AdminInvoiceDetailPage() {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
   const [discountDesc, setDiscountDesc] = useState('Discount');
@@ -175,6 +176,7 @@ export default function AdminInvoiceDetailPage() {
   });
 
   const downloadPdf = async () => {
+    setPdfLoading(true);
     try {
       const response = await api.get(`/admin/invoices/${id}/pdf`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -188,6 +190,8 @@ export default function AdminInvoiceDetailPage() {
       URL.revokeObjectURL(url);
     } catch {
       alert('Failed to download PDF.');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -324,8 +328,8 @@ export default function AdminInvoiceDetailPage() {
             </Button>
           )}
           {!isVoid && (
-            <Button size="sm" variant="outline" onClick={downloadPdf}>
-              <Download className="w-3.5 h-3.5 mr-1" /> PDF
+            <Button size="sm" variant="outline" onClick={downloadPdf} loading={pdfLoading} disabled={pdfLoading}>
+              <Download className="w-3.5 h-3.5 mr-1" /> {pdfLoading ? 'Downloading...' : 'PDF'}
             </Button>
           )}
         </div>
