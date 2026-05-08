@@ -30,7 +30,7 @@ function ReportPhoto({ reportId, index }: { reportId: number; index: number }) {
   }, [reportId, index]);
 
   if (!src) return <div className="w-full h-48 bg-cream animate-pulse rounded-xl" />;
-  return <img src={src} alt="Visit photo" className="w-full max-h-64 object-cover rounded-xl" />;
+  return <img src={src} alt="Visit photo" className="w-full h-auto rounded-xl" />;
 }
 
 export default function ClientReportCardsPage() {

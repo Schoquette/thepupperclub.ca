@@ -16,7 +16,7 @@
   @if(!empty($photoUrls))
   <div style="margin: 0 -40px 20px; overflow: hidden;">
     @foreach($photoUrls as $i => $url)
-    <img src="{{ $url }}" alt="Visit photo {{ $i + 1 }}" style="width: 100%; max-height: 320px; object-fit: cover; display: block;{{ $i > 0 ? ' margin-top: 8px;' : '' }}">
+    <img src="{{ $url }}" alt="Visit photo {{ $i + 1 }}" style="width: 100%; height: auto; display: block; border-radius: 8px;{{ $i > 0 ? ' margin-top: 8px;' : '' }}">
     @endforeach
   </div>
   @endif

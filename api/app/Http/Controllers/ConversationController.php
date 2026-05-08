@@ -145,10 +145,20 @@ class ConversationController extends Controller
         } else {
             $conversation->increment('unread_count_client');
 
-            // Notify client via their preferred channels
+            // Notify client via their preferred channels (include photo in email)
             $client = User::find($clientId);
             if ($client) {
-                $htmlBody = self::buildMessageEmailHtml('You received a new photo message.');
+                $cid = 'photo-' . $message->id . '@thepupperclub.ca';
+                $htmlBody = self::buildPhotoEmailHtml($cid);
+                $inlineImages = [];
+                if (Storage::disk('local')->exists($path)) {
+                    $inlineImages[] = [
+                        'data'     => Storage::disk('local')->get($path),
+                        'filename' => $file->getClientOriginalName(),
+                        'mime'     => $file->getMimeType(),
+                        'cid'      => $cid,
+                    ];
+                }
                 app(NotificationDispatcher::class)->notify(
                     $client,
                     'New photo from The Pupper Club',
@@ -157,6 +167,7 @@ class ConversationController extends Controller
                     [],
                     $user->email,
                     type: 'messages',
+                    inlineImages: $inlineImages,
                 );
             }
         }
@@ -322,6 +333,28 @@ class ConversationController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('ensureReplyColumn failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Build HTML body for photo message emails — embeds the photo inline.
+     */
+    private static function buildPhotoEmailHtml(string $cid): string
+    {
+        $portalUrl = 'https://thepupperclub.ca/client/messages';
+
+        return '<div style="text-align:center;margin:16px 0;">'
+            . '<img src="cid:' . $cid . '" alt="Photo" style="max-width:100%;height:auto;border-radius:12px;" />'
+            . '</div>'
+            . '<p style="margin-top:24px;color:#5a4a44;font-size:14px;">'
+            . 'To write back, reply directly to this email, or click the button below to reply in the portal.'
+            . '</p>'
+            . '<div style="text-align:center;margin:28px 0;">'
+            . '<a href="' . $portalUrl . '" style="'
+            . 'display:inline-block;background:#3B2F2A;color:#F6F3EE;'
+            . 'padding:14px 32px;border-radius:10px;text-decoration:none;'
+            . 'font-weight:600;font-size:15px;letter-spacing:0.3px;'
+            . '">Reply in Portal</a>'
+            . '</div>';
     }
 
     /**

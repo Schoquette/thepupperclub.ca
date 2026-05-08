@@ -23,7 +23,7 @@ class NotificationDispatcher
      * @param string|null $htmlBody  Optional HTML body for email (falls back to $body)
      * @param array  $data    Optional data payload for push notifications
      */
-    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null, ?string $type = null): void
+    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null, ?string $type = null, array $inlineImages = []): void
     {
         // Check if client has opted out of this notification type
         if ($type && $user->role === 'client' && $user->clientProfile) {
@@ -42,7 +42,7 @@ class NotificationDispatcher
 
         // Email
         if ($prefs['notify_email'] && $user->email) {
-            $this->sendEmail($user, $title, $htmlBody ?? nl2br(e($body)), $replyTo);
+            $this->sendEmail($user, $title, $htmlBody ?? nl2br(e($body)), $replyTo, $inlineImages);
         }
 
         // SMS (one-way — log in to respond)
@@ -110,11 +110,11 @@ class NotificationDispatcher
     /**
      * Send a branded email notification.
      */
-    private function sendEmail(User $user, string $title, string $htmlContent, ?string $replyTo = null): void
+    private function sendEmail(User $user, string $title, string $htmlContent, ?string $replyTo = null, array $inlineImages = []): void
     {
         try {
             $logoPath = public_path('images/logo-cream-stacked.png');
-            Mail::send([], [], function ($message) use ($user, $title, $htmlContent, $replyTo, $logoPath) {
+            Mail::send([], [], function ($message) use ($user, $title, $htmlContent, $replyTo, $logoPath, $inlineImages) {
                 // Check for custom general_notification template
                 $customHtml = \App\Http\Controllers\Admin\NotificationController::renderSystemTemplate(
                     'general_notification',
@@ -128,8 +128,10 @@ class NotificationDispatcher
                         'content'  => $htmlContent,
                         'userName' => $user->name,
                     ])->render());
+
+                $symfony = $message->getSymfonyMessage();
+
                 if (file_exists($logoPath)) {
-                    $symfony = $message->getSymfonyMessage();
                     $logoPart = new \Symfony\Component\Mime\Part\DataPart(
                         file_get_contents($logoPath),
                         'logo.png',
@@ -139,6 +141,19 @@ class NotificationDispatcher
                     $logoPart->setContentId('logo@thepupperclub.ca');
                     $symfony->addPart($logoPart);
                 }
+
+                // Attach inline images (e.g. photo messages)
+                foreach ($inlineImages as $img) {
+                    $part = new \Symfony\Component\Mime\Part\DataPart(
+                        $img['data'],
+                        $img['filename'] ?? 'photo.jpg',
+                        $img['mime'] ?? 'image/jpeg'
+                    );
+                    $part->asInline();
+                    $part->setContentId($img['cid']);
+                    $symfony->addPart($part);
+                }
+
                 // Reply-To: use inbound address so replies route into the app.
                 // If not configured, use MAIL_FROM_ADDRESS (not the admin's personal email).
                 $inbound = config('services.resend.inbound_address');
