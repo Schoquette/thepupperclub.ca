@@ -97,10 +97,13 @@ function PhotoBubble({
   message: Props['message'];
   isOwn: boolean;
 }) {
+  const meta = message.metadata as any;
+  const isBroadcastAttachment = meta?.broadcast === true;
   const [open, setOpen] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isBroadcastAttachment) return; // Don't fetch blob for broadcast attachments
     let url = '';
     api
       .get(`/messages/${message.id}/photo`, { responseType: 'blob' })
@@ -112,15 +115,51 @@ function PhotoBubble({
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
-  }, [message.id]);
+  }, [message.id, isBroadcastAttachment]);
 
   const download = () => {
+    if (isBroadcastAttachment) {
+      // Download broadcast attachment via authenticated endpoint
+      api.get(`/messages/${message.id}/photo`, { responseType: 'blob' }).then((r) => {
+        const url = URL.createObjectURL(r.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = meta?.original_name || (message.body as string) || 'file';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+      return;
+    }
     if (!blobUrl) return;
     const a = document.createElement('a');
     a.href = blobUrl;
     a.download = (message.body as string) || 'photo.jpg';
     a.click();
   };
+
+  // Broadcast attachments: show as "File Attached" with download icon
+  if (isBroadcastAttachment) {
+    return (
+      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+        <div>
+          <button
+            onClick={download}
+            className="flex items-center gap-2 bg-cream/80 hover:bg-cream border border-taupe/20 rounded-xl px-4 py-2.5 transition-colors"
+          >
+            <svg className="w-4 h-4 text-espresso" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span className="text-sm font-medium text-espresso">
+              {meta?.original_name || 'File Attached'}
+            </span>
+          </button>
+          <div className={`text-xs mt-1 text-taupe ${isOwn ? 'text-right' : ''}`}>
+            {format(new Date(message.created_at), 'h:mm a')}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

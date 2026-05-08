@@ -31,11 +31,11 @@
     /* Header — Blue with logo */
     .header {
       background: #6492D8;
-      padding: 32px 40px;
+      padding: 10px 40px;
       text-align: center;
     }
     .header img {
-      max-width: 220px;
+      max-width: 120px;
       height: auto;
     }
 
@@ -115,8 +115,8 @@
 
     @@media only screen and (max-width: 620px) {
       .wrapper { padding: 20px 12px; }
-      .header { padding: 24px 20px; }
-      .header img { max-width: 180px; }
+      .header { padding: 8px 20px; }
+      .header img { max-width: 100px; }
       .email-body { padding: 28px 24px; }
       .footer { padding: 20px 24px; }
     }
@@ -126,8 +126,8 @@
   <div class="wrapper" style="width:100%;background-color:#F6F3EE;padding:40px 0;">
     <div class="container" style="max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(59,47,42,0.08);">
       {{-- Header --}}
-      <div class="header" style="background-color:#6492D8;padding:32px 40px;text-align:center;">
-        <img src="cid:logo@thepupperclub.ca" alt="The Pupper Club" style="max-width:220px;height:auto;" />
+      <div class="header" style="background-color:#6492D8;padding:10px 40px;text-align:center;">
+        <img src="cid:logo@thepupperclub.ca" alt="The Pupper Club" style="max-width:120px;height:auto;" />
       </div>
 
       {{-- Content --}}
