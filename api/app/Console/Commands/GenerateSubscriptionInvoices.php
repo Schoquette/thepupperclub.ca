@@ -131,7 +131,7 @@ class GenerateSubscriptionInvoices extends Command
 
         $autoChargeClients = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
-            ->where('next_billing_date', $today)
+            ->where('next_billing_date', '<=', $today)
             ->whereIn('billing_method', ['credit_card', 'interac_pad'])
             ->whereNotNull('stripe_payment_method_id')
             ->whereNull('stripe_subscription_id') // skip Stripe-managed subscriptions
@@ -193,10 +193,10 @@ class GenerateSubscriptionInvoices extends Command
         $today = now()->toDateString();
         $threeDaysFromNow = now()->addDays(3)->toDateString();
 
-        // E-transfer/cash clients: send invoice 3 days BEFORE due date so they have time to pay
+        // E-transfer/cash clients: send invoice 3 days BEFORE billing date so they have time to pay
         $earlyInvoiceClients = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
-            ->where('next_billing_date', $threeDaysFromNow)
+            ->whereBetween('next_billing_date', [$today, $threeDaysFromNow])
             ->where(function ($q) {
                 $q->whereIn('billing_method', ['e_transfer', 'cash'])
                   ->orWhereNull('billing_method');
@@ -244,7 +244,7 @@ class GenerateSubscriptionInvoices extends Command
         // CC/PAD clients who don't have a payment method saved — send on due date
         $noPaymentMethod = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
-            ->where('next_billing_date', $today)
+            ->where('next_billing_date', '<=', $today)
             ->whereIn('billing_method', ['credit_card', 'interac_pad'])
             ->whereNull('stripe_payment_method_id')
             ->whereNull('stripe_subscription_id')

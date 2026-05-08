@@ -91,7 +91,7 @@ class StripeSubscriptionService
                 'subscription_amount'     => (string) $amount,
                 'subscription_tier'       => $price->nickname ?? strtolower($productName),
                 'subscription_start_date' => $isNewSubscription ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()) : $profile->subscription_start_date,
-                'next_billing_date'       => $isNewSubscription ? ($effectiveDate ? Carbon::parse($effectiveDate)->addMonth() : now()->addMonth()) : $profile->next_billing_date,
+                'next_billing_date'       => $isNewSubscription ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()->startOfDay()) : $profile->next_billing_date,
                 'subscription_end_date'   => null,
             ];
 
