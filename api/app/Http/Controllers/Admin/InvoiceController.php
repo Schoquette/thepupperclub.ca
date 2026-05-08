@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Services\InvoiceService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -42,8 +43,9 @@ class InvoiceController extends Controller
             'line_items.*.description'    => 'required|string',
             'line_items.*.quantity'       => 'required|integer|min:1',
             'line_items.*.unit_price'     => 'required|numeric',
-            'line_items.*.service_date'   => 'nullable|date',
-            'line_items.*.appointment_id' => 'nullable|exists:appointments,id',
+            'line_items.*.service_date'        => 'nullable|date',
+            'line_items.*.appointment_id'      => 'nullable|exists:appointments,id',
+            'line_items.*.service_request_id'  => 'nullable|integer',
         ]);
 
         $invoice = $this->invoiceService->create(
@@ -55,6 +57,9 @@ class InvoiceController extends Controller
             $data['billing_period_start'] ?? null,
             $data['billing_period_end'] ?? null,
         );
+
+        // Link service requests to the newly created line items
+        $this->linkServiceRequests($data['line_items'], $invoice->lineItems);
 
         return response()->json(['data' => $invoice->load('lineItems')], 201);
     }
@@ -104,6 +109,14 @@ class InvoiceController extends Controller
     {
         abort_unless(in_array($invoice->status, ['draft', 'sent', 'overdue']), 422, 'Cannot void a paid invoice.');
         $invoice->update(['status' => 'void']);
+
+        // Unlink any add-on service requests so they return to unbilled status
+        $lineItemIds = $invoice->lineItems()->pluck('id');
+        if ($lineItemIds->isNotEmpty()) {
+            ServiceRequest::whereIn('invoice_line_item_id', $lineItemIds)
+                ->update(['invoice_line_item_id' => null]);
+        }
+
         return response()->json(['data' => $invoice->fresh()]);
     }
 
@@ -112,20 +125,22 @@ class InvoiceController extends Controller
         abort_unless(in_array($invoice->status, ['draft', 'sent']), 422, 'Cannot modify a paid or void invoice.');
 
         $data = $request->validate([
-            'line_items'                  => 'required|array|min:1',
-            'line_items.*.description'    => 'required|string',
-            'line_items.*.quantity'       => 'required|integer|min:1',
-            'line_items.*.unit_price'     => 'required|numeric',
-            'line_items.*.service_date'   => 'nullable|date',
+            'line_items'                       => 'required|array|min:1',
+            'line_items.*.description'         => 'required|string',
+            'line_items.*.quantity'            => 'required|integer|min:1',
+            'line_items.*.unit_price'          => 'required|numeric',
+            'line_items.*.service_date'        => 'nullable|date',
+            'line_items.*.service_request_id'  => 'nullable|integer',
         ]);
 
         $this->invoiceService->attachLineItems($invoice, $data['line_items']);
         $this->invoiceService->recalculate($invoice);
 
-        // Return the IDs of the newly created line items so callers can link them
-        $newIds = $invoice->lineItems()->latest('id')->limit(count($data['line_items']))->pluck('id');
+        // Link service requests to the newly created line items
+        $newLineItems = $invoice->lineItems()->latest('id')->limit(count($data['line_items']))->get();
+        $this->linkServiceRequests($data['line_items'], $newLineItems);
 
-        return response()->json(['data' => $invoice->fresh('lineItems'), 'new_line_item_ids' => $newIds]);
+        return response()->json(['data' => $invoice->fresh('lineItems')]);
     }
 
     public function applyDiscount(Request $request, Invoice $invoice): JsonResponse
@@ -186,5 +201,20 @@ class InvoiceController extends Controller
     public function dashboard(): JsonResponse
     {
         return response()->json(['data' => $this->invoiceService->dashboardSummary()]);
+    }
+
+    /**
+     * Link service requests to their corresponding invoice line items.
+     */
+    private function linkServiceRequests(array $inputItems, $lineItems): void
+    {
+        $lineItemsArr = $lineItems instanceof \Illuminate\Support\Collection ? $lineItems->values() : collect($lineItems)->values();
+
+        foreach ($inputItems as $i => $item) {
+            if (!empty($item['service_request_id']) && isset($lineItemsArr[$i])) {
+                ServiceRequest::where('id', $item['service_request_id'])
+                    ->update(['invoice_line_item_id' => $lineItemsArr[$i]->id]);
+            }
+        }
     }
 }

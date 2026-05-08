@@ -1426,6 +1426,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
       quantity: 1,
       unit_price: a.billing_amount,
       service_date: a.preferred_date,
+      service_request_id: a.id,
     }));
 
   const handleCreateNewInvoice = async () => {
