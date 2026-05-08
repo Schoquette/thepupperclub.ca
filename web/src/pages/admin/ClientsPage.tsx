@@ -274,7 +274,7 @@ export default function AdminClientsPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-taupe whitespace-nowrap">
                       {profile.next_billing_date
-                        ? new Date(profile.next_billing_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        ? new Date(profile.next_billing_date.slice(0, 10) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                         : '—'}
                     </td>
                     <td className="px-6 py-4">
