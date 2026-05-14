@@ -238,7 +238,12 @@ class NotificationController extends Controller
     public function uploadInlineImage(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => 'required|image|max:10240', // 10MB
+            'image' => [
+                'required',
+                'file',
+                'max:10240', // 10MB
+                'mimetypes:image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/bmp,image/heic,image/heif',
+            ],
         ]);
 
         $file = $request->file('image');

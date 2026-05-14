@@ -74,6 +74,9 @@ export default function AdminBroadcastPage() {
   const [sysEditBody, setSysEditBody] = useState('');
   const sysEditorRef = useRef<RichTextEditorHandle>(null);
 
+  // History expansion state
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+
   // Preview state
   const [showPreview, setShowPreview] = useState(false);
   const [previewTab, setPreviewTab] = useState<'app' | 'email'>('email');
@@ -327,21 +330,37 @@ export default function AdminBroadcastPage() {
     );
   };
 
-  // Deduplicate broadcast history
+  // Deduplicate broadcast history; collect per-broadcast recipient list
   const broadcasts = useMemo(() => {
     const all: any[] = historyData?.data ?? [];
-    const seen = new Map<string, any & { count: number }>();
+    const seen = new Map<string, any & { count: number; recipients: any[]; key: string }>();
     for (const n of all) {
       if (n.data?.type !== 'broadcast') continue;
       const key = `${n.title}||${n.body}||${n.sent_at?.substring(0, 16)}`;
       if (seen.has(key)) {
-        seen.get(key)!.count++;
+        const existing = seen.get(key)!;
+        existing.count++;
+        if (n.user) existing.recipients.push(n.user);
       } else {
-        seen.set(key, { ...n, count: 1 });
+        seen.set(key, {
+          ...n,
+          count: 1,
+          recipients: n.user ? [n.user] : [],
+          key,
+        });
       }
     }
     return Array.from(seen.values());
   }, [historyData]);
+
+  const toggleExpanded = (key: string) => {
+    setExpandedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const canSend = subject.trim() && body.trim() && (recipientMode === 'all' || selectedIds.length > 0);
 
@@ -580,24 +599,75 @@ export default function AdminBroadcastPage() {
           </Card>
         ) : (
           <div className="space-y-2">
-            {broadcasts.map((n: any, i: number) => (
-              <Card key={i} padding="sm">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-espresso text-sm">{n.title}</div>
-                    <div className="text-sm text-taupe mt-0.5 line-clamp-2">{n.body}</div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-xs text-taupe">
-                      {n.sent_at ? format(new Date(n.sent_at), 'MMM d, yyyy · h:mm a') : '—'}
+            {broadcasts.map((n: any) => {
+              const isExpanded = expandedKeys.has(n.key);
+              return (
+                <Card key={n.key} padding="sm">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(n.key)}
+                    className="w-full text-left flex items-start justify-between gap-4 cursor-pointer hover:opacity-80 transition-opacity"
+                    aria-expanded={isExpanded}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-espresso text-sm">{n.title}</div>
+                      {!isExpanded && (
+                        <div className="text-sm text-taupe mt-0.5 line-clamp-2">{n.body}</div>
+                      )}
                     </div>
-                    <div className="text-xs text-taupe mt-0.5">
-                      {n.count} recipient{n.count !== 1 ? 's' : ''}
+                    <div className="flex items-start gap-2 flex-shrink-0">
+                      <div className="text-right">
+                        <div className="text-xs text-taupe">
+                          {n.sent_at ? format(new Date(n.sent_at), 'MMM d, yyyy · h:mm a') : '—'}
+                        </div>
+                        <div className="text-xs text-taupe mt-0.5">
+                          {n.count} recipient{n.count !== 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <svg
+                        className={`w-4 h-4 text-taupe mt-0.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
                     </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 border-t border-cream space-y-3">
+                      <div>
+                        <div className="text-xs font-medium text-espresso uppercase tracking-wide mb-1.5">Message</div>
+                        <div className="text-sm text-espresso whitespace-pre-wrap leading-relaxed">{n.body}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs font-medium text-espresso uppercase tracking-wide mb-1.5">
+                          Recipients ({n.recipients.length})
+                        </div>
+                        {n.recipients.length === 0 ? (
+                          <div className="text-xs text-taupe italic">No recipient details available.</div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {n.recipients.map((r: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className="text-xs bg-cream rounded-full px-2.5 py-1 text-espresso"
+                                title={r.email}
+                              >
+                                {r.name}
+                                {r.email && <span className="text-taupe ml-1.5">·{' '}{r.email}</span>}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
