@@ -37,6 +37,20 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Convert HTML to readable plain text. Decodes entities (&nbsp; etc.) and
+// turns block elements / <br> into newlines.
+function htmlToPlain(html: string): string {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  tmp.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+  tmp.querySelectorAll('p, div, h1, h2, h3, h4, li').forEach(el => el.append('\n'));
+  return (tmp.textContent || '')
+    .replace(/ /g, ' ')   // non-breaking space → regular space
+    .replace(/\n{3,}/g, '\n\n') // collapse excess blank lines
+    .trim();
+}
+
 export default function AdminBroadcastPage() {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -330,13 +344,27 @@ export default function AdminBroadcastPage() {
     );
   };
 
-  // Deduplicate broadcast history; collect per-broadcast recipient list
+  // Group broadcast notifications by broadcast_id (preferred — one per send)
+  // with a fallback to title+body+timestamp for legacy records that predate
+  // the broadcast_id field. Each card carries the original (un-substituted)
+  // title and body rendered as plain text, plus the full recipient list.
   const broadcasts = useMemo(() => {
     const all: any[] = historyData?.data ?? [];
-    const seen = new Map<string, any & { count: number; recipients: any[]; key: string }>();
+    const seen = new Map<string, any & { count: number; recipients: any[]; key: string; displayTitle: string; displayBody: string }>();
     for (const n of all) {
       if (n.data?.type !== 'broadcast') continue;
-      const key = `${n.title}||${n.body}||${n.sent_at?.substring(0, 16)}`;
+
+      const broadcastId = n.data?.broadcast_id as string | undefined;
+      const key = broadcastId
+        ? `bid:${broadcastId}`
+        : `${n.title}||${n.body}||${n.sent_at?.substring(0, 16)}`;
+
+      // Prefer the original (un-substituted) text so the same broadcast is shown
+      // identically for every recipient (tokens visible as {client_first_name}).
+      const rawBody  = (n.data?.original_body as string | undefined) ?? n.body ?? '';
+      const displayBody  = htmlToPlain(rawBody);
+      const displayTitle = (n.data?.original_title as string | undefined) ?? n.title ?? '';
+
       if (seen.has(key)) {
         const existing = seen.get(key)!;
         existing.count++;
@@ -347,6 +375,8 @@ export default function AdminBroadcastPage() {
           count: 1,
           recipients: n.user ? [n.user] : [],
           key,
+          displayTitle,
+          displayBody,
         });
       }
     }
@@ -610,9 +640,9 @@ export default function AdminBroadcastPage() {
                     aria-expanded={isExpanded}
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-espresso text-sm">{n.title}</div>
+                      <div className="font-semibold text-espresso text-sm">{n.displayTitle}</div>
                       {!isExpanded && (
-                        <div className="text-sm text-taupe mt-0.5 line-clamp-2">{n.body}</div>
+                        <div className="text-sm text-taupe mt-0.5 line-clamp-2 whitespace-pre-wrap">{n.displayBody}</div>
                       )}
                     </div>
                     <div className="flex items-start gap-2 flex-shrink-0">
@@ -640,7 +670,7 @@ export default function AdminBroadcastPage() {
                     <div className="mt-3 pt-3 border-t border-cream space-y-3">
                       <div>
                         <div className="text-xs font-medium text-espresso uppercase tracking-wide mb-1.5">Message</div>
-                        <div className="text-sm text-espresso whitespace-pre-wrap leading-relaxed">{n.body}</div>
+                        <div className="text-sm text-espresso whitespace-pre-wrap leading-relaxed">{n.displayBody}</div>
                       </div>
                       <div>
                         <div className="text-xs font-medium text-espresso uppercase tracking-wide mb-1.5">

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class NotificationController extends Controller
 {
@@ -58,6 +59,12 @@ class NotificationController extends Controller
 
         $users = $query->with(['dogs', 'clientProfile'])->get();
 
+        // One ID per broadcast send so the admin history can group all recipients
+        // under the same card, regardless of per-user token substitution.
+        $broadcastId = (string) Str::uuid();
+        $originalTitle = $data['title']; // pre-substitution
+        $originalBody  = $data['body'];  // pre-substitution (HTML)
+
         foreach ($users as $user) {
             // Replace tokens per-user
             $userBody = $this->replaceTokens($data['body'], $user);
@@ -68,37 +75,37 @@ class NotificationController extends Controller
                 'user_id' => $user->id,
                 'title'   => $userTitle,
                 'body'    => $plainBody,
-                'data'    => ['type' => 'broadcast'],
+                'data'    => [
+                    'type'           => 'broadcast',
+                    'broadcast_id'   => $broadcastId,
+                    'original_title' => $originalTitle,
+                    'original_body'  => $originalBody,
+                ],
                 'sent_at' => now(),
             ]);
 
-            // Store in conversation thread
+            // Store in conversation thread — single message carrying both content and attachments
             $conversation = $user->conversation()->firstOrCreate(['user_id' => $user->id]);
+            $messageMeta = [
+                'title'     => $userTitle,
+                'broadcast' => true,
+                'html_body' => $userBody,
+            ];
+            if (!empty($storedFiles)) {
+                $messageMeta['attachments'] = array_map(fn($a) => [
+                    'storage_path'  => $a['storage_path'],
+                    'mime_type'     => $a['mime_type'],
+                    'original_name' => $a['original_name'],
+                    'size'          => $a['size'],
+                    'broadcast'     => true,
+                ], $storedFiles);
+            }
             $conversation->messages()->create([
                 'sender_id' => $request->user()->id,
                 'type'      => 'notification',
                 'body'      => $plainBody,
-                'metadata'  => [
-                    'title'     => $userTitle,
-                    'broadcast' => true,
-                    'html_body' => $userBody,
-                ],
+                'metadata'  => $messageMeta,
             ]);
-
-            // Send each attachment as a separate message
-            foreach ($storedFiles as $att) {
-                $conversation->messages()->create([
-                    'sender_id' => $request->user()->id,
-                    'type'      => 'photo',
-                    'body'      => $att['original_name'],
-                    'metadata'  => [
-                        'storage_path'  => $att['storage_path'],
-                        'mime_type'     => $att['mime_type'],
-                        'original_name' => $att['original_name'],
-                        'broadcast'     => true,
-                    ],
-                ]);
-            }
 
             // Extract images from HTML body and prepare for CID embedding
             [$emailBody, $inlineImages] = $this->extractInlineImages($userBody);
