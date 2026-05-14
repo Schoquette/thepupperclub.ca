@@ -354,10 +354,13 @@ export default function AdminBroadcastPage() {
     for (const n of all) {
       if (n.data?.type !== 'broadcast') continue;
 
+      // New broadcasts carry a server-stamped broadcast_id. Legacy rows don't,
+      // so we fall back to title + minute (a single broadcast send loops
+      // through recipients within one minute, sharing the same title).
       const broadcastId = n.data?.broadcast_id as string | undefined;
       const key = broadcastId
         ? `bid:${broadcastId}`
-        : `${n.title}||${n.body}||${n.sent_at?.substring(0, 16)}`;
+        : `legacy:${n.title}||${n.sent_at?.substring(0, 16)}`;
 
       // Prefer the original (un-substituted) text so the same broadcast is shown
       // identically for every recipient (tokens visible as {client_first_name}).
