@@ -41,7 +41,20 @@ export type MessageMetadata =
   | ArrivalMetadata
   | VisitReportMetadata
   | InvoiceMetadata
-  | NotificationMetadata;
+  | NotificationMetadata
+  | TextMessageMetadata;
+
+export interface MessageAttachment {
+  storage_path: string;
+  mime_type: string;
+  original_name: string;
+  size?: number;
+  broadcast?: boolean;
+}
+
+export interface TextMessageMetadata {
+  attachments?: MessageAttachment[];
+}
 
 export interface PreVisitPromptMetadata {
   appointment_id: number;
@@ -75,6 +88,8 @@ export interface InvoiceMetadata {
 export interface NotificationMetadata {
   title: string;
   broadcast: boolean;
+  html_body?: string;
+  attachments?: MessageAttachment[];
 }
 
 export interface PushNotification {

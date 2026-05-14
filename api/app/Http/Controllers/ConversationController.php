@@ -73,16 +73,41 @@ class ConversationController extends Controller
         }
 
         $request->validate([
-            'body'        => 'required|string|max:5000',
-            'reply_to_id' => 'nullable|integer|exists:messages,id',
+            'body'          => 'nullable|string|max:5000',
+            'reply_to_id'   => 'nullable|integer|exists:messages,id',
+            'attachments'   => 'nullable|array|max:10',
+            'attachments.*' => 'file|max:10240', // 10MB per file
         ]);
 
+        $body        = trim((string) $request->input('body', ''));
+        $hasFiles    = $request->hasFile('attachments');
+
+        // Require at least one of: body text or attachments
+        abort_if($body === '' && !$hasFiles, 422, 'Message must include text or an attachment.');
+
         $conversation = Conversation::firstOrCreate(['user_id' => $clientId]);
+
+        // Store attachments locally and capture metadata
+        $attachmentsMeta = [];
+        if ($hasFiles) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store("photos/{$conversation->id}", 'local');
+                $attachmentsMeta[] = [
+                    'storage_path'  => $path,
+                    'mime_type'     => $file->getMimeType(),
+                    'original_name' => $file->getClientOriginalName(),
+                    'size'          => $file->getSize(),
+                ];
+            }
+        }
+
+        $metadata = $attachmentsMeta ? ['attachments' => $attachmentsMeta] : null;
 
         $message = $conversation->messages()->create([
             'sender_id'   => $user->id,
             'type'        => 'text',
-            'body'        => $request->body,
+            'body'        => $body !== '' ? $body : null,
+            'metadata'    => $metadata,
             'reply_to_id' => $request->reply_to_id,
         ]);
 
@@ -94,15 +119,47 @@ class ConversationController extends Controller
             // Notify client via their preferred channels
             $client = User::find($clientId);
             if ($client) {
-                $htmlBody = self::buildMessageEmailHtml(e($request->body));
+                $emailPreview = $body !== ''
+                    ? $body
+                    : (count($attachmentsMeta) === 1 ? '📷 Photo' : '📷 ' . count($attachmentsMeta) . ' photos');
+
+                // Embed first image attachment in email if present
+                $inlineImages = [];
+                $emailExtraHtml = '';
+                $imageAttachments = array_values(array_filter(
+                    $attachmentsMeta,
+                    fn($a) => str_starts_with((string) ($a['mime_type'] ?? ''), 'image/')
+                ));
+                if (!empty($imageAttachments)) {
+                    foreach ($imageAttachments as $i => $att) {
+                        if (!Storage::disk('local')->exists($att['storage_path'])) continue;
+                        $cid = "msg-{$message->id}-att-{$i}@thepupperclub.ca";
+                        $inlineImages[] = [
+                            'data'     => Storage::disk('local')->get($att['storage_path']),
+                            'filename' => $att['original_name'] ?? "photo-{$i}.jpg",
+                            'mime'     => $att['mime_type'] ?? 'image/jpeg',
+                            'cid'      => $cid,
+                        ];
+                        $emailExtraHtml .= '<div style="text-align:center;margin:12px 0;">'
+                            . '<img src="cid:' . $cid . '" alt="Photo" style="max-width:100%;height:auto;border-radius:12px;" />'
+                            . '</div>';
+                    }
+                }
+
+                $htmlBody = self::buildMessageEmailHtml(
+                    $body !== '' ? e($body) : '',
+                    $emailExtraHtml,
+                );
+
                 app(NotificationDispatcher::class)->notify(
                     $client,
                     'New message from The Pupper Club',
-                    $request->body,
+                    $emailPreview,
                     $htmlBody,
                     [],
                     $user->email,
                     type: 'messages',
+                    inlineImages: $inlineImages,
                 );
             }
         }
@@ -359,12 +416,16 @@ class ConversationController extends Controller
 
     /**
      * Build HTML body for message notification emails with reply instructions and portal button.
+     * `$extraHtml` is appended after the text body — used to embed inline image CID references.
      */
-    private static function buildMessageEmailHtml(string $messageContent): string
+    private static function buildMessageEmailHtml(string $messageContent, string $extraHtml = ''): string
     {
         $portalUrl = 'https://thepupperclub.ca/client/messages';
 
-        return '<p>' . nl2br($messageContent) . '</p>'
+        $textBlock = $messageContent !== '' ? '<p>' . nl2br($messageContent) . '</p>' : '';
+
+        return $textBlock
+            . $extraHtml
             . '<p style="margin-top:24px;color:#5a4a44;font-size:14px;">'
             . 'To write back, reply directly to this email, or click the button below to reply in the portal.'
             . '</p>'

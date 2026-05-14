@@ -91,34 +91,27 @@ export default function ClientMessagesPage() {
   };
 
   const [msgError, setMsgError] = useState('');
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
 
   const send = useMutation({
-    mutationFn: () => api.post(`/conversations/${user?.id}/messages`, {
-      body: text,
-      reply_to_id: replyTo?.id ?? null,
-    }),
+    mutationFn: () => {
+      const form = new FormData();
+      form.append('body', text);
+      if (replyTo?.id) form.append('reply_to_id', String(replyTo.id));
+      pendingAttachments.forEach(f => form.append('attachments[]', f));
+      return api.post(`/conversations/${user?.id}/messages`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
     onSuccess: () => {
       setText('');
       setReplyTo(null);
+      setPendingAttachments([]);
       setMsgError('');
       qc.invalidateQueries({ queryKey: ['client-conversation'] });
     },
     onError: (e: any) => {
       setMsgError(e.response?.data?.message || 'Failed to send message.');
-    },
-  });
-
-  const sendPhoto = useMutation({
-    mutationFn: (file: File) => {
-      const form = new FormData();
-      form.append('photo', file);
-      return api.post(`/conversations/${user?.id}/photo`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-    },
-    onSuccess: () => { setMsgError(''); qc.invalidateQueries({ queryKey: ['client-conversation'] }); },
-    onError: (e: any) => {
-      setMsgError(e.response?.data?.message || 'Failed to send photo.');
     },
   });
 
@@ -152,17 +145,23 @@ export default function ClientMessagesPage() {
     },
   });
 
+  const canSend = (text.trim().length > 0 || pendingAttachments.length > 0) && !send.isPending;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (text.trim()) send.mutate();
+      if (canSend) send.mutate();
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) sendPhoto.mutate(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) setPendingAttachments(prev => [...prev, ...files]);
     e.target.value = '';
+  };
+
+  const removePending = (i: number) => {
+    setPendingAttachments(prev => prev.filter((_, idx) => idx !== i));
   };
 
   const insertEmoji = (emoji: string) => {
@@ -353,28 +352,55 @@ export default function ClientMessagesPage() {
         </div>
       )}
 
+      {/* Pending attachment previews */}
+      {pendingAttachments.length > 0 && (
+        <div className={`flex gap-2 flex-wrap bg-white shadow-card px-3 py-2 ${replyTo ? '' : 'rounded-t-xl mt-3'} border-b border-cream`}>
+          {pendingAttachments.map((f, i) => {
+            const isImage = f.type.startsWith('image/');
+            return (
+              <div key={i} className="relative group">
+                {isImage ? (
+                  <img
+                    src={URL.createObjectURL(f)}
+                    alt={f.name}
+                    className="w-16 h-16 rounded-lg object-cover border border-cream"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-lg bg-cream flex items-center justify-center text-[10px] text-taupe text-center px-1 break-words font-medium border border-cream">
+                    {f.name.split('.').pop()?.toUpperCase()}
+                  </div>
+                )}
+                <button
+                  onClick={() => removePending(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-espresso text-white rounded-full flex items-center justify-center text-xs hover:bg-red-500 transition-colors"
+                  title="Remove"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Input */}
-      <div className={`flex items-center gap-2 bg-white shadow-card p-3 ${replyTo ? 'rounded-b-xl' : 'rounded-xl mt-3'}`}>
+      <div className={`flex items-center gap-2 bg-white shadow-card p-3 ${replyTo || pendingAttachments.length > 0 ? 'rounded-b-xl' : 'rounded-xl mt-3'}`}>
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={handleFileChange}
         />
         <button
           className="text-taupe hover:text-gold transition-colors p-1.5 rounded hover:bg-cream"
-          title="Send a photo"
+          title="Attach photos"
           onClick={() => fileInputRef.current?.click()}
-          disabled={sendPhoto.isPending}
         >
-          {sendPhoto.isPending ? (
-            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21zM10.5 8.25a1.125 1.125 0 11-2.25 0 1.125 1.125 0 012.25 0z" />
-            </svg>
-          )}
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21zM10.5 8.25a1.125 1.125 0 11-2.25 0 1.125 1.125 0 012.25 0z" />
+          </svg>
         </button>
 
         {/* Emoji picker */}
@@ -422,7 +448,7 @@ export default function ClientMessagesPage() {
         />
         <Button
           size="sm"
-          disabled={!text.trim()}
+          disabled={!canSend}
           loading={send.isPending}
           onClick={() => send.mutate()}
         >

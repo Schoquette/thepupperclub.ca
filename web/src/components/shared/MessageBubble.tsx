@@ -47,45 +47,150 @@ function isEmojiOnly(text: unknown): boolean {
   return stripped.length === 0;
 }
 
-// Fetches a photo via authenticated API and renders it as an <img>.
-function AuthImage({
+// Loads an attachment image as a blob and renders it as <img>.
+// Falls back to a non-image preview chip if the mime type isn't an image.
+function InlineAttachment({
   messageId,
-  alt,
-  className,
-  onClick,
+  index,
+  attachment,
+  onOpen,
 }: {
   messageId: number;
-  alt: string;
-  className?: string;
-  onClick?: () => void;
+  index: number;
+  attachment: { mime_type?: string; original_name?: string };
+  onOpen: (blobUrl: string, name: string) => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
+  const isImage = (attachment.mime_type ?? '').startsWith('image/');
 
   useEffect(() => {
-    let objectUrl = '';
+    if (!isImage) return;
+    let url = '';
     api
-      .get(`/messages/${messageId}/photo`, { responseType: 'blob' })
+      .get(`/messages/${messageId}/attachment/${index}`, { responseType: 'blob' })
       .then((r) => {
-        objectUrl = URL.createObjectURL(r.data);
-        setSrc(objectUrl);
+        url = URL.createObjectURL(r.data);
+        setSrc(url);
       })
       .catch(() => {});
     return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      if (url) URL.revokeObjectURL(url);
     };
-  }, [messageId]);
+  }, [messageId, index, isImage]);
+
+  const handleDownload = async () => {
+    try {
+      const res = await api.get(`/messages/${messageId}/attachment/${index}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.original_name || 'file';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      /* swallow */
+    }
+  };
+
+  if (!isImage) {
+    return (
+      <button
+        onClick={handleDownload}
+        className="flex items-center gap-2 bg-cream/80 hover:bg-cream border border-taupe/20 rounded-xl px-3 py-2 transition-colors w-full text-left"
+      >
+        <svg className="w-4 h-4 text-espresso flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        <span className="text-sm font-medium text-espresso truncate">
+          {attachment.original_name || 'File'}
+        </span>
+      </button>
+    );
+  }
 
   if (!src) {
-    return <div className="h-48 w-56 bg-cream animate-pulse rounded-2xl" />;
+    return <div className="h-40 w-40 bg-cream animate-pulse rounded-xl" />;
   }
 
   return (
     <img
       src={src}
-      alt={alt}
-      className={className}
-      onClick={onClick}
+      alt={attachment.original_name || 'Photo'}
+      className="rounded-xl cursor-zoom-in max-h-56 max-w-full object-cover shadow-card"
+      onClick={() => onOpen(src, attachment.original_name || 'photo.jpg')}
     />
+  );
+}
+
+// Renders 1..N attachments in a grid plus a shared lightbox.
+function AttachmentGrid({
+  messageId,
+  attachments,
+}: {
+  messageId: number;
+  attachments: Array<{ mime_type?: string; original_name?: string }>;
+}) {
+  const [lightbox, setLightbox] = useState<{ url: string; name: string } | null>(null);
+
+  if (!attachments.length) return null;
+
+  const handleDownload = () => {
+    if (!lightbox) return;
+    const a = document.createElement('a');
+    a.href = lightbox.url;
+    a.download = lightbox.name;
+    a.click();
+  };
+
+  const gridCols = attachments.length === 1 ? 'grid-cols-1' : 'grid-cols-2';
+
+  return (
+    <>
+      <div className={`grid ${gridCols} gap-1.5`}>
+        {attachments.map((att, i) => (
+          <InlineAttachment
+            key={i}
+            messageId={messageId}
+            index={i}
+            attachment={att}
+            onOpen={(url, name) => setLightbox({ url, name })}
+          />
+        ))}
+      </div>
+
+      {lightbox && createPortal(
+        <div
+          className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center"
+          onClick={() => setLightbox(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full mx-4 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightbox.url}
+              alt={lightbox.name}
+              className="max-h-[75vh] max-w-full rounded-2xl object-contain shadow-2xl"
+            />
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={handleDownload}
+                className="bg-white text-espresso px-5 py-2 rounded-xl text-sm font-semibold hover:bg-cream transition-colors"
+              >
+                ↓ Download
+              </button>
+              <button
+                onClick={() => setLightbox(null)}
+                className="bg-white/20 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-white/30 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -504,6 +609,7 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
   if (message.type === 'notification') {
     const meta = message.metadata as any;
     const hasHtml = !!meta?.html_body;
+    const notificationAttachments = (meta?.attachments ?? []) as Array<{ mime_type?: string; original_name?: string }>;
 
     return (
       <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-card border border-cream">
@@ -520,6 +626,11 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
             />
           ) : (
             <p className="text-sm text-espresso leading-relaxed">{message.body}</p>
+          )}
+          {notificationAttachments.length > 0 && (
+            <div className="mt-3">
+              <AttachmentGrid messageId={message.id} attachments={notificationAttachments} />
+            </div>
           )}
           <div className="text-xs text-taupe mt-3">{format(new Date(message.created_at), 'h:mm a')}</div>
         </div>
@@ -545,11 +656,16 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
   }
 
   // Standard text bubble
-  const canMutate = isOwn && message.type === 'text' &&
+  const textMeta = message.metadata as any;
+  const messageAttachments = (textMeta?.attachments ?? []) as Array<{ mime_type?: string; original_name?: string }>;
+  const hasAttachments = messageAttachments.length > 0;
+  const hasBody = !!(message.body && message.body.trim());
+
+  const canMutate = isOwn && message.type === 'text' && hasBody && !hasAttachments &&
     new Date(message.created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000;
 
   const reactions = message.reactions ?? [];
-  const emojiOnly = message.type === 'text' && isEmojiOnly(message.body);
+  const emojiOnly = message.type === 'text' && !hasAttachments && isEmojiOnly(message.body);
   const replyTo = (message as any).reply_to as ReplyTo | null | undefined;
 
   return (
@@ -579,24 +695,44 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
               {isOwn && message.read_at && ' · Read'}
             </div>
           </div>
+        ) : hasAttachments && !hasBody ? (
+          // Attachment-only message — no text bubble background, just the photos
+          <div className="max-w-[75%] flex flex-col">
+            {replyTo && <ReplyPreview replyTo={replyTo} isOwn={isOwn} />}
+            {!isOwn && (
+              <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
+            )}
+            <AttachmentGrid messageId={message.id} attachments={messageAttachments} />
+            <div className={`text-xs mt-1 text-taupe ${isOwn ? 'text-right' : ''}`}>
+              {format(new Date(message.created_at), 'h:mm a')}
+              {isOwn && message.read_at && ' · Read'}
+            </div>
+          </div>
         ) : (
           <div
-            className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
+            className={`max-w-[75%] rounded-2xl text-sm overflow-hidden ${
               isOwn
                 ? 'bg-blue text-white rounded-br-sm'
                 : 'bg-white shadow-card text-espresso rounded-bl-sm'
             }`}
           >
-            {replyTo && <ReplyPreview replyTo={replyTo} isOwn={isOwn} />}
-            {!isOwn && (
-              <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
+            {hasAttachments && (
+              <div className="p-1.5 pb-0">
+                <AttachmentGrid messageId={message.id} attachments={messageAttachments} />
+              </div>
             )}
-            <p className="leading-relaxed">{message.body}</p>
-            <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
-              {format(new Date(message.created_at), 'h:mm a')}
-              {(message as any).edited_at && ' · Edited'}
-              {isOwn && message.read_at && ' · Read'}
-              {(message.metadata as any)?.source === 'email' && ' · via email'}
+            <div className="px-4 py-2.5">
+              {replyTo && <ReplyPreview replyTo={replyTo} isOwn={isOwn} />}
+              {!isOwn && (
+                <div className="text-xs font-semibold mb-1 text-taupe">{message.sender?.name}</div>
+              )}
+              {hasBody && <p className="leading-relaxed whitespace-pre-wrap">{message.body}</p>}
+              <div className={`text-xs mt-1 ${isOwn ? 'text-white/70' : 'text-taupe'}`}>
+                {format(new Date(message.created_at), 'h:mm a')}
+                {(message as any).edited_at && ' · Edited'}
+                {isOwn && message.read_at && ' · Read'}
+                {(message.metadata as any)?.source === 'email' && ' · via email'}
+              </div>
             </div>
           </div>
         )}

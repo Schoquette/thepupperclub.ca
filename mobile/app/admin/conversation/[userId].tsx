@@ -155,8 +155,15 @@ function MessageItem({
     );
   }
 
-  const canMutate = isOwn && message.type === 'text' &&
+  const meta = message.metadata ?? {};
+  const attachments = (meta.attachments ?? []) as Array<{ mime_type?: string; original_name?: string }>;
+  const hasAttachments = attachments.length > 0;
+  const hasBody = !!(message.body && String(message.body).trim());
+
+  const canMutate = isOwn && message.type === 'text' && hasBody && !hasAttachments &&
     new Date(message.created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000;
+
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   return (
     <View style={[bubble.row, isOwn ? bubble.right : bubble.left]}>
@@ -169,9 +176,35 @@ function MessageItem({
           {!isOwn && message.sender && (
             <Text style={bubble.senderName}>{message.sender.name}</Text>
           )}
-          <Text style={[bubble.text, isOwn ? bubble.ownText : bubble.otherText]}>
-            {message.body}
-          </Text>
+          {hasAttachments && (
+            <View style={ph.grid}>
+              {attachments.map((att, i) => {
+                const isImage = (att.mime_type ?? '').startsWith('image/');
+                if (!isImage) {
+                  return (
+                    <View key={i} style={ph.fileChip}>
+                      <Text style={ph.fileChipText}>📎 {att.original_name || 'File'}</Text>
+                    </View>
+                  );
+                }
+                const uri = `${API_URL}/api/messages/${message.id}/attachment/${i}`;
+                return (
+                  <Image
+                    key={i}
+                    source={{ uri, headers }}
+                    style={ph.gridImg}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                );
+              })}
+            </View>
+          )}
+          {hasBody && (
+            <Text style={[bubble.text, isOwn ? bubble.ownText : bubble.otherText, hasAttachments && { marginTop: 8 }]}>
+              {message.body}
+            </Text>
+          )}
           <Text style={[bubble.time, isOwn ? bubble.ownTime : bubble.otherTime]}>
             {format(new Date(message.created_at), 'h:mm a')}
             {message.edited_at ? ' · Edited' : ''}
@@ -197,6 +230,7 @@ export default function AdminConversationScreen() {
   const [editBody, setEditBody] = useState('');
   const [showEmojiBar, setShowEmojiBar] = useState(false);
   const [reactTarget, setReactTarget] = useState<any>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<ImagePicker.ImagePickerAsset[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['mobile-admin-conversation', userId],
@@ -214,27 +248,23 @@ export default function AdminConversationScreen() {
   }, [data]);
 
   const send = useMutation({
-    mutationFn: () => api.post(`/conversations/${userId}/messages`, { body: text }),
-    onSuccess: () => {
-      setText('');
-      qc.invalidateQueries({ queryKey: ['mobile-admin-conversation', userId] });
-      qc.invalidateQueries({ queryKey: ['mobile-admin-inbox'] });
-    },
-  });
-
-  const sendPhoto = useMutation({
-    mutationFn: async (asset: ImagePicker.ImagePickerAsset) => {
+    mutationFn: async () => {
       const form = new FormData();
-      form.append('photo', {
-        uri: asset.uri,
-        name: asset.fileName ?? 'photo.jpg',
-        type: asset.mimeType ?? 'image/jpeg',
-      } as any);
-      return api.post(`/conversations/${userId}/photo`, form, {
+      form.append('body', text);
+      pendingAttachments.forEach((asset, i) => {
+        form.append('attachments[]', {
+          uri: asset.uri,
+          name: asset.fileName ?? `photo-${i}.jpg`,
+          type: asset.mimeType ?? 'image/jpeg',
+        } as any);
+      });
+      return api.post(`/conversations/${userId}/messages`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     },
     onSuccess: () => {
+      setText('');
+      setPendingAttachments([]);
       qc.invalidateQueries({ queryKey: ['mobile-admin-conversation', userId] });
       qc.invalidateQueries({ queryKey: ['mobile-admin-inbox'] });
     },
@@ -295,11 +325,19 @@ export default function AdminConversationScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
     });
-    if (!result.canceled && result.assets[0]) {
-      sendPhoto.mutate(result.assets[0]);
+    if (!result.canceled && result.assets.length) {
+      setPendingAttachments(prev => [...prev, ...result.assets]);
     }
   };
+
+  const removePending = (i: number) => {
+    setPendingAttachments(prev => prev.filter((_, idx) => idx !== i));
+  };
+
+  const canSend = (text.trim().length > 0 || pendingAttachments.length > 0) && !send.isPending;
 
   return (
     <KeyboardAvoidingView
@@ -404,11 +442,24 @@ export default function AdminConversationScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {pendingAttachments.length > 0 && (
+        <View style={s.pendingRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {pendingAttachments.map((asset, i) => (
+              <View key={i} style={s.pendingItem}>
+                <Image source={{ uri: asset.uri }} style={s.pendingThumb} contentFit="cover" />
+                <TouchableOpacity style={s.pendingRemove} onPress={() => removePending(i)}>
+                  <Text style={s.pendingRemoveText}>×</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={s.inputRow}>
-        <TouchableOpacity style={s.iconBtn} onPress={pickPhoto} disabled={sendPhoto.isPending}>
-          {sendPhoto.isPending
-            ? <ActivityIndicator color="#C8BFB6" size="small" />
-            : <Text style={s.iconBtnText}>📷</Text>}
+        <TouchableOpacity style={s.iconBtn} onPress={pickPhoto}>
+          <Text style={s.iconBtnText}>📷</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.iconBtn} onPress={() => setShowEmojiBar(v => !v)}>
           <Text style={s.iconBtnText}>😊</Text>
@@ -422,9 +473,9 @@ export default function AdminConversationScreen() {
           multiline
         />
         <TouchableOpacity
-          style={[s.sendBtn, !text.trim() && s.sendBtnDisabled]}
+          style={[s.sendBtn, !canSend && s.sendBtnDisabled]}
           onPress={() => send.mutate()}
-          disabled={!text.trim() || send.isPending}
+          disabled={!canSend}
         >
           {send.isPending
             ? <ActivityIndicator color="#fff" size="small" />
@@ -452,6 +503,11 @@ const s = StyleSheet.create({
   sendBtn:       { width: 40, height: 40, borderRadius: 20, backgroundColor: '#C9A24D', justifyContent: 'center', alignItems: 'center' },
   sendBtnDisabled: { backgroundColor: '#C8BFB6' },
   sendIcon:      { color: '#fff', fontSize: 18, fontWeight: '700' },
+  pendingRow:    { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#F6F3EE', paddingHorizontal: 12, paddingVertical: 8 },
+  pendingItem:   { marginRight: 8, position: 'relative' },
+  pendingThumb:  { width: 56, height: 56, borderRadius: 10, backgroundColor: '#E5DDD0' },
+  pendingRemove: { position: 'absolute', top: -6, right: -6, backgroundColor: '#3B2F2A', width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  pendingRemoveText: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 16 },
 });
 
 const bubble = StyleSheet.create({
@@ -477,6 +533,10 @@ const ph = StyleSheet.create({
   btnRow:  { flexDirection: 'row', gap: 12, marginTop: 24 },
   btn:     { backgroundColor: '#fff', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
   btnText: { color: '#3B2F2A', fontWeight: '700', fontSize: 15 },
+  grid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  gridImg: { width: Math.min(200, SCREEN_WIDTH * 0.5), height: 160, borderRadius: 12, backgroundColor: '#E5DDD0' },
+  fileChip:{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+  fileChipText: { color: '#3B2F2A', fontSize: 12, fontWeight: '600' },
 });
 
 const vr = StyleSheet.create({
