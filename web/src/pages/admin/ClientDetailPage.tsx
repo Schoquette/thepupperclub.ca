@@ -1899,16 +1899,6 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
     alert('Signing link copied to clipboard!');
   };
 
-  const handleDownloadCertificate = async (doc: any) => {
-    const res = await api.get(`/admin/clients/${clientId}/documents/${doc.id}/certificate`, { responseType: 'blob' });
-    const url = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `signed_${doc.filename}`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const upload = useMutation({
     mutationFn: () => {
       const form = new FormData();
@@ -1944,9 +1934,13 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
   };
 
   const fetchDocBlob = async (doc: any, inline = false) => {
-    const res = await api.get(`/documents/${doc.id}${inline ? '?inline=1' : ''}`, {
-      responseType: 'blob',
-    });
+    // For signed documents, fetch the merged signed PDF (stamped original
+    // + appended certificate) so View and Download show the completed
+    // document instead of the unsigned template.
+    const endpoint = doc.signed_at
+      ? `/admin/clients/${doc.user_id ?? clientId}/documents/${doc.id}/certificate`
+      : `/documents/${doc.id}${inline ? '?inline=1' : ''}`;
+    const res = await api.get(endpoint, { responseType: 'blob' });
     return res.data;
   };
 
@@ -1956,7 +1950,7 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = doc.filename;
+      a.download = doc.signed_at ? `signed_${doc.filename}` : doc.filename;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -2095,14 +2089,6 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
                               className="text-xs text-gold hover:underline"
                             >
                               {doc.signature_requested_at ? 'Resend' : 'Request Signature'}
-                            </button>
-                          )}
-                          {doc.signed_at && (
-                            <button
-                              onClick={() => handleDownloadCertificate(doc)}
-                              className="text-xs text-green-700 hover:underline"
-                            >
-                              Certificate
                             </button>
                           )}
                           <button onClick={() => handleView(doc)} className="text-blue text-sm hover:underline">View</button>
