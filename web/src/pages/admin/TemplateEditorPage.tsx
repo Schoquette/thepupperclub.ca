@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -81,7 +81,11 @@ export default function TemplateEditorPage() {
     enabled: !!id,
   });
 
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  // Store the PDF as a Uint8Array we own outright. pdfjs transfers
+  // ArrayBuffers to its worker on load (which detaches them in the main
+  // thread), so we keep our own independent copy and hand the worker a
+  // fresh slice every time the file prop is rebuilt.
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
   const [pdfError, setPdfError] = useState('');
   const [pdfNumPages, setPdfNumPages] = useState<number>(1);
   const [pdfPageWidth, setPdfPageWidth] = useState(800);
@@ -105,7 +109,8 @@ export default function TemplateEditorPage() {
     api.get(`/admin/document-templates/${id}/pdf`, { responseType: 'arraybuffer' })
       .then(res => {
         if (cancelled) return;
-        setPdfData(res.data);
+        // Copy into a private buffer so pdfjs can't detach ours.
+        setPdfData(new Uint8Array(res.data.slice(0)));
       })
       .catch((err) => {
         if (!cancelled) {
@@ -117,6 +122,13 @@ export default function TemplateEditorPage() {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  // Stable file prop reference. The slice() hands pdfjs a fresh buffer it can
+  // safely transfer to its worker without touching the master copy we own.
+  const pdfFile = useMemo(
+    () => (pdfData ? { data: pdfData.slice() } : null),
+    [pdfData],
+  );
 
   const [saveError, setSaveError] = useState('');
   const saveFields = useMutation({
@@ -490,9 +502,9 @@ export default function TemplateEditorPage() {
             onClick={() => setSelectedIdx(null)}
           >
             {/* PDF as background */}
-            {pdfData ? (
+            {pdfFile ? (
               <Document
-                file={{ data: pdfData }}
+                file={pdfFile}
                 onLoadSuccess={(pdf) => setPdfNumPages(pdf.numPages)}
                 loading={<div className="flex items-center justify-center" style={{ height: 700 }}><p className="text-taupe text-sm">Rendering PDF...</p></div>}
                 error={<div className="flex items-center justify-center" style={{ height: 700 }}><p className="text-red-500 text-sm">Failed to render PDF.</p></div>}

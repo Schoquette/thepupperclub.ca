@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
@@ -44,8 +44,10 @@ export default function SigningPage() {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
   const [showSignPanel, setShowSignPanel] = useState(false);
 
-  // PDF state
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  // PDF state. Own a Uint8Array we control — pdfjs transfers the buffer
+  // it receives to its worker, which detaches it in the main thread; keep
+  // a master copy and hand the worker a fresh slice each time.
+  const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [pageWidth, setPageWidth] = useState(700);
   const [focusedField, setFocusedField] = useState<number | null>(null);
@@ -59,15 +61,20 @@ export default function SigningPage() {
   const hasFields = data?.has_fields && data?.fields?.length > 0;
   const fields: TemplateField[] = data?.fields ?? [];
 
-  // Load PDF as ArrayBuffer for react-pdf
+  // Load PDF as ArrayBuffer for react-pdf, copied into a private Uint8Array
   useEffect(() => {
     if (!token) return;
     const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
     fetch(`${apiBase}/api/signing/${token}/document`)
       .then(r => r.arrayBuffer())
-      .then(setPdfData)
+      .then(buf => setPdfData(new Uint8Array(buf.slice(0))))
       .catch(() => {});
   }, [token]);
+
+  const pdfFile = useMemo(
+    () => (pdfData ? { data: pdfData.slice() } : null),
+    [pdfData],
+  );
 
   // Track container width for responsive PDF
   useEffect(() => {
@@ -415,9 +422,9 @@ export default function SigningPage() {
       {/* PDF viewer with field overlays */}
       <div className="flex-1 overflow-y-auto bg-[#525659]" ref={pdfContainerRef}>
         <div className="max-w-4xl mx-auto py-4 px-2">
-          {pdfData ? (
+          {pdfFile ? (
             <Document
-              file={{ data: pdfData }}
+              file={pdfFile}
               onLoadSuccess={({ numPages: n }) => setNumPages(n)}
               loading={<div className="text-center py-20 text-cream/60">Loading PDF...</div>}
               error={<div className="text-center py-20 text-red-400">Failed to load PDF</div>}
