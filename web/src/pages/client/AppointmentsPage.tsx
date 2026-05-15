@@ -304,12 +304,19 @@ export default function ClientAppointmentsPage() {
       .sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events]);
 
-  const eventStyleGetter = (event: CalEvent) => ({
-    style: {
-      backgroundColor: STATUS_COLORS[event.status] ?? '#6492D8',
-      borderRadius: '6px', border: 'none', color: '#fff', fontSize: '12px', padding: '2px 6px',
-    },
-  });
+  const eventStyleGetter = (event: CalEvent) => {
+    // A scheduled appointment whose start time has elapsed without check-in
+    // is functionally past — render it grey rather than the blue "upcoming"
+    // style so the calendar matches the visit-history view.
+    const isElapsed = event.status === 'scheduled' && event.start < new Date();
+    const effectiveStatus = isElapsed ? 'completed' : event.status;
+    return {
+      style: {
+        backgroundColor: STATUS_COLORS[effectiveStatus] ?? '#6492D8',
+        borderRadius: '6px', border: 'none', color: '#fff', fontSize: '12px', padding: '2px 6px',
+      },
+    };
+  };
 
   if (isLoading) return <PageLoader />;
 
@@ -979,8 +986,17 @@ function ClientVisitHistory({ appointments }: { appointments: any[] }) {
 
   const completed = useMemo(() => {
     if (!appointments) return [];
+    const now = Date.now();
     return appointments
-      .filter((a: any) => a.status === 'completed')
+      .filter((a: any) => {
+        if (!a.scheduled_time) return false;
+        if (a.status === 'cancelled') return false;
+        if (a.status === 'completed') return true;
+        // Past-dated appointments still count as elapsed history even if no
+        // one checked in, so they don't quietly drop off the timeline.
+        const localStr = a.scheduled_time.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+        return new Date(localStr).getTime() < now;
+      })
       .sort((a: any, b: any) => new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime());
   }, [appointments]);
 

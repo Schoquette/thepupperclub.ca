@@ -735,6 +735,14 @@ export default function AdminCalendarPage() {
                 bg = '#F6F3EE'; // cream
                 textColor = '#3B2F2A';
               }
+              // Past appointments that elapsed without a check-in/completion
+              // dim back to a grey so they read as history at a glance.
+              const isElapsed =
+                e.resource.status === 'scheduled' && e.start < new Date();
+              if (isElapsed) {
+                bg = '#9CA3AF';
+                textColor = 'white';
+              }
               return {
                 style: {
                   backgroundColor: bg,
@@ -742,6 +750,7 @@ export default function AdminCalendarPage() {
                   border: e.resource.service_type === 'overnight' ? '1px solid #C8BFB6' : 'none',
                   color: textColor,
                   fontSize: 12,
+                  opacity: isElapsed ? 0.75 : 1,
                 },
               };
             }}
@@ -1820,16 +1829,27 @@ function VisitHistory() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['visit-history'],
+    // Pull every past-dated appointment (the API already bounds by end date);
+    // we filter out cancellations client-side so elapsed-but-uncompleted
+    // visits still appear in history.
     queryFn: () => api.get('/admin/appointments', {
-      params: { status: 'completed', start: '2020-01-01', end: format(new Date(), 'yyyy-MM-dd\'T\'23:59:59') },
+      params: { start: '2020-01-01', end: format(new Date(), 'yyyy-MM-dd\'T\'23:59:59') },
     }).then(r => r.data.data),
   });
 
   const grouped = useMemo(() => {
     if (!data || data.length === 0) return [];
+    const now = Date.now();
+    const past = data.filter((appt: any) => {
+      if (!appt.scheduled_time) return false;
+      if (appt.status === 'cancelled') return false;
+      const localStr = appt.scheduled_time.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      return new Date(localStr).getTime() < now;
+    });
+    if (past.length === 0) return [];
     // Group by calendar week (Sunday start)
     const map = new Map<string, { weekStart: Date; weekEnd: Date; visits: any[] }>();
-    for (const appt of data) {
+    for (const appt of past) {
       const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
       const d = new Date(localStr);
       const ws = startOfWeek(d, { weekStartsOn: 0 });
