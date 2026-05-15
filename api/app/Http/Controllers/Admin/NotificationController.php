@@ -245,15 +245,17 @@ class NotificationController extends Controller
     public function uploadInlineImage(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => [
-                'required',
-                'file',
-                'max:10240', // 10MB
-                'mimetypes:image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/bmp,image/heic,image/heif',
-            ],
+            'image' => ['required', 'file', 'max:10240'], // 10MB
         ]);
 
+        // Validate by client extension rather than mime-sniffing — Windows/IIS
+        // hosts often lack HEIC entries in their fileinfo magic DB and report
+        // `application/octet-stream`, which fails Laravel's mimetypes rule.
         $file = $request->file('image');
+        $ext = strtolower($file->getClientOriginalExtension());
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'heic', 'heif'];
+        abort_unless(in_array($ext, $allowed, true), 422, 'Unsupported image type.');
+
         $filename = $file->hashName();
         $file->storeAs('broadcast_inline', $filename, 'local');
 
