@@ -444,6 +444,18 @@ class SigningController extends Controller
     {
         abort_unless((int) $document->user_id === $clientId, 404);
         abort_unless($document->signed_pdf_path, 404, 'No certificate available yet.');
+
+        // Documents signed before the stamping pipeline shipped have a
+        // cert-only PDF stored under a `cert_` filename. Detect that and
+        // regenerate so the download includes the stamped original pages.
+        $needsRegen = str_starts_with((string) $document->signed_pdf_path, 'private/documents/cert_')
+            || !Storage::disk('local')->exists($document->signed_pdf_path);
+
+        if ($needsRegen) {
+            $this->generateCertificate($document);
+            $document->refresh();
+        }
+
         abort_unless(Storage::disk('local')->exists($document->signed_pdf_path), 404);
 
         $certName = 'signed_' . $document->filename;
