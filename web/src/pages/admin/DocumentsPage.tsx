@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
-import { Upload, ArrowUp, ArrowDown, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Upload, ArrowUp, ArrowDown, Pencil, Trash2, Check, X, Download } from 'lucide-react';
 
 function DocumentPreviewFrame({ docId }: { docId: number }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -107,6 +107,25 @@ export default function AdminDocumentsPage() {
 
   // Preview modal
   const [previewDoc, setPreviewDoc] = useState<any>(null);
+
+  // Download the merged signed PDF (stamped original + appended certificate).
+  const downloadSigned = async (doc: any) => {
+    if (!doc.signed_pdf_path || !doc.user_id) return;
+    try {
+      const res = await api.get(
+        `/admin/clients/${doc.user_id}/documents/${doc.id}/certificate`,
+        { responseType: 'blob' },
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `signed_${doc.filename || 'document.pdf'}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // swallow — error UI not worth a banner for a single click
+    }
+  };
 
   // Templates list
   const { data: templates, isLoading: templatesLoading } = useQuery({
@@ -524,6 +543,15 @@ export default function AdminDocumentsPage() {
                           >
                             View
                           </button>
+                          {doc.signed_pdf_path && (
+                            <button
+                              onClick={() => downloadSigned(doc)}
+                              className="text-taupe hover:text-espresso"
+                              title="Download signed PDF"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => { setRenameId(doc.id); setRenameValue(doc.filename); }}
                             className="text-taupe hover:text-espresso"
@@ -763,18 +791,10 @@ export default function AdminDocumentsPage() {
                   )}
                   {previewDoc.signed_pdf_path && (
                     <button
-                      onClick={async () => {
-                        const res = await api.get(`/documents/${previewDoc.id}`, { responseType: 'blob' });
-                        const url = URL.createObjectURL(res.data);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = previewDoc.filename || 'document.pdf';
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
+                      onClick={() => downloadSigned(previewDoc)}
                       className="inline-flex items-center px-4 py-2 rounded-lg border border-taupe/30 text-sm font-medium text-espresso hover:bg-cream transition-colors"
                     >
-                      Download Certificate
+                      Download Signed PDF
                     </button>
                   )}
                 </div>
