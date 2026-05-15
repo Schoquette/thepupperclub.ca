@@ -236,7 +236,7 @@ export default function ClientBillingPage() {
               Please send your e-Transfer to <strong>sophie@thepupperclub.ca</strong> before the <strong>first day of your service month</strong>.
             </p>
             <p className="text-taupe text-xs">
-              Auto-deposit is enabled — no security question required.
+              If a security question is required, please use the password <strong className="text-espresso">Puppers</strong>.
             </p>
           </div>
         </Card>
