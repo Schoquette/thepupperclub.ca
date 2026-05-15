@@ -30,14 +30,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 globally
+// Handle 401 globally — redirect to /login when a session expires.
+// Skip the redirect for auth endpoints (login, forgot-password, etc.) so the
+// page can show its own "Invalid email or password" error without a reload
+// wiping the form state.
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/forgot-password', '/auth/reset-password', '/auth/register'];
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const url = error.config?.url ?? '';
+      const isAuthRequest = AUTH_ENDPOINTS.some(ep => url.startsWith(ep));
+      if (!isAuthRequest) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
