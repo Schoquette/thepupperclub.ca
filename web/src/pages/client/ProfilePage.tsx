@@ -25,6 +25,31 @@ const TIME_OPTIONS = [
   { value: 'evening', label: 'Evening (6–9 PM)' },
 ];
 
+// Legacy time-block enum values that may still be stored on older profiles.
+// They map to the same human labels as the canonical keys above so the
+// display is consistent regardless of which schema the row was saved in.
+const LEGACY_TIME_LABELS: Record<string, string> = {
+  morning_7_10: 'Morning (9 AM–12 PM)',
+  midday_11_2: 'Midday (12–3 PM)',
+  afternoon_3_6: 'Afternoon (3–6 PM)',
+  evening_6_9: 'Evening (6–9 PM)',
+};
+
+// Fallback prettifier for any unknown time-block enum value.
+// e.g. "afternoon_3_6" → "Afternoon 3-6".
+function prettifyTimeBlock(value: string): string {
+  const parts = value.split('_');
+  if (!parts.length) return value;
+  const words: string[] = [];
+  const nums: string[] = [];
+  for (const p of parts) {
+    if (/^\d+$/.test(p)) nums.push(p);
+    else words.push(p.charAt(0).toUpperCase() + p.slice(1));
+  }
+  const label = words.join(' ');
+  return nums.length ? `${label} ${nums.join('-')}` : label;
+}
+
 export default function ClientProfilePage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -272,7 +297,11 @@ function VisitPreferencesCard({ profile }: { profile: any }) {
   const toggleTime = (t: string) => setTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
 
   const dayLabels = Object.fromEntries(DAY_OPTIONS.map(o => [o.value, o.label]));
-  const timeLabels = Object.fromEntries(TIME_OPTIONS.map(o => [o.value, o.label]));
+  const timeLabels: Record<string, string> = {
+    ...Object.fromEntries(TIME_OPTIONS.map(o => [o.value, o.label])),
+    ...LEGACY_TIME_LABELS,
+  };
+  const formatTimeBlock = (v: string) => timeLabels[v] ?? prettifyTimeBlock(v);
 
   return (
     <Card>
@@ -347,7 +376,7 @@ function VisitPreferencesCard({ profile }: { profile: any }) {
             <dt className="text-taupe">Preferred Times</dt>
             <dd className="text-espresso font-medium">
               {(profile?.preferred_walk_times ?? []).length > 0
-                ? (profile.preferred_walk_times as string[]).map(t => timeLabels[t] || t).join(', ')
+                ? (profile.preferred_walk_times as string[]).map(formatTimeBlock).join(', ')
                 : '—'}
             </dd>
           </div>
