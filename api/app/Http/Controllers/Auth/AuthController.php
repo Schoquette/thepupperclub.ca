@@ -95,7 +95,7 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email|exists:users,email']);
 
-        $status = Password::sendResetLink($request->only('email'));
+        $status = Password::broker('password-resets')->sendResetLink($request->only('email'));
 
         return response()->json(['message' => __($status)]);
     }
@@ -108,7 +108,7 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()],
         ]);
 
-        $status = Password::reset(
+        $status = Password::broker('password-resets')->reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user, string $password) {
                 $user->update(['password' => Hash::make($password)]);

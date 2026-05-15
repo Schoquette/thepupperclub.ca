@@ -43,6 +43,9 @@ class InviteService
 
     public function resetPassword(User $user): void
     {
-        Password::sendResetLink(['email' => $user->email]);
+        // Use the short-lived broker so admin-initiated password resets get a
+        // 4-hour token and the branded reset email, not the 7-day invitation
+        // window.
+        Password::broker('password-resets')->sendResetLink(['email' => $user->email]);
     }
 }

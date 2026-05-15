@@ -14,6 +14,7 @@ use App\Observers\AuditObserver;
 use App\Mail\ResendTransport;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Connectors\SqlServerConnector;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
@@ -48,6 +49,22 @@ class AppServiceProvider extends ServiceProvider
         ResetPassword::createUrlUsing(function ($user, string $token) {
             $frontendUrl = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
             return "{$frontendUrl}/reset-password/{$token}?email=" . urlencode($user->email);
+        });
+
+        // Branded password reset email matching the other system templates
+        ResetPassword::toMailUsing(function ($notifiable, string $token) {
+            $frontendUrl = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
+            $url = "{$frontendUrl}/reset-password/{$token}?email=" . urlencode($notifiable->email);
+            $expiryMinutes = (int) config('auth.passwords.password-resets.expire', 240);
+            $hours = max(1, (int) round($expiryMinutes / 60));
+
+            return (new MailMessage)
+                ->subject('Reset your password — The Pupper Club')
+                ->view('emails.password-reset', [
+                    'name'  => $notifiable->name,
+                    'url'   => $url,
+                    'hours' => $hours,
+                ]);
         });
 
         // Register audit logging on key models
