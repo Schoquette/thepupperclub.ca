@@ -107,6 +107,11 @@ class NotificationController extends Controller
                 'metadata'  => $messageMeta,
             ]);
 
+            // Drive the client's "Messages" badge — the sidebar reads
+            // unread_count_client, and inbox ordering uses last_message_at.
+            $conversation->increment('unread_count_client');
+            $conversation->update(['last_message_at' => now()]);
+
             // Extract images from HTML body and prepare for CID embedding
             [$emailBody, $inlineImages] = $this->extractInlineImages($userBody);
 
