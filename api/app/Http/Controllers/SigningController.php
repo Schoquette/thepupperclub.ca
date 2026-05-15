@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClientDocument;
 use App\Models\Conversation;
 use App\Services\NotificationDispatcher;
+use App\Services\SignedPdfBuilder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -368,17 +369,34 @@ class SigningController extends Controller
             $viewData['countersign_png']    = $document->countersign_signature_data;
         }
 
-        $pdf = Pdf::loadView('pdfs.signature_certificate', $viewData);
+        $certBinary = Pdf::loadView('pdfs.signature_certificate', $viewData)->output();
 
-        $certPath = 'private/documents/cert_' . $document->id . '_' . Str::random(8) . '.pdf';
-        Storage::disk('local')->put($certPath, $pdf->output());
+        // Try to build the full signed PDF: stamped original + appended cert.
+        // If anything goes wrong (no template, encrypted source, FPDI failure)
+        // we fall back to saving just the certificate so the download still
+        // works and the audit trail is preserved.
+        $signedPath = 'private/documents/signed_' . $document->id . '_' . Str::random(8) . '.pdf';
 
-        // Clean up old cert if exists
+        $certTmp = tempnam(sys_get_temp_dir(), 'tpc_cert_') . '.pdf';
+        file_put_contents($certTmp, $certBinary);
+
+        try {
+            $merged = app(SignedPdfBuilder::class)->build($document, $certTmp);
+            if ($merged !== null) {
+                Storage::disk('local')->put($signedPath, $merged);
+            } else {
+                Storage::disk('local')->put($signedPath, $certBinary);
+            }
+        } finally {
+            @unlink($certTmp);
+        }
+
+        // Clean up old signed PDF if one existed
         if ($document->signed_pdf_path && Storage::disk('local')->exists($document->signed_pdf_path)) {
             Storage::disk('local')->delete($document->signed_pdf_path);
         }
 
-        $document->update(['signed_pdf_path' => $certPath]);
+        $document->update(['signed_pdf_path' => $signedPath]);
     }
 
     /**

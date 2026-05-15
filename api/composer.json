@@ -11,6 +11,8 @@
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "stripe/stripe-php": "^13.0"
     },
     "require-dev": {

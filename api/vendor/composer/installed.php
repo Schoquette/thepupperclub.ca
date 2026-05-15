@@ -3,7 +3,7 @@
         'name' => 'thepupperclub/api',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '8ef78df4c04ff1f6066859d06b84027e6cb86c23',
+        'reference' => '28da0f44cb1b4e75f5b0691638f9ecdccefcd0fb',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -1022,6 +1022,24 @@
             'aliases' => array(),
             'dev_requirement' => true,
         ),
+        'setasign/fpdf' => array(
+            'pretty_version' => '1.8.6',
+            'version' => '1.8.6.0',
+            'reference' => '0838e0ee4925716fcbbc50ad9e1799b5edfae0a0',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../setasign/fpdf',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'setasign/fpdi' => array(
+            'pretty_version' => 'v2.6.7',
+            'version' => '2.6.7.0',
+            'reference' => '388c51e69982a3fc16698710b763e8107a49f510',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../setasign/fpdi',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'spatie/once' => array(
             'dev_requirement' => false,
             'replaced' => array(
@@ -1331,7 +1349,7 @@
         'thepupperclub/api' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '8ef78df4c04ff1f6066859d06b84027e6cb86c23',
+            'reference' => '28da0f44cb1b4e75f5b0691638f9ecdccefcd0fb',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
