@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ClientDocument;
+use App\Models\ErrorLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -33,6 +34,10 @@ class SignedPdfBuilder
             : null;
 
         if (!$originalPath || !file_exists($originalPath)) {
+            $this->log('source-missing', $document, [
+                'storage_path' => $document->storage_path,
+                'resolved'     => $originalPath,
+            ]);
             return null;
         }
 
@@ -41,9 +46,9 @@ class SignedPdfBuilder
             $pdf->SetAutoPageBreak(false);
             $pageCount = $pdf->setSourceFile($originalPath);
         } catch (\Throwable $e) {
-            Log::warning('SignedPdfBuilder: could not open original PDF', [
-                'document_id' => $document->id,
-                'error'       => $e->getMessage(),
+            $this->log('fpdi-open-failed', $document, [
+                'error' => $e->getMessage(),
+                'class' => get_class($e),
             ]);
             return null;
         }
@@ -55,6 +60,8 @@ class SignedPdfBuilder
         $companyValues = $document->countersign_field_values ?? [];
         $signaturePng   = $document->signature_data;
         $countersignPng = $document->countersign_signature_data;
+
+        $totalDrawn = 0;
 
         for ($pageNum = 1; $pageNum <= $pageCount; $pageNum++) {
             $tplId = $pdf->importPage($pageNum);
@@ -75,9 +82,21 @@ class SignedPdfBuilder
                 $w = ($field->width / 100) * $pageW;
                 $h = ($field->height / 100) * $pageH;
 
-                $this->renderField($pdf, $field, $rawValue, $signaturePng, $countersignPng, $x, $y, $w, $h);
+                $drew = $this->renderField($pdf, $field, $rawValue, $signaturePng, $countersignPng, $x, $y, $w, $h);
+                if ($drew) $totalDrawn++;
             }
         }
+
+        $this->log('build-summary', $document, [
+            'pages'             => $pageCount,
+            'template_id'       => $document->template_id,
+            'template_fields'   => $fields->count(),
+            'client_values'     => is_array($clientValues) ? count($clientValues) : 0,
+            'company_values'    => is_array($companyValues) ? count($companyValues) : 0,
+            'has_client_sig'    => (bool) $signaturePng,
+            'has_company_sig'   => (bool) $countersignPng,
+            'fields_drawn'      => $totalDrawn,
+        ]);
 
         // Append the signing certificate
         if ($certificatePath && file_exists($certificatePath)) {
@@ -100,34 +119,33 @@ class SignedPdfBuilder
         return $pdf->Output('S');
     }
 
-    private function renderField(Fpdi $pdf, $field, $rawValue, ?string $signaturePng, ?string $countersignPng, float $x, float $y, float $w, float $h): void
+    private function renderField(Fpdi $pdf, $field, $rawValue, ?string $signaturePng, ?string $countersignPng, float $x, float $y, float $w, float $h): bool
     {
         $type = $field->field_type ?? 'open_text';
 
         if ($type === 'signature' || $type === 'initial') {
             $png = $field->assigned_to === 'company' ? $countersignPng : $signaturePng;
-            if (!$png) return;
+            if (!$png) return false;
             $this->drawSignature($pdf, $png, $x, $y, $w, $h);
-            return;
+            return true;
         }
 
-        if ($rawValue === null || $rawValue === '') return;
+        if ($rawValue === null || $rawValue === '') return false;
 
         if ($type === 'checkbox') {
             $truthy = filter_var($rawValue, FILTER_VALIDATE_BOOLEAN)
                 || in_array((string) $rawValue, ['1', 'true', 'yes', 'on', 'checked'], true);
-            if ($truthy) {
-                $fontSize = max(8.0, min(14.0, $h * 2.4));
-                $pdf->SetFont('Helvetica', 'B', $fontSize);
-                $pdf->SetTextColor(59, 47, 42);
-                $pdf->SetXY($x, $y);
-                $pdf->Cell($w, $h, $this->sanitise('X'), 0, 0, 'C');
-            }
-            return;
+            if (!$truthy) return false;
+            $fontSize = max(8.0, min(14.0, $h * 2.4));
+            $pdf->SetFont('Helvetica', 'B', $fontSize);
+            $pdf->SetTextColor(59, 47, 42);
+            $pdf->SetXY($x, $y);
+            $pdf->Cell($w, $h, $this->sanitise('X'), 0, 0, 'C');
+            return true;
         }
 
         $text = $this->valueToText($field, $rawValue);
-        if ($text === '') return;
+        if ($text === '') return false;
 
         // Choose a size that fits the cell height, then shrink to fit width.
         $fontSize = max(7.0, min(11.0, $h * 1.8));
@@ -142,6 +160,24 @@ class SignedPdfBuilder
 
         $pdf->SetXY($x, $y);
         $pdf->Cell($w, $h, $text, 0, 0, 'L');
+        return true;
+    }
+
+    private function log(string $type, ClientDocument $document, array $context): void
+    {
+        try {
+            ErrorLog::create([
+                'user_id'   => $document->user_id,
+                'type'      => 'signed_pdf_builder',
+                'message'   => $type,
+                'context'   => array_merge(['document_id' => $document->id], $context),
+                'created_at'=> now(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('SignedPdfBuilder: failed to record diagnostic', [
+                'type' => $type, 'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function drawSignature(Fpdi $pdf, string $base64Png, float $x, float $y, float $w, float $h): void
