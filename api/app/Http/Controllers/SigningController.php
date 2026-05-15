@@ -325,12 +325,40 @@ class SigningController extends Controller
      */
     private function generateCertificate(ClientDocument $document): void
     {
+        // Load template fields so the certificate can list every form input
+        // alongside the value the signer provided. Keyed by field id (matches
+        // the shape of field_values / countersign_field_values).
+        $document->loadMissing('template.fields');
+        $templateFields = $document->template?->fields ?? collect();
+
+        $clientFields = $templateFields
+            ->where('assigned_to', 'client')
+            ->map(fn ($f) => [
+                'label' => $f->label,
+                'type'  => $f->field_type,
+                'value' => $this->formatFieldValue($f, ($document->field_values ?? [])[$f->id] ?? null),
+            ])
+            ->filter(fn ($row) => $row['value'] !== null && $row['value'] !== '')
+            ->values();
+
+        $companyFields = $templateFields
+            ->where('assigned_to', 'company')
+            ->map(fn ($f) => [
+                'label' => $f->label,
+                'type'  => $f->field_type,
+                'value' => $this->formatFieldValue($f, ($document->countersign_field_values ?? [])[$f->id] ?? null),
+            ])
+            ->filter(fn ($row) => $row['value'] !== null && $row['value'] !== '')
+            ->values();
+
         $viewData = [
-            'document'      => $document,
-            'signer_name'   => $document->signer_name,
-            'signer_ip'     => $document->signer_ip,
-            'signed_at'     => $document->signed_at,
-            'signature_png' => $document->signature_data,
+            'document'       => $document,
+            'signer_name'    => $document->signer_name,
+            'signer_ip'      => $document->signer_ip,
+            'signed_at'      => $document->signed_at,
+            'signature_png'  => $document->signature_data,
+            'client_fields'  => $clientFields,
+            'company_fields' => $companyFields,
         ];
 
         if ($document->countersigned_at) {
@@ -351,6 +379,43 @@ class SigningController extends Controller
         }
 
         $document->update(['signed_pdf_path' => $certPath]);
+    }
+
+    /**
+     * Render a stored field value into a readable string for the certificate.
+     */
+    private function formatFieldValue($field, $value): ?string
+    {
+        if ($value === null) return null;
+
+        $type = $field->field_type ?? 'open_text';
+
+        if ($type === 'checkbox') {
+            // Common truthy representations in the field-values payload
+            $truthy = filter_var($value, FILTER_VALIDATE_BOOLEAN)
+                || in_array((string) $value, ['1', 'true', 'on', 'yes', 'checked'], true);
+            return $truthy ? 'Checked' : 'Unchecked';
+        }
+
+        if ($type === 'date' && is_string($value) && $value !== '') {
+            try {
+                return \Carbon\Carbon::parse($value)->format('F j, Y');
+            } catch (\Throwable $e) {
+                return $value;
+            }
+        }
+
+        if ($type === 'signature' || $type === 'initial') {
+            // The signature image is rendered separately; mark presence here
+            return is_string($value) && $value !== '' ? '— Provided —' : null;
+        }
+
+        if (is_array($value)) {
+            return implode(', ', array_map(fn ($v) => (string) $v, $value));
+        }
+
+        $str = trim((string) $value);
+        return $str === '' ? null : $str;
     }
 
     /**

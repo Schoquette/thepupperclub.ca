@@ -4,19 +4,27 @@
   <meta charset="UTF-8">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'DejaVu Sans', sans-serif; color: #3B2F2A; font-size: 12px; }
+    body { font-family: 'DejaVu Sans', sans-serif; color: #3B2F2A; font-size: 11px; padding: 0; }
 
-    .header-bar {
+    .header {
       background: #F6F3EE;
       padding: 28px 40px;
+      text-align: center;
       border-bottom: 3px solid #C9A24D;
     }
-    .brand  { font-size: 18px; font-weight: bold; letter-spacing: 2px; color: #3B2F2A; text-transform: uppercase; }
-    .sub    { font-size: 10px; color: #C8BFB6; margin-top: 2px; }
+    .header img { max-width: 180px; height: auto; }
+    .header-text { color: #C8BFB6; font-size: 10px; margin-top: 8px; letter-spacing: 0.05em; }
 
-    .body-content { padding: 36px 40px; }
+    .body-content { padding: 32px 40px; }
 
-    h1 { font-size: 20px; font-weight: bold; color: #3B2F2A; margin-bottom: 8px; }
+    .doc-title { font-size: 16px; font-weight: bold; color: #3B2F2A; margin-bottom: 8px; }
+    .doc-meta {
+      font-size: 10px;
+      color: #3B2F2A;
+      margin-bottom: 24px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #6492D8;
+    }
 
     .badge {
       display: inline-block;
@@ -26,29 +34,31 @@
       border-radius: 20px;
       font-size: 10px;
       font-weight: bold;
-      margin-bottom: 24px;
     }
 
-    .section { margin-bottom: 22px; }
+    .section { margin-bottom: 20px; }
     .section-title {
-      font-size: 9px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #C8BFB6;
-      margin-bottom: 8px;
-      padding-bottom: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #6492D8;
       border-bottom: 1px solid #F6F3EE;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    .field { padding: 6px 0; border-bottom: 1px solid #F6F3EE; }
-    .field-label { color: #C8BFB6; font-size: 11px; }
-    .field-value { font-weight: bold; color: #3B2F2A; font-size: 12px; }
+
+    table.fields { width: 100%; border-collapse: collapse; }
+    table.fields td { padding: 4px 6px; vertical-align: top; font-size: 11px; }
+    table.fields .lbl { width: 38%; color: #3B2F2A; font-weight: bold; }
+    table.fields .val { color: #3B2F2A; }
 
     .signature-box {
-      border: 1px solid #C8BFB6;
-      border-radius: 8px;
-      padding: 16px;
-      margin-top: 20px;
       background: #F6F3EE;
+      border-radius: 5px;
+      padding: 14px;
+      margin-top: 10px;
+      page-break-inside: avoid;
     }
     .signature-box .label {
       font-size: 9px;
@@ -60,91 +70,108 @@
     .signature-img { max-width: 300px; max-height: 100px; display: block; }
 
     .footer {
-      margin-top: 32px;
-      border-top: 2px solid #C9A24D;
+      margin-top: 30px;
+      border-top: 2px solid #6492D8;
       padding: 16px 40px;
       font-size: 9px;
-      color: #C8BFB6;
+      color: #3B2F2A;
       text-align: center;
     }
   </style>
 </head>
 <body>
 
-  <div class="header-bar">
-    <div class="brand">The Pupper Club</div>
-    <div class="sub">Curated Dog Care</div>
+  {{-- Branded header --}}
+  <div class="header">
+    @php
+      $logoPath = public_path('images/logo-dark-stacked.png');
+    @endphp
+    @if(file_exists($logoPath))
+      <img src="{{ $logoPath }}" alt="The Pupper Club" />
+    @else
+      <div style="color:#3B2F2A;font-size:20px;font-weight:bold;letter-spacing:2px;">The Pupper Club</div>
+    @endif
+    <div class="header-text">Curated Dog Care &bull; Port Moody, BC</div>
   </div>
 
   <div class="body-content">
-    <h1>Document Signing Certificate</h1>
-    <div class="badge">{{ isset($countersigned_at) ? 'Fully Executed' : 'Signed' }}</div>
+    <div class="doc-title">Document Signing Certificate</div>
+    <div class="doc-meta">
+      <span class="badge">{{ isset($countersigned_at) ? 'Fully Executed' : 'Signed' }}</span>
+    </div>
 
     <div class="section">
       <div class="section-title">Document Details</div>
-      <div class="field">
-        <span class="field-label">Document</span><br>
-        <span class="field-value">{{ $document->filename }}</span>
-      </div>
-      <div class="field">
-        <span class="field-label">Client</span><br>
-        <span class="field-value">{{ $document->user?->name ?? '—' }}</span>
-      </div>
-      <div class="field">
-        <span class="field-label">Signature Requested</span><br>
-        <span class="field-value">{{ $document->signature_requested_at?->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') ?? '—' }}</span>
-      </div>
+      <table class="fields">
+        <tr><td class="lbl">Document</td><td class="val">{{ $document->filename }}</td></tr>
+        <tr><td class="lbl">Client</td><td class="val">{{ $document->user?->name ?? '—' }}</td></tr>
+        <tr><td class="lbl">Signature Requested</td><td class="val">{{ $document->signature_requested_at?->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') ?? '—' }}</td></tr>
+      </table>
     </div>
+
+    @if(($client_fields ?? collect())->isNotEmpty())
+    <div class="section">
+      <div class="section-title">Client Form Inputs</div>
+      <table class="fields">
+        @foreach($client_fields as $row)
+          <tr>
+            <td class="lbl">{{ $row['label'] }}</td>
+            <td class="val">{{ $row['value'] }}</td>
+          </tr>
+        @endforeach
+      </table>
+    </div>
+    @endif
+
+    @if(($company_fields ?? collect())->isNotEmpty())
+    <div class="section">
+      <div class="section-title">Company Form Inputs</div>
+      <table class="fields">
+        @foreach($company_fields as $row)
+          <tr>
+            <td class="lbl">{{ $row['label'] }}</td>
+            <td class="val">{{ $row['value'] }}</td>
+          </tr>
+        @endforeach
+      </table>
+    </div>
+    @endif
 
     <div class="section">
       <div class="section-title">Client Signature</div>
-      <div class="field">
-        <span class="field-label">Signed By</span><br>
-        <span class="field-value">{{ $signer_name }}</span>
-      </div>
-      <div class="field">
-        <span class="field-label">Date &amp; Time</span><br>
-        <span class="field-value">{{ $signed_at->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') }}</span>
-      </div>
-      <div class="field">
-        <span class="field-label">IP Address</span><br>
-        <span class="field-value">{{ $signer_ip }}</span>
-      </div>
-    </div>
+      <table class="fields">
+        <tr><td class="lbl">Signed By</td><td class="val">{{ $signer_name }}</td></tr>
+        <tr><td class="lbl">Date &amp; Time</td><td class="val">{{ $signed_at->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') }}</td></tr>
+        <tr><td class="lbl">IP Address</td><td class="val">{{ $signer_ip }}</td></tr>
+      </table>
 
-    <div class="signature-box">
-      <div class="label">Client Signature</div>
-      @if($signature_png)
-        <img class="signature-img" src="data:image/png;base64,{{ $signature_png }}" alt="Client Signature" />
-      @else
-        <p style="color: #C8BFB6; font-style: italic;">No signature image available.</p>
-      @endif
+      <div class="signature-box">
+        <div class="label">Client Signature</div>
+        @if($signature_png)
+          <img class="signature-img" src="data:image/png;base64,{{ $signature_png }}" alt="Client Signature" />
+        @else
+          <p style="color: #C8BFB6; font-style: italic;">No signature image available.</p>
+        @endif
+      </div>
     </div>
 
     @if(isset($countersigned_at) && $countersigned_at)
-    <div class="section" style="margin-top: 28px;">
+    <div class="section">
       <div class="section-title">Company Counter-Signature</div>
-      <div class="field">
-        <span class="field-label">Counter-Signed By</span><br>
-        <span class="field-value">{{ $countersigner_name }}</span>
-      </div>
-      <div class="field">
-        <span class="field-label">Date &amp; Time</span><br>
-        <span class="field-value">{{ $countersigned_at->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') }}</span>
-      </div>
-      <div class="field">
-        <span class="field-label">IP Address</span><br>
-        <span class="field-value">{{ $countersigner_ip }}</span>
-      </div>
-    </div>
+      <table class="fields">
+        <tr><td class="lbl">Counter-Signed By</td><td class="val">{{ $countersigner_name }}</td></tr>
+        <tr><td class="lbl">Date &amp; Time</td><td class="val">{{ $countersigned_at->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') }}</td></tr>
+        <tr><td class="lbl">IP Address</td><td class="val">{{ $countersigner_ip }}</td></tr>
+      </table>
 
-    <div class="signature-box">
-      <div class="label">Company Signature — The Pupper Club</div>
-      @if(isset($countersign_png) && $countersign_png)
-        <img class="signature-img" src="data:image/png;base64,{{ $countersign_png }}" alt="Company Signature" />
-      @else
-        <p style="color: #C8BFB6; font-style: italic;">No signature image available.</p>
-      @endif
+      <div class="signature-box">
+        <div class="label">Company Signature — The Pupper Club</div>
+        @if(isset($countersign_png) && $countersign_png)
+          <img class="signature-img" src="data:image/png;base64,{{ $countersign_png }}" alt="Company Signature" />
+        @else
+          <p style="color: #C8BFB6; font-style: italic;">No signature image available.</p>
+        @endif
+      </div>
     </div>
     @endif
   </div>
