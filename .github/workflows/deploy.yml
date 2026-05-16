@@ -32,6 +32,15 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      # Cloudflare sits in front of the GitHub Pages origin, so a fresh
+      # deploy isn't visible to visitors until the edge cache is purged.
+      - name: Purge Cloudflare cache
+        run: |
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}' || true
+
   # ── API + Web Portal → GoDaddy (FTP) ──────────────────────────────
   deploy-godaddy:
     runs-on: ubuntu-latest
