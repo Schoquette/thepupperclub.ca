@@ -19,6 +19,9 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<CommunityMember>;
   signUp: (name: string, email: string, password: string, passwordConfirmation: string) => Promise<CommunityMember>;
   signOut: () => Promise<void>;
+  /** Force-refetch the member from /me. Useful after returning from
+   *  an external verification flow to pick up the new status. */
+  refreshMember: () => Promise<CommunityMember | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -83,8 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
   };
 
+  const refreshMember: AuthContextValue['refreshMember'] = async () => {
+    if (!token) return null;
+    try {
+      const res = await api.get('/community/me');
+      const m = res.data?.data as CommunityMember;
+      setMember(m);
+      localStorage.setItem('community_member', JSON.stringify(m));
+      return m;
+    } catch {
+      return null;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ member, token, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ member, token, loading, signIn, signUp, signOut, refreshMember }}>
       {children}
     </AuthContext.Provider>
   );

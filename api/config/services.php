@@ -12,9 +12,12 @@ return [
         'inbound_address' => env('RESEND_INBOUND_ADDRESS'), // e.g. reply@thepupperclub.ca
     ],
     'stripe' => [
-        'key'             => env('STRIPE_KEY'),
-        'secret'          => env('STRIPE_SECRET'),
-        'webhook_secret'  => env('STRIPE_WEBHOOK_SECRET'),
+        'key'                       => env('STRIPE_KEY'),
+        'secret'                    => env('STRIPE_SECRET'),
+        'webhook_secret'            => env('STRIPE_WEBHOOK_SECRET'),
+        // Separate signing secret for the Stripe Identity webhook endpoint
+        // (different events flow through a dedicated webhook in the dashboard).
+        'identity_webhook_secret'   => env('STRIPE_IDENTITY_WEBHOOK_SECRET'),
     ],
 
     'google' => [

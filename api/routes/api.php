@@ -61,6 +61,20 @@ Route::get('/fix-billing-enum-9x7k', function () {
     }
 });
 
+// Temporary: run the community_members migration (REMOVE after first hit)
+Route::get('/migrate-community-9x7k', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        return response()->json([
+            'message' => 'Migration completed.',
+            'output'  => \Illuminate\Support\Facades\Artisan::output(),
+            'community_members_exists' => \Illuminate\Support\Facades\Schema::hasTable('community_members'),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // Temporary: clear config cache (REMOVE after confirming)
 Route::get('/clear-cache-9x7k', function () {
     // Also manually delete cached config file
@@ -735,7 +749,12 @@ Route::prefix('community')->group(function () {
 
     // Authenticated endpoints (token in Authorization: Bearer)
     Route::middleware(\App\Http\Middleware\AuthenticateCommunityMember::class)->group(function () {
-        Route::post('/auth/logout', [\App\Http\Controllers\Community\AuthController::class, 'logout']);
-        Route::get('/me',           [\App\Http\Controllers\Community\AuthController::class, 'me']);
+        Route::post('/auth/logout',          [\App\Http\Controllers\Community\AuthController::class, 'logout']);
+        Route::get('/me',                    [\App\Http\Controllers\Community\AuthController::class, 'me']);
+        Route::post('/verification/start',   [\App\Http\Controllers\Community\VerificationController::class, 'start']);
     });
 });
+
+// Stripe Identity sends webhook events here. Public route — signature is
+// verified inside the controller using the dedicated identity webhook secret.
+Route::post('/webhooks/stripe-identity', [\App\Http\Controllers\Community\VerificationController::class, 'webhook']);
