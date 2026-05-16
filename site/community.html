@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <title>The Pupper Club Community — Trusted neighbourhood pet care</title>
+  <meta name="description" content="A small, trusted circle of verified neighbours who show up for each other — and for the pets they love. The community arm of The Pupper Club.">
+  <meta property="og:title" content="The Pupper Club Community">
+  <meta property="og:description" content="A small, trusted circle of verified neighbours who show up for each other — and for the pets they love.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://thepupperclub.ca/community">
+  <link rel="canonical" href="https://thepupperclub.ca/community">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="pages.css">
+  <style>
+    /* Community uses Just Blue as its accent. Soft Gold is reserved for the
+       core paid service per the brand guidelines. */
+    .community-hero {
+      background: var(--cream);
+      padding: 110px 0 70px;
+      text-align: center;
+      border-bottom: 4px solid var(--blue);
+    }
+    .community-hero .eyebrow {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--blue);
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+    .community-hero h1 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      color: var(--espresso);
+      font-size: clamp(28px, 5vw, 44px);
+      letter-spacing: 0.04em;
+      margin-bottom: 22px;
+    }
+    .community-hero p.lead {
+      max-width: 640px;
+      margin: 0 auto 32px;
+      font-size: 17px;
+      color: var(--espresso);
+      line-height: 1.7;
+    }
+    .btn-blue {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    .btn-blue:hover {
+      background: transparent;
+      color: var(--blue);
+    }
+    .btn-blue-outline {
+      background: transparent;
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+    .btn-blue-outline:hover {
+      background: var(--blue);
+      color: #fff;
+    }
+    .community-section {
+      padding: 70px 0;
+    }
+    .community-section h2 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      color: var(--espresso);
+      font-size: clamp(24px, 4vw, 32px);
+      letter-spacing: 0.04em;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .community-section .section-lead {
+      max-width: 640px;
+      margin: 0 auto 50px;
+      text-align: center;
+      color: var(--espresso);
+      line-height: 1.7;
+    }
+    .pillars {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 28px;
+    }
+    .pillar {
+      background: #fff;
+      border: 1px solid #efeae3;
+      border-radius: 12px;
+      padding: 32px 28px;
+    }
+    .pillar h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      color: var(--espresso);
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+    .pillar p {
+      color: var(--espresso);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    .pillar .num {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-size: 11px;
+      color: var(--blue);
+      margin-bottom: 14px;
+    }
+    .principles {
+      background: var(--cream);
+    }
+    .principle-list {
+      max-width: 720px;
+      margin: 0 auto;
+      list-style: none;
+      padding: 0;
+    }
+    .principle-list li {
+      padding: 18px 0;
+      border-bottom: 1px solid #e4dfd7;
+      color: var(--espresso);
+      line-height: 1.7;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .principle-list li:last-child { border-bottom: none; }
+    .principle-list .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--blue);
+      margin-top: 10px;
+      flex-shrink: 0;
+    }
+    .principle-list strong {
+      color: var(--espresso);
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .waitlist {
+      text-align: center;
+      padding: 90px 0;
+    }
+    .waitlist h2 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      color: var(--espresso);
+      font-size: clamp(24px, 4vw, 32px);
+      letter-spacing: 0.04em;
+      margin-bottom: 18px;
+    }
+    .waitlist p {
+      max-width: 580px;
+      margin: 0 auto 32px;
+      color: var(--espresso);
+      line-height: 1.7;
+    }
+    .pull-quote {
+      max-width: 720px;
+      margin: 0 auto;
+      text-align: center;
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      color: var(--espresso);
+      font-size: clamp(20px, 3vw, 26px);
+      line-height: 1.5;
+      padding: 30px 20px;
+      border-left: 3px solid var(--blue);
+      border-right: 3px solid var(--blue);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header" id="header">
+    <div class="header-inner">
+      <a href="/" class="header-logo">
+        <img src="https://images.squarespace-cdn.com/content/v1/698c986abec1646881b9843f/409f84f0-c68e-45a8-a1f6-1e9c6c9f3a23/Espresso+-+One+line+-+No+tagline.png?format=750w" alt="The Pupper Club" loading="eager">
+      </a>
+      <nav class="header-nav" id="nav">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/services" class="nav-link">Services</a>
+        <a href="/about" class="nav-link">About</a>
+        <a href="/community" class="nav-link active">Community</a>
+        <a href="/contact" class="nav-link">Contact</a>
+        <a href="/faq" class="nav-link">FAQ</a>
+      </nav>
+      <a href="/login" class="btn btn-primary header-cta">Client Login</a>
+      <button class="burger" id="burger" aria-label="Open Menu">
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu">
+      <nav class="mobile-nav">
+        <a href="/" class="mobile-nav-link">Home</a>
+        <a href="/services" class="mobile-nav-link">Services</a>
+        <a href="/about" class="mobile-nav-link">About</a>
+        <a href="/community" class="mobile-nav-link active">Community</a>
+        <a href="/contact" class="mobile-nav-link">Contact</a>
+        <a href="/faq" class="mobile-nav-link">FAQ</a>
+        <a href="/login" class="btn btn-primary mobile-cta">Client Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="community-hero">
+      <div class="container">
+        <p class="eyebrow">The Pupper Club &mdash; Community</p>
+        <h1>A trusted neighbourhood<br>network for shared pet care.</h1>
+        <p class="lead">A small, trusted circle of verified neighbours who show up for each other &mdash; and for the pets they love. No marketplace, no money, no ratings. Just neighbours, nearby.</p>
+        <a href="#waitlist" class="btn btn-blue">Join the Waitlist</a>
+      </div>
+    </section>
+
+    <!-- What it is -->
+    <section class="community-section">
+      <div class="container">
+        <div class="pull-quote">
+          &ldquo;This isn&rsquo;t a pet-sitting marketplace. It&rsquo;s a small, trusted circle of neighbours who show up for each other &mdash; and for the dogs they love.&rdquo;
+        </div>
+      </div>
+    </section>
+
+    <!-- Three pillars -->
+    <section class="community-section" style="background: var(--cream);">
+      <div class="container">
+        <h2>How it works</h2>
+        <p class="section-lead">The platform does three things, and only three things.</p>
+        <div class="pillars">
+          <div class="pillar">
+            <div class="num">01 &mdash; Verify</div>
+            <h3>Real people, nearby.</h3>
+            <p>Every member completes ID and selfie verification, and their address is tied to a neighbourhood radius &mdash; without ever being shown to anyone else.</p>
+          </div>
+          <div class="pillar">
+            <div class="num">02 &mdash; Connect</div>
+            <h3>Build a small circle.</h3>
+            <p>Browse verified neighbours within walking distance. Send a thoughtful note. Build a private network of people you trust, on your own terms.</p>
+          </div>
+          <div class="pillar">
+            <div class="num">03 &mdash; Coordinate</div>
+            <h3>Quietly ask for help.</h3>
+            <p>When life happens, send a small broadcast to chosen neighbours. The first to confirm opens a private chat. No pressure, no public posts, no obligation.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Principles -->
+    <section class="community-section principles">
+      <div class="container">
+        <h2>Privacy as a feature, not a setting.</h2>
+        <p class="section-lead">The Community is built on a few non-negotiable principles. These are the foundation, not features to be revisited.</p>
+        <ul class="principle-list">
+          <li>
+            <span class="dot"></span>
+            <span>
+              <strong>Addresses are never shared.</strong>
+              Not in profiles, not in messages, not in any export. Distance shows as &ldquo;Less than 500m away&rdquo; &mdash; never an address, never a pin on a map.
+            </span>
+          </li>
+          <li>
+            <span class="dot"></span>
+            <span>
+              <strong>Verification is required before any interaction.</strong>
+              No browsing other members, no messaging, no broadcasts until verified.
+            </span>
+          </li>
+          <li>
+            <span class="dot"></span>
+            <span>
+              <strong>No public profiles, no feeds, no comments.</strong>
+              The Community is not a social network. There is no surface for public-facing content &mdash; and therefore no harassment vector that resembles one.
+            </span>
+          </li>
+          <li>
+            <span class="dot"></span>
+            <span>
+              <strong>No ratings, no scores, no negative reviews.</strong>
+              Members may leave positive written recommendations. Care is never reduced to a number, and concerns about a member go through a private reporting flow.
+            </span>
+          </li>
+          <li>
+            <span class="dot"></span>
+            <span>
+              <strong>No money.</strong>
+              No payments, no tipping, no premium tier. The Community is freely given and freely received.
+            </span>
+          </li>
+          <li>
+            <span class="dot"></span>
+            <span>
+              <strong>Meet in public the first time.</strong>
+              A gentle, persistent reminder &mdash; a park, a caf&eacute;, a building lobby &mdash; for first meetings between neighbours.
+            </span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Waitlist -->
+    <section class="waitlist" id="waitlist">
+      <div class="container">
+        <p class="eyebrow" style="font-family: 'Lato', sans-serif; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--blue); font-size: 12px; margin-bottom: 18px;">Coming Soon</p>
+        <h2>Be among the first neighbours.</h2>
+        <p>The Pupper Club Community is launching as a desktop application for macOS and Windows. We&rsquo;re opening early access to a small group of neighbours in Port Moody and surrounding. Leave your details and we&rsquo;ll be in touch.</p>
+        <a href="/contact" class="btn btn-blue">Request Early Access</a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <h3>The Pupper Club</h3>
+        </div>
+        <div class="footer-col">
+          <h4>Location</h4>
+          <p>Port Moody, BC</p>
+        </div>
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <p>
+            <a href="/services">Services</a><br>
+            <a href="/community">Community</a><br>
+            <a href="/contact">Contact</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 The Pupper Club. All rights reserved. &nbsp;|&nbsp; <a href="/privacy">Privacy Policy</a> &nbsp;|&nbsp; <a href="/terms">Terms of Service</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="nav.js"></script>
+</body>
+</html>
