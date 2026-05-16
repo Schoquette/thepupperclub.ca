@@ -102,6 +102,21 @@ jobs:
           local-dir: ./web/dist/
           server-dir: ./
 
+      - name: Deploy marketing site to GoDaddy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          local-dir: ./site/
+          server-dir: ./
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/deploy.log
+            CNAME
+
       - name: Delete cached config before deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
