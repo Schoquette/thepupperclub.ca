@@ -751,6 +751,7 @@ Route::prefix('community')->group(function () {
     Route::middleware(\App\Http\Middleware\AuthenticateCommunityMember::class)->group(function () {
         Route::post('/auth/logout',          [\App\Http\Controllers\Community\AuthController::class, 'logout']);
         Route::get('/me',                    [\App\Http\Controllers\Community\AuthController::class, 'me']);
+        Route::patch('/profile',             [\App\Http\Controllers\Community\ProfileController::class, 'update']);
         Route::post('/verification/start',   [\App\Http\Controllers\Community\VerificationController::class, 'start']);
     });
 });

@@ -4,6 +4,8 @@ import WelcomePage from '@/pages/WelcomePage';
 import SignInPage from '@/pages/SignInPage';
 import SignUpPage from '@/pages/SignUpPage';
 import HomePage from '@/pages/HomePage';
+import ProfileSetupPage from '@/pages/ProfileSetupPage';
+import DiscoverPage from '@/pages/DiscoverPage';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { member, loading } = useAuth();
@@ -30,6 +32,8 @@ export default function App() {
       <Route path="/sign-in" element={<RedirectIfAuthed><SignInPage /></RedirectIfAuthed>} />
       <Route path="/sign-up" element={<RedirectIfAuthed><SignUpPage /></RedirectIfAuthed>} />
       <Route path="/home" element={<RequireAuth><HomePage /></RequireAuth>} />
+      <Route path="/profile-setup" element={<RequireAuth><ProfileSetupPage /></RequireAuth>} />
+      <Route path="/discover" element={<RequireAuth><DiscoverPage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

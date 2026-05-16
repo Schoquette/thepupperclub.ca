@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { open as openExternal } from '@tauri-apps/plugin-shell';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,21 +72,37 @@ export default function HomePage() {
         <h1 className="font-display text-3xl text-espresso mb-3">Hi, {member?.name?.split(' ')[0] ?? 'neighbour'}.</h1>
 
         {isVerified ? (
-          <>
-            <p className="text-espresso/80 leading-relaxed mb-10">
-              You&rsquo;re verified. Browsing nearby neighbours, sending care
-              broadcasts, and messaging are coming in the next update.
-            </p>
-            <div className="bg-white border border-taupe/20 rounded-2xl p-8">
-              <p className="label-caps text-blue mb-3">Verified</p>
-              <h2 className="font-display text-xl text-espresso mb-2">Welcome to the Community.</h2>
-              <p className="text-espresso/80 leading-relaxed">
-                When neighbour discovery opens up, you&rsquo;ll see a small list
-                of people within walking distance &mdash; no addresses shown,
-                just approximate distance and a short intro.
+          (member?.introduction && member.introduction.trim().length > 0) ? (
+            <>
+              <p className="text-espresso/80 leading-relaxed mb-10">
+                You&rsquo;re all set. Head into Discover to see neighbours
+                within your radius.
               </p>
-            </div>
-          </>
+              <div className="bg-white border border-taupe/20 rounded-2xl p-8 text-center">
+                <p className="label-caps text-blue mb-3">Verified</p>
+                <h2 className="font-display text-xl text-espresso mb-3">Welcome to the Community.</h2>
+                <Link to="/discover" className="btn-blue">Browse Neighbours &rarr;</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-espresso/80 leading-relaxed mb-10">
+                You&rsquo;re verified. One last step before you can connect
+                with neighbours: a short profile.
+              </p>
+              <div className="bg-white border border-taupe/20 rounded-2xl p-8">
+                <p className="label-caps text-blue mb-3">Next Step</p>
+                <h2 className="font-display text-xl text-espresso mb-3">Set up your profile</h2>
+                <p className="text-espresso/80 mb-6 leading-relaxed">
+                  Add a short intro and tell us when you&rsquo;re typically
+                  available. We&rsquo;ll also ask for your address so we can
+                  find neighbours nearby &mdash; it&rsquo;s stored as a coarse
+                  area and never shown to other members.
+                </p>
+                <Link to="/profile-setup" className="btn-blue">Set Up Profile &rarr;</Link>
+              </div>
+            </>
+          )
         ) : isSuspended ? (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-8">
             <p className="label-caps text-red-700 mb-3">Account Suspended</p>
