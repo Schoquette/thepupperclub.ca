@@ -720,3 +720,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages/{message}/attachment/{index}',                  [ConversationController::class, 'serveMessageAttachment']);
     Route::post('/messages/{message}/reactions',                         [ConversationController::class, 'toggleReaction']);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Community sub-brand
+// Separate auth surface from the paid service — uses CommunityMember model,
+// simple bearer-token auth (AuthenticateCommunityMember middleware), and a
+// distinct route prefix so paid-service users and community members never
+// collide.
+// ─────────────────────────────────────────────────────────────────────────────
+Route::prefix('community')->group(function () {
+    // Public auth endpoints
+    Route::post('/auth/register', [\App\Http\Controllers\Community\AuthController::class, 'register']);
+    Route::post('/auth/login',    [\App\Http\Controllers\Community\AuthController::class, 'login']);
+
+    // Authenticated endpoints (token in Authorization: Bearer)
+    Route::middleware(\App\Http\Middleware\AuthenticateCommunityMember::class)->group(function () {
+        Route::post('/auth/logout', [\App\Http\Controllers\Community\AuthController::class, 'logout']);
+        Route::get('/me',           [\App\Http\Controllers\Community\AuthController::class, 'me']);
+    });
+});

@@ -1,0 +1,25 @@
+[package]
+name = "pupperclub-community"
+version = "0.1.0"
+description = "The Pupper Club Community"
+authors = ["The Pupper Club"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "pupperclub_community_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# A custom protocol scheme is required so the front-end can resolve
+# bundled assets in production builds.
+custom-protocol = ["tauri/custom-protocol"]

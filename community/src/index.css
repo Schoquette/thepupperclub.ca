@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Alleron', 'Lato', system-ui, sans-serif;
+    background: #F6F3EE;
+    color: #3B2F2A;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3 {
+    font-family: 'Playfair Display SC', Georgia, serif;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+  }
+}
+
+@layer components {
+  /* Wide, all-caps labels — the brand's UI label voice. */
+  .label-caps {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 11px;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold tracking-wider transition-colors;
+  }
+  .btn-blue {
+    @apply btn bg-blue text-white border-2 border-blue hover:bg-transparent hover:text-blue;
+  }
+  .btn-blue-outline {
+    @apply btn bg-transparent text-blue border-2 border-blue hover:bg-blue hover:text-white;
+  }
+  .btn-espresso {
+    @apply btn bg-espresso text-cream border-2 border-espresso hover:bg-transparent hover:text-espresso;
+  }
+
+  .field-label {
+    @apply label-caps text-taupe block mb-2;
+  }
+  .field-input {
+    @apply w-full px-4 py-3 rounded-lg border border-taupe/40 bg-white text-espresso focus:outline-none focus:ring-2 focus:ring-blue/40 focus:border-blue transition;
+  }
+}
