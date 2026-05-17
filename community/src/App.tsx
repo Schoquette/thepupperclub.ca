@@ -7,6 +7,7 @@ import HomePage from '@/pages/HomePage';
 import ProfileSetupPage from '@/pages/ProfileSetupPage';
 import DiscoverPage from '@/pages/DiscoverPage';
 import NetworkPage from '@/pages/NetworkPage';
+import BroadcastsPage from '@/pages/BroadcastsPage';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { member, loading } = useAuth();
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/profile-setup" element={<RequireAuth><ProfileSetupPage /></RequireAuth>} />
       <Route path="/discover" element={<RequireAuth><DiscoverPage /></RequireAuth>} />
       <Route path="/network" element={<RequireAuth><NetworkPage /></RequireAuth>} />
+      <Route path="/broadcasts" element={<RequireAuth><BroadcastsPage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

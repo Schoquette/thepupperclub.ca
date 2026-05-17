@@ -758,6 +758,12 @@ Route::prefix('community')->group(function () {
         Route::post('/connections',          [\App\Http\Controllers\Community\ConnectionsController::class, 'store']);
         Route::patch('/connections/{connection}',  [\App\Http\Controllers\Community\ConnectionsController::class, 'update']);
         Route::delete('/connections/{connection}', [\App\Http\Controllers\Community\ConnectionsController::class, 'destroy']);
+
+        Route::get('/broadcasts/incoming',    [\App\Http\Controllers\Community\BroadcastsController::class, 'incoming']);
+        Route::get('/broadcasts/outgoing',    [\App\Http\Controllers\Community\BroadcastsController::class, 'outgoing']);
+        Route::post('/broadcasts',            [\App\Http\Controllers\Community\BroadcastsController::class, 'store']);
+        Route::patch('/broadcasts/{broadcast}/respond', [\App\Http\Controllers\Community\BroadcastsController::class, 'respond']);
+        Route::patch('/broadcasts/{broadcast}/close',   [\App\Http\Controllers\Community\BroadcastsController::class, 'close']);
     });
 });
 

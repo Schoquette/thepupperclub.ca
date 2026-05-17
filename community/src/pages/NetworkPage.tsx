@@ -72,6 +72,7 @@ export default function NetworkPage() {
         <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
         <div className="flex items-center gap-6">
           <Link to="/discover" className="label-caps text-taupe hover:text-espresso">Discover</Link>
+          <Link to="/broadcasts" className="label-caps text-taupe hover:text-espresso">Broadcasts</Link>
           <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
           <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
         </div>
