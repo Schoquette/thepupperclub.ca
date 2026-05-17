@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Community;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommunityBlock;
 use App\Models\CommunityConnection;
 use App\Models\CommunityMember;
 use App\Models\CommunityRecommendation;
@@ -29,6 +30,20 @@ class MembersController extends Controller
         }
 
         if ($other->id !== $me->id) {
+            // A block in either direction hides the profile.
+            $blocked = CommunityBlock::query()
+                ->where(function ($q) use ($me, $other) {
+                    $q->where(function ($q2) use ($me, $other) {
+                        $q2->where('blocker_id', $me->id)->where('blocked_id', $other->id);
+                    })->orWhere(function ($q2) use ($me, $other) {
+                        $q2->where('blocker_id', $other->id)->where('blocked_id', $me->id);
+                    });
+                })
+                ->exists();
+            if ($blocked) {
+                return response()->json(['message' => 'Not found.'], 404);
+            }
+
             $connected = CommunityConnection::query()
                 ->where('status', 'accepted')
                 ->where(function ($q) use ($me, $other) {

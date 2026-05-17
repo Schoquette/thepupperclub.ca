@@ -773,6 +773,11 @@ Route::prefix('community')->group(function () {
         Route::post('/recommendations',                              [\App\Http\Controllers\Community\RecommendationsController::class, 'upsert']);
         Route::delete('/recommendations/{recommendation}',           [\App\Http\Controllers\Community\RecommendationsController::class, 'destroy']);
         Route::patch('/recommendations/{recommendation}/visibility', [\App\Http\Controllers\Community\RecommendationsController::class, 'visibility']);
+
+        Route::get('/blocks',                  [\App\Http\Controllers\Community\SafetyController::class, 'listBlocks']);
+        Route::post('/blocks',                 [\App\Http\Controllers\Community\SafetyController::class, 'block']);
+        Route::delete('/blocks/{block}',       [\App\Http\Controllers\Community\SafetyController::class, 'unblock']);
+        Route::post('/reports',                [\App\Http\Controllers\Community\SafetyController::class, 'report']);
     });
 });
 

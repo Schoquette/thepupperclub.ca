@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import MemberSafetyMenu from '@/components/MemberSafetyMenu';
 
 interface ChatMessage {
   id: number;
@@ -93,9 +94,16 @@ export default function ConversationPage() {
           <p className="text-sm text-taupe text-center py-12">Loading...</p>
         ) : (
           <>
-            <div className="mb-4">
-              <p className="label-caps text-blue">Conversation with</p>
-              <h1 className="font-display text-2xl text-espresso">{data.conversation.other_name}</h1>
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <p className="label-caps text-blue">Conversation with</p>
+                <h1 className="font-display text-2xl text-espresso">{data.conversation.other_name}</h1>
+              </div>
+              <MemberSafetyMenu
+                memberId={data.conversation.other_id}
+                memberName={data.conversation.other_name}
+                onBlocked={() => navigate('/messages', { replace: true })}
+              />
             </div>
 
             {/* Gentle persistent first-meeting reminder. Per the spec. */}

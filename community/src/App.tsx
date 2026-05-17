@@ -11,6 +11,7 @@ import BroadcastsPage from '@/pages/BroadcastsPage';
 import MessagesPage from '@/pages/MessagesPage';
 import ConversationPage from '@/pages/ConversationPage';
 import MemberProfilePage from '@/pages/MemberProfilePage';
+import BlockedMembersPage from '@/pages/BlockedMembersPage';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { member, loading } = useAuth();
@@ -44,6 +45,7 @@ export default function App() {
       <Route path="/messages" element={<RequireAuth><MessagesPage /></RequireAuth>} />
       <Route path="/messages/:otherId" element={<RequireAuth><ConversationPage /></RequireAuth>} />
       <Route path="/member/:id" element={<RequireAuth><MemberProfilePage /></RequireAuth>} />
+      <Route path="/settings/blocks" element={<RequireAuth><BlockedMembersPage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

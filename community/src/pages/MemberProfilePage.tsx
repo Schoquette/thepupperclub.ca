@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import MemberSafetyMenu from '@/components/MemberSafetyMenu';
 
 interface Recommendation {
   id: number;
@@ -143,6 +144,11 @@ export default function MemberProfilePage() {
                 >
                   Message
                 </button>
+                <MemberSafetyMenu
+                  memberId={data.id}
+                  memberName={data.display_name}
+                  onBlocked={() => navigate('/discover', { replace: true })}
+                />
               </div>
             )}
 

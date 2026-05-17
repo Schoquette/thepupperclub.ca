@@ -83,8 +83,9 @@ export default function HomePage() {
                 <h2 className="font-display text-xl text-espresso mb-3">Welcome to the Community.</h2>
                 <Link to="/discover" className="btn-blue">Browse Neighbours &rarr;</Link>
                 {member && (
-                  <p className="text-xs text-taupe mt-5">
+                  <p className="text-xs text-taupe mt-5 space-x-4">
                     <Link to={`/member/${member.id}`} className="hover:text-espresso underline">View my profile</Link>
+                    <Link to="/settings/blocks" className="hover:text-espresso underline">Blocked neighbours</Link>
                   </p>
                 )}
               </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Community;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommunityBlock;
 use App\Models\CommunityChatMessage;
 use App\Models\CommunityConnection;
 use App\Models\CommunityConversation;
@@ -154,6 +155,20 @@ class ConversationsController extends Controller
 
     private function areConnected(int $a, int $b): bool
     {
+        // A block in either direction means we treat them as not-connected:
+        // the conversation thread won't open, sends 404. The blocked party
+        // gets no error signal — sends just stop arriving from this account.
+        $blocked = CommunityBlock::query()
+            ->where(function ($q) use ($a, $b) {
+                $q->where(function ($q2) use ($a, $b) {
+                    $q2->where('blocker_id', $a)->where('blocked_id', $b);
+                })->orWhere(function ($q2) use ($a, $b) {
+                    $q2->where('blocker_id', $b)->where('blocked_id', $a);
+                });
+            })
+            ->exists();
+        if ($blocked) return false;
+
         return CommunityConnection::query()
             ->where('status', 'accepted')
             ->where(function ($q) use ($a, $b) {

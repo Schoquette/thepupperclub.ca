@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Community;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommunityBlock;
 use App\Models\CommunityBroadcast;
 use App\Models\CommunityBroadcastRecipient;
 use App\Models\CommunityConnection;
@@ -125,6 +126,12 @@ class BroadcastsController extends Controller
             $data['recipient_ids'],
             $allowedIds,
         ));
+
+        // Silently drop anyone who is currently blocked in either direction.
+        $blocked = CommunityBlock::silentIdsFor($me->id);
+        if ($blocked) {
+            $recipientIds = array_values(array_diff($recipientIds, $blocked));
+        }
 
         if (!$recipientIds) {
             return response()->json([

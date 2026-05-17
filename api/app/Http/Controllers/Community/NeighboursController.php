@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Community;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommunityBlock;
 use App\Models\CommunityConnection;
 use App\Models\CommunityMember;
 use App\Services\GeohashService;
@@ -71,6 +72,13 @@ class NeighboursController extends Controller
 
         if ($relatedIds) {
             $candidatesQ->whereNotIn('id', $relatedIds);
+        }
+
+        // Apply block filter: anyone blocked-by or blocking the requester
+        // is silently absent from discovery.
+        $silentIds = CommunityBlock::silentIdsFor($me->id);
+        if ($silentIds) {
+            $candidatesQ->whereNotIn('id', $silentIds);
         }
 
         $candidates = $candidatesQ->limit(50)->get();
