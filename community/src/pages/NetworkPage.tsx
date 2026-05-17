@@ -183,9 +183,16 @@ function Section({
           {entries.map((c) => (
             <li key={c.id} className="bg-white border border-taupe/20 rounded-2xl p-5">
               <div className="flex items-start justify-between gap-4 mb-2">
-                <h3 className="font-display text-base text-espresso">
-                  {c.member?.display_name ?? 'Unknown'}
-                </h3>
+                {c.member ? (
+                  <Link
+                    to={`/member/${c.member.id}`}
+                    className="font-display text-base text-espresso hover:text-blue transition-colors"
+                  >
+                    {c.member.display_name}
+                  </Link>
+                ) : (
+                  <h3 className="font-display text-base text-espresso">Unknown</h3>
+                )}
                 {renderActions(c)}
               </div>
               {c.note && (

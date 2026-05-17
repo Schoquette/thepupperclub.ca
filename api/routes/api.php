@@ -768,6 +768,11 @@ Route::prefix('community')->group(function () {
         Route::get('/conversations',                            [\App\Http\Controllers\Community\ConversationsController::class, 'index']);
         Route::get('/conversations/{otherId}',                  [\App\Http\Controllers\Community\ConversationsController::class, 'thread']);
         Route::post('/conversations/{otherId}/messages',        [\App\Http\Controllers\Community\ConversationsController::class, 'send']);
+
+        Route::get('/members/{id}',                                  [\App\Http\Controllers\Community\MembersController::class, 'show']);
+        Route::post('/recommendations',                              [\App\Http\Controllers\Community\RecommendationsController::class, 'upsert']);
+        Route::delete('/recommendations/{recommendation}',           [\App\Http\Controllers\Community\RecommendationsController::class, 'destroy']);
+        Route::patch('/recommendations/{recommendation}/visibility', [\App\Http\Controllers\Community\RecommendationsController::class, 'visibility']);
     });
 });
 

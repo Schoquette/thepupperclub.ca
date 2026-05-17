@@ -82,6 +82,11 @@ export default function HomePage() {
                 <p className="label-caps text-blue mb-3">Verified</p>
                 <h2 className="font-display text-xl text-espresso mb-3">Welcome to the Community.</h2>
                 <Link to="/discover" className="btn-blue">Browse Neighbours &rarr;</Link>
+                {member && (
+                  <p className="text-xs text-taupe mt-5">
+                    <Link to={`/member/${member.id}`} className="hover:text-espresso underline">View my profile</Link>
+                  </p>
+                )}
               </div>
             </>
           ) : (
