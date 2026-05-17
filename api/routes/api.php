@@ -764,6 +764,10 @@ Route::prefix('community')->group(function () {
         Route::post('/broadcasts',            [\App\Http\Controllers\Community\BroadcastsController::class, 'store']);
         Route::patch('/broadcasts/{broadcast}/respond', [\App\Http\Controllers\Community\BroadcastsController::class, 'respond']);
         Route::patch('/broadcasts/{broadcast}/close',   [\App\Http\Controllers\Community\BroadcastsController::class, 'close']);
+
+        Route::get('/conversations',                            [\App\Http\Controllers\Community\ConversationsController::class, 'index']);
+        Route::get('/conversations/{otherId}',                  [\App\Http\Controllers\Community\ConversationsController::class, 'thread']);
+        Route::post('/conversations/{otherId}/messages',        [\App\Http\Controllers\Community\ConversationsController::class, 'send']);
     });
 });
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -33,6 +33,7 @@ const AVAIL_LABELS: Record<string, string> = {
 };
 
 export default function NetworkPage() {
+  const navigate = useNavigate();
   const { signOut } = useAuth();
   const [data, setData] = useState<ConnectionsPayload | null>(null);
   const [error, setError] = useState('');
@@ -73,6 +74,7 @@ export default function NetworkPage() {
         <div className="flex items-center gap-6">
           <Link to="/discover" className="label-caps text-taupe hover:text-espresso">Discover</Link>
           <Link to="/broadcasts" className="label-caps text-taupe hover:text-espresso">Broadcasts</Link>
+          <Link to="/messages" className="label-caps text-taupe hover:text-espresso">Messages</Link>
           <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
           <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
         </div>
@@ -132,14 +134,25 @@ export default function NetworkPage() {
               empty="You haven't connected with anyone yet. Head to Discover to see who's nearby."
               entries={data.accepted}
               renderActions={(c) => (
-                <button
-                  onClick={() => {
-                    if (confirm('Remove this connection? They won\'t be notified.')) remove(c.id);
-                  }}
-                  className="text-sm text-taupe hover:text-espresso"
-                >
-                  Remove
-                </button>
+                <div className="flex items-center gap-3">
+                  {c.member && (
+                    <button
+                      onClick={() => navigate(`/messages/${c.member!.id}`)}
+                      className="btn-blue-outline"
+                      style={{ padding: '6px 14px', fontSize: 12 }}
+                    >
+                      Message
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm('Remove this connection? They won\'t be notified.')) remove(c.id);
+                    }}
+                    className="text-sm text-taupe hover:text-espresso"
+                  >
+                    Remove
+                  </button>
+                </div>
               )}
             />
           </div>

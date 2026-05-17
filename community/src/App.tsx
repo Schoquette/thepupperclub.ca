@@ -8,6 +8,8 @@ import ProfileSetupPage from '@/pages/ProfileSetupPage';
 import DiscoverPage from '@/pages/DiscoverPage';
 import NetworkPage from '@/pages/NetworkPage';
 import BroadcastsPage from '@/pages/BroadcastsPage';
+import MessagesPage from '@/pages/MessagesPage';
+import ConversationPage from '@/pages/ConversationPage';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { member, loading } = useAuth();
@@ -38,6 +40,8 @@ export default function App() {
       <Route path="/discover" element={<RequireAuth><DiscoverPage /></RequireAuth>} />
       <Route path="/network" element={<RequireAuth><NetworkPage /></RequireAuth>} />
       <Route path="/broadcasts" element={<RequireAuth><BroadcastsPage /></RequireAuth>} />
+      <Route path="/messages" element={<RequireAuth><MessagesPage /></RequireAuth>} />
+      <Route path="/messages/:otherId" element={<RequireAuth><ConversationPage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

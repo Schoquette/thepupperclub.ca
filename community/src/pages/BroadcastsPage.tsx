@@ -101,6 +101,7 @@ export default function BroadcastsPage() {
         <div className="flex items-center gap-6">
           <Link to="/discover" className="label-caps text-taupe hover:text-espresso">Discover</Link>
           <Link to="/network" className="label-caps text-taupe hover:text-espresso">Network</Link>
+          <Link to="/messages" className="label-caps text-taupe hover:text-espresso">Messages</Link>
           <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
           <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
         </div>
