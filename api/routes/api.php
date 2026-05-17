@@ -753,6 +753,11 @@ Route::prefix('community')->group(function () {
         Route::get('/me',                    [\App\Http\Controllers\Community\AuthController::class, 'me']);
         Route::patch('/profile',             [\App\Http\Controllers\Community\ProfileController::class, 'update']);
         Route::post('/verification/start',   [\App\Http\Controllers\Community\VerificationController::class, 'start']);
+        Route::get('/neighbours',            [\App\Http\Controllers\Community\NeighboursController::class, 'index']);
+        Route::get('/connections',           [\App\Http\Controllers\Community\ConnectionsController::class, 'index']);
+        Route::post('/connections',          [\App\Http\Controllers\Community\ConnectionsController::class, 'store']);
+        Route::patch('/connections/{connection}',  [\App\Http\Controllers\Community\ConnectionsController::class, 'update']);
+        Route::delete('/connections/{connection}', [\App\Http\Controllers\Community\ConnectionsController::class, 'destroy']);
     });
 });
 
