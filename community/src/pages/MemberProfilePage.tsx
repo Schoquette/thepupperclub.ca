@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import MemberSafetyMenu from '@/components/MemberSafetyMenu';
+import VerifiedBadge from '@/components/VerifiedBadge';
 
 interface Recommendation {
   id: number;
@@ -20,6 +21,7 @@ interface MemberProfile {
   display_name: string;
   introduction: string | null;
   availability: string[];
+  verified: boolean;
   is_self: boolean;
   recommendations: Recommendation[];
   hidden_recommendations: Recommendation[];
@@ -117,9 +119,12 @@ export default function MemberProfilePage() {
           <p className="text-sm text-taupe text-center py-16">Loading...</p>
         ) : (
           <>
-            <h1 className="font-display text-3xl text-espresso mb-3">
-              {data.is_self ? 'Your profile' : data.display_name}
-            </h1>
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              <h1 className="font-display text-3xl text-espresso">
+                {data.is_self ? 'Your profile' : data.display_name}
+              </h1>
+              <VerifiedBadge verified={data.verified} />
+            </div>
 
             {data.introduction && (
               <p className="text-espresso/85 leading-relaxed mb-6">{data.introduction}</p>

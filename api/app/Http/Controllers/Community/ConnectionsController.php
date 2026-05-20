@@ -36,6 +36,7 @@ class ConnectionsController extends Controller
                     'display_name' => $this->displayName((string) $other->name),
                     'introduction' => $other->introduction,
                     'availability' => $other->availability ?? [],
+                    'verified'     => $other->status === 'verified',
                 ] : null,
             ];
         };
@@ -86,9 +87,9 @@ class ConnectionsController extends Controller
             'note'         => 'nullable|string|max:280',
         ]);
 
-        if ($me->status !== 'verified') {
-            return response()->json(['message' => 'Verify your account before sending connection requests.'], 403);
-        }
+        // Verification is optional — anyone who's not suspended/closed can
+        // send connection requests. The authentication middleware already
+        // rejects suspended and closed accounts.
 
         // Don't create a new request if any edge already exists between us
         // in either direction. Soft-deleted rows don't count.

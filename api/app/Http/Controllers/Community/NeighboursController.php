@@ -31,9 +31,10 @@ class NeighboursController extends Controller
         /** @var CommunityMember $me */
         $me = $request->attributes->get('community_member');
 
-        if ($me->status !== 'verified') {
-            return response()->json(['data' => [], 'message' => 'Verify your account to see neighbours.'], 200);
-        }
+        // Verification is an optional trust signal, not a gate. Suspended /
+        // closed accounts are filtered out below; everyone else is welcome
+        // to browse and be browsed. A `verified` flag rides along on each
+        // row so the UI can render a soft badge.
         if (!$me->geohash) {
             return response()->json(['data' => [], 'message' => 'Add your address in your profile to see neighbours.'], 200);
         }
@@ -46,7 +47,7 @@ class NeighboursController extends Controller
         // LIKE prefix query.
         $candidatesQ = CommunityMember::query()
             ->where('id', '!=', $me->id)
-            ->where('status', 'verified')
+            ->whereIn('status', ['pending_verification', 'verified'])
             ->whereIn('geohash', $cells);
 
         // Drop anyone the requester already has a connection edge with.
@@ -95,6 +96,7 @@ class NeighboursController extends Controller
                 'display_name'    => $this->displayName((string) $c->name),
                 'introduction'    => $c->introduction,
                 'availability'    => $c->availability ?? [],
+                'verified'        => $c->status === 'verified',
                 'distance_label'  => $this->geohash->distanceBucket($distance),
                 'distance_sort'   => (int) $distance,
             ];

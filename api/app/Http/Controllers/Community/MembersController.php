@@ -25,7 +25,10 @@ class MembersController extends Controller
         $me = $request->attributes->get('community_member');
 
         $other = CommunityMember::find($id);
-        if (!$other || $other->status !== 'verified') {
+        // Verification is optional — pending_verification and verified
+        // members both have public-facing profiles. Suspended/closed
+        // accounts disappear.
+        if (!$other || !in_array($other->status, ['pending_verification', 'verified'], true)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -119,6 +122,7 @@ class MembersController extends Controller
                 'display_name'    => $this->displayName((string) $other->name),
                 'introduction'    => $other->introduction,
                 'availability'    => $other->availability ?? [],
+                'verified'        => $other->status === 'verified',
                 'is_self'         => $other->id === $me->id,
                 'recommendations' => $recs,
                 'hidden_recommendations' => $hiddenForMe,

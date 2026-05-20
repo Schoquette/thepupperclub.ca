@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import VerifiedBadge from '@/components/VerifiedBadge';
 
 interface Neighbour {
   id: number;
   display_name: string;
   introduction: string | null;
   availability: string[];
+  verified: boolean;
   distance_label: string;
 }
 
@@ -114,7 +116,10 @@ export default function DiscoverPage() {
                 <li key={n.id} className="bg-white border border-taupe/20 rounded-2xl p-6">
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div>
-                      <h3 className="font-display text-lg text-espresso">{n.display_name}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-display text-lg text-espresso">{n.display_name}</h3>
+                        <VerifiedBadge verified={n.verified} />
+                      </div>
                       <p className="text-xs text-taupe label-caps mt-1">{n.distance_label}</p>
                     </div>
                     <button
