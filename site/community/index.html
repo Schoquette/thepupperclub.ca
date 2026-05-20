@@ -109,9 +109,21 @@
       background: var(--taupe);
       padding: 80px 0;
     }
-    .pillar-section h2,
-    .pillar-section .section-lead {
+    .pillar-section h2 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
       color: var(--espresso);
+      font-size: clamp(24px, 4vw, 32px);
+      letter-spacing: 0.04em;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .pillar-section .section-lead {
+      max-width: 640px;
+      margin: 0 auto 50px;
+      text-align: center;
+      color: var(--espresso);
+      line-height: 1.7;
     }
     .pillar h3 {
       font-family: 'Playfair Display', serif;
@@ -231,7 +243,7 @@
     <section class="pillar-section">
       <div class="container">
         <h2>How it works</h2>
-        <p class="section-lead">The platform does three things, and only three things.</p>
+        <p class="section-lead">Intentionally simple.</p>
         <div class="pillars">
           <div class="pillar">
             <div class="num">01 &mdash; Verify</div>
