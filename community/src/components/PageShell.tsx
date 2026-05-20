@@ -28,47 +28,47 @@ export default function PageShell({ children, back, crumbs, width = 'narrow' }: 
     else navigate(-1);
   };
 
-  // We only show a back link if the user actually has somewhere to go
-  // back to. On /home — the natural root — we hide it.
   const isRoot = location.pathname === '/home';
 
   return (
-    <div className="min-h-screen flex flex-col px-6 sm:px-8 py-10">
+    <div className="min-h-screen flex flex-col">
       <AppNav />
 
-      <main className={`${mainMax} mx-auto w-full flex-1`}>
-        {(!isRoot && (back !== undefined || crumbs?.length)) && (
-          <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-            {back !== undefined ? (
-              <button
-                onClick={onBack}
-                className="text-sm text-taupe hover:text-espresso transition-colors inline-flex items-center gap-1"
-              >
-                <span aria-hidden>&larr;</span>
-                <span>Back</span>
-              </button>
-            ) : <span />}
-            {crumbs && crumbs.length > 0 && (
-              <ol className="flex items-center gap-2 text-xs text-taupe flex-wrap">
-                {crumbs.map((c, i) => {
-                  const isLast = i === crumbs.length - 1;
-                  return (
-                    <li key={`${c.label}-${i}`} className="flex items-center gap-2">
-                      {c.to && !isLast ? (
-                        <Link to={c.to} className="hover:text-espresso transition-colors">{c.label}</Link>
-                      ) : (
-                        <span className={isLast ? 'text-espresso' : ''}>{c.label}</span>
-                      )}
-                      {!isLast && <span aria-hidden>/</span>}
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
-          </div>
-        )}
+      <main className="flex-1 px-6 sm:px-8 py-10 w-full">
+        <div className={`${mainMax} mx-auto w-full`}>
+          {(!isRoot && (back !== undefined || crumbs?.length)) && (
+            <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+              {back !== undefined ? (
+                <button
+                  onClick={onBack}
+                  className="text-sm text-taupe hover:text-espresso transition-colors inline-flex items-center gap-1"
+                >
+                  <span aria-hidden>&larr;</span>
+                  <span>Back</span>
+                </button>
+              ) : <span />}
+              {crumbs && crumbs.length > 0 && (
+                <ol className="flex items-center gap-2 text-xs text-taupe flex-wrap">
+                  {crumbs.map((c, i) => {
+                    const isLast = i === crumbs.length - 1;
+                    return (
+                      <li key={`${c.label}-${i}`} className="flex items-center gap-2">
+                        {c.to && !isLast ? (
+                          <Link to={c.to} className="hover:text-espresso transition-colors">{c.label}</Link>
+                        ) : (
+                          <span className={isLast ? 'text-espresso' : ''}>{c.label}</span>
+                        )}
+                        {!isLast && <span aria-hidden>/</span>}
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+          )}
 
-        {children}
+          {children}
+        </div>
       </main>
 
       <AppFooter />

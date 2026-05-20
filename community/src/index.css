@@ -55,4 +55,36 @@
   .field-input {
     @apply w-full px-4 py-3 rounded-lg border border-taupe/40 bg-white text-espresso focus:outline-none focus:ring-2 focus:ring-blue/40 focus:border-blue transition;
   }
+
+  /* Header nav link — matches the marketing site treatment (Lato 700
+     uppercase 0.1em) with an animated blue underline on hover + active. */
+  .nav-link {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #3B2F2A;
+    position: relative;
+    transition: color 0.2s ease;
+  }
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #6492D8;
+    transform: scaleX(0);
+    transition: transform 0.25s ease;
+  }
+  .nav-link:hover::after,
+  .nav-link.is-active::after {
+    transform: scaleX(1);
+  }
+  .nav-link:hover,
+  .nav-link.is-active {
+    color: #6492D8;
+  }
 }
