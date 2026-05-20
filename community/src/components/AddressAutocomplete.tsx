@@ -76,10 +76,17 @@ export default function AddressAutocomplete({
 
   useEffect(() => {
     const apiKey: string | undefined = (import.meta as any).env?.VITE_GOOGLE_MAPS_KEY;
-    if (!apiKey) { setLoadError(true); return; }
+    if (!apiKey) {
+      console.warn('[AddressAutocomplete] VITE_GOOGLE_MAPS_KEY is missing — autocomplete disabled. Re-run CI with the secret set, or hard-refresh to clear the old bundle.');
+      setLoadError(true);
+      return;
+    }
     loadGooglePlaces(apiKey)
       .then(() => setReady(true))
-      .catch(() => setLoadError(true));
+      .catch((err) => {
+        console.warn('[AddressAutocomplete] Google Maps Places failed to load:', err);
+        setLoadError(true);
+      });
   }, []);
 
   const attachAutocomplete = useCallback(() => {
@@ -120,11 +127,18 @@ export default function AddressAutocomplete({
           Selected
         </span>
       )}
+      {!ready && !loadError && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] uppercase tracking-[0.18em] text-taupe">
+          Loading...
+        </span>
+      )}
       {loadError && (
-        <p className="text-xs text-taupe mt-1">
-          Autocomplete unavailable right now &mdash; please type the full
-          address including city and postal code.
-        </p>
+        <div className="mt-2 rounded-lg bg-gold/10 border border-gold/30 px-3 py-2 text-xs text-espresso leading-relaxed">
+          <strong>Autocomplete didn&rsquo;t load.</strong> Check your
+          browser console for details. In the meantime, type the full
+          address including street number, city, province, and postal code
+          so we can still geocode it.
+        </div>
       )}
     </div>
   );

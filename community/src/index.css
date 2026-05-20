@@ -88,3 +88,36 @@
     color: #6492D8;
   }
 }
+
+/* Google Places Autocomplete dropdown.
+   The script appends `.pac-container` directly to document.body. Without
+   an explicit z-index it can fall behind modals; without explicit styling
+   it inherits browser defaults that look out of place against the brand. */
+.pac-container {
+  z-index: 10000 !important;
+  background: #ffffff;
+  border: 1px solid #C8BFB6;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(59, 47, 42, 0.12);
+  font-family: 'Lato', sans-serif;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.pac-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #3B2F2A;
+  border-top: 1px solid #F6F3EE;
+}
+.pac-item:first-child { border-top: none; }
+.pac-item:hover,
+.pac-item-selected {
+  background: #F6F3EE;
+}
+.pac-item-query { color: #3B2F2A; font-weight: 600; }
+.pac-matched { color: #6492D8; }
+.pac-icon { margin-top: 4px; }
+/* Hide the "Powered by Google" footer? Google's TOS requires it on
+   non-map autocomplete, so leave it visible. */
+
