@@ -26,6 +26,8 @@ $pages = [
     // only fires for paths that aren't files OR directories.
     '/community/verification-complete'  => 'community/verification-complete.html',
     '/community/verification-complete/' => 'community/verification-complete.html',
+    '/community/early-access'           => 'community/early-access.html',
+    '/community/early-access/'          => 'community/early-access.html',
 ];
 
 if (isset($pages[$uri])) {
