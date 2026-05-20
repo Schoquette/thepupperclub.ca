@@ -134,10 +134,43 @@ Route::get('/community-debug-9x7k', function () {
         }
     }
 
+    // Connection edges — ANY edge (pending, accepted, declined, removed)
+    // hides a candidate from Discover, so this is usually the answer when
+    // both members look healthy in `pairs` but still don't see each other.
+    $edges = \App\Models\CommunityConnection::query()
+        ->withTrashed()
+        ->orderByDesc('created_at')
+        ->limit(100)
+        ->get(['id', 'requester_id', 'recipient_id', 'status', 'created_at', 'responded_at', 'deleted_at'])
+        ->map(fn ($c) => [
+            'id'           => $c->id,
+            'requester_id' => $c->requester_id,
+            'recipient_id' => $c->recipient_id,
+            'status'       => $c->status,
+            'soft_deleted' => (bool) $c->deleted_at,
+            'created_at'   => $c->created_at?->toIso8601String(),
+            'responded_at' => $c->responded_at?->toIso8601String(),
+        ]);
+
+    // Blocks in either direction also hide candidates.
+    $blocks = \App\Models\CommunityBlock::query()
+        ->orderByDesc('created_at')
+        ->limit(100)
+        ->get(['id', 'blocker_id', 'blocked_id', 'reason', 'created_at'])
+        ->map(fn ($b) => [
+            'id'         => $b->id,
+            'blocker_id' => $b->blocker_id,
+            'blocked_id' => $b->blocked_id,
+            'reason'     => $b->reason,
+            'created_at' => $b->created_at?->toIso8601String(),
+        ]);
+
     return response()->json([
-        'now'     => now()->toIso8601String(),
-        'members' => $rows,
-        'pairs'   => $pairs,
+        'now'         => now()->toIso8601String(),
+        'members'     => $rows,
+        'pairs'       => $pairs,
+        'connections' => $edges,
+        'blocks'      => $blocks,
     ]);
 });
 
