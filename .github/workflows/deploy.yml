@@ -92,6 +92,10 @@ jobs:
             **/storage/framework/views/**
             .env
 
+      # Each FTP step writes its own state file so the steps don't
+      # delete each other's files. Both target the GoDaddy web root,
+      # but they manage disjoint file sets (React shell + marketing
+      # static pages).
       - name: Deploy web portal build to GoDaddy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -101,6 +105,7 @@ jobs:
           protocol: ftp
           local-dir: ./web/dist/
           server-dir: ./
+          state-name: .ftp-deploy-sync-state-web.json
 
       - name: Deploy marketing site to GoDaddy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -111,6 +116,7 @@ jobs:
           protocol: ftp
           local-dir: ./site/
           server-dir: ./
+          state-name: .ftp-deploy-sync-state-site.json
           exclude: |
             **/.git*
             **/.git*/**
