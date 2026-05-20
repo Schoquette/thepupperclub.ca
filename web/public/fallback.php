@@ -50,5 +50,17 @@ if (isset($seoFiles[$uri])) {
     exit;
 }
 
-// Everything else (login, admin, client, sign, etc.) → React app
+// Community member app — a separate React SPA, deployed at /community/app/.
+// Any nested route under that prefix that isn't a real file (e.g.
+// /community/app/sign-in, /community/app/discover) should serve the SPA's
+// index.html and let client-side routing take over.
+if (str_starts_with($uri, '/community/app')) {
+    $appIndex = __DIR__ . '/community/app/index.html';
+    if (is_file($appIndex)) {
+        readfile($appIndex);
+        exit;
+    }
+}
+
+// Everything else (login, admin, client, sign, etc.) → main React portal
 readfile(__DIR__ . '/app.html');

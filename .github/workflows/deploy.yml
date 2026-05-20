@@ -54,8 +54,8 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install web dependencies
-        run: npm install --workspace=web --workspace=shared
+      - name: Install JS dependencies
+        run: npm install --workspace=web --workspace=shared --workspace=community
 
       - name: Build web portal
         run: cd web && npx vite build
@@ -63,6 +63,14 @@ jobs:
           VITE_API_URL: https://thepupperclub.ca
           VITE_STRIPE_KEY: ${{ secrets.VITE_STRIPE_KEY }}
           VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
+
+      # Community member app (web build of the Tauri front-end). The
+      # WEB_DEPLOY flag flips vite's `base` to /community/app/ so asset
+      # URLs and the React Router basename line up with the deploy path.
+      - name: Build community app
+        run: cd community && WEB_DEPLOY=1 npx vite build
+        env:
+          VITE_API_URL: https://thepupperclub.ca
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -122,6 +130,17 @@ jobs:
             **/.git*/**
             **/deploy.log
             CNAME
+
+      - name: Deploy community member app to GoDaddy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          local-dir: ./community/dist/
+          server-dir: community/app/
+          state-name: .ftp-deploy-sync-state-community.json
 
       - name: Delete cached config before deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

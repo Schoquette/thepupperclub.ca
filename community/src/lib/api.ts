@@ -29,7 +29,10 @@ api.interceptors.response.use(
       if (!url.startsWith('/community/auth/')) {
         localStorage.removeItem('community_token');
         localStorage.removeItem('community_member');
-        window.location.assign('/');
+        // Bounce back to the app's own welcome screen, which lives
+        // under whatever base path the build was deployed under
+        // (e.g. /community/app/ for the web build, / for Tauri).
+        window.location.assign(import.meta.env.BASE_URL);
       }
     }
     return Promise.reject(error);

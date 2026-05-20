@@ -2,10 +2,16 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-// Tauri expects a fixed port on dev and won't allow external connections
-// when in development; the standard Vite defaults need a couple tweaks.
-export default defineConfig(async () => ({
+// The community front-end ships as both a Tauri desktop bundle and a hosted
+// web app at https://thepupperclub.ca/community/app/. For the web deploy
+// (WEB_DEPLOY=1) we emit absolute asset URLs under /community/app/; for
+// Tauri builds we keep relative paths so the bundled installer works
+// offline.
+const webDeploy = process.env.WEB_DEPLOY === '1';
+
+export default defineConfig(() => ({
   plugins: [react()],
+  base: webDeploy ? '/community/app/' : './',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
