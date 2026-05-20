@@ -3,13 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import VerifiedBadge from '@/components/VerifiedBadge';
+import AuthImage from '@/components/AuthImage';
 
 interface NetworkMember {
   id: number;
   display_name: string;
+  photo_url: string | null;
   introduction: string | null;
   availability: string[];
   verified?: boolean;
+  anonymous?: boolean;
 }
 
 interface ConnectionEntry {
@@ -185,18 +188,29 @@ function Section({
           {entries.map((c) => (
             <li key={c.id} className="bg-white border border-taupe/20 rounded-2xl p-5">
               <div className="flex items-start justify-between gap-4 mb-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {c.member ? (
-                    <Link
-                      to={`/member/${c.member.id}`}
-                      className="font-display text-base text-espresso hover:text-blue transition-colors"
-                    >
-                      {c.member.display_name}
-                    </Link>
-                  ) : (
-                    <h3 className="font-display text-base text-espresso">Unknown</h3>
-                  )}
-                  <VerifiedBadge verified={c.member?.verified} />
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-cream flex items-center justify-center text-base shrink-0">
+                    {c.member?.photo_url ? (
+                      <AuthImage src={c.member.photo_url} alt={c.member.display_name} className="w-full h-full object-cover" fallback={<span>🙂</span>} />
+                    ) : (
+                      <span className={c.member?.anonymous ? 'opacity-50' : ''}>🙂</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {c.member ? (
+                        <Link
+                          to={`/member/${c.member.id}`}
+                          className="font-display text-base text-espresso hover:text-blue transition-colors"
+                        >
+                          {c.member.display_name}
+                        </Link>
+                      ) : (
+                        <h3 className="font-display text-base text-espresso">Unknown</h3>
+                      )}
+                      <VerifiedBadge verified={c.member?.verified} />
+                    </div>
+                  </div>
                 </div>
                 {renderActions(c)}
               </div>

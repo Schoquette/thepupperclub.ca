@@ -82,7 +82,13 @@ class NeighboursController extends Controller
             $candidatesQ->whereNotIn('id', $silentIds);
         }
 
-        $candidates = $candidatesQ->limit(50)->get();
+        // Pet counts by species let us show a non-identifying summary
+        // ("1 dog · 1 cat") on each anonymous browse card.
+        $candidates = $candidatesQ->withCount([
+            'pets as pets_dog_count'   => fn ($q) => $q->where('species', 'dog'),
+            'pets as pets_cat_count'   => fn ($q) => $q->where('species', 'cat'),
+            'pets as pets_other_count' => fn ($q) => $q->where('species', 'other'),
+        ])->limit(50)->get();
 
         $myCentre = $this->geohash->decode($me->geohash);
         $rows = [];
@@ -91,30 +97,33 @@ class NeighboursController extends Controller
             if ($cCentre === null) continue;
             $distance = $this->geohash->distanceMeters($myCentre, $cCentre);
             if ($distance > ($me->radius_meters ?? 1000) * 1.5) continue; // generous slack
+
+            // Anonymous browse shape — no name, no photo, no pet names.
+            // Viewer sees intro / availability / care info / distance and
+            // pet *counts* by species so they can decide whether to send a
+            // connect request. Identifying info unlocks only after the
+            // request is accepted.
             $rows[] = [
-                'id'              => $c->id,
-                'display_name'    => $this->displayName((string) $c->name),
-                'introduction'    => $c->introduction,
-                'availability'    => $c->availability ?? [],
-                'verified'        => $c->status === 'verified',
-                'distance_label'  => $this->geohash->distanceBucket($distance),
-                'distance_sort'   => (int) $distance,
+                'id'                => $c->id,
+                'introduction'      => $c->introduction,
+                'availability'      => $c->availability ?? [],
+                'need_availability' => $c->need_availability ?? [],
+                'care_offered'      => $c->care_offered ?? [],
+                'care_needed'       => $c->care_needed ?? [],
+                'verified'          => $c->status === 'verified',
+                'distance_label'    => $this->geohash->distanceBucket($distance),
+                'distance_sort'     => (int) $distance,
+                'pets_summary'      => [
+                    'dog'   => (int) $c->pets_dog_count,
+                    'cat'   => (int) $c->pets_cat_count,
+                    'other' => (int) $c->pets_other_count,
+                ],
             ];
         }
 
         usort($rows, fn ($a, $b) => $a['distance_sort'] <=> $b['distance_sort']);
-        // Strip the sort key before returning.
         foreach ($rows as &$r) unset($r['distance_sort']);
 
         return response()->json(['data' => $rows]);
-    }
-
-    private function displayName(string $name): string
-    {
-        $parts = preg_split('/\s+/', trim($name));
-        if (count($parts) === 1) return $parts[0];
-        $first   = $parts[0];
-        $lastInit = strtoupper(substr(end($parts), 0, 1));
-        return "{$first} {$lastInit}.";
     }
 }

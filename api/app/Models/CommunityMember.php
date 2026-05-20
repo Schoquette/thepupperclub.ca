@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -18,9 +19,12 @@ class CommunityMember extends Model
         'status',
         'verification_provider',
         'verification_session_id',
+        'verification_paid_at',
+        'verification_checkout_session_id',
         'verified_at',
         'geohash',
         'introduction',
+        'photo_path',
         'availability',
         'need_availability',
         'care_offered',
@@ -38,8 +42,9 @@ class CommunityMember extends Model
     protected function casts(): array
     {
         return [
-            'verified_at'    => 'datetime',
-            'last_login_at'  => 'datetime',
+            'verified_at'           => 'datetime',
+            'verification_paid_at'  => 'datetime',
+            'last_login_at'         => 'datetime',
             'availability'   => 'array',
             'radius_meters'  => 'integer',
         ];
@@ -68,5 +73,10 @@ class CommunityMember extends Model
     public static function findByPlainToken(string $plain): ?self
     {
         return self::where('api_token', hash('sha256', $plain))->first();
+    }
+
+    public function pets(): HasMany
+    {
+        return $this->hasMany(CommunityPet::class, 'member_id')->orderBy('sort_order')->orderBy('id');
     }
 }

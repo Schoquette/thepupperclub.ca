@@ -86,7 +86,16 @@ class AuthController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
+        /** @var \App\Models\CommunityMember $member */
         $member = $request->attributes->get('community_member');
-        return response()->json(['data' => $member]);
+        $member->loadMissing('pets');
+
+        $shape = $member->toArray();
+        $shape['photo_url'] = $member->photo_path
+            ? "/api/community/members/{$member->id}/photo"
+            : null;
+        $shape['pets'] = $member->pets->map(fn ($p) => $p->publicShape())->values();
+
+        return response()->json(['data' => $shape]);
     }
 }

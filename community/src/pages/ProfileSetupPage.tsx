@@ -1,7 +1,9 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, type CommunityPet } from '@/contexts/AuthContext';
+import AuthImage from '@/components/AuthImage';
+import PetForm from '@/components/PetForm';
 
 const AVAILABILITY_OPTIONS: { value: string; label: string }[] = [
   { value: 'mornings', label: 'Mornings' },
@@ -18,6 +20,10 @@ const CARE_OPTIONS: { value: string; label: string }[] = [
   { value: 'multi_day', label: 'Multi-day care' },
 ];
 
+const SPECIES_LABEL: Record<CommunityPet['species'], string> = {
+  dog: 'Dog', cat: 'Cat', other: 'Other',
+};
+
 const RADIUS_MAX = 15000;
 
 function radiusLabelFor(meters: number): string {
@@ -33,6 +39,7 @@ function radiusLabelFor(meters: number): string {
 export default function ProfileSetupPage() {
   const navigate = useNavigate();
   const { member, refreshMember } = useAuth();
+
   const [introduction, setIntroduction] = useState(member?.introduction ?? '');
   const [availability, setAvailability]         = useState<string[]>(member?.availability ?? []);
   const [needAvailability, setNeedAvailability] = useState<string[]>(member?.need_availability ?? []);
@@ -43,10 +50,71 @@ export default function ProfileSetupPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Member photo
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  // Pets
+  const [petModal, setPetModal] = useState<{ open: boolean; pet: CommunityPet | null }>({ open: false, pet: null });
+
   const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
     setter((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
     );
+  };
+
+  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setPhotoFile(file);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const uploadPhoto = async () => {
+    if (!photoFile) return;
+    setPhotoBusy(true);
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('photo', photoFile);
+      await api.post('/community/profile/photo', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setPhotoFile(null);
+      if (photoPreview) { URL.revokeObjectURL(photoPreview); setPhotoPreview(null); }
+      await refreshMember();
+    } catch (err: any) {
+      const data = err.response?.data;
+      const first = data?.errors ? Object.values(data.errors).flat()[0] : null;
+      setError((first as string) ?? data?.message ?? 'Couldn’t upload that photo.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    if (!member?.photo_url) return;
+    if (!confirm('Remove your photo?')) return;
+    setPhotoBusy(true);
+    try {
+      await api.delete('/community/profile/photo');
+      await refreshMember();
+    } catch {
+      setError('Couldn’t remove your photo.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const deletePet = async (pet: CommunityPet) => {
+    if (!confirm(`Remove ${pet.name}?`)) return;
+    try {
+      await api.delete(`/community/pets/${pet.id}`);
+      await refreshMember();
+    } catch {
+      setError(`Couldn’t remove ${pet.name}.`);
+    }
   };
 
   const onSubmit = async (e: FormEvent) => {
@@ -81,11 +149,14 @@ export default function ProfileSetupPage() {
   };
 
   const radiusLabel = radiusLabelFor(radius);
+  const pets = member?.pets ?? [];
+  const hasSavedPhoto = !!member?.photo_url;
 
   return (
     <div className="min-h-screen px-8 py-12">
-      <header className="max-w-2xl mx-auto mb-10">
+      <header className="max-w-2xl mx-auto mb-10 flex items-center justify-between">
         <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
+        <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
       </header>
 
       <main className="max-w-2xl mx-auto">
@@ -93,11 +164,124 @@ export default function ProfileSetupPage() {
         <p className="text-espresso/80 leading-relaxed mb-10">
           A short profile helps neighbours feel comfortable connecting. None of
           your contact details &mdash; phone, email, address &mdash; are ever
-          shown to other members.
+          shown to other members. Your photo and pet names stay hidden until
+          you and a neighbour both verify and connect.
         </p>
 
+        {/* ────────── Your photo ────────── */}
+        <section className="mb-10">
+          <h2 className="group-heading">Your photo</h2>
+          <p className="group-sub">
+            A friendly headshot helps neighbours recognise you once you&rsquo;ve
+            connected. Hidden from anonymous browse.
+          </p>
+          <div className="flex items-center gap-5">
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-cream flex items-center justify-center text-3xl">
+              {photoPreview ? (
+                <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+              ) : hasSavedPhoto ? (
+                <AuthImage
+                  src={member!.photo_url}
+                  alt={member!.name}
+                  className="w-full h-full object-cover"
+                  fallback={<span>🙂</span>}
+                />
+              ) : (
+                <span>🙂</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 items-start">
+              <label className="text-sm text-blue hover:underline cursor-pointer">
+                <input type="file" accept="image/*" className="hidden" onChange={onPhotoChange} />
+                {hasSavedPhoto ? 'Choose a different photo' : 'Choose a photo'}
+              </label>
+              {photoFile && (
+                <button
+                  type="button"
+                  onClick={uploadPhoto}
+                  disabled={photoBusy}
+                  className="btn-blue disabled:opacity-60"
+                  style={{ padding: '7px 16px', fontSize: 12 }}
+                >
+                  {photoBusy ? 'Uploading...' : 'Save photo'}
+                </button>
+              )}
+              {hasSavedPhoto && !photoFile && (
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  disabled={photoBusy}
+                  className="text-xs text-taupe hover:text-red-500"
+                >
+                  Remove photo
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ────────── Your pets ────────── */}
+        <section className="border-t border-taupe/30 pt-7 mb-10">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="group-heading mb-0">Your pets</h2>
+            <button
+              type="button"
+              onClick={() => setPetModal({ open: true, pet: null })}
+              className="text-sm text-blue hover:underline"
+            >
+              + Add a pet
+            </button>
+          </div>
+          <p className="group-sub">
+            Add the pets in your home. Neighbours see pet <em>counts</em> on
+            anonymous browse, and the full pet info only once you&rsquo;ve
+            connected.
+          </p>
+
+          {pets.length === 0 ? (
+            <p className="text-sm text-taupe italic">No pets added yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {pets.map((p) => (
+                <li key={p.id} className="bg-white border border-taupe/20 rounded-2xl p-4 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-cream flex items-center justify-center text-xl shrink-0">
+                    {p.photo_url ? (
+                      <AuthImage src={p.photo_url} alt={p.name} className="w-full h-full object-cover" fallback={<span>🐾</span>} />
+                    ) : (
+                      <span>🐾</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display text-base text-espresso truncate">{p.name}</p>
+                    <p className="text-xs text-taupe">
+                      {p.species === 'other' && p.species_other ? p.species_other : SPECIES_LABEL[p.species]}
+                      {typeof p.age_years === 'number' ? ` · ${p.age_years} yr` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPetModal({ open: true, pet: p })}
+                      className="text-sm text-blue hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePet(p)}
+                      className="text-sm text-taupe hover:text-red-500"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         <form onSubmit={onSubmit} className="space-y-8">
-          <div>
+          <div className="border-t border-taupe/30 pt-7">
             <label htmlFor="intro" className="field-label">Introduction</label>
             <textarea
               id="intro"
@@ -286,6 +470,17 @@ export default function ProfileSetupPage() {
           </div>
         </form>
       </main>
+
+      {petModal.open && (
+        <PetForm
+          pet={petModal.pet}
+          onClose={() => setPetModal({ open: false, pet: null })}
+          onSaved={async () => {
+            setPetModal({ open: false, pet: null });
+            await refreshMember();
+          }}
+        />
+      )}
     </div>
   );
 }

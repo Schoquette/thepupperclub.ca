@@ -1,12 +1,28 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import api from '@/lib/api';
 
+export interface CommunityPet {
+  id: number;
+  species: 'dog' | 'cat' | 'other';
+  species_other: string | null;
+  name: string;
+  photo_url: string | null;
+  age_years: number | null;
+  sex: 'male' | 'female' | 'unknown' | null;
+  spayed_neutered: boolean | null;
+  notes: string | null;
+  care_instructions: string | null;
+  species_data: Record<string, any>;
+  sort_order: number;
+}
+
 export interface CommunityMember {
   id: number;
   name: string;
   email: string;
   status: 'pending_verification' | 'verified' | 'suspended' | 'closed';
   introduction: string | null;
+  photo_url: string | null;
   availability: string[] | null;
   need_availability: string[] | null;
   care_offered: string[] | null;
@@ -14,6 +30,7 @@ export interface CommunityMember {
   radius_meters: number;
   verified_at: string | null;
   created_at: string;
+  pets: CommunityPet[];
 }
 
 interface AuthContextValue {

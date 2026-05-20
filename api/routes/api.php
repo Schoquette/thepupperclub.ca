@@ -766,7 +766,19 @@ Route::prefix('community')->group(function () {
         Route::post('/auth/logout',          [\App\Http\Controllers\Community\AuthController::class, 'logout']);
         Route::get('/me',                    [\App\Http\Controllers\Community\AuthController::class, 'me']);
         Route::patch('/profile',             [\App\Http\Controllers\Community\ProfileController::class, 'update']);
-        Route::post('/verification/start',   [\App\Http\Controllers\Community\VerificationController::class, 'start']);
+        Route::post('/profile/photo',        [\App\Http\Controllers\Community\ProfileController::class, 'uploadPhoto']);
+        Route::delete('/profile/photo',      [\App\Http\Controllers\Community\ProfileController::class, 'removePhoto']);
+        Route::get('/members/{member}/photo', [\App\Http\Controllers\Community\ProfileController::class, 'servePhoto']);
+
+        Route::post('/pets',                 [\App\Http\Controllers\Community\PetsController::class, 'store']);
+        Route::post('/pets/{pet}',           [\App\Http\Controllers\Community\PetsController::class, 'update']); // POST + _method=PATCH
+        Route::patch('/pets/{pet}',          [\App\Http\Controllers\Community\PetsController::class, 'update']);
+        Route::delete('/pets/{pet}',         [\App\Http\Controllers\Community\PetsController::class, 'destroy']);
+        Route::get('/pets/{pet}/photo',      [\App\Http\Controllers\Community\PetsController::class, 'photo']);
+
+        Route::get('/verification/status',    [\App\Http\Controllers\Community\VerificationController::class, 'status']);
+        Route::post('/verification/checkout', [\App\Http\Controllers\Community\VerificationController::class, 'checkout']);
+        Route::post('/verification/start',    [\App\Http\Controllers\Community\VerificationController::class, 'start']);
         Route::get('/neighbours',            [\App\Http\Controllers\Community\NeighboursController::class, 'index']);
         Route::get('/connections',           [\App\Http\Controllers\Community\ConnectionsController::class, 'index']);
         Route::post('/connections',          [\App\Http\Controllers\Community\ConnectionsController::class, 'store']);
@@ -798,3 +810,9 @@ Route::prefix('community')->group(function () {
 // Stripe Identity sends webhook events here. Public route — signature is
 // verified inside the controller using the dedicated identity webhook secret.
 Route::post('/webhooks/stripe-identity', [\App\Http\Controllers\Community\VerificationController::class, 'webhook']);
+
+// Stripe Checkout sends `checkout.session.completed` here for the $5
+// community verification fee. Signature is verified inside the controller.
+// Acts only on sessions whose metadata.kind is community_verification_fee,
+// so it never collides with the main paid-service checkout webhook.
+Route::post('/webhooks/community-checkout', [\App\Http\Controllers\Community\VerificationController::class, 'checkoutWebhook']);

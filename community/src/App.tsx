@@ -12,6 +12,7 @@ import MessagesPage from '@/pages/MessagesPage';
 import ConversationPage from '@/pages/ConversationPage';
 import MemberProfilePage from '@/pages/MemberProfilePage';
 import BlockedMembersPage from '@/pages/BlockedMembersPage';
+import VerifyPage from '@/pages/VerifyPage';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { member, loading } = useAuth();
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="/messages" element={<RequireAuth><MessagesPage /></RequireAuth>} />
       <Route path="/messages/:otherId" element={<RequireAuth><ConversationPage /></RequireAuth>} />
       <Route path="/member/:id" element={<RequireAuth><MemberProfilePage /></RequireAuth>} />
+      <Route path="/verify" element={<RequireAuth><VerifyPage /></RequireAuth>} />
       <Route path="/settings/blocks" element={<RequireAuth><BlockedMembersPage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

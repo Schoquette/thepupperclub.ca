@@ -25,15 +25,14 @@ class MembersController extends Controller
         $me = $request->attributes->get('community_member');
 
         $other = CommunityMember::find($id);
-        // Verification is optional — pending_verification and verified
-        // members both have public-facing profiles. Suspended/closed
-        // accounts disappear.
         if (!$other || !in_array($other->status, ['pending_verification', 'verified'], true)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
-        if ($other->id !== $me->id) {
-            // A block in either direction hides the profile.
+        $isSelf = $other->id === $me->id;
+
+        // A block in either direction hides the profile entirely.
+        if (!$isSelf) {
             $blocked = CommunityBlock::query()
                 ->where(function ($q) use ($me, $other) {
                     $q->where(function ($q2) use ($me, $other) {
@@ -46,7 +45,10 @@ class MembersController extends Controller
             if ($blocked) {
                 return response()->json(['message' => 'Not found.'], 404);
             }
+        }
 
+        $connected = false;
+        if (!$isSelf) {
             $connected = CommunityConnection::query()
                 ->where('status', 'accepted')
                 ->where(function ($q) use ($me, $other) {
@@ -54,9 +56,20 @@ class MembersController extends Controller
                     $q->orWhere(fn ($q2) => $q2->where('requester_id', $other->id)->where('recipient_id', $me->id));
                 })
                 ->exists();
-            if (!$connected) {
-                return response()->json(['message' => 'Not found.'], 404);
-            }
+        }
+
+        // Identifying info (name, photo, pet names + photos) only surfaces
+        // when the *viewer* is verified AND on an accepted-connection edge
+        // with the target. Otherwise the response is anonymous: intro /
+        // availability / care info / distance / pet counts. Self-view is
+        // always full.
+        $viewerVerified = $me->status === 'verified';
+        $fullView = $isSelf || ($viewerVerified && $connected);
+
+        $other->loadMissing('pets');
+        $petsSummary = ['dog' => 0, 'cat' => 0, 'other' => 0];
+        foreach ($other->pets as $p) {
+            $petsSummary[$p->species] = ($petsSummary[$p->species] ?? 0) + 1;
         }
 
         // Recommendations visible to other members: not hidden by the
@@ -116,19 +129,39 @@ class MembersController extends Controller
             }
         }
 
-        return response()->json([
-            'data' => [
-                'id'              => $other->id,
-                'display_name'    => $this->displayName((string) $other->name),
-                'introduction'    => $other->introduction,
-                'availability'    => $other->availability ?? [],
-                'verified'        => $other->status === 'verified',
-                'is_self'         => $other->id === $me->id,
-                'recommendations' => $recs,
-                'hidden_recommendations' => $hiddenForMe,
-                'my_recommendation'      => $myRecommendation,
-            ],
-        ]);
+        // Always-visible fields
+        $payload = [
+            'id'                 => $other->id,
+            'introduction'       => $other->introduction,
+            'availability'       => $other->availability ?? [],
+            'need_availability'  => $other->need_availability ?? [],
+            'care_offered'       => $other->care_offered ?? [],
+            'care_needed'        => $other->care_needed ?? [],
+            'verified'           => $other->status === 'verified',
+            'is_self'            => $isSelf,
+            'connected'          => $connected,
+            'full_view'          => $fullView,
+            'viewer_verified'    => $viewerVerified,
+            'pets_summary'       => $petsSummary,
+        ];
+
+        if ($fullView) {
+            $payload['display_name'] = $this->displayName((string) $other->name);
+            $payload['photo_url']    = $other->photo_path ? "/api/community/members/{$other->id}/photo" : null;
+            $payload['pets']         = $other->pets->map(fn ($p) => $p->publicShape())->values();
+            $payload['recommendations']        = $recs;
+            $payload['hidden_recommendations'] = $hiddenForMe;
+            $payload['my_recommendation']      = $myRecommendation;
+        } else {
+            // Anonymous browse view — recommendations stay visible but
+            // author names are stripped to the same anonymous label.
+            $payload['recommendations'] = $recs->map(function ($r) {
+                $r['author_name'] = 'A neighbour';
+                return $r;
+            });
+        }
+
+        return response()->json(['data' => $payload]);
     }
 
     private function displayName(string $name): string

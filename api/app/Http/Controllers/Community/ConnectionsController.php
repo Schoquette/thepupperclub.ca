@@ -23,21 +23,43 @@ class ConnectionsController extends Controller
         /** @var CommunityMember $me */
         $me = $request->attributes->get('community_member');
 
+        // We expose identifying info (name, photo) only once a connection
+        // is accepted. Pending requests stay anonymous in both directions
+        // — the recipient decides based on the requester's note + the
+        // anonymous profile fields.
         $shape = function (CommunityConnection $c, int $otherId) {
             /** @var CommunityMember|null $other */
             $other = CommunityMember::find($otherId);
+            if (!$other) {
+                return [
+                    'id'         => $c->id,
+                    'status'     => $c->status,
+                    'note'       => $c->note,
+                    'created_at' => $c->created_at?->toIso8601String(),
+                    'member'     => null,
+                ];
+            }
+
+            $accepted = $c->status === 'accepted';
+
+            $member = [
+                'id'            => $other->id,
+                'display_name'  => $accepted ? $this->displayName((string) $other->name) : 'A neighbour',
+                'photo_url'     => $accepted && $other->photo_path
+                    ? "/api/community/members/{$other->id}/photo"
+                    : null,
+                'introduction'  => $other->introduction,
+                'availability'  => $other->availability ?? [],
+                'verified'      => $other->status === 'verified',
+                'anonymous'     => !$accepted,
+            ];
+
             return [
-                'id'           => $c->id,
-                'status'       => $c->status,
-                'note'         => $c->note,
-                'created_at'   => $c->created_at?->toIso8601String(),
-                'member'       => $other ? [
-                    'id'           => $other->id,
-                    'display_name' => $this->displayName((string) $other->name),
-                    'introduction' => $other->introduction,
-                    'availability' => $other->availability ?? [],
-                    'verified'     => $other->status === 'verified',
-                ] : null,
+                'id'         => $c->id,
+                'status'     => $c->status,
+                'note'       => $c->note,
+                'created_at' => $c->created_at?->toIso8601String(),
+                'member'     => $member,
             ];
         };
 
@@ -87,9 +109,16 @@ class ConnectionsController extends Controller
             'note'         => 'nullable|string|max:280',
         ]);
 
-        // Verification is optional — anyone who's not suspended/closed can
-        // send connection requests. The authentication middleware already
-        // rejects suspended and closed accounts.
+        // Identity verification is required before sending connection
+        // requests — members can still browse anonymous profiles without
+        // verifying. The cost of verification (Stripe Identity) is passed
+        // through to the member.
+        if ($me->status !== 'verified') {
+            return response()->json([
+                'message' => 'Verify your identity to send connection requests.',
+                'requires_verification' => true,
+            ], 403);
+        }
 
         // Don't create a new request if any edge already exists between us
         // in either direction. Soft-deleted rows don't count.
