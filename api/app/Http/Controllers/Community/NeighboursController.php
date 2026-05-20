@@ -39,17 +39,17 @@ class NeighboursController extends Controller
             return response()->json(['data' => [], 'message' => 'Add your address in your profile to see neighbours.'], 200);
         }
 
-        $cells = $this->geohash->neighbourCells($me->geohash);
-
-        // Members whose geohash prefix is one of our neighbour cells. We
-        // match on the full geohash equality because both sides store the
-        // same precision; if precisions diverge later we'd switch to a
-        // LIKE prefix query.
+        // We previously prefix-filtered by a 3x3 grid of geohash cells.
+        // That capped the candidate set at ~3km x 2km regardless of the
+        // requesting member's radius, so 5/10/15km searches silently
+        // returned nothing for members just outside the immediate grid.
+        // Until the table is big enough to need a spatial index, we
+        // fetch all eligible members and run the distance check in PHP.
         $candidatesQ = CommunityMember::query()
             ->where('id', '!=', $me->id)
             ->whereIn('status', ['pending_verification', 'verified'])
             ->whereNull('paused_at')
-            ->whereIn('geohash', $cells);
+            ->whereNotNull('geohash');
 
         // Drop anyone the requester already has a connection edge with.
         // We pull the small list of "involved" ids and exclude them.
