@@ -83,6 +83,64 @@ Route::get('/migrate-community-9x7k', function () {
     }
 });
 
+// Temporary: diagnose Discover visibility. Shows every community member's
+// key state at a glance — has_geohash is the usual culprit for "I'm not
+// seeing anyone". Remove this endpoint once we're past beta.
+Route::get('/community-debug-9x7k', function () {
+    $members = \App\Models\CommunityMember::withTrashed()
+        ->orderByDesc('created_at')
+        ->limit(50)
+        ->get(['id', 'name', 'email', 'status', 'geohash', 'radius_meters', 'paused_at', 'verification_paid_at', 'verified_at', 'deleted_at', 'created_at']);
+
+    $rows = $members->map(function ($m) {
+        return [
+            'id'             => $m->id,
+            'name'           => $m->name,
+            'email'          => $m->email,
+            'status'         => $m->status,
+            'has_geohash'    => (bool) $m->geohash,
+            'geohash'        => $m->geohash,
+            'radius_km'      => $m->radius_meters ? round($m->radius_meters / 1000, 1) : null,
+            'paused'         => (bool) $m->paused_at,
+            'paid_verify'    => (bool) $m->verification_paid_at,
+            'verified_at'    => $m->verified_at?->toIso8601String(),
+            'deleted'        => (bool) $m->deleted_at,
+            'created_at'     => $m->created_at?->toIso8601String(),
+        ];
+    });
+
+    // Pairwise distance summary — easier to spot "they have addresses but
+    // are too far apart" cases. Only computed for active, geohashed members.
+    $geohash = app(\App\Services\GeohashService::class);
+    $active = $members->filter(fn ($m) => $m->geohash && !$m->deleted_at && !$m->paused_at)->values();
+    $pairs = [];
+    for ($i = 0; $i < count($active); $i++) {
+        for ($j = $i + 1; $j < count($active); $j++) {
+            $a = $active[$i]; $b = $active[$j];
+            $aC = $geohash->decode($a->geohash);
+            $bC = $geohash->decode($b->geohash);
+            if (!$aC || !$bC) continue;
+            $d = $geohash->distanceMeters($aC, $bC);
+            $pairs[] = [
+                'a_id'      => $a->id, 'a_name' => $a->name,
+                'b_id'      => $b->id, 'b_name' => $b->name,
+                'metres'    => (int) round($d),
+                'km'        => round($d / 1000, 2),
+                'a_radius_km' => $a->radius_meters ? round($a->radius_meters / 1000, 1) : null,
+                'b_radius_km' => $b->radius_meters ? round($b->radius_meters / 1000, 1) : null,
+                'a_sees_b'  => $d <= ($a->radius_meters ?? 1000) * 1.5,
+                'b_sees_a'  => $d <= ($b->radius_meters ?? 1000) * 1.5,
+            ];
+        }
+    }
+
+    return response()->json([
+        'now'     => now()->toIso8601String(),
+        'members' => $rows,
+        'pairs'   => $pairs,
+    ]);
+});
+
 // Temporary: clear config cache (REMOVE after confirming)
 Route::get('/clear-cache-9x7k', function () {
     // Also manually delete cached config file
