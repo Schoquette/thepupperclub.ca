@@ -28,6 +28,7 @@ export interface CommunityMember {
   care_offered: string[] | null;
   care_needed: string[] | null;
   radius_meters: number;
+  geohash: string | null;
   verified_at: string | null;
   paused_at: string | null;
   notification_prefs: Record<string, boolean> | null;

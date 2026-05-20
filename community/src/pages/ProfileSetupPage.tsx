@@ -27,16 +27,27 @@ const SPECIES_LABEL: Record<CommunityPet['species'], string> = {
   dog: 'Dog', cat: 'Cat', other: 'Other',
 };
 
-const RADIUS_MAX = 15000;
+// Members pick a radius from a tight set of round-number presets. We
+// snap to one of these on save so the headline on Discover ("Members
+// within about N km") matches the slider exactly — previously a slider
+// could land at 5.8 km while the label said "about 10 km", which read
+// as broken and quietly shrunk the result set.
+const RADIUS_PRESETS: { meters: number; label: string }[] = [
+  { meters: 1000,  label: '1 km'  },
+  { meters: 5000,  label: '5 km'  },
+  { meters: 10000, label: '10 km' },
+  { meters: 15000, label: '15 km+ (no limit)' },
+];
 
-function radiusLabelFor(meters: number): string {
-  if (meters >= RADIUS_MAX) return '15 km+ (no limit)';
-  if (meters <= 500)  return 'In your building or block';
-  if (meters <= 1000) return 'Less than 1 km';
-  if (meters <= 2000) return 'About 2 km';
-  if (meters <= 5000) return 'About 5 km';
-  if (meters <= 10000) return 'About 10 km';
-  return 'Up to 15 km';
+/** Snap an arbitrary stored value to the closest preset on display. */
+function snapToPreset(meters: number): number {
+  let closest = RADIUS_PRESETS[0].meters;
+  let bestDelta = Math.abs(meters - closest);
+  for (const p of RADIUS_PRESETS) {
+    const d = Math.abs(meters - p.meters);
+    if (d < bestDelta) { bestDelta = d; closest = p.meters; }
+  }
+  return closest;
 }
 
 export default function ProfileSetupPage() {
@@ -48,7 +59,7 @@ export default function ProfileSetupPage() {
   const [needAvailability, setNeedAvailability] = useState<string[]>(member?.need_availability ?? []);
   const [careOffered, setCareOffered]           = useState<string[]>(member?.care_offered ?? []);
   const [careNeeded, setCareNeeded]             = useState<string[]>(member?.care_needed ?? []);
-  const [radius, setRadius] = useState(member?.radius_meters ?? 1000);
+  const [radius, setRadius] = useState(snapToPreset(member?.radius_meters ?? 5000));
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -135,21 +146,29 @@ export default function ProfileSetupPage() {
       setError('A short introduction helps neighbours feel comfortable connecting — at least a sentence or two.');
       return;
     }
-    if (!address.trim()) {
+    // The raw address is never stored on our side (only the geohash). On
+    // first setup the field is required; on subsequent edits we already
+    // have a geohash on file, so we only send `address` if the member
+    // actively typed something new.
+    const addressAlreadyOnFile = !!member?.geohash;
+    if (!address.trim() && !addressAlreadyOnFile) {
       setError('We need your address to find neighbours nearby. It’s never shown to other members.');
       return;
     }
     setSaving(true);
     try {
-      await api.patch('/community/profile', {
+      const payload: Record<string, unknown> = {
         introduction: introduction.trim(),
         availability,
         need_availability: needAvailability,
         care_offered: careOffered,
         care_needed:  careNeeded,
         radius_meters: radius,
-        address: address.trim(),
-      });
+      };
+      if (address.trim()) {
+        payload.address = address.trim();
+      }
+      await api.patch('/community/profile', payload);
       await refreshMember();
       navigate('/discover', { replace: true });
     } catch (err: any) {
@@ -159,7 +178,6 @@ export default function ProfileSetupPage() {
     }
   };
 
-  const radiusLabel = radiusLabelFor(radius);
   const pets = member?.pets ?? [];
   const hasSavedPhoto = !!member?.photo_url;
 
@@ -424,34 +442,48 @@ export default function ProfileSetupPage() {
           </section>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label htmlFor="radius" className="field-label mb-0">Neighbour radius</label>
-              <span className="text-sm text-espresso">{radiusLabel}</span>
-            </div>
-            <input
-              id="radius"
-              type="range"
-              min={250}
-              max={RADIUS_MAX}
-              step={250}
-              value={radius}
-              onChange={(e) => setRadius(Number(e.target.value))}
-              className="w-full accent-blue"
-            />
-            <div className="flex justify-between text-xs text-taupe mt-1">
-              <span>250 m</span>
-              <span>15 km+</span>
+            <label className="field-label">Neighbour radius</label>
+            <p className="text-xs text-taupe mb-3 leading-relaxed">
+              How far afield to look for neighbours. Whatever you pick is
+              exactly what we&rsquo;ll search.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {RADIUS_PRESETS.map((opt) => {
+                const selected = radius === opt.meters;
+                return (
+                  <button
+                    type="button"
+                    key={opt.meters}
+                    onClick={() => setRadius(opt.meters)}
+                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                      selected
+                        ? 'bg-blue text-white border-blue'
+                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div>
             <label htmlFor="address" className="field-label">Your home address</label>
+            {member?.geohash && (
+              <div className="rounded-lg bg-blue/10 border border-blue/20 px-4 py-3 text-sm text-blue mb-3 leading-relaxed">
+                Your address is already on file. We only store the coarse
+                area, so we can&rsquo;t show it back to you here. Leave the
+                field blank to keep what you have, or type a new address
+                to update it.
+              </div>
+            )}
             <AddressAutocomplete
               id="address"
               value={address}
               onChange={setAddress}
-              required
-              placeholder="Start typing your address..."
+              required={!member?.geohash}
+              placeholder={member?.geohash ? 'Type only if you want to update your address' : 'Start typing your address...'}
             />
             <p className="text-xs text-taupe mt-2 leading-relaxed">
               Pick your address from the suggestions so we can place you
