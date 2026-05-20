@@ -164,7 +164,7 @@ export default function DiscoverPage() {
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-display text-lg text-espresso">A neighbour</h3>
-                        <p className="text-xs text-taupe label-caps">{n.distance_label}</p>
+                        <p className="text-sm text-espresso/70">{n.distance_label}</p>
                         <p className="text-xs text-taupe mt-0.5">{petSummaryText(n.pets_summary)}</p>
                       </div>
                     </div>
