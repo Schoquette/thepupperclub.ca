@@ -91,13 +91,27 @@
     .pillars {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 28px;
+      gap: 24px;
     }
     .pillar {
       background: #fff;
-      border: 1px solid #efeae3;
+      border: 1px solid var(--taupe);
       border-radius: 12px;
-      padding: 32px 28px;
+      padding: 36px 30px;
+      box-shadow: 0 6px 20px rgba(59, 47, 42, 0.08);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .pillar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(59, 47, 42, 0.12);
+    }
+    .pillar-section {
+      background: var(--taupe);
+      padding: 80px 0;
+    }
+    .pillar-section h2,
+    .pillar-section .section-lead {
+      color: var(--espresso);
     }
     .pillar h3 {
       font-family: 'Playfair Display', serif;
@@ -171,19 +185,6 @@
       color: var(--espresso);
       line-height: 1.7;
     }
-    .pull-quote {
-      max-width: 720px;
-      margin: 0 auto;
-      text-align: center;
-      font-family: 'Playfair Display', serif;
-      font-style: italic;
-      color: var(--espresso);
-      font-size: clamp(20px, 3vw, 26px);
-      line-height: 1.5;
-      padding: 30px 20px;
-      border-left: 3px solid var(--blue);
-      border-right: 3px solid var(--blue);
-    }
   </style>
 </head>
 <body>
@@ -233,17 +234,8 @@
       </div>
     </section>
 
-    <!-- What it is -->
-    <section class="community-section">
-      <div class="container">
-        <div class="pull-quote">
-          &ldquo;This isn&rsquo;t a pet-sitting marketplace. It&rsquo;s a small, trusted circle of neighbours who show up for each other &mdash; and for the dogs they love.&rdquo;
-        </div>
-      </div>
-    </section>
-
     <!-- Three pillars -->
-    <section class="community-section" style="background: var(--cream);">
+    <section class="pillar-section">
       <div class="container">
         <h2>How it works</h2>
         <p class="section-lead">The platform does three things, and only three things.</p>
@@ -256,7 +248,7 @@
           <div class="pillar">
             <div class="num">02 &mdash; Connect</div>
             <h3>Build a small circle.</h3>
-            <p>Browse verified neighbours within walking distance. Send a thoughtful note. Build a private network of people you trust, on your own terms.</p>
+            <p>Browse verified neighbours in your neighbourhood. Send a thoughtful note. Build a private network of people you trust, on your own terms.</p>
           </div>
           <div class="pillar">
             <div class="num">03 &mdash; Coordinate</div>
