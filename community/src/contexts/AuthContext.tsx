@@ -8,6 +8,7 @@ export interface CommunityMember {
   status: 'pending_verification' | 'verified' | 'suspended' | 'closed';
   introduction: string | null;
   availability: string[] | null;
+  need_availability: string[] | null;
   care_offered: string[] | null;
   care_needed: string[] | null;
   radius_meters: number;

@@ -35,9 +35,10 @@ export default function ProfileSetupPage() {
   const navigate = useNavigate();
   const { member, refreshMember } = useAuth();
   const [introduction, setIntroduction] = useState(member?.introduction ?? '');
-  const [availability, setAvailability] = useState<string[]>(member?.availability ?? []);
-  const [careOffered, setCareOffered]   = useState<string[]>(member?.care_offered ?? []);
-  const [careNeeded, setCareNeeded]     = useState<string[]>(member?.care_needed ?? []);
+  const [availability, setAvailability]         = useState<string[]>(member?.availability ?? []);
+  const [needAvailability, setNeedAvailability] = useState<string[]>(member?.need_availability ?? []);
+  const [careOffered, setCareOffered]           = useState<string[]>(member?.care_offered ?? []);
+  const [careNeeded, setCareNeeded]             = useState<string[]>(member?.care_needed ?? []);
   const [radius, setRadius] = useState(member?.radius_meters ?? 1000);
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
@@ -65,6 +66,7 @@ export default function ProfileSetupPage() {
       await api.patch('/community/profile', {
         introduction: introduction.trim(),
         availability,
+        need_availability: needAvailability,
         care_offered: careOffered,
         care_needed:  careNeeded,
         radius_meters: radius,
@@ -111,7 +113,8 @@ export default function ProfileSetupPage() {
           </div>
 
           <div>
-            <div className="field-label">When are you typically available?</div>
+            <div className="field-label">When you're typically free to help</div>
+            <p className="text-xs text-taupe mb-2">When neighbours could ask you for help.</p>
             <div className="flex flex-wrap gap-2 mt-1">
               {AVAILABILITY_OPTIONS.map((opt) => {
                 const selected = availability.includes(opt.value);
@@ -131,7 +134,30 @@ export default function ProfileSetupPage() {
                 );
               })}
             </div>
-            <p className="text-xs text-taupe mt-2">Choose any that fit. You can change this later.</p>
+          </div>
+
+          <div>
+            <div className="field-label">When you typically need care</div>
+            <p className="text-xs text-taupe mb-2">When you might ask a neighbour to help with your pets.</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {AVAILABILITY_OPTIONS.map((opt) => {
+                const selected = needAvailability.includes(opt.value);
+                return (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => toggleIn(setNeedAvailability, opt.value)}
+                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                      selected
+                        ? 'bg-blue text-white border-blue'
+                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>

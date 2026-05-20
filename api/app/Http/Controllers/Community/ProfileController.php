@@ -26,22 +26,26 @@ class ProfileController extends Controller
 
         $careOptions = ['dog_walk', 'drop_in', 'overnight', 'multi_day', 'companionship'];
 
+        $availabilityOptions = ['mornings', 'evenings', 'weekends', 'weekdays', 'ad_hoc'];
+
         $data = $request->validate([
-            'name'           => 'sometimes|string|max:255',
-            'introduction'   => 'sometimes|nullable|string|max:600',
-            'availability'   => 'sometimes|nullable|array',
-            'availability.*' => 'string|in:mornings,evenings,weekends,weekdays,ad_hoc',
-            'care_offered'   => 'sometimes|nullable|array',
-            'care_offered.*' => 'string|in:' . implode(',', $careOptions),
-            'care_needed'    => 'sometimes|nullable|array',
-            'care_needed.*'  => 'string|in:' . implode(',', $careOptions),
-            'radius_meters'  => 'sometimes|integer|min:250|max:15000',
-            'address'        => 'sometimes|nullable|string|max:500',
+            'name'                => 'sometimes|string|max:255',
+            'introduction'        => 'sometimes|nullable|string|max:600',
+            'availability'        => 'sometimes|nullable|array',
+            'availability.*'      => 'string|in:' . implode(',', $availabilityOptions),
+            'need_availability'   => 'sometimes|nullable|array',
+            'need_availability.*' => 'string|in:' . implode(',', $availabilityOptions),
+            'care_offered'        => 'sometimes|nullable|array',
+            'care_offered.*'      => 'string|in:' . implode(',', $careOptions),
+            'care_needed'         => 'sometimes|nullable|array',
+            'care_needed.*'       => 'string|in:' . implode(',', $careOptions),
+            'radius_meters'       => 'sometimes|integer|min:250|max:15000',
+            'address'             => 'sometimes|nullable|string|max:500',
         ]);
 
         $updates = [];
 
-        foreach (['name', 'introduction', 'availability', 'care_offered', 'care_needed', 'radius_meters'] as $field) {
+        foreach (['name', 'introduction', 'availability', 'need_availability', 'care_offered', 'care_needed', 'radius_meters'] as $field) {
             if (array_key_exists($field, $data)) {
                 $updates[$field] = $data[$field];
             }
