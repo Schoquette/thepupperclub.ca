@@ -4,20 +4,22 @@ namespace App\Http\Controllers\Community;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommunityMember;
+use App\Services\CommunityMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class SupportController extends Controller
 {
+    public function __construct(private CommunityMailer $mailer) {}
+
     /**
      * POST /api/community/support/contact
      * Body: { topic: technical|question|feature|safety, body: string }
      *
-     * Emails the support inbox (sophie@thepupperclub.ca). Safety reports
-     * are flagged in the subject so they sort to the top. The member's
-     * reply-to is included so a normal reply lands in their inbox.
+     * Delivers the message to the support inbox (sophie@thepupperclub.ca)
+     * using the branded Community email template. The submitter's address
+     * is the Reply-To so a normal reply lands back in their inbox.
      */
     public function contact(Request $request): JsonResponse
     {
@@ -35,35 +37,49 @@ class SupportController extends Controller
             'feature'   => 'Feature request',
             'safety'    => 'SAFETY incident',
         ];
+        $topicLabel = $topicLabels[$data['topic']] ?? 'Message';
 
-        $subject = '[Community] ' . ($topicLabels[$data['topic']] ?? 'Message')
-            . ' from member #' . $member->id;
+        $isSafety = $data['topic'] === 'safety';
+        $subject  = ($isSafety ? '[SAFETY] ' : '[Community] ')
+            . $topicLabel . ' — member #' . $member->id;
 
-        $bodyText = "From: {$member->name} <{$member->email}> (member #{$member->id})\n"
-            . "Topic: {$topicLabels[$data['topic']]}\n"
-            . "Status: {$member->status}\n"
-            . "---\n\n"
-            . $data['body'];
+        // Build a branded HTML body. The template wraps this in the
+        // cream/blue layout shared with the Client Portal.
+        $title = $isSafety
+            ? 'Safety report from a Community member'
+            : 'New ' . strtolower($topicLabel) . ' from a Community member';
 
-        // Community support always lands at sophie@thepupperclub.ca.
-        // Emails route through the same Resend transport configured for the
-        // Client Portal (MAIL_MAILER=resend), so no extra setup is needed.
+        $bodyParagraphs = preg_split('/\n{2,}/', trim($data['body']));
+        $bodyHtml = '';
+        foreach ($bodyParagraphs as $p) {
+            $bodyHtml .= '<p>' . nl2br(e($p)) . '</p>';
+        }
+
+        $content =
+            '<p><strong>From:</strong> ' . e($member->name) . ' &lt;' . e($member->email) . '&gt;'
+                . ' (member #' . (int) $member->id . ')</p>'
+            . '<p><strong>Topic:</strong> ' . e($topicLabel) . '</p>'
+            . '<p><strong>Account status:</strong> ' . e($member->status) . '</p>'
+            . '<hr style="border:none;border-top:1px solid #F6F3EE;margin:24px 0;">'
+            . $bodyHtml
+            . '<hr style="border:none;border-top:1px solid #F6F3EE;margin:24px 0;">'
+            . '<p style="color:#5a4a44;font-size:13px;">'
+                . 'Reply directly to this email to reach the member &mdash; their address is set as Reply-To.'
+            . '</p>';
+
         $to = config('mail.community_support_address', 'sophie@thepupperclub.ca');
 
-        try {
-            Mail::raw($bodyText, function ($message) use ($subject, $to, $member) {
-                $message->to($to)
-                    ->subject($subject)
-                    ->replyTo($member->email, $member->name);
-            });
-        } catch (\Throwable $e) {
-            Log::error('Community support contact failed', [
-                'member_id' => $member->id,
-                'topic'     => $data['topic'],
-                'error'     => $e->getMessage(),
-            ]);
-            // The mail send failed but we don't want the member to lose
-            // their message — log it server-side so we can recover it.
+        $sent = $this->mailer->send(
+            toEmail:     $to,
+            subject:     $subject,
+            title:       $title,
+            htmlContent: $content,
+            replyTo:     $member->email,
+            replyToName: $member->name,
+        );
+
+        if (!$sent) {
+            // Mail failed — log the message so we can recover it manually.
             Log::info('Community support fallback log', [
                 'member_id' => $member->id,
                 'topic'     => $data['topic'],
