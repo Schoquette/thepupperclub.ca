@@ -61,6 +61,14 @@ Route::get('/fix-billing-enum-9x7k', function () {
     }
 });
 
+// Temporary: delete community member(s) by email (REMOVE after cleanup).
+Route::get('/delete-community-member-9x7k', function (\Illuminate\Http\Request $request) {
+    $email = strtolower((string) $request->query('email', ''));
+    if (!$email) return response()->json(['error' => 'pass ?email='], 400);
+    $rows = \App\Models\CommunityMember::where('email', $email)->forceDelete();
+    return response()->json(['email' => $email, 'rows_deleted' => $rows]);
+});
+
 // Temporary: run the community_members migration (REMOVE after first hit)
 Route::get('/migrate-community-9x7k', function () {
     try {

@@ -26,7 +26,11 @@ export default function SignUpPage() {
     } catch (err: any) {
       const data = err.response?.data;
       const firstError = data?.errors ? Object.values(data.errors).flat()[0] : null;
-      setError((firstError as string) ?? data?.message ?? 'Sign-up failed. Please try again.');
+      const status   = err.response?.status;
+      const fallback = status
+        ? `Sign-up failed (server returned ${status}). Please try again.`
+        : `Sign-up failed: ${err.message ?? 'network error'}. Please try again.`;
+      setError((firstError as string) ?? data?.message ?? fallback);
     } finally {
       setLoading(false);
     }
