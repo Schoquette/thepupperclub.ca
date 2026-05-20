@@ -242,7 +242,24 @@ export default function MemberProfilePage() {
               </div>
             )}
 
-            {!data.is_self && (
+            {data.is_self ? (
+              <div className="flex items-center gap-3 mb-10 flex-wrap">
+                <button
+                  onClick={() => navigate('/profile-setup')}
+                  className="btn-blue"
+                  style={{ padding: '8px 18px', fontSize: 12 }}
+                >
+                  Edit profile
+                </button>
+                <button
+                  onClick={() => navigate('/settings')}
+                  className="btn-blue-outline"
+                  style={{ padding: '8px 18px', fontSize: 12 }}
+                >
+                  Settings
+                </button>
+              </div>
+            ) : (
               <div className="flex items-center gap-3 mb-10 flex-wrap">
                 {data.full_view ? (
                   <button
