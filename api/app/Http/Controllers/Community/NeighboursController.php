@@ -48,6 +48,7 @@ class NeighboursController extends Controller
         $candidatesQ = CommunityMember::query()
             ->where('id', '!=', $me->id)
             ->whereIn('status', ['pending_verification', 'verified'])
+            ->whereNull('paused_at')
             ->whereIn('geohash', $cells);
 
         // Drop anyone the requester already has a connection edge with.

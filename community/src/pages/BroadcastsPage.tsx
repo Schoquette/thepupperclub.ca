@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import PageShell from '@/components/PageShell';
 
 type CareType = 'walk' | 'drop_in' | 'overnight' | 'other';
 
@@ -44,7 +43,6 @@ interface ConnectedMember {
 }
 
 export default function BroadcastsPage() {
-  const { signOut } = useAuth();
   const [tab, setTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [incoming, setIncoming] = useState<IncomingBroadcast[] | null>(null);
   const [outgoing, setOutgoing] = useState<OutgoingBroadcast[] | null>(null);
@@ -95,19 +93,7 @@ export default function BroadcastsPage() {
   };
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-4xl mx-auto flex items-center justify-between mb-12">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <div className="flex items-center gap-6">
-          <Link to="/discover" className="label-caps text-taupe hover:text-espresso">Discover</Link>
-          <Link to="/network" className="label-caps text-taupe hover:text-espresso">Network</Link>
-          <Link to="/messages" className="label-caps text-taupe hover:text-espresso">Messages</Link>
-          <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
-          <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell back="/home" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Broadcasts' }]}>
         <div className="flex items-center justify-between mb-3">
           <h1 className="font-display text-3xl text-espresso">Care broadcasts.</h1>
           <button
@@ -262,8 +248,7 @@ export default function BroadcastsPage() {
             }}
           />
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 }
 

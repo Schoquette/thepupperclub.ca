@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
 import MemberSafetyMenu from '@/components/MemberSafetyMenu';
+import PageShell from '@/components/PageShell';
 
 interface ChatMessage {
   id: number;
@@ -22,7 +22,6 @@ interface ThreadResponse {
 export default function ConversationPage() {
   const { otherId } = useParams<{ otherId: string }>();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
   const [data, setData] = useState<ThreadResponse | null>(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -81,15 +80,15 @@ export default function ConversationPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col px-8 py-8">
-      <header className="max-w-2xl mx-auto w-full flex items-center justify-between mb-6">
-        <Link to="/messages" className="label-caps text-taupe hover:text-espresso">
-          &larr; Messages
-        </Link>
-        <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
-      </header>
-
-      <main className="max-w-2xl mx-auto w-full flex-1 flex flex-col">
+    <PageShell
+      back="/messages"
+      crumbs={[
+        { label: 'Home', to: '/home' },
+        { label: 'Messages', to: '/messages' },
+        { label: data?.conversation?.other_name ?? 'Conversation' },
+      ]}
+    >
+      <div className="flex-1 flex flex-col">
         {!data ? (
           <p className="text-sm text-taupe text-center py-12">Loading...</p>
         ) : (
@@ -171,7 +170,7 @@ export default function ConversationPage() {
             </form>
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </PageShell>
   );
 }

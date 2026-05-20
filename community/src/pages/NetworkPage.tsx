@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import AuthImage from '@/components/AuthImage';
+import PageShell from '@/components/PageShell';
 
 interface NetworkMember {
   id: number;
@@ -39,7 +39,6 @@ const AVAIL_LABELS: Record<string, string> = {
 
 export default function NetworkPage() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
   const [data, setData] = useState<ConnectionsPayload | null>(null);
   const [error, setError] = useState('');
 
@@ -73,19 +72,7 @@ export default function NetworkPage() {
   };
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-4xl mx-auto flex items-center justify-between mb-12">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <div className="flex items-center gap-6">
-          <Link to="/discover" className="label-caps text-taupe hover:text-espresso">Discover</Link>
-          <Link to="/broadcasts" className="label-caps text-taupe hover:text-espresso">Broadcasts</Link>
-          <Link to="/messages" className="label-caps text-taupe hover:text-espresso">Messages</Link>
-          <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
-          <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell back="/home" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Network' }]}>
         <h1 className="font-display text-3xl text-espresso mb-3">Your network.</h1>
         <p className="text-espresso/80 leading-relaxed mb-10">
           The neighbours you&rsquo;ve connected with, plus any pending
@@ -162,8 +149,7 @@ export default function NetworkPage() {
             />
           </div>
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 }
 

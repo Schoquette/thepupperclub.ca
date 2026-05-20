@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import PageShell from '@/components/PageShell';
 
 interface ConversationRow {
   id: number;
@@ -14,7 +14,6 @@ interface ConversationRow {
 }
 
 export default function MessagesPage() {
-  const { signOut } = useAuth();
   const [rows, setRows] = useState<ConversationRow[] | null>(null);
   const [error, setError] = useState('');
 
@@ -41,19 +40,7 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-4xl mx-auto flex items-center justify-between mb-12">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <div className="flex items-center gap-6">
-          <Link to="/discover" className="label-caps text-taupe hover:text-espresso">Discover</Link>
-          <Link to="/network" className="label-caps text-taupe hover:text-espresso">Network</Link>
-          <Link to="/broadcasts" className="label-caps text-taupe hover:text-espresso">Broadcasts</Link>
-          <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
-          <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell back="/home" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Messages' }]}>
         <h1 className="font-display text-3xl text-espresso mb-3">Messages.</h1>
         <p className="text-espresso/80 leading-relaxed mb-10">
           Private conversations with neighbours you&rsquo;ve connected with.
@@ -106,7 +93,6 @@ export default function MessagesPage() {
             ))}
           </ul>
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 }

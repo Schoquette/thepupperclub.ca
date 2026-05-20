@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import PageShell from '@/components/PageShell';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,7 +38,7 @@ interface VerificationStatus {
 export default function VerifyPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { member, signOut, refreshMember } = useAuth();
+  const { member, refreshMember } = useAuth();
   const [status, setStatus] = useState<VerificationStatus | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -144,16 +145,7 @@ export default function VerifyPage() {
   const feeLabel   = status ? `$${(status.fee_cents / 100).toFixed(2)}` : '$5';
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-4xl mx-auto flex items-center justify-between mb-12">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <div className="flex items-center gap-6">
-          <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
-          <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell back="/home" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Verify' }]}>
         <h1 className="font-display text-3xl text-espresso mb-3">Verify your identity</h1>
         <p className="text-espresso/80 leading-relaxed mb-8">
           Before connecting with neighbours or seeing names and photos, we ask
@@ -247,7 +239,6 @@ export default function VerifyPage() {
             </p>
           </div>
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 }

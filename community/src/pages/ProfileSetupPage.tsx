@@ -1,9 +1,10 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import { useAuth, type CommunityPet } from '@/contexts/AuthContext';
 import AuthImage from '@/components/AuthImage';
 import PetForm from '@/components/PetForm';
+import PageShell from '@/components/PageShell';
 
 const AVAILABILITY_OPTIONS: { value: string; label: string }[] = [
   { value: 'mornings', label: 'Mornings' },
@@ -153,13 +154,7 @@ export default function ProfileSetupPage() {
   const hasSavedPhoto = !!member?.photo_url;
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-2xl mx-auto mb-10 flex items-center justify-between">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell back="/settings" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Settings', to: '/settings' }, { label: 'Edit profile' }]}>
         <h1 className="font-display text-3xl text-espresso mb-3">Tell us a little about you.</h1>
         <p className="text-espresso/80 leading-relaxed mb-10">
           A short profile helps neighbours feel comfortable connecting. None of
@@ -456,21 +451,12 @@ export default function ProfileSetupPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2">
-            <button
-              type="button"
-              onClick={() => navigate('/home')}
-              className="label-caps text-taupe hover:text-espresso"
-            >
-              &larr; Back
-            </button>
+          <div className="flex items-center justify-end pt-2">
             <button type="submit" disabled={saving} className="btn-blue disabled:opacity-60">
               {saving ? 'Saving...' : 'Save & Continue'}
             </button>
           </div>
         </form>
-      </main>
-
       {petModal.open && (
         <PetForm
           pet={petModal.pet}
@@ -481,6 +467,6 @@ export default function ProfileSetupPage() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import PageShell from '@/components/PageShell';
 
 interface BlockEntry {
   id: number;
@@ -13,7 +12,6 @@ interface BlockEntry {
 }
 
 export default function BlockedMembersPage() {
-  const { signOut } = useAuth();
   const [rows, setRows] = useState<BlockEntry[] | null>(null);
   const [error, setError] = useState('');
 
@@ -40,16 +38,7 @@ export default function BlockedMembersPage() {
   };
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-4xl mx-auto flex items-center justify-between mb-12">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <div className="flex items-center gap-6">
-          <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
-          <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell back="/settings" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Settings', to: '/settings' }, { label: 'Blocked' }]}>
         <h1 className="font-display text-3xl text-espresso mb-3">Blocked neighbours.</h1>
         <p className="text-espresso/80 leading-relaxed mb-10">
           People you&rsquo;ve blocked. They&rsquo;re hidden from your
@@ -90,7 +79,6 @@ export default function BlockedMembersPage() {
             ))}
           </ul>
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 }

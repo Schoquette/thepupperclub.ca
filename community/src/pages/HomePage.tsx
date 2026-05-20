@@ -1,23 +1,16 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import PageShell from '@/components/PageShell';
 
 export default function HomePage() {
-  const { member, signOut } = useAuth();
+  const { member } = useAuth();
 
   const isVerified  = member?.status === 'verified';
   const isSuspended = member?.status === 'suspended';
   const hasProfile  = !!(member?.introduction && member.introduction.trim().length > 0);
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-4xl mx-auto flex items-center justify-between mb-12">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">
-          Sign Out
-        </button>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell>
         <h1 className="font-display text-3xl text-espresso mb-3">Hi, {member?.name?.split(' ')[0] ?? 'neighbour'}.</h1>
 
         {isSuspended ? (
@@ -82,7 +75,6 @@ export default function HomePage() {
             <Link to="/verify" className="btn-blue-outline">Verify My Identity &rarr;</Link>
           </div>
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 }

@@ -29,6 +29,8 @@ export interface CommunityMember {
   care_needed: string[] | null;
   radius_meters: number;
   verified_at: string | null;
+  paused_at: string | null;
+  notification_prefs: Record<string, boolean> | null;
   created_at: string;
   pets: CommunityPet[];
 }
@@ -43,6 +45,8 @@ interface AuthContextValue {
   /** Force-refetch the member from /me. Useful after returning from
    *  an external verification flow to pick up the new status. */
   refreshMember: () => Promise<CommunityMember | null>;
+  /** Rotate the persisted bearer token — used after password change. */
+  setToken: (token: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -120,8 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setTokenAndPersist: AuthContextValue['setToken'] = (t) => {
+    localStorage.setItem('community_token', t);
+    setToken(t);
+  };
+
   return (
-    <AuthContext.Provider value={{ member, token, loading, signIn, signUp, signOut, refreshMember }}>
+    <AuthContext.Provider value={{ member, token, loading, signIn, signUp, signOut, refreshMember, setToken: setTokenAndPersist }}>
       {children}
     </AuthContext.Provider>
   );

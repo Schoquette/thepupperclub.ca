@@ -776,6 +776,13 @@ Route::prefix('community')->group(function () {
         Route::delete('/pets/{pet}',         [\App\Http\Controllers\Community\PetsController::class, 'destroy']);
         Route::get('/pets/{pet}/photo',      [\App\Http\Controllers\Community\PetsController::class, 'photo']);
 
+        Route::get('/account/settings',       [\App\Http\Controllers\Community\AccountController::class, 'settings']);
+        Route::patch('/account/password',     [\App\Http\Controllers\Community\AccountController::class, 'changePassword']);
+        Route::patch('/account/notifications', [\App\Http\Controllers\Community\AccountController::class, 'updateNotifications']);
+        Route::post('/account/pause',         [\App\Http\Controllers\Community\AccountController::class, 'pause']);
+        Route::post('/account/resume',        [\App\Http\Controllers\Community\AccountController::class, 'resume']);
+        Route::delete('/account',             [\App\Http\Controllers\Community\AccountController::class, 'destroy']);
+
         Route::get('/verification/status',    [\App\Http\Controllers\Community\VerificationController::class, 'status']);
         Route::post('/verification/checkout', [\App\Http\Controllers\Community\VerificationController::class, 'checkout']);
         Route::post('/verification/start',    [\App\Http\Controllers\Community\VerificationController::class, 'start']);

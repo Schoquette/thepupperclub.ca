@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
 import MemberSafetyMenu from '@/components/MemberSafetyMenu';
 import VerifiedBadge from '@/components/VerifiedBadge';
 import AuthImage from '@/components/AuthImage';
+import PageShell from '@/components/PageShell';
 
 interface Recommendation {
   id: number;
@@ -83,7 +83,6 @@ function petSummaryText(s: MemberProfile['pets_summary']): string {
 export default function MemberProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
   const [data, setData] = useState<MemberProfile | null>(null);
   const [error, setError] = useState('');
   const [composing, setComposing] = useState(false);
@@ -187,19 +186,7 @@ export default function MemberProfilePage() {
       : 'A neighbour';
 
   return (
-    <div className="min-h-screen px-8 py-12">
-      <header className="max-w-4xl mx-auto flex items-center justify-between mb-12">
-        <p className="label-caps text-blue">The Pupper Club &mdash; Community</p>
-        <div className="flex items-center gap-6">
-          <Link to="/discover" className="label-caps text-taupe hover:text-espresso">Discover</Link>
-          <Link to="/network" className="label-caps text-taupe hover:text-espresso">Network</Link>
-          <Link to="/messages" className="label-caps text-taupe hover:text-espresso">Messages</Link>
-          <Link to="/home" className="label-caps text-taupe hover:text-espresso">Home</Link>
-          <button onClick={signOut} className="label-caps text-taupe hover:text-espresso">Sign Out</button>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto">
+    <PageShell back="/discover" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Discover', to: '/discover' }, { label: 'Profile' }]}>
         {!data ? (
           <p className="text-sm text-taupe text-center py-16">Loading...</p>
         ) : (
@@ -509,7 +496,6 @@ export default function MemberProfilePage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 }

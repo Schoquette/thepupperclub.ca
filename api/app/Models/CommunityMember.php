@@ -30,6 +30,8 @@ class CommunityMember extends Model
         'care_offered',
         'care_needed',
         'radius_meters',
+        'paused_at',
+        'notification_prefs',
         'api_token',
         'last_login_at',
     ];
@@ -44,9 +46,11 @@ class CommunityMember extends Model
         return [
             'verified_at'           => 'datetime',
             'verification_paid_at'  => 'datetime',
+            'paused_at'             => 'datetime',
             'last_login_at'         => 'datetime',
-            'availability'   => 'array',
-            'radius_meters'  => 'integer',
+            'availability'          => 'array',
+            'notification_prefs'    => 'array',
+            'radius_meters'         => 'integer',
         ];
     }
 
