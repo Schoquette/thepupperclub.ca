@@ -71,6 +71,7 @@ jobs:
         run: cd community && WEB_DEPLOY=1 npx vite build
         env:
           VITE_API_URL: https://thepupperclub.ca
+          VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

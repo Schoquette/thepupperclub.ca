@@ -6,6 +6,7 @@ import AuthImage from '@/components/AuthImage';
 import PetForm from '@/components/PetForm';
 import PageShell from '@/components/PageShell';
 import PhotoCropper from '@/components/PhotoCropper';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 
 const AVAILABILITY_OPTIONS: { value: string; label: string }[] = [
   { value: 'mornings', label: 'Mornings' },
@@ -445,21 +446,19 @@ export default function ProfileSetupPage() {
 
           <div>
             <label htmlFor="address" className="field-label">Your home address</label>
-            <input
+            <AddressAutocomplete
               id="address"
-              type="text"
-              required
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="123 Example St, Port Moody, BC"
-              autoComplete="street-address"
-              className="field-input"
+              onChange={setAddress}
+              required
+              placeholder="Start typing your address..."
             />
             <p className="text-xs text-taupe mt-2 leading-relaxed">
-              Your address is geocoded once, stored only as a coarse area
-              (about a ±600m cell), and is <strong>never visible</strong> to
-              other members. They&rsquo;ll only see approximate distance
-              (e.g. &ldquo;Less than 500m away&rdquo;).
+              Pick your address from the suggestions so we can place you
+              correctly. Your address is geocoded once, stored only as a
+              coarse area (about a ±600m cell), and is <strong>never
+              visible</strong> to other members &mdash; they only see
+              approximate distance (e.g. &ldquo;Less than 500m away&rdquo;).
             </p>
           </div>
 

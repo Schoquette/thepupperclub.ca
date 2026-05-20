@@ -32,4 +32,8 @@ return [
         'name'    => env('MAIL_FROM_NAME', 'The Pupper Club'),
     ],
 
+    // Where community Contact Us messages are delivered. Override with
+    // COMMUNITY_SUPPORT_ADDRESS in .env if it ever changes.
+    'community_support_address' => env('COMMUNITY_SUPPORT_ADDRESS', 'sophie@thepupperclub.ca'),
+
 ];

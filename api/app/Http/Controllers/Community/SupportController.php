@@ -45,8 +45,10 @@ class SupportController extends Controller
             . "---\n\n"
             . $data['body'];
 
-        $to = config('mail.support_address')
-            ?: config('mail.from.address', 'sophie@thepupperclub.ca');
+        // Community support always lands at sophie@thepupperclub.ca.
+        // Emails route through the same Resend transport configured for the
+        // Client Portal (MAIL_MAILER=resend), so no extra setup is needed.
+        $to = config('mail.community_support_address', 'sophie@thepupperclub.ca');
 
         try {
             Mail::raw($bodyText, function ($message) use ($subject, $to, $member) {
