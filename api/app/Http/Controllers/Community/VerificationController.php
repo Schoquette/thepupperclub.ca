@@ -72,6 +72,13 @@ class VerificationController extends Controller
             $session = \Stripe\Checkout\Session::create([
                 'mode'                 => 'payment',
                 'payment_method_types' => ['card'],
+                // Surface the "Add promotion code" field on Stripe Checkout
+                // so members can apply codes like THEGOODEST (100% off).
+                // When the total hits $0, Stripe finalises the session
+                // without a card charge and the same
+                // checkout.session.completed webhook still fires — so our
+                // verification_paid_at flag flips normally.
+                'allow_promotion_codes' => true,
                 'line_items'           => [[
                     'quantity'   => 1,
                     'price_data' => [

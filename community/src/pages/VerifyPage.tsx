@@ -194,9 +194,14 @@ export default function VerifyPage() {
               {hasPaid ? (
                 <p className="text-sm text-blue font-medium">Paid — thank you.</p>
               ) : (
-                <button onClick={startCheckout} disabled={busy} className="btn-blue disabled:opacity-60">
-                  {busy && openedFlow === null ? 'Opening...' : `Pay ${feeLabel}`}
-                </button>
+                <>
+                  <button onClick={startCheckout} disabled={busy} className="btn-blue disabled:opacity-60">
+                    {busy && openedFlow === null ? 'Opening...' : `Pay ${feeLabel}`}
+                  </button>
+                  <p className="text-xs text-taupe mt-3">
+                    Have a promo code? Add it on the Stripe checkout page.
+                  </p>
+                </>
               )}
               {openedFlow === 'checkout' && !hasPaid && (
                 <p className="text-xs text-taupe mt-3 leading-relaxed">
