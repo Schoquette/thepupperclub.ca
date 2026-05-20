@@ -158,7 +158,7 @@ export default function PhotoCropper({
         )}
 
         <div className="mt-6 flex items-center justify-end gap-3">
-          <button onClick={onCancel} className="label-caps text-taupe hover:text-espresso px-3">Cancel</button>
+          <button onClick={onCancel} className="btn-text">Cancel</button>
           <button
             onClick={handleConfirm}
             disabled={!croppedAreaPixels || saving}

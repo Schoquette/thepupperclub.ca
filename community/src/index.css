@@ -28,7 +28,11 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-semibold tracking-wider transition-colors;
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg transition-colors;
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 0;
   }
   .btn-blue {
     @apply btn bg-blue text-white border-2 border-blue hover:bg-transparent hover:text-blue;
@@ -39,6 +43,19 @@
   .btn-espresso {
     @apply btn bg-espresso text-cream border-2 border-espresso hover:bg-transparent hover:text-espresso;
   }
+
+  /* Ghost button — used for Cancel / secondary text actions next to a
+     primary CTA. Matches the new Playfair button voice without the pill. */
+  .btn-text {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 0;
+    color: #C8BFB6;
+    transition: color 0.2s ease;
+    padding: 0 12px;
+  }
+  .btn-text:hover { color: #3B2F2A; }
 
   .field-label {
     @apply label-caps text-espresso block mb-2;

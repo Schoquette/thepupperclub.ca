@@ -390,7 +390,7 @@ export default function PetForm({ pet, onClose, onSaved }: Props) {
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="label-caps text-taupe hover:text-espresso px-3">Cancel</button>
+            <button type="button" onClick={onClose} className="btn-text">Cancel</button>
             <button type="submit" disabled={saving} className="btn-blue disabled:opacity-60">
               {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Add pet'}
             </button>

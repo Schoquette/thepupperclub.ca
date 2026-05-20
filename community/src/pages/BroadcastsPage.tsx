@@ -423,7 +423,7 @@ function ComposeModal({
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
-            <button onClick={onClose} className="label-caps text-taupe hover:text-espresso px-3">Cancel</button>
+            <button onClick={onClose} className="btn-text">Cancel</button>
             <button onClick={send} disabled={!canSend || sending} className="btn-blue disabled:opacity-60">
               {sending ? 'Sending...' : 'Send'}
             </button>

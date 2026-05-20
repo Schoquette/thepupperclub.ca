@@ -456,7 +456,7 @@ export default function MemberProfilePage() {
               />
               <p className="text-xs text-taupe text-right mb-4">{recBody.length}/320</p>
               <div className="flex items-center justify-end gap-3">
-                <button onClick={() => setComposing(false)} className="label-caps text-taupe hover:text-espresso px-3">Cancel</button>
+                <button onClick={() => setComposing(false)} className="btn-text">Cancel</button>
                 <button onClick={saveRec} disabled={!recBody.trim() || saving} className="btn-blue disabled:opacity-60">
                   {saving ? 'Saving...' : 'Save'}
                 </button>
@@ -484,7 +484,7 @@ export default function MemberProfilePage() {
               />
               <p className="text-xs text-taupe text-right mb-4">{connectNote.length}/280</p>
               <div className="flex items-center justify-end gap-3">
-                <button onClick={() => setShowConnect(false)} className="label-caps text-taupe hover:text-espresso px-3">Cancel</button>
+                <button onClick={() => setShowConnect(false)} className="btn-text">Cancel</button>
                 <button onClick={submitConnection} disabled={connecting} className="btn-blue disabled:opacity-60">
                   {connecting ? 'Sending...' : 'Send Request'}
                 </button>
@@ -507,7 +507,7 @@ export default function MemberProfilePage() {
                 cost of the ID check. We don&rsquo;t profit from it.
               </p>
               <div className="flex items-center justify-end gap-3">
-                <button onClick={() => setShowVerifyGate(false)} className="label-caps text-taupe hover:text-espresso px-3">Maybe later</button>
+                <button onClick={() => setShowVerifyGate(false)} className="btn-text">Maybe later</button>
                 <button onClick={() => { setShowVerifyGate(false); navigate('/verify'); }} className="btn-blue">Verify ($5)</button>
               </div>
             </div>

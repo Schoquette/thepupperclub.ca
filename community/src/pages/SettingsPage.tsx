@@ -284,7 +284,7 @@ export default function SettingsPage() {
                 <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{deleteError}</div>
               )}
               <div className="flex items-center gap-3">
-                <button onClick={() => { setShowDelete(false); setDeletePw(''); setDeleteError(''); }} className="label-caps text-taupe hover:text-espresso px-3">
+                <button onClick={() => { setShowDelete(false); setDeletePw(''); setDeleteError(''); }} className="btn-text">
                   Cancel
                 </button>
                 <button

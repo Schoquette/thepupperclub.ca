@@ -167,7 +167,7 @@ function ReportModal({
             )}
 
             <div className="flex items-center justify-end gap-3">
-              <button onClick={onClose} className="label-caps text-taupe hover:text-espresso px-3">Cancel</button>
+              <button onClick={onClose} className="btn-text">Cancel</button>
               <button onClick={send} disabled={sending} className="btn-blue disabled:opacity-60">
                 {sending ? 'Sending...' : 'Send Report'}
               </button>
@@ -228,7 +228,7 @@ function BlockModal({
         )}
 
         <div className="flex items-center justify-end gap-3">
-          <button onClick={onClose} className="label-caps text-taupe hover:text-espresso px-3">Cancel</button>
+          <button onClick={onClose} className="btn-text">Cancel</button>
           <button onClick={confirm} disabled={working} className="btn-blue disabled:opacity-60">
             {working ? 'Blocking...' : 'Block'}
           </button>

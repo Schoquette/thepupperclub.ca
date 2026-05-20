@@ -144,7 +144,7 @@ export default function ContactPage() {
           )}
 
           <div className="flex items-center justify-end gap-3">
-            <button type="button" onClick={() => { setTopic(null); setBody(''); }} className="label-caps text-taupe hover:text-espresso px-3">
+            <button type="button" onClick={() => { setTopic(null); setBody(''); }} className="btn-text">
               Cancel
             </button>
             <button type="submit" disabled={sending || !body.trim()} className="btn-blue disabled:opacity-60">
