@@ -142,10 +142,11 @@ class GeohashService
         if ($meters < 250)  return 'In your area';
         if ($meters < 500)  return 'Less than 500m away';
         if ($meters < 1000) return 'Less than 1 km away';
-        if ($meters < 2000) return 'About 1 km away';
-        if ($meters < 3500) return 'About 2 km away';
-        if ($meters < 5500) return 'About 4 km away';
-        return 'More than 5 km away';
+        // 1km and beyond: round UP to the next whole km so the label
+        // never undersells the distance ("About 1 km away" for 1.7km
+        // reads as broken). 1.0km stays 1km; 1.01km becomes 2km.
+        $km = (int) ceil($meters / 1000);
+        return "About {$km} km away";
     }
 
     /**
