@@ -11,18 +11,40 @@ const AVAILABILITY_OPTIONS: { value: string; label: string }[] = [
   { value: 'ad_hoc',   label: 'Ad hoc' },
 ];
 
+const CARE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'dog_walk',      label: 'Dog walks' },
+  { value: 'drop_in',       label: 'Drop-in feeds & visits' },
+  { value: 'overnight',     label: 'Overnight stays' },
+  { value: 'multi_day',     label: 'Multi-day care' },
+  { value: 'companionship', label: 'Just companionship' },
+];
+
+const RADIUS_MAX = 15000;
+
+function radiusLabelFor(meters: number): string {
+  if (meters >= RADIUS_MAX) return '15 km+ (no limit)';
+  if (meters <= 500)  return 'In your building or block';
+  if (meters <= 1000) return 'Less than 1 km';
+  if (meters <= 2000) return 'About 2 km';
+  if (meters <= 5000) return 'About 5 km';
+  if (meters <= 10000) return 'About 10 km';
+  return 'Up to 15 km';
+}
+
 export default function ProfileSetupPage() {
   const navigate = useNavigate();
   const { member, refreshMember } = useAuth();
   const [introduction, setIntroduction] = useState(member?.introduction ?? '');
-  const [availability, setAvailability] = useState<string[]>([]);
+  const [availability, setAvailability] = useState<string[]>(member?.availability ?? []);
+  const [careOffered, setCareOffered]   = useState<string[]>(member?.care_offered ?? []);
+  const [careNeeded, setCareNeeded]     = useState<string[]>(member?.care_needed ?? []);
   const [radius, setRadius] = useState(member?.radius_meters ?? 1000);
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const toggle = (value: string) => {
-    setAvailability((prev) =>
+  const toggleIn = (setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) => {
+    setter((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
     );
   };
@@ -43,6 +65,8 @@ export default function ProfileSetupPage() {
       await api.patch('/community/profile', {
         introduction: introduction.trim(),
         availability,
+        care_offered: careOffered,
+        care_needed:  careNeeded,
         radius_meters: radius,
         address: address.trim(),
       });
@@ -55,11 +79,7 @@ export default function ProfileSetupPage() {
     }
   };
 
-  const radiusLabel =
-    radius <= 500  ? 'In your building or block'  :
-    radius <= 1000 ? 'Less than 1 km' :
-    radius <= 2000 ? 'About 2 km' :
-    'Up to 5 km';
+  const radiusLabel = radiusLabelFor(radius);
 
   return (
     <div className="min-h-screen px-8 py-12">
@@ -99,7 +119,7 @@ export default function ProfileSetupPage() {
                   <button
                     type="button"
                     key={opt.value}
-                    onClick={() => toggle(opt.value)}
+                    onClick={() => toggleIn(setAvailability, opt.value)}
                     className={`px-4 py-2 rounded-full border-2 text-sm transition ${
                       selected
                         ? 'bg-blue text-white border-blue'
@@ -115,6 +135,54 @@ export default function ProfileSetupPage() {
           </div>
 
           <div>
+            <div className="field-label">Care you can offer to neighbours</div>
+            <p className="text-xs text-taupe mb-2">What you'd be willing to help with. Leave empty if you only need care, not offering it.</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {CARE_OPTIONS.map((opt) => {
+                const selected = careOffered.includes(opt.value);
+                return (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => toggleIn(setCareOffered, opt.value)}
+                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                      selected
+                        ? 'bg-blue text-white border-blue'
+                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="field-label">Care you sometimes need for your own pets</div>
+            <p className="text-xs text-taupe mb-2">What you might ask a neighbour for. Leave empty if you only offer care, not asking for it.</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {CARE_OPTIONS.map((opt) => {
+                const selected = careNeeded.includes(opt.value);
+                return (
+                  <button
+                    type="button"
+                    key={opt.value}
+                    onClick={() => toggleIn(setCareNeeded, opt.value)}
+                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                      selected
+                        ? 'bg-blue text-white border-blue'
+                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
             <div className="flex items-center justify-between mb-2">
               <label htmlFor="radius" className="field-label mb-0">Neighbour radius</label>
               <span className="text-sm text-espresso">{radiusLabel}</span>
@@ -123,7 +191,7 @@ export default function ProfileSetupPage() {
               id="radius"
               type="range"
               min={250}
-              max={5000}
+              max={RADIUS_MAX}
               step={250}
               value={radius}
               onChange={(e) => setRadius(Number(e.target.value))}
@@ -131,7 +199,7 @@ export default function ProfileSetupPage() {
             />
             <div className="flex justify-between text-xs text-taupe mt-1">
               <span>250 m</span>
-              <span>5 km</span>
+              <span>15 km+</span>
             </div>
           </div>
 

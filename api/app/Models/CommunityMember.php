@@ -22,6 +22,8 @@ class CommunityMember extends Model
         'geohash',
         'introduction',
         'availability',
+        'care_offered',
+        'care_needed',
         'radius_meters',
         'api_token',
         'last_login_at',

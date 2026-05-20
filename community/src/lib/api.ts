@@ -9,12 +9,29 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
 });
 
-// Attach the stored bearer token to every request.
+// Attach the stored bearer token to every request, AND convert
+// PUT/PATCH/DELETE to POST with `_method` spoofing — Plesk/IIS strips
+// request bodies on those verbs and never delivers them to PHP, so
+// Laravel ends up with empty $request data. POST + _method gets the
+// body through and Laravel routes it correctly via Symfony's HTTP
+// method override.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('community_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  const method = config.method?.toUpperCase();
+  if (method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+    const data = config.data ?? {};
+    if (data instanceof FormData) {
+      data.append('_method', method);
+    } else {
+      config.data = { ...data, _method: method };
+    }
+    config.method = 'post';
+  }
+
   return config;
 });
 
