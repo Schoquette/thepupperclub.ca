@@ -98,7 +98,11 @@ export default function DiscoverPage() {
     }
   };
 
-  const radiusKm = member?.radius_meters ? (member.radius_meters / 1000).toFixed(1) : '1';
+  // Round up to the next whole km so the headline reflects what members
+  // actually see (e.g. a 4.3 km radius reads as "about 5 km").
+  const radiusKm = member?.radius_meters
+    ? Math.max(1, Math.ceil(member.radius_meters / 1000))
+    : 1;
 
   return (
     <PageShell back="/home" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Discover' }]}>
