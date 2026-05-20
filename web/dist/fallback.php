@@ -1,18 +1,21 @@
 <?php
 // SPA fallback for portal routes
-header('X-Fallback-Version: 4');
-header('X-Fallback-Method: ' . ($_SERVER['REQUEST_METHOD'] ?? '?'));
+header('X-Fallback-Version: 5');
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // API requests reach this file in two scenarios:
 //   1. The Laravel front-controller isn't deployed (genuine 404).
-//   2. The IIS URL Rewrite "API Passthrough" rule didn't fire for an
-//      OPTIONS preflight (Plesk/IIS edge case we hit in production). We
-//      answer those CORS preflights here with the right Access-Control-*
-//      headers so the browser allows the follow-up POST/GET, which DOES
-//      route through to Laravel and gets Laravel's own CORS middleware.
+//   2. An OPTIONS CORS preflight that IIS didn't route through to Laravel.
+//      IIS's httpErrors → ExecuteURL rewrites the verb to GET on the
+//      sub-request, but the original Access-Control-Request-Method header
+//      is preserved, so we detect the preflight by that header rather than
+//      by REQUEST_METHOD. We answer the preflight here so the browser
+//      allows the follow-up POST/GET, which DOES route through to Laravel
+//      and picks up Laravel's own CORS middleware.
 if (str_starts_with($uri, '/api/') || str_starts_with($uri, '/api')) {
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    $isPreflight = ($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS'
+        || isset($_SERVER['HTTP_ACCESS_CONTROL_REQUEST_METHOD']);
+    if ($isPreflight) {
         $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
         $allowed = [
             'https://thepupperclub.ca',
