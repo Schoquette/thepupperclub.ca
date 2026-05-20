@@ -41,7 +41,7 @@ class ProfileController extends Controller
             'care_offered.*'      => 'string|in:' . implode(',', $careOptions),
             'care_needed'         => 'sometimes|nullable|array',
             'care_needed.*'       => 'string|in:' . implode(',', $careOptions),
-            'radius_meters'       => 'sometimes|integer|min:250|max:15000',
+            'radius_meters'       => 'sometimes|integer|min:250|max:200000',
             'address'             => 'sometimes|nullable|string|max:500',
         ]);
 

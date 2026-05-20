@@ -33,10 +33,12 @@ const SPECIES_LABEL: Record<CommunityPet['species'], string> = {
 // could land at 5.8 km while the label said "about 10 km", which read
 // as broken and quietly shrunk the result set.
 const RADIUS_PRESETS: { meters: number; label: string }[] = [
-  { meters: 1000,  label: '1 km'  },
-  { meters: 5000,  label: '5 km'  },
-  { meters: 10000, label: '10 km' },
-  { meters: 15000, label: '15 km+ (no limit)' },
+  { meters: 1000,   label: '1 km or less' },
+  { meters: 5000,   label: '5 km'  },
+  { meters: 15000,  label: '15 km' },
+  { meters: 25000,  label: '25 km' },
+  { meters: 50000,  label: '50 km' },
+  { meters: 200000, label: '200 km (max)' },
 ];
 
 /** Snap an arbitrary stored value to the closest preset on display. */
