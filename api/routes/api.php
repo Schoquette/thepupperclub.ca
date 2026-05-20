@@ -96,12 +96,18 @@ Route::get('/clear-cache-9x7k', function () {
     \Illuminate\Support\Facades\Artisan::call('route:clear');
     \Illuminate\Support\Facades\Artisan::call('view:clear');
 
+    // Reset PHP OPcache so freshly-deployed PHP files (fallback.php,
+    // controllers, etc.) take effect immediately instead of waiting for
+    // OPcache's TTL.
+    $opcacheReset = function_exists('opcache_reset') ? @opcache_reset() : null;
+
     return response()->json([
         'message' => 'All caches cleared.',
         'had_cached_config' => $hadCache,
         'frontend_url_now' => config('services.frontend_url'),
         'env_frontend_url' => env('FRONTEND_URL'),
         'config_file_exists' => file_exists($cachedConfig),
+        'opcache_reset' => $opcacheReset,
     ]);
 });
 
