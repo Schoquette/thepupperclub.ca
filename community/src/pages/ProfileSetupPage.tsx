@@ -302,7 +302,7 @@ export default function ProfileSetupPage() {
               maxLength={600}
               value={introduction}
               onChange={(e) => setIntroduction(e.target.value)}
-              placeholder="A sentence or two about you. Mention your pets, if any, and what you enjoy about your neighbourhood."
+              placeholder="A sentence or two about you. Mention your pets, if any, and your experience caring for animals."
               className="field-input resize-none"
             />
             <p className="text-xs text-taupe mt-2 text-right">{introduction.length}/600</p>
