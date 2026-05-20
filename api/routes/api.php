@@ -776,6 +776,9 @@ Route::prefix('community')->group(function () {
         Route::delete('/pets/{pet}',         [\App\Http\Controllers\Community\PetsController::class, 'destroy']);
         Route::get('/pets/{pet}/photo',      [\App\Http\Controllers\Community\PetsController::class, 'photo']);
 
+        Route::post('/support/contact',       [\App\Http\Controllers\Community\SupportController::class, 'contact']);
+        Route::post('/donations/checkout',    [\App\Http\Controllers\Community\DonationsController::class, 'checkout']);
+
         Route::get('/account/settings',       [\App\Http\Controllers\Community\AccountController::class, 'settings']);
         Route::patch('/account/password',     [\App\Http\Controllers\Community\AccountController::class, 'changePassword']);
         Route::patch('/account/notifications', [\App\Http\Controllers\Community\AccountController::class, 'updateNotifications']);

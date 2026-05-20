@@ -5,6 +5,7 @@ import { useAuth, type CommunityPet } from '@/contexts/AuthContext';
 import AuthImage from '@/components/AuthImage';
 import PetForm from '@/components/PetForm';
 import PageShell from '@/components/PageShell';
+import PhotoCropper from '@/components/PhotoCropper';
 
 const AVAILABILITY_OPTIONS: { value: string; label: string }[] = [
   { value: 'mornings', label: 'Mornings' },
@@ -55,6 +56,7 @@ export default function ProfileSetupPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [pickedForCrop, setPickedForCrop] = useState<File | null>(null);
 
   // Pets
   const [petModal, setPetModal] = useState<{ open: boolean; pet: CommunityPet | null }>({ open: false, pet: null });
@@ -67,9 +69,16 @@ export default function ProfileSetupPage() {
 
   const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
-    setPhotoFile(file);
+    if (!file) return;
+    setPickedForCrop(file);
+    e.target.value = '';
+  };
+
+  const applyCroppedPhoto = (cropped: File) => {
+    setPhotoFile(cropped);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
-    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+    setPhotoPreview(URL.createObjectURL(cropped));
+    setPickedForCrop(null);
   };
 
   const uploadPhoto = async () => {
@@ -191,15 +200,24 @@ export default function ProfileSetupPage() {
                 {hasSavedPhoto ? 'Choose a different photo' : 'Choose a photo'}
               </label>
               {photoFile && (
-                <button
-                  type="button"
-                  onClick={uploadPhoto}
-                  disabled={photoBusy}
-                  className="btn-blue disabled:opacity-60"
-                  style={{ padding: '7px 16px', fontSize: 12 }}
-                >
-                  {photoBusy ? 'Uploading...' : 'Save photo'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={uploadPhoto}
+                    disabled={photoBusy}
+                    className="btn-blue disabled:opacity-60"
+                    style={{ padding: '7px 16px', fontSize: 12 }}
+                  >
+                    {photoBusy ? 'Uploading...' : 'Save photo'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPickedForCrop(photoFile)}
+                    className="text-xs text-blue hover:underline"
+                  >
+                    Re-frame
+                  </button>
+                </div>
               )}
               {hasSavedPhoto && !photoFile && (
                 <button
@@ -465,6 +483,14 @@ export default function ProfileSetupPage() {
             setPetModal({ open: false, pet: null });
             await refreshMember();
           }}
+        />
+      )}
+
+      {pickedForCrop && (
+        <PhotoCropper
+          file={pickedForCrop}
+          onCancel={() => setPickedForCrop(null)}
+          onConfirm={applyCroppedPhoto}
         />
       )}
     </PageShell>

@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import api from '@/lib/api';
 import AuthImage from '@/components/AuthImage';
+import PhotoCropper from '@/components/PhotoCropper';
 import type { CommunityPet } from '@/contexts/AuthContext';
 
 type Species = 'dog' | 'cat' | 'other';
@@ -35,6 +36,7 @@ export default function PetForm({ pet, onClose, onSaved }: Props) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [removeExistingPhoto, setRemoveExistingPhoto] = useState(false);
+  const [pickedForCrop, setPickedForCrop] = useState<File | null>(null);
 
   const [ageYears, setAgeYears] = useState<string>(pet?.age_years?.toString() ?? '');
   const [sex, setSex] = useState<'' | 'male' | 'female' | 'unknown'>(pet?.sex ?? '');
@@ -63,10 +65,19 @@ export default function PetForm({ pet, onClose, onSaved }: Props) {
 
   const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
-    setPhotoFile(file);
+    if (!file) return;
+    // Hand the file to the cropper instead of using it as-is.
+    setPickedForCrop(file);
+    // Clear the input value so re-picking the same file fires onChange again.
+    e.target.value = '';
+  };
+
+  const applyCroppedPhoto = (cropped: File) => {
+    setPhotoFile(cropped);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
-    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+    setPhotoPreview(URL.createObjectURL(cropped));
     setRemoveExistingPhoto(false);
+    setPickedForCrop(null);
   };
 
   const triToBool = (v: TriValue): boolean | null =>
@@ -139,8 +150,9 @@ export default function PetForm({ pet, onClose, onSaved }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/40 px-4 py-8 overflow-y-auto" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-lg w-full p-7" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40" onClick={onClose}>
+      <div className="min-h-full flex items-start sm:items-center justify-center px-4 py-8">
+        <div className="bg-white rounded-2xl max-w-lg w-full p-7" onClick={(e) => e.stopPropagation()}>
         <p className="label-caps text-blue mb-2">{isEdit ? 'Edit pet' : 'Add a pet'}</p>
         <h2 className="font-display text-xl text-espresso mb-5">Tell us about your pet</h2>
 
@@ -206,15 +218,22 @@ export default function PetForm({ pet, onClose, onSaved }: Props) {
               ) : (
                 <div className="w-16 h-16 rounded-full bg-cream flex items-center justify-center text-2xl">🐾</div>
               )}
-              <label className="text-sm text-blue hover:underline cursor-pointer">
-                <input type="file" accept="image/*" className="hidden" onChange={onPhotoChange} />
-                {photoFile ? 'Choose different photo' : (pet?.photo_url && !removeExistingPhoto) ? 'Replace photo' : 'Add a photo'}
-              </label>
-              {(pet?.photo_url && !photoFile && !removeExistingPhoto) && (
-                <button type="button" onClick={() => setRemoveExistingPhoto(true)} className="text-sm text-taupe hover:text-red-500">
-                  Remove
-                </button>
-              )}
+              <div className="flex flex-col gap-1 items-start">
+                <label className="text-sm text-blue hover:underline cursor-pointer">
+                  <input type="file" accept="image/*" className="hidden" onChange={onPhotoChange} />
+                  {photoFile ? 'Choose different photo' : (pet?.photo_url && !removeExistingPhoto) ? 'Replace photo' : 'Add a photo'}
+                </label>
+                {photoFile && (
+                  <button type="button" onClick={() => setPickedForCrop(photoFile)} className="text-xs text-blue hover:underline">
+                    Re-frame
+                  </button>
+                )}
+                {(pet?.photo_url && !photoFile && !removeExistingPhoto) && (
+                  <button type="button" onClick={() => setRemoveExistingPhoto(true)} className="text-xs text-taupe hover:text-red-500">
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -377,7 +396,16 @@ export default function PetForm({ pet, onClose, onSaved }: Props) {
             </button>
           </div>
         </form>
+        </div>
       </div>
+
+      {pickedForCrop && (
+        <PhotoCropper
+          file={pickedForCrop}
+          onCancel={() => setPickedForCrop(null)}
+          onConfirm={applyCroppedPhoto}
+        />
+      )}
     </div>
   );
 }

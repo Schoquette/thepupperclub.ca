@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function AppFooter() {
   const year = new Date().getFullYear();
   return (
@@ -18,13 +20,18 @@ export default function AppFooter() {
             <p className="text-sm text-espresso/70 leading-relaxed">Port Moody, BC</p>
           </div>
           <div>
-            <h4 className="text-sm text-espresso font-bold uppercase tracking-[0.08em] mb-2">Contact</h4>
-            <p className="text-sm text-espresso/70 leading-relaxed">
-              <a href="mailto:sophie@thepupperclub.ca" className="hover:text-blue transition-colors">
-                sophie@thepupperclub.ca
-              </a>
-              <br />
-              <a href="tel:+16049981418" className="hover:text-blue transition-colors">604-998-1418</a>
+            <h4 className="text-sm text-espresso font-bold uppercase tracking-[0.08em] mb-2">Support</h4>
+            <div className="flex flex-col items-start gap-2">
+              <Link to="/contact" className="btn-blue-outline inline-flex" style={{ padding: '8px 18px', fontSize: 12 }}>
+                Contact us
+              </Link>
+              <Link to="/donate" className="btn-blue inline-flex" style={{ padding: '8px 18px', fontSize: 12 }}>
+                Say Thanks!
+              </Link>
+            </div>
+            <p className="text-xs text-taupe mt-3 leading-relaxed max-w-[14rem]">
+              Donations are optional &mdash; they help cover hosting and
+              keep the platform improving.
             </p>
           </div>
         </div>

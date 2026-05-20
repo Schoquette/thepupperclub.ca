@@ -14,6 +14,8 @@ import MemberProfilePage from '@/pages/MemberProfilePage';
 import BlockedMembersPage from '@/pages/BlockedMembersPage';
 import VerifyPage from '@/pages/VerifyPage';
 import SettingsPage from '@/pages/SettingsPage';
+import ContactPage from '@/pages/ContactPage';
+import DonatePage from '@/pages/DonatePage';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { member, loading } = useAuth();
@@ -50,6 +52,8 @@ export default function App() {
       <Route path="/verify" element={<RequireAuth><VerifyPage /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
       <Route path="/settings/blocks" element={<RequireAuth><BlockedMembersPage /></RequireAuth>} />
+      <Route path="/contact" element={<RequireAuth><ContactPage /></RequireAuth>} />
+      <Route path="/donate" element={<RequireAuth><DonatePage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
