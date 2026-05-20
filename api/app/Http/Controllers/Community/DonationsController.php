@@ -34,7 +34,9 @@ class DonationsController extends Controller
         ]);
 
         Stripe::setApiKey(config('services.stripe.secret'));
-        $frontendUrl = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
+        // Redirect back to whichever host the request came from (apex or
+        // www) so localStorage / auth survives the round-trip.
+        $frontendUrl = VerificationController::safeFrontendUrl($request);
 
         try {
             $session = \Stripe\Checkout\Session::create([

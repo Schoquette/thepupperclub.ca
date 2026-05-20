@@ -66,7 +66,7 @@ class VerificationController extends Controller
         }
 
         Stripe::setApiKey(config('services.stripe.secret'));
-        $frontendUrl = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
+        $frontendUrl = $this->safeFrontendUrl($request);
 
         try {
             $session = \Stripe\Checkout\Session::create([
@@ -144,7 +144,7 @@ class VerificationController extends Controller
 
         Stripe::setApiKey(config('services.stripe.secret'));
 
-        $frontendUrl = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
+        $frontendUrl = $this->safeFrontendUrl($request);
 
         try {
             $session = \Stripe\Identity\VerificationSession::create([
@@ -267,6 +267,35 @@ class VerificationController extends Controller
         }
 
         return response('OK', 200);
+    }
+
+    /**
+     * Pick the frontend origin Stripe should redirect back to. We use the
+     * request's Origin (preferred) or Referer header if it matches one of
+     * the host names we ship to; otherwise fall back to the config default.
+     *
+     * Members access the SPA at either the apex (https://thepupperclub.ca)
+     * or the www subdomain. Redirecting back to the *wrong* one means
+     * landing on a different localStorage origin — which boots them out
+     * because the bearer token can't be read.
+     */
+    public static function safeFrontendUrl(Request $request): string
+    {
+        $allowed = [
+            'https://thepupperclub.ca',
+            'https://www.thepupperclub.ca',
+        ];
+        $candidate = $request->headers->get('Origin') ?? $request->headers->get('Referer');
+        if ($candidate) {
+            $parsed = parse_url($candidate);
+            if ($parsed && !empty($parsed['scheme']) && !empty($parsed['host'])) {
+                $origin = $parsed['scheme'] . '://' . $parsed['host'];
+                if (in_array($origin, $allowed, true)) {
+                    return $origin;
+                }
+            }
+        }
+        return rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/');
     }
 
     private function markVerified(CommunityMember $member, string $sessionId): void
