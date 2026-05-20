@@ -1,6 +1,7 @@
 <?php
 // SPA fallback for portal routes
-header('X-Fallback-Version: 3'); // bump on every meaningful edit so we can confirm deploys
+header('X-Fallback-Version: 4');
+header('X-Fallback-Method: ' . ($_SERVER['REQUEST_METHOD'] ?? '?'));
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // API requests reach this file in two scenarios:
