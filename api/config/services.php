@@ -18,6 +18,10 @@ return [
         // Separate signing secret for the Stripe Identity webhook endpoint
         // (different events flow through a dedicated webhook in the dashboard).
         'identity_webhook_secret'   => env('STRIPE_IDENTITY_WEBHOOK_SECRET'),
+        // Separate signing secret for the community-checkout webhook (the
+        // $5 verification fee + future community checkout events). Falls
+        // back to webhook_secret in code if not set.
+        'community_checkout_webhook_secret' => env('STRIPE_COMMUNITY_CHECKOUT_WEBHOOK_SECRET'),
     ],
 
     'google' => [
