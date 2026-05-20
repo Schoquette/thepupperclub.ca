@@ -10,7 +10,7 @@ if (str_starts_with($uri, '/api/') || str_starts_with($uri, '/api')) {
     exit;
 }
 
-// Marketing site pages (static HTML)
+// Marketing site pages (static HTML).
 $pages = [
     '/'         => 'index.html',
     '/about'    => 'about.html',
@@ -19,6 +19,13 @@ $pages = [
     '/faq'      => 'faq.html',
     '/privacy'  => 'privacy.html',
     '/terms'    => 'terms.html',
+
+    // Community sub-brand. /community and /community/ are served by IIS
+    // directly via the directory's index.html (community/index.html).
+    // These nested routes need an explicit map because the rewrite rule
+    // only fires for paths that aren't files OR directories.
+    '/community/verification-complete'  => 'community/verification-complete.html',
+    '/community/verification-complete/' => 'community/verification-complete.html',
 ];
 
 if (isset($pages[$uri])) {
