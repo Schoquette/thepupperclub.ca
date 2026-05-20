@@ -51,6 +51,9 @@ class CommunityMember extends Model
             'paused_at'             => 'datetime',
             'last_login_at'         => 'datetime',
             'availability'          => 'array',
+            'need_availability'     => 'array',
+            'care_offered'          => 'array',
+            'care_needed'           => 'array',
             'notification_prefs'    => 'array',
             'radius_meters'         => 'integer',
         ];
