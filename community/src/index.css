@@ -41,7 +41,16 @@
   }
 
   .field-label {
-    @apply label-caps text-taupe block mb-2;
+    @apply label-caps text-espresso block mb-2;
+  }
+  .field-sublabel {
+    @apply text-espresso/70 text-xs mb-2 leading-relaxed;
+  }
+  .group-heading {
+    @apply font-display text-espresso text-xl mb-1;
+  }
+  .group-sub {
+    @apply text-espresso/70 text-sm mb-6 leading-relaxed;
   }
   .field-input {
     @apply w-full px-4 py-3 rounded-lg border border-taupe/40 bg-white text-espresso focus:outline-none focus:ring-2 focus:ring-blue/40 focus:border-blue transition;

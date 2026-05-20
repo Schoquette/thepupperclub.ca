@@ -24,7 +24,7 @@ class ProfileController extends Controller
         /** @var CommunityMember $member */
         $member = $request->attributes->get('community_member');
 
-        $careOptions = ['dog_walk', 'drop_in', 'overnight', 'multi_day', 'companionship'];
+        $careOptions = ['dog_walk', 'drop_in', 'overnight', 'multi_day'];
 
         $availabilityOptions = ['mornings', 'evenings', 'weekends', 'weekdays', 'ad_hoc'];
 

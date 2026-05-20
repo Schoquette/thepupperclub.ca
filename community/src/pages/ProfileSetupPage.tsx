@@ -12,11 +12,10 @@ const AVAILABILITY_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const CARE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'dog_walk',      label: 'Dog walks' },
-  { value: 'drop_in',       label: 'Drop-in feeds & visits' },
-  { value: 'overnight',     label: 'Overnight stays' },
-  { value: 'multi_day',     label: 'Multi-day care' },
-  { value: 'companionship', label: 'Just companionship' },
+  { value: 'dog_walk',  label: 'Dog walks' },
+  { value: 'drop_in',   label: 'Drop-in feeds & visits' },
+  { value: 'overnight', label: 'Overnight stays' },
+  { value: 'multi_day', label: 'Multi-day care' },
 ];
 
 const RADIUS_MAX = 15000;
@@ -112,101 +111,119 @@ export default function ProfileSetupPage() {
             <p className="text-xs text-taupe mt-2 text-right">{introduction.length}/600</p>
           </div>
 
-          <div>
-            <div className="field-label">When you're typically free to help</div>
-            <p className="text-xs text-taupe mb-2">When neighbours could ask you for help.</p>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {AVAILABILITY_OPTIONS.map((opt) => {
-                const selected = availability.includes(opt.value);
-                return (
-                  <button
-                    type="button"
-                    key={opt.value}
-                    onClick={() => toggleIn(setAvailability, opt.value)}
-                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
-                      selected
-                        ? 'bg-blue text-white border-blue'
-                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* ────────── What you can give ────────── */}
+          <section className="border-t border-taupe/30 pt-7">
+            <h2 className="group-heading">What you can give</h2>
+            <p className="group-sub">
+              How and when you&rsquo;re open to helping a neighbour. Leave
+              everything empty if you only want to receive help.
+            </p>
 
-          <div>
-            <div className="field-label">When you typically need care</div>
-            <p className="text-xs text-taupe mb-2">When you might ask a neighbour to help with your pets.</p>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {AVAILABILITY_OPTIONS.map((opt) => {
-                const selected = needAvailability.includes(opt.value);
-                return (
-                  <button
-                    type="button"
-                    key={opt.value}
-                    onClick={() => toggleIn(setNeedAvailability, opt.value)}
-                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
-                      selected
-                        ? 'bg-blue text-white border-blue'
-                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+            <div className="space-y-6">
+              <div>
+                <div className="field-label">When you're typically free to help</div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {AVAILABILITY_OPTIONS.map((opt) => {
+                    const selected = availability.includes(opt.value);
+                    return (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        onClick={() => toggleIn(setAvailability, opt.value)}
+                        className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                          selected
+                            ? 'bg-blue text-white border-blue'
+                            : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-          <div>
-            <div className="field-label">Care you can offer to neighbours</div>
-            <p className="text-xs text-taupe mb-2">What you'd be willing to help with. Leave empty if you only need care, not offering it.</p>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {CARE_OPTIONS.map((opt) => {
-                const selected = careOffered.includes(opt.value);
-                return (
-                  <button
-                    type="button"
-                    key={opt.value}
-                    onClick={() => toggleIn(setCareOffered, opt.value)}
-                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
-                      selected
-                        ? 'bg-blue text-white border-blue'
-                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
+              <div>
+                <div className="field-label">Care you can offer</div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {CARE_OPTIONS.map((opt) => {
+                    const selected = careOffered.includes(opt.value);
+                    return (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        onClick={() => toggleIn(setCareOffered, opt.value)}
+                        className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                          selected
+                            ? 'bg-blue text-white border-blue'
+                            : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div>
-            <div className="field-label">Care you sometimes need for your own pets</div>
-            <p className="text-xs text-taupe mb-2">What you might ask a neighbour for. Leave empty if you only offer care, not asking for it.</p>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {CARE_OPTIONS.map((opt) => {
-                const selected = careNeeded.includes(opt.value);
-                return (
-                  <button
-                    type="button"
-                    key={opt.value}
-                    onClick={() => toggleIn(setCareNeeded, opt.value)}
-                    className={`px-4 py-2 rounded-full border-2 text-sm transition ${
-                      selected
-                        ? 'bg-blue text-white border-blue'
-                        : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
+          {/* ────────── What you need ────────── */}
+          <section className="border-t border-taupe/30 pt-7">
+            <h2 className="group-heading">What you need</h2>
+            <p className="group-sub">
+              How and when you might ask a neighbour for help with your own
+              pets. Leave everything empty if you only want to give help.
+            </p>
+
+            <div className="space-y-6">
+              <div>
+                <div className="field-label">When you typically need care</div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {AVAILABILITY_OPTIONS.map((opt) => {
+                    const selected = needAvailability.includes(opt.value);
+                    return (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        onClick={() => toggleIn(setNeedAvailability, opt.value)}
+                        className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                          selected
+                            ? 'bg-blue text-white border-blue'
+                            : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <div className="field-label">Care you sometimes need</div>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {CARE_OPTIONS.map((opt) => {
+                    const selected = careNeeded.includes(opt.value);
+                    return (
+                      <button
+                        type="button"
+                        key={opt.value}
+                        onClick={() => toggleIn(setCareNeeded, opt.value)}
+                        className={`px-4 py-2 rounded-full border-2 text-sm transition ${
+                          selected
+                            ? 'bg-blue text-white border-blue'
+                            : 'bg-transparent text-espresso border-taupe/40 hover:border-blue'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
 
           <div>
             <div className="flex items-center justify-between mb-2">
