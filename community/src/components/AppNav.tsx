@@ -6,7 +6,7 @@ const LOGO_URL = 'https://images.squarespace-cdn.com/content/v1/698c986abec16468
 
 const LINKS: { to: string; label: string; matches: (path: string) => boolean }[] = [
   { to: '/discover',   label: 'Discover',   matches: (p) => p.startsWith('/discover') || p.startsWith('/member/') },
-  { to: '/network',    label: 'Network',    matches: (p) => p.startsWith('/network') },
+  { to: '/network',    label: 'My Network', matches: (p) => p.startsWith('/network') },
   { to: '/broadcasts', label: 'Broadcasts', matches: (p) => p.startsWith('/broadcasts') },
   { to: '/messages',   label: 'Messages',   matches: (p) => p.startsWith('/messages') },
   { to: '/settings',   label: 'Settings',   matches: (p) => p.startsWith('/settings') || p === '/profile-setup' || p === '/verify' },

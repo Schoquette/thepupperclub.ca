@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Community;
 
 use App\Http\Controllers\Controller;
+use App\Models\CommunityInvite;
 use App\Models\CommunityMember;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,17 +20,40 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|max:255|unique:community_members,email',
-            'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()],
+            'name'        => 'required|string|max:255',
+            'email'       => 'required|email|max:255|unique:community_members,email',
+            'password'    => ['required', 'string', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()],
+            'invited_by'  => 'sometimes|nullable|string|max:32',
         ]);
 
+        // Resolve the referral code (if any). We accept anything ill-formed
+        // silently — the member still gets to join, we just don't credit a
+        // referrer.
+        $referrer = null;
+        if (!empty($data['invited_by'])) {
+            $referrer = CommunityMember::where('referral_code', strtoupper(trim($data['invited_by'])))->first();
+        }
+
         $member = CommunityMember::create([
-            'name'     => $data['name'],
-            'email'    => strtolower($data['email']),
-            'password' => Hash::make($data['password']),
-            'status'   => 'pending_verification',
+            'name'                  => $data['name'],
+            'email'                 => strtolower($data['email']),
+            'password'              => Hash::make($data['password']),
+            'status'                => 'pending_verification',
+            'referred_by_member_id' => $referrer?->id,
         ]);
+
+        // Close any pending direct-email invites that match this address —
+        // regardless of which inviter sent them — so they don't keep
+        // showing up as pending in someone's invite list. Acceptance does
+        // NOT create a connection; it's purely a status update.
+        CommunityInvite::query()
+            ->where('email', strtolower($data['email']))
+            ->where('status', 'sent')
+            ->update([
+                'status'             => 'accepted',
+                'accepted_member_id' => $member->id,
+                'accepted_at'        => now(),
+            ]);
 
         $token = $member->issueToken();
 

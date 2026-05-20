@@ -40,7 +40,7 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<CommunityMember>;
-  signUp: (name: string, email: string, password: string, passwordConfirmation: string) => Promise<CommunityMember>;
+  signUp: (name: string, email: string, password: string, passwordConfirmation: string, invitedBy?: string | null) => Promise<CommunityMember>;
   signOut: () => Promise<void>;
   /** Force-refetch the member from /me. Useful after returning from
    *  an external verification flow to pick up the new status. */
@@ -92,12 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.data.member as CommunityMember;
   };
 
-  const signUp: AuthContextValue['signUp'] = async (name, email, password, passwordConfirmation) => {
+  const signUp: AuthContextValue['signUp'] = async (name, email, password, passwordConfirmation, invitedBy) => {
     const res = await api.post('/community/auth/register', {
       name,
       email,
       password,
       password_confirmation: passwordConfirmation,
+      invited_by: invitedBy ?? null,
     });
     persist(res.data.member, res.data.token);
     return res.data.member as CommunityMember;

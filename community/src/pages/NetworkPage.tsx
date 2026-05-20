@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { FormEvent, useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
 import VerifiedBadge from '@/components/VerifiedBadge';
@@ -29,6 +29,18 @@ interface ConnectionsPayload {
   accepted: ConnectionEntry[];
 }
 
+interface InvitesPayload {
+  referral_code: string;
+  invite_url: string;
+  invites: {
+    id: number;
+    email: string;
+    status: 'sent' | 'accepted' | 'expired';
+    sent_at: string | null;
+    accepted_at: string | null;
+  }[];
+}
+
 const AVAIL_LABELS: Record<string, string> = {
   mornings: 'Mornings',
   weekdays: 'Weekdays',
@@ -40,7 +52,15 @@ const AVAIL_LABELS: Record<string, string> = {
 export default function NetworkPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<ConnectionsPayload | null>(null);
+  const [invites, setInvites] = useState<InvitesPayload | null>(null);
   const [error, setError] = useState('');
+
+  // Invite-by-email form state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sentFlash, setSentFlash] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -51,7 +71,75 @@ export default function NetworkPage() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  const loadInvites = useCallback(async () => {
+    try {
+      const res = await api.get<InvitesPayload>('/community/invites');
+      setInvites(res.data);
+    } catch {
+      // Non-fatal — invite section just won't appear.
+    }
+  }, []);
+
+  useEffect(() => { void load(); void loadInvites(); }, [load, loadInvites]);
+
+  const submitInvite = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setSending(true);
+    setError('');
+    setSentFlash(null);
+    try {
+      await api.post('/community/invites', {
+        email: inviteEmail.trim(),
+        note: inviteNote.trim() || null,
+      });
+      setSentFlash(`Invite sent to ${inviteEmail.trim()}.`);
+      setInviteEmail('');
+      setInviteNote('');
+      await loadInvites();
+    } catch (err: any) {
+      const data = err.response?.data;
+      const first = data?.errors ? Object.values(data.errors).flat()[0] : null;
+      setError((first as string) ?? data?.message ?? 'Couldn’t send that invite.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const cancelInvite = async (id: number) => {
+    if (!confirm('Remove this invite from your list? They’ll keep the email and link if they decide to join.')) return;
+    try {
+      await api.delete(`/community/invites/${id}`);
+      await loadInvites();
+    } catch {
+      setError('Couldn’t remove that invite.');
+    }
+  };
+
+  const copyInviteLink = async () => {
+    if (!invites?.invite_url) return;
+    try {
+      await navigator.clipboard.writeText(invites.invite_url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError('Couldn’t copy the link. Select it manually and copy.');
+    }
+  };
+
+  const shareInviteLink = async () => {
+    if (!invites?.invite_url) return;
+    const shareData = {
+      title: 'The Pupper Club Community',
+      text: 'You never know who could be down the street, and longing to be besties with your pup! Join me on The Pupper Club Community.',
+      url: invites.invite_url,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch { /* user cancelled */ }
+    } else {
+      void copyInviteLink();
+    }
+  };
 
   const respond = async (id: number, action: 'accept' | 'decline') => {
     try {
@@ -72,12 +160,135 @@ export default function NetworkPage() {
   };
 
   return (
-    <PageShell back="/home" crumbs={[{ label: 'Home', to: '/home' }, { label: 'Network' }]}>
-        <h1 className="font-display text-3xl text-espresso mb-3">Your network.</h1>
+    <PageShell back="/home" crumbs={[{ label: 'Home', to: '/home' }, { label: 'My Network' }]}>
+        <h1 className="font-display text-3xl text-espresso mb-3">My network.</h1>
         <p className="text-espresso/80 leading-relaxed mb-10">
-          The neighbours you&rsquo;ve connected with, plus any pending
-          requests in either direction.
+          The neighbours you&rsquo;ve connected with, your pending
+          requests, and the friends you&rsquo;ve invited.
         </p>
+
+        {/* ───────── Invite a friend ───────── */}
+        <section className="bg-white border border-taupe/20 rounded-2xl p-7 mb-12">
+          <h2 className="font-display text-xl text-espresso mb-2">Invite friends &amp; neighbours</h2>
+          <p className="text-sm text-espresso/80 leading-relaxed mb-3">
+            The Community gets better with every neighbour who joins. You
+            never know who could be down the street, and longing to be
+            besties with your pup!
+          </p>
+          <p className="text-sm text-espresso/80 leading-relaxed mb-5">
+            Send a direct email invite, or grab your join link and share
+            it in neighbourhood groups, building chats, or on social media
+            to grow the network around you.
+          </p>
+
+          {sentFlash && (
+            <div className="rounded-lg bg-blue/10 border border-blue/20 px-4 py-3 text-sm text-blue mb-4">
+              {sentFlash}
+            </div>
+          )}
+
+          <form onSubmit={submitInvite} className="space-y-3 mb-7">
+            <div>
+              <label className="field-label" htmlFor="invite_email">Send an email invite</label>
+              <input
+                id="invite_email"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="friend@example.com"
+                className="field-input"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="invite_note">Optional note</label>
+              <textarea
+                id="invite_note"
+                value={inviteNote}
+                onChange={(e) => setInviteNote(e.target.value)}
+                rows={3}
+                maxLength={600}
+                placeholder="Hey! I’ve been using this and thought you’d love it. The Community is small and verified, no marketplace stuff."
+                className="field-input resize-none"
+              />
+            </div>
+            <div className="flex items-center justify-end">
+              <button type="submit" disabled={sending || !inviteEmail.trim()} className="btn-blue disabled:opacity-60">
+                {sending ? 'Sending...' : 'Send invite'}
+              </button>
+            </div>
+          </form>
+
+          <div className="border-t border-taupe/20 pt-6">
+            <p className="label-caps text-espresso mb-2">Or share your join link</p>
+            <p className="text-xs text-taupe leading-relaxed mb-3">
+              Anyone using this link can sign up &mdash; it doesn&rsquo;t
+              auto-connect them to you, so you stay in control of who&rsquo;s
+              in your network. Great for community Facebook groups,
+              building chats, Reddit threads, or Instagram stories.
+            </p>
+            {invites ? (
+              <>
+                <div className="flex items-stretch gap-2 mb-3">
+                  <input
+                    type="text"
+                    readOnly
+                    value={invites.invite_url}
+                    onClick={(e) => (e.currentTarget as HTMLInputElement).select()}
+                    className="field-input flex-1 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyInviteLink}
+                    className="btn-blue-outline whitespace-nowrap"
+                    style={{ padding: '8px 18px', fontSize: 12 }}
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={shareInviteLink}
+                  className="text-sm text-blue hover:underline"
+                >
+                  Share via apps...
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-taupe">Loading your link...</p>
+            )}
+          </div>
+
+          {invites && invites.invites.length > 0 && (
+            <div className="border-t border-taupe/20 pt-6 mt-6">
+              <p className="label-caps text-espresso mb-3">Your invites</p>
+              <ul className="divide-y divide-taupe/20">
+                {invites.invites.map((iv) => (
+                  <li key={iv.id} className="flex items-center justify-between gap-3 py-3 first:pt-0">
+                    <div className="min-w-0">
+                      <p className="text-sm text-espresso truncate">{iv.email}</p>
+                      <p className="text-xs text-taupe">
+                        {iv.status === 'accepted'
+                          ? 'Joined'
+                          : iv.status === 'expired'
+                            ? 'Expired'
+                            : 'Awaiting sign-up'}
+                      </p>
+                    </div>
+                    {iv.status !== 'accepted' && (
+                      <button
+                        onClick={() => cancelInvite(iv.id)}
+                        className="text-xs text-taupe hover:text-red-500"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
 
         {error && (
           <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 mb-6">

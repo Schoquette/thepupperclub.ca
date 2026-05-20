@@ -779,6 +779,10 @@ Route::prefix('community')->group(function () {
         Route::post('/support/contact',       [\App\Http\Controllers\Community\SupportController::class, 'contact']);
         Route::post('/donations/checkout',    [\App\Http\Controllers\Community\DonationsController::class, 'checkout']);
 
+        Route::get('/invites',                [\App\Http\Controllers\Community\InvitesController::class, 'index']);
+        Route::post('/invites',               [\App\Http\Controllers\Community\InvitesController::class, 'store']);
+        Route::delete('/invites/{invite}',    [\App\Http\Controllers\Community\InvitesController::class, 'destroy']);
+
         Route::get('/account/settings',       [\App\Http\Controllers\Community\AccountController::class, 'settings']);
         Route::patch('/account/password',     [\App\Http\Controllers\Community\AccountController::class, 'changePassword']);
         Route::patch('/account/notifications', [\App\Http\Controllers\Community\AccountController::class, 'updateNotifications']);

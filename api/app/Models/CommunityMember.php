@@ -32,6 +32,8 @@ class CommunityMember extends Model
         'radius_meters',
         'paused_at',
         'notification_prefs',
+        'referral_code',
+        'referred_by_member_id',
         'api_token',
         'last_login_at',
     ];
@@ -82,5 +84,29 @@ class CommunityMember extends Model
     public function pets(): HasMany
     {
         return $this->hasMany(CommunityPet::class, 'member_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Mint and persist a short, unambiguous referral code if the member
+     * doesn't already have one. The code is what gets embedded in a
+     * shareable join link (...?invited_by=CODE).
+     *
+     * The alphabet is base32-ish (no 0/O/1/I/L) to keep codes readable
+     * when spoken or hand-typed.
+     */
+    public function ensureReferralCode(): string
+    {
+        if ($this->referral_code) return $this->referral_code;
+
+        $alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+        do {
+            $code = '';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+            }
+        } while (self::where('referral_code', $code)->exists());
+
+        $this->forceFill(['referral_code' => $code])->save();
+        return $code;
     }
 }

@@ -1,10 +1,14 @@
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
   const { signUp } = useAuth();
+  const [searchParams] = useSearchParams();
+  // Referral code from a join link. Trim + upper-case so the backend
+  // lookup is deterministic regardless of how the link was pasted.
+  const invitedBy = (searchParams.get('invited_by') ?? '').trim().toUpperCase() || null;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +25,7 @@ export default function SignUpPage() {
     }
     setLoading(true);
     try {
-      await signUp(name.trim(), email.trim(), password, confirm);
+      await signUp(name.trim(), email.trim(), password, confirm, invitedBy);
       navigate('/home', { replace: true });
     } catch (err: any) {
       const data = err.response?.data;
@@ -41,7 +45,12 @@ export default function SignUpPage() {
       <div className="w-full max-w-sm">
         <Link to="/" className="label-caps text-taupe hover:text-espresso block mb-8">&larr; Back</Link>
         <h1 className="font-display text-2xl text-espresso mb-2">Create your account</h1>
-        <p className="text-espresso/70 mb-8">A few details to get you started. Identity verification comes next.</p>
+        <p className="text-espresso/70 mb-4">A few details to get you started. Identity verification comes next.</p>
+        {invitedBy && (
+          <p className="rounded-lg bg-blue/10 border border-blue/20 px-4 py-3 text-sm text-blue mb-6">
+            You&rsquo;re joining through a friend&rsquo;s invite link. Welcome.
+          </p>
+        )}
 
         <form onSubmit={onSubmit} className="space-y-5">
           <div>
