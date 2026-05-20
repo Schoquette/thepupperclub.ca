@@ -2,8 +2,33 @@
 // SPA fallback for portal routes
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// Don't intercept API routes — let them pass through to Laravel
+// API requests reach this file in two scenarios:
+//   1. The Laravel front-controller isn't deployed (genuine 404).
+//   2. The IIS URL Rewrite "API Passthrough" rule didn't fire for an
+//      OPTIONS preflight (Plesk/IIS edge case we hit in production). We
+//      answer those CORS preflights here with the right Access-Control-*
+//      headers so the browser allows the follow-up POST/GET, which DOES
+//      route through to Laravel and gets Laravel's own CORS middleware.
 if (str_starts_with($uri, '/api/') || str_starts_with($uri, '/api')) {
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+        $allowed = [
+            'https://thepupperclub.ca',
+            'https://www.thepupperclub.ca',
+            'http://localhost:5173',
+            'http://localhost:5174',
+        ];
+        if (in_array($origin, $allowed, true)) {
+            header('Access-Control-Allow-Origin: ' . $origin);
+            header('Access-Control-Allow-Credentials: true');
+            header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
+            header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
+            header('Access-Control-Max-Age: 86400');
+            header('Vary: Origin');
+        }
+        http_response_code(204);
+        exit;
+    }
     http_response_code(404);
     header('Content-Type: application/json');
     echo json_encode(['error' => 'API not configured. Run composer install and php artisan migrate.']);
