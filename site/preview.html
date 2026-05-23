@@ -35,18 +35,21 @@
     .preview-mark {
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
+      align-items: center;
       gap: 32px;
       flex-wrap: wrap;
       margin-bottom: 36px;
     }
-    .preview-mark .brand {
-      font-family: 'Playfair Display SC', serif;
-      font-weight: 400;
-      color: var(--espresso);
-      font-size: 18px;
-      letter-spacing: 0.06em;
-      line-height: 1.2;
+    .preview-mark .brand-logo {
+      display: block;
+      height: 78px;
+      width: auto;
+      flex-shrink: 0;
+    }
+    .preview-mark .tagline-block {
+      flex: 1 1 auto;
+      min-width: 280px;
+      text-align: right;
     }
     .preview-mark .locality {
       font-family: 'Lato', sans-serif;
@@ -55,16 +58,15 @@
       letter-spacing: 0.18em;
       font-size: 11px;
       color: var(--taupe);
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .preview-mark .tagline {
       font-family: 'Playfair Display', serif;
-      font-style: italic;
       font-weight: 400;
-      font-size: 19px;
+      font-size: 26px;
       color: var(--espresso);
-      line-height: 1.4;
-      text-align: right;
+      line-height: 1.35;
+      margin: 0;
     }
 
     /* ---------- Hero image ---------- */
@@ -364,7 +366,10 @@
       .preview-cta { grid-template-columns: 1fr; padding: 32px 28px; }
       .cta-action { text-align: left; }
       .preview-contact { grid-template-columns: 1fr 1fr; gap: 22px; }
-      .preview-mark .tagline { text-align: left; font-size: 17px; }
+      .preview-mark { align-items: flex-start; }
+      .preview-mark .tagline-block { text-align: left; min-width: 0; }
+      .preview-mark .tagline { font-size: 22px; }
+      .preview-mark .brand-logo { height: 60px; }
       .preview-hero { height: 220px; margin-bottom: 48px; }
     }
     @media (max-width: 520px) {
@@ -377,16 +382,20 @@
 
     <!-- Top mark + tagline -->
     <div class="preview-mark">
-      <p class="brand">The<br>Pupper<br>Club</p>
-      <div>
+      <a href="https://www.thepupperclub.ca" aria-label="The Pupper Club">
+        <img class="brand-logo"
+             src="https://images.squarespace-cdn.com/content/v1/698c986abec1646881b9843f/409f84f0-c68e-45a8-a1f6-1e9c6c9f3a23/Espresso+-+One+line+-+No+tagline.png?format=750w"
+             alt="The Pupper Club" loading="eager">
+      </a>
+      <div class="tagline-block">
         <p class="locality">Port Moody &amp; Surrounding</p>
         <p class="tagline">Thoughtful walks and visits,<br>tailored to your dog.</p>
       </div>
     </div>
 
     <!-- Hero image -->
-    <div class="preview-hero" role="img" aria-label="Sophie walking a happy dog in the forest"
-         style="background-image: url('/images/social-IMG_3681.jpg');"></div>
+    <div class="preview-hero" role="img" aria-label="Sophie crouching in the forest with two of her client dogs"
+         style="background-image: url('/images/preview-hero.jpg');"></div>
 
     <!-- Intro + Ethos -->
     <section class="preview-intro">
