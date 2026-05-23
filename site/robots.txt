@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+# Hidden prospect one-pager — shared one-on-one, not for crawling.
+Disallow: /preview.html
+Disallow: /preview
 
 Sitemap: https://thepupperclub.ca/sitemap.xml

@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Intentionally hidden from search and from the public nav: this
+       page exists to be shared one-on-one with prospective clients as
+       a digital one-pager. -->
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <title>The Pupper Club — a quick introduction</title>
+  <meta name="description" content="A short, personal introduction to The Pupper Club — thoughtful walks and visits, tailored to your dog.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=2">
+  <style>
+    /* ---------- Preview / one-pager page ----------
+       More breathing room than the print PDF: section padding is doubled,
+       cards are wider, and there's vertical air between every block. */
+
+    body {
+      background: var(--cream);
+    }
+
+    .preview {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 56px var(--gutter) 80px;
+    }
+
+    /* ---------- Top mark + tagline ---------- */
+    .preview-mark {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 36px;
+    }
+    .preview-mark .brand {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      color: var(--espresso);
+      font-size: 18px;
+      letter-spacing: 0.06em;
+      line-height: 1.2;
+    }
+    .preview-mark .locality {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 11px;
+      color: var(--taupe);
+      margin-bottom: 6px;
+    }
+    .preview-mark .tagline {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-weight: 400;
+      font-size: 19px;
+      color: var(--espresso);
+      line-height: 1.4;
+      text-align: right;
+    }
+
+    /* ---------- Hero image ---------- */
+    .preview-hero {
+      width: 100%;
+      height: 320px;
+      background: var(--taupe) center/cover no-repeat;
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 64px;
+      box-shadow: 0 16px 40px rgba(59, 47, 42, 0.10);
+    }
+
+    /* ---------- Two-column intro block ---------- */
+    .preview-intro {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 56px;
+      margin-bottom: 72px;
+    }
+    .section-eyebrow {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 11px;
+      color: var(--taupe);
+      margin-bottom: 18px;
+    }
+    .preview-intro h2 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-size: 30px;
+      line-height: 1.25;
+      color: var(--espresso);
+      margin: 0 0 22px;
+    }
+    .preview-intro p {
+      font-size: 15px;
+      line-height: 1.85;
+      color: #5a4a44;
+      margin: 0 0 18px;
+    }
+
+    /* ---------- Ethos cards ---------- */
+    .ethos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .ethos-card {
+      background: #ffffff;
+      border: 1px solid rgba(200, 191, 182, 0.5);
+      border-radius: 12px;
+      padding: 22px 24px;
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .ethos-card .icon {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--gold);
+    }
+    .ethos-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--espresso);
+      margin: 0 0 6px;
+    }
+    .ethos-card p {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #5a4a44;
+      margin: 0;
+    }
+
+    /* ---------- Plans ---------- */
+    .preview-section {
+      margin-bottom: 72px;
+    }
+    .preview-section .section-eyebrow {
+      text-align: left;
+    }
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .plan {
+      background: #ffffff;
+      border: 1px solid rgba(200, 191, 182, 0.5);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .plan-head {
+      padding: 22px 24px 18px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--cream);
+      position: relative;
+    }
+    .plan-head .tier {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 10px;
+      color: var(--taupe);
+      margin-bottom: 6px;
+    }
+    .plan-head h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-size: 22px;
+      color: var(--espresso);
+      margin: 0 0 6px;
+    }
+    .plan-head .freq {
+      font-size: 13px;
+      color: #5a4a44;
+      margin: 0;
+    }
+    .plan-head .pill {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: var(--blue);
+      color: #ffffff;
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 9.5px;
+      padding: 5px 10px;
+      border-radius: 999px;
+    }
+    .plan.featured .plan-head { background: rgba(100, 146, 216, 0.08); }
+    .plan.featured .plan-head h3 { color: var(--espresso); }
+    .plan.dark .plan-head { background: var(--espresso); }
+    .plan.dark .plan-head .tier { color: rgba(246, 243, 238, 0.6); }
+    .plan.dark .plan-head h3 { color: var(--cream); }
+    .plan.dark .plan-head .freq { color: rgba(246, 243, 238, 0.7); }
+
+    .plan-rates { padding: 8px 24px 22px; }
+    .plan-rate {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--cream);
+    }
+    .plan-rate:last-child { border-bottom: none; }
+    .plan-rate .duration {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 10.5px;
+      color: var(--taupe);
+    }
+    .plan-rate .price {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 22px;
+      color: var(--espresso);
+    }
+    .plan-rate .price .per {
+      font-family: 'Lato', sans-serif;
+      font-weight: 400;
+      font-size: 11px;
+      color: var(--taupe);
+      margin-left: 4px;
+    }
+
+    .plans-fineprint {
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--taupe);
+      margin-top: 22px;
+    }
+
+    /* ---------- Good to know (FAQ) ---------- */
+    .faq-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px 48px;
+    }
+    .faq-item h4 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--espresso);
+      margin: 0 0 8px;
+    }
+    .faq-item p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #5a4a44;
+      margin: 0;
+    }
+
+    /* ---------- CTA card ---------- */
+    .preview-cta {
+      background: var(--blue);
+      color: #ffffff;
+      border-radius: 16px;
+      padding: 40px 44px;
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 32px;
+      align-items: center;
+      margin-bottom: 56px;
+    }
+    .preview-cta h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-size: 24px;
+      margin: 0 0 12px;
+      color: #ffffff;
+      line-height: 1.3;
+    }
+    .preview-cta p {
+      font-size: 14.5px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.92);
+      margin: 0;
+    }
+    .cta-action {
+      text-align: right;
+    }
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #ffffff;
+      color: var(--blue);
+      border: 2px solid #ffffff;
+      border-radius: 999px;
+      padding: 14px 26px;
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 11.5px;
+      text-decoration: none;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .cta-button:hover {
+      background: transparent;
+      color: #ffffff;
+    }
+
+    /* ---------- Contact strip ---------- */
+    .preview-contact {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 28px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(200, 191, 182, 0.5);
+    }
+    .contact-col .label {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      font-size: 10px;
+      color: var(--taupe);
+      margin-bottom: 8px;
+    }
+    .contact-col p, .contact-col a {
+      font-size: 14px;
+      color: var(--espresso);
+      line-height: 1.55;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    .contact-col a:hover { color: var(--gold); }
+    .contact-col .secondary {
+      display: block;
+      font-size: 12.5px;
+      color: var(--taupe);
+      margin-top: 2px;
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 880px) {
+      .preview-intro { grid-template-columns: 1fr; gap: 40px; }
+      .plans-grid { grid-template-columns: 1fr; }
+      .faq-list { grid-template-columns: 1fr; }
+      .preview-cta { grid-template-columns: 1fr; padding: 32px 28px; }
+      .cta-action { text-align: left; }
+      .preview-contact { grid-template-columns: 1fr 1fr; gap: 22px; }
+      .preview-mark .tagline { text-align: left; font-size: 17px; }
+      .preview-hero { height: 220px; margin-bottom: 48px; }
+    }
+    @media (max-width: 520px) {
+      .preview-contact { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview">
+
+    <!-- Top mark + tagline -->
+    <div class="preview-mark">
+      <p class="brand">The<br>Pupper<br>Club</p>
+      <div>
+        <p class="locality">Port Moody &amp; Surrounding</p>
+        <p class="tagline">Thoughtful walks and visits,<br>tailored to your dog.</p>
+      </div>
+    </div>
+
+    <!-- Hero image -->
+    <div class="preview-hero" role="img" aria-label="Sophie walking a happy dog in the forest"
+         style="background-image: url('/images/social-IMG_3681.jpg');"></div>
+
+    <!-- Intro + Ethos -->
+    <section class="preview-intro">
+      <div>
+        <p class="section-eyebrow">What we do</p>
+        <h2>No rushing. No large groups. Just attentive, consistent care.</h2>
+        <p>The Pupper Club offers subscription-based dog walking and visits built entirely around your dog&rsquo;s individual needs &mdash; their pace, their personality, their routine.</p>
+        <p>Every visit includes an enrichment-focused walk, the Post-Walk Refresh (paws wiped, paw balm, fresh water), GPS tracking, and a full report card with photos. The same person, every time.</p>
+      </div>
+      <div>
+        <p class="section-eyebrow">Our ethos</p>
+        <div class="ethos-list">
+          <div class="ethos-card">
+            <span class="icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6 6 1-4.5 4.4 1 6.6L12 17l-5.5 3 1-6.6L3 9l6-1z"/></svg>
+            </span>
+            <div>
+              <h3>Highly Curated</h3>
+              <p>Every visit is tailored to your dog&rsquo;s lifestyle and rhythm. Small roster &mdash; real relationships.</p>
+            </div>
+          </div>
+          <div class="ethos-card">
+            <span class="icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </span>
+            <div>
+              <h3>Consistent</h3>
+              <p>A limited roster allows for real relationships and routine. Each pup is their own special client.</p>
+            </div>
+          </div>
+          <div class="ethos-card">
+            <span class="icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </span>
+            <div>
+              <h3>Loving</h3>
+              <p>Love, patience, and excellent experience for both you and your dog, every time.</p>
+            </div>
+          </div>
+          <div class="ethos-card">
+            <span class="icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6z"/></svg>
+            </span>
+            <div>
+              <h3>Safe</h3>
+              <p>GPS tracking, first aid kit, and tuned safety protocols on every single walk.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Plans -->
+    <section class="preview-section">
+      <p class="section-eyebrow">Membership plans</p>
+      <div class="plans-grid">
+        <div class="plan">
+          <div class="plan-head">
+            <p class="tier">Tier 01</p>
+            <h3>The Essentials Club</h3>
+            <p class="freq">2 visits per week</p>
+          </div>
+          <div class="plan-rates">
+            <div class="plan-rate"><span class="duration">30 min</span><span class="price">$355<span class="per">/mo</span></span></div>
+            <div class="plan-rate"><span class="duration">60 min</span><span class="price">$485<span class="per">/mo</span></span></div>
+          </div>
+        </div>
+        <div class="plan featured">
+          <div class="plan-head">
+            <span class="pill">Most popular</span>
+            <p class="tier">Tier 02</p>
+            <h3>The Signature Club</h3>
+            <p class="freq">3 visits per week</p>
+          </div>
+          <div class="plan-rates">
+            <div class="plan-rate"><span class="duration">30 min</span><span class="price">$525<span class="per">/mo</span></span></div>
+            <div class="plan-rate"><span class="duration">60 min</span><span class="price">$695<span class="per">/mo</span></span></div>
+          </div>
+        </div>
+        <div class="plan dark">
+          <div class="plan-head">
+            <p class="tier">Tier 03</p>
+            <h3>The Premier Club</h3>
+            <p class="freq">Up to 5 visits per week</p>
+          </div>
+          <div class="plan-rates">
+            <div class="plan-rate"><span class="duration">30 min</span><span class="price">$825<span class="per">/mo</span></span></div>
+            <div class="plan-rate"><span class="duration">60 min</span><span class="price">$1,125<span class="per">/mo</span></span></div>
+          </div>
+        </div>
+      </div>
+      <p class="plans-fineprint">Prices are per household, not per dog. All plans are customizable. All memberships include supplies. No hidden costs. GST additional. Priority scheduling included with Premier.</p>
+    </section>
+
+    <!-- Good to know -->
+    <section class="preview-section">
+      <p class="section-eyebrow">Good to know</p>
+      <div class="faq-list">
+        <div class="faq-item">
+          <h4>What&rsquo;s included in every visit?</h4>
+          <p>An enrichment-focused walk, paw wipe and paw balm (the Post-Walk Refresh), fresh water, GPS tracking, feeding and medication if needed, and a full report card with photos.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Can I pause my membership?</h4>
+          <p>Yes &mdash; up to 4 weeks per year in one-week increments. No penalty, no stress. Life happens and we plan for it.</p>
+        </div>
+        <div class="faq-item">
+          <h4>How does the subscription work?</h4>
+          <p>After the meet &amp; greet, walks are scheduled on a recurring weekly basis. Billing is monthly &mdash; no chasing down bookings, it&rsquo;s handled.</p>
+        </div>
+        <div class="faq-item">
+          <h4>What areas do you serve?</h4>
+          <p>Port Moody and surrounding areas. Not sure if you&rsquo;re in range? Reach out and we&rsquo;ll let you know right away.</p>
+        </div>
+        <div class="faq-item">
+          <h4>Will it always be the same person?</h4>
+          <p>Yes. Sophie is a solo operator and your dog will always see a familiar face. If a replacement is ever needed for a specific day, you will always be notified in advance.</p>
+        </div>
+        <div class="faq-item">
+          <h4>What about reactive or anxious dogs?</h4>
+          <p>The small roster and one-on-one approach is especially well-suited for dogs who do better with routine and a familiar, trusted face.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <div class="preview-cta">
+      <div>
+        <h3>Start with a free meet &amp; greet.</h3>
+        <p>Before any commitment, we meet you and your dog in person &mdash; no charge, no pressure. It&rsquo;s how we make sure we&rsquo;re the right fit.</p>
+      </div>
+      <div class="cta-action">
+        <a href="https://www.thepupperclub.ca" class="cta-button">
+          Visit full website
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="preview-contact">
+      <div class="contact-col">
+        <p class="label">Call or text</p>
+        <p><a href="tel:+16049981418">604-998-1418</a></p>
+      </div>
+      <div class="contact-col">
+        <p class="label">Email</p>
+        <p><a href="mailto:sophie@thepupperclub.ca">sophie@thepupperclub.ca</a></p>
+      </div>
+      <div class="contact-col">
+        <p class="label">Website</p>
+        <p><a href="https://www.thepupperclub.ca">www.thepupperclub.ca</a></p>
+      </div>
+      <div class="contact-col">
+        <p class="label">Location</p>
+        <p>Port Moody, BC<span class="secondary">Port Moody &amp; Surrounding</span></p>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
