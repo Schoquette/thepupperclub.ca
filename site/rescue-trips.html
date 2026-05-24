@@ -7,9 +7,9 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
   <title>Rescue Trips — The Pupper Club</title>
-  <meta name="description" content="A sneak peek at The Pupper Club's upcoming Rescue Trips — international hybrid adventures that pair volunteering at a local dog rescue with surfing, kitesurfing, culture, and sightseeing.">
+  <meta name="description" content="A sneak peek at The Pupper Club's upcoming Rescue Trips — 7-to-10-day, no-profit international trips that pair real volunteer time at a local dog rescue with surfing, kitesurfing, culture, and sightseeing. Led by Sophie, Overseas Coordinator at Niagara Dog Rescue.">
   <meta property="og:title" content="Rescue Trips — The Pupper Club">
-  <meta property="og:description" content="A sneak peek at The Pupper Club's upcoming Rescue Trips — volunteering at local dog rescues paired with surf, kitesurf, culture, and sightseeing.">
+  <meta property="og:description" content="No-profit Rescue Trips that pair volunteering at a local dog rescue with surf, kitesurf, culture, and sightseeing. Led by Sophie, Overseas Coordinator at Niagara Dog Rescue.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://thepupperclub.ca/rescue-trips">
   <link rel="canonical" href="https://thepupperclub.ca/rescue-trips">
@@ -76,8 +76,138 @@
       margin: 0 0 14px;
     }
 
+    /* ---------- "From Sophie" personal intro ---------- */
+    .rt-sophie {
+      padding: 30px 0 70px;
+    }
+    .rt-sophie-grid {
+      max-width: 1040px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 56px;
+      align-items: start;
+    }
+    .rt-photo {
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(59, 47, 42, 0.12);
+      background: var(--taupe) center/cover no-repeat;
+    }
+    .rt-photo-portrait {
+      aspect-ratio: 4 / 5;
+    }
+    .rt-photo-wide {
+      aspect-ratio: 16 / 9;
+      margin: 0 auto 36px;
+      max-width: 920px;
+    }
+    .rt-sophie-text .eyebrow {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-size: 11px;
+      color: var(--gold);
+      margin: 0 0 12px;
+    }
+    .rt-sophie-text h2 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      font-size: clamp(24px, 3.5vw, 32px);
+      color: var(--espresso);
+      letter-spacing: 0.04em;
+      margin: 0 0 22px;
+      line-height: 1.25;
+    }
+    .rt-sophie-text p {
+      color: var(--espresso);
+      line-height: 1.85;
+      font-size: 16px;
+      margin: 0 0 18px;
+    }
+    .rt-sophie-text .aside {
+      display: block;
+      font-size: 14px;
+      color: var(--espresso);
+      opacity: 0.75;
+      font-style: italic;
+    }
+
+    /* ---------- How it works ---------- */
+    .rt-how {
+      background: var(--cream);
+      padding: 80px 0;
+      border-top: 1px solid rgba(200, 191, 182, 0.5);
+      border-bottom: 1px solid rgba(200, 191, 182, 0.5);
+    }
+    .rt-how-inner {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+    .rt-how h2 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      font-size: clamp(24px, 3.5vw, 32px);
+      color: var(--espresso);
+      letter-spacing: 0.04em;
+      text-align: center;
+      margin: 0 0 14px;
+    }
+    .rt-how .lead {
+      max-width: 640px;
+      margin: 0 auto 46px;
+      text-align: center;
+      color: var(--espresso);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .rt-how-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+      margin-bottom: 40px;
+    }
+    .rt-how-card {
+      background: #ffffff;
+      border: 1px solid rgba(200, 191, 182, 0.5);
+      border-radius: 14px;
+      padding: 26px 28px;
+    }
+    .rt-how-card .num {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+    .rt-how-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--espresso);
+      margin: 0 0 8px;
+    }
+    .rt-how-card p {
+      color: var(--espresso);
+      line-height: 1.7;
+      font-size: 14.5px;
+      margin: 0;
+    }
+    .rt-how-close {
+      max-width: 720px;
+      margin: 0 auto;
+      text-align: center;
+      color: var(--espresso);
+      line-height: 1.75;
+      font-size: 15.5px;
+    }
+
     .rt-trips {
-      padding: 50px 0 90px;
+      padding: 80px 0 90px;
     }
     .rt-grid {
       display: grid;
@@ -327,6 +457,11 @@
       margin-bottom: 18px;
     }
 
+    @media (max-width: 880px) {
+      .rt-sophie-grid { grid-template-columns: 1fr; gap: 36px; }
+      .rt-photo-portrait { aspect-ratio: 4 / 3; max-width: 520px; margin: 0 auto; }
+      .rt-how-grid { grid-template-columns: 1fr; }
+    }
     @media (max-width: 760px) {
       .rt-grid { grid-template-columns: 1fr; }
       .rt-modal { padding: 28px 24px 24px; }
@@ -381,13 +516,73 @@
       </div>
     </section>
 
-    <!-- Intro -->
+    <!-- From Sophie -->
+    <section class="rt-sophie">
+      <div class="container">
+        <div class="rt-sophie-grid">
+          <!-- PHOTO SLOT — drop a portrait at site/images/rescue-sophie.jpg
+               (a candid of Sophie with rescue dogs works beautifully). -->
+          <div class="rt-photo rt-photo-portrait" role="img" aria-label="Sophie with rescue dogs"
+               style="background-image: url('/images/rescue-sophie.jpg');"></div>
+          <div class="rt-sophie-text">
+            <p class="eyebrow">From Sophie</p>
+            <h2>Where this comes from.</h2>
+            <p>For the past five years I&rsquo;ve been the Overseas Coordinator at <strong>Niagara Dog Rescue</strong>, helping bring more than 100 dogs a year into adoptive Canadian homes. <span class="aside">(They also do extraordinary work for dogs right here in Canada &mdash; the rescue&rsquo;s heart is local first.)</span></p>
+            <p>Alongside that I&rsquo;ve volunteered on the ground in Mexico, visited shelters throughout Central America and Korea, walked dogs at local rescues, and built relationships with BC-based partners. During Covid I drove and flew across the border more than a dozen times to bring rescues home myself.</p>
+            <p>The people doing this work day in and day out are some of the most selfless I&rsquo;ve ever met. They&rsquo;re chronically under-resourced and often quietly exhausted. Sometimes what they need isn&rsquo;t more money or supplies &mdash; it&rsquo;s a fresh pair of hands, and reassurance that what they&rsquo;re doing matters.</p>
+            <p>I&rsquo;ve met dozens of people back home who&rsquo;d jump at the chance to help if there were a thoughtful way in. <strong>This is that way in.</strong></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Intro / hybrid -->
     <section class="rt-intro">
       <div class="container">
         <div class="rt-intro-inner">
           <h2>A hybrid you won&rsquo;t find anywhere else.</h2>
           <p>Each Rescue Trip is half meaningful volunteer work &mdash; walking, feeding, socialising, and helping at a partner rescue &mdash; and half doing the thing you love wherever we are. Small groups, locally led, with downtime built in.</p>
           <p>We&rsquo;re finalising partners, dates, and pricing now. If something below catches your eye, tap <em>I&rsquo;m interested</em> and you&rsquo;ll be first to know.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="rt-how">
+      <div class="container">
+        <div class="rt-how-inner">
+          <h2>How it works.</h2>
+          <p class="lead">A simple shape, repeated everywhere we go.</p>
+
+          <!-- PHOTO SLOT — drop a wide shot at site/images/rescue-shelter.jpg
+               (volunteers, dogs being walked, transport day, etc.). -->
+          <div class="rt-photo rt-photo-wide" role="img" aria-label="Rescue work in progress"
+               style="background-image: url('/images/rescue-shelter.jpg');"></div>
+
+          <div class="rt-how-grid">
+            <div class="rt-how-card">
+              <p class="num">01 &mdash; Length</p>
+              <h3>7&ndash;10 days</h3>
+              <p>Long enough to make a real dent at the rescue. Short enough to fit into a normal vacation slot.</p>
+            </div>
+            <div class="rt-how-card">
+              <p class="num">02 &mdash; Cost</p>
+              <h3>Reasonable, no profit</h3>
+              <p>Costs are kept low and transparent. I don&rsquo;t take a margin on Rescue Trips &mdash; the trip pays for itself, not me.</p>
+            </div>
+            <div class="rt-how-card">
+              <p class="num">03 &mdash; Fundraising</p>
+              <h3>$500+ to the host rescue</h3>
+              <p>Each participant raises a minimum $500 contribution that goes directly to the local rescue partner. In these shelters, that money goes a long way.</p>
+            </div>
+            <div class="rt-how-card">
+              <p class="num">04 &mdash; Optional add-on</p>
+              <h3>Be a flight angel</h3>
+              <p>If the timing&rsquo;s right, escort a rescue dog home to their adoptive or foster family in Canada or the US. Thinking about adopting yourself? It&rsquo;s a wonderful way to &ldquo;try one on for size&rdquo;.</p>
+            </div>
+          </div>
+
+          <p class="rt-how-close">Most trips will only feel like a beginning. The point is to walk away connected &mdash; to the rescue, to the people, to a few of the dogs &mdash; and to keep showing up however works for your life. That&rsquo;s exactly what happened to me.</p>
         </div>
       </div>
     </section>
@@ -444,7 +639,7 @@
     <!-- Foot -->
     <section class="rt-foot">
       <div class="container">
-        <p>Not sure which one? Tap any &ldquo;I&rsquo;m interested&rdquo; and let us know in the comments that you&rsquo;re open to anything &mdash; we&rsquo;ll keep you in the loop on every trip.</p>
+        <p>Not sure which one? Tap any &ldquo;I&rsquo;m interested&rdquo; and mention in the comments that you&rsquo;re open to anything &mdash; or that you&rsquo;d like to be considered as a flight angel &mdash; and we&rsquo;ll keep you in the loop on every trip.</p>
       </div>
     </section>
 
