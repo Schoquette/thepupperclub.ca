@@ -21,6 +21,21 @@
   <style>
     /* ---------- Rescue Trips page ---------- */
 
+    /* Avoid widows — never let a paragraph end with a single word on its
+       own line. `text-wrap: pretty` shifts the last word(s) up so the last
+       line carries weight. Headings use `balance` so they distribute
+       evenly across all lines. Supported on Chrome 117+, Safari 17.4+,
+       Firefox 121+; older browsers degrade silently to normal wrapping. */
+    .rt-hero p, .rt-intro p, .rt-sophie-text p, .rt-how p,
+    .rt-how-card p, .rt-card-body p, .rt-foot p,
+    .rt-photo-caption, .rt-how-close {
+      text-wrap: pretty;
+    }
+    .rt-hero h1, .rt-intro h2, .rt-sophie-text h2, .rt-how h2,
+    .rt-card-body h3, .rt-how-card h3 {
+      text-wrap: balance;
+    }
+
     .rt-hero {
       background: var(--cream);
       padding: 160px 0 80px;
