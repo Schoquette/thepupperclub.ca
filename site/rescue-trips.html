@@ -205,6 +205,26 @@
       line-height: 1.75;
       font-size: 15.5px;
     }
+    .rt-photo-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin: 30px auto 14px;
+      max-width: 920px;
+    }
+    .rt-photo-caption {
+      max-width: 720px;
+      margin: 0 auto 40px;
+      text-align: center;
+      color: var(--espresso);
+      opacity: 0.78;
+      font-size: 14px;
+      font-style: italic;
+      line-height: 1.65;
+    }
+    @media (max-width: 760px) {
+      .rt-photo-strip { grid-template-columns: 1fr; }
+    }
 
     .rt-trips {
       padding: 80px 0 90px;
@@ -516,12 +536,71 @@
       </div>
     </section>
 
+    <!-- Brief lead-in -->
+    <section class="rt-intro">
+      <div class="container">
+        <div class="rt-intro-inner">
+          <h2>A hybrid you won&rsquo;t find anywhere else.</h2>
+          <p>Each Rescue Trip is half meaningful volunteer time at a local rescue &mdash; walking, feeding, socialising, helping where it&rsquo;s needed &mdash; and half doing the thing you love wherever we are. Small groups, locally led, with downtime built in.</p>
+          <p>Partners, dates, and pricing are being finalised now. If something below catches your eye, tap <em>I&rsquo;m interested</em> and you&rsquo;ll be first to know.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trips -->
+    <section class="rt-trips">
+      <div class="container">
+        <div class="rt-grid">
+
+          <article class="rt-card">
+            <div class="rt-banner surf"><span class="country">Costa Rica</span></div>
+            <div class="rt-card-body">
+              <h3>Surf Camp &amp; Dog Rescue</h3>
+              <p class="activities">Surf &middot; Rescue volunteering</p>
+              <p>A split between surf sessions on the Pacific coast and meaningful time at a local rescue. Stay in a beachside surf camp; head home a better surfer with stories about the dogs you helped along the way.</p>
+              <button class="rt-interest-btn" data-trip="costa-rica" data-trip-label="Costa Rica — Surf Camp + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+          <article class="rt-card">
+            <div class="rt-banner kite"><span class="country">Mérida, Mexico</span></div>
+            <div class="rt-card-body">
+              <h3>Kitesurfing &amp; Dog Rescue</h3>
+              <p class="activities">Kitesurfing &middot; Rescue volunteering</p>
+              <p>Wind, warm water, and a Yucatán rescue partner that&rsquo;s short on hands. Time on the kite, time at the shelter, and a city with one of the best food scenes in Mexico to come back to.</p>
+              <button class="rt-interest-btn" data-trip="merida" data-trip-label="Mérida, Mexico — Kitesurfing + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+          <article class="rt-card">
+            <div class="rt-banner culture-1"><span class="country">Puebla, Mexico</span></div>
+            <div class="rt-card-body">
+              <h3>Culture &amp; Dog Rescue</h3>
+              <p class="activities">Culture, food, history &middot; Rescue volunteering</p>
+              <p>A slower-paced trip rooted in one of Mexico&rsquo;s most beautiful colonial cities. Spanish cooking, market walks, and volcano views, alongside time supporting a Puebla rescue that does extraordinary work on a shoestring.</p>
+              <button class="rt-interest-btn" data-trip="puebla" data-trip-label="Puebla, Mexico — Culture + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+          <article class="rt-card">
+            <div class="rt-banner culture-2"><span class="country">Seoul, South Korea</span></div>
+            <div class="rt-card-body">
+              <h3>Culture, Sightseeing &amp; Dog Rescue</h3>
+              <p class="activities">Culture, sightseeing &middot; Rescue volunteering</p>
+              <p>A thoughtful trip into a country where rescue work matters deeply. Time in the city &mdash; palaces, hanok villages, lively neighbourhoods &mdash; balanced with time at a rescue partner outside Seoul saving dogs from the meat trade.</p>
+              <button class="rt-interest-btn" data-trip="seoul" data-trip-label="Seoul, South Korea — Culture, Sightseeing + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
     <!-- From Sophie -->
     <section class="rt-sophie">
       <div class="container">
         <div class="rt-sophie-grid">
-          <!-- PHOTO SLOT — drop a portrait at site/images/rescue-sophie.jpg
-               (a candid of Sophie with rescue dogs works beautifully). -->
+          <!-- PHOTO SLOT — site/images/rescue-sophie.jpg -->
           <div class="rt-photo rt-photo-portrait" role="img" aria-label="Sophie with rescue dogs"
                style="background-image: url('/images/rescue-sophie.jpg');"></div>
           <div class="rt-sophie-text">
@@ -536,17 +615,6 @@
       </div>
     </section>
 
-    <!-- Intro / hybrid -->
-    <section class="rt-intro">
-      <div class="container">
-        <div class="rt-intro-inner">
-          <h2>A hybrid you won&rsquo;t find anywhere else.</h2>
-          <p>Each Rescue Trip is half meaningful volunteer work &mdash; walking, feeding, socialising, and helping at a partner rescue &mdash; and half doing the thing you love wherever we are. Small groups, locally led, with downtime built in.</p>
-          <p>We&rsquo;re finalising partners, dates, and pricing now. If something below catches your eye, tap <em>I&rsquo;m interested</em> and you&rsquo;ll be first to know.</p>
-        </div>
-      </div>
-    </section>
-
     <!-- How it works -->
     <section class="rt-how">
       <div class="container">
@@ -554,8 +622,7 @@
           <h2>How it works.</h2>
           <p class="lead">A simple shape, repeated everywhere we go.</p>
 
-          <!-- PHOTO SLOT — drop a wide shot at site/images/rescue-shelter.jpg
-               (volunteers, dogs being walked, transport day, etc.). -->
+          <!-- PHOTO SLOT — site/images/rescue-shelter.jpg -->
           <div class="rt-photo rt-photo-wide" role="img" aria-label="Rescue work in progress"
                style="background-image: url('/images/rescue-shelter.jpg');"></div>
 
@@ -582,56 +649,17 @@
             </div>
           </div>
 
+          <!-- Transport photo strip — crates + van. Reinforces the
+               flight-angel card visually. -->
+          <div class="rt-photo-strip">
+            <div class="rt-photo" role="img" aria-label="Rescue dogs ready in airline crates"
+                 style="background-image: url('/images/rescue-crates.jpg'); aspect-ratio: 4/3;"></div>
+            <div class="rt-photo" role="img" aria-label="The rescue transport van"
+                 style="background-image: url('/images/rescue-van.jpg'); aspect-ratio: 4/3;"></div>
+          </div>
+          <p class="rt-photo-caption">Real transport days. Whether you&rsquo;re escorting one dog as a flight angel or helping a whole van head north, you&rsquo;re part of the chain that gets them home.</p>
+
           <p class="rt-how-close">Most trips will only feel like a beginning. The point is to walk away connected &mdash; to the rescue, to the people, to a few of the dogs &mdash; and to keep showing up however works for your life. That&rsquo;s exactly what happened to me.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Trips -->
-    <section class="rt-trips">
-      <div class="container">
-        <div class="rt-grid">
-
-          <article class="rt-card">
-            <div class="rt-banner surf"><span class="country">Costa Rica</span></div>
-            <div class="rt-card-body">
-              <h3>Surf Camp &amp; Dog Rescue</h3>
-              <p class="activities">Surf &middot; Rescue volunteering</p>
-              <p>Days split between dawn surf sessions on the Pacific coast and afternoon shifts at a local rescue. Stay in a beachside surf camp; head home a better surfer with stories about the dogs you helped along the way.</p>
-              <button class="rt-interest-btn" data-trip="costa-rica" data-trip-label="Costa Rica — Surf Camp + Dog Rescue">I&rsquo;m interested</button>
-            </div>
-          </article>
-
-          <article class="rt-card">
-            <div class="rt-banner kite"><span class="country">Mérida, Mexico</span></div>
-            <div class="rt-card-body">
-              <h3>Kitesurfing &amp; Dog Rescue</h3>
-              <p class="activities">Kitesurfing &middot; Rescue volunteering</p>
-              <p>Wind, warm water, and a Yucatán rescue partner that&rsquo;s short on hands. Mornings on the kite, mid-days at the shelter, evenings in a city with one of the best food scenes in Mexico.</p>
-              <button class="rt-interest-btn" data-trip="merida" data-trip-label="Mérida, Mexico — Kitesurfing + Dog Rescue">I&rsquo;m interested</button>
-            </div>
-          </article>
-
-          <article class="rt-card">
-            <div class="rt-banner culture-1"><span class="country">Puebla, Mexico</span></div>
-            <div class="rt-card-body">
-              <h3>Culture &amp; Dog Rescue</h3>
-              <p class="activities">Culture, food, history &middot; Rescue volunteering</p>
-              <p>A slower-paced trip rooted in one of Mexico&rsquo;s most beautiful colonial cities. Spanish cooking, market walks, and volcano views; afternoons spent supporting a Puebla rescue that does extraordinary work on a shoestring.</p>
-              <button class="rt-interest-btn" data-trip="puebla" data-trip-label="Puebla, Mexico — Culture + Dog Rescue">I&rsquo;m interested</button>
-            </div>
-          </article>
-
-          <article class="rt-card">
-            <div class="rt-banner culture-2"><span class="country">Seoul, South Korea</span></div>
-            <div class="rt-card-body">
-              <h3>Culture, Sightseeing &amp; Dog Rescue</h3>
-              <p class="activities">Culture, sightseeing &middot; Rescue volunteering</p>
-              <p>A thoughtful trip into a country where rescue work matters deeply. Days in the city &mdash; palaces, hanok villages, late-night neighbourhoods &mdash; balanced with shifts at a rescue partner outside Seoul saving dogs from the meat trade.</p>
-              <button class="rt-interest-btn" data-trip="seoul" data-trip-label="Seoul, South Korea — Culture, Sightseeing + Dog Rescue">I&rsquo;m interested</button>
-            </div>
-          </article>
-
         </div>
       </div>
     </section>
