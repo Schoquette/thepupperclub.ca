@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+  <title>Rescue Trips — The Pupper Club</title>
+  <meta name="description" content="A sneak peek at The Pupper Club's upcoming Rescue Trips — international hybrid adventures that pair volunteering at a local dog rescue with surfing, kitesurfing, culture, and sightseeing.">
+  <meta property="og:title" content="Rescue Trips — The Pupper Club">
+  <meta property="og:description" content="A sneak peek at The Pupper Club's upcoming Rescue Trips — volunteering at local dog rescues paired with surf, kitesurf, culture, and sightseeing.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://thepupperclub.ca/rescue-trips">
+  <link rel="canonical" href="https://thepupperclub.ca/rescue-trips">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Allura&family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=2">
+  <link rel="stylesheet" href="/pages.css">
+  <style>
+    /* ---------- Rescue Trips page ---------- */
+
+    .rt-hero {
+      background: var(--cream);
+      padding: 160px 0 80px;
+      text-align: center;
+      border-bottom: 4px solid var(--gold);
+    }
+    .rt-hero .eyebrow {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-size: 12px;
+      margin-bottom: 18px;
+    }
+    .rt-hero h1 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      color: var(--espresso);
+      font-size: clamp(30px, 5vw, 48px);
+      letter-spacing: 0.04em;
+      margin-bottom: 22px;
+      line-height: 1.2;
+    }
+    .rt-hero p.lead {
+      max-width: 680px;
+      margin: 0 auto;
+      font-size: 17px;
+      color: var(--espresso);
+      line-height: 1.75;
+    }
+
+    .rt-intro {
+      padding: 70px 0 30px;
+    }
+    .rt-intro-inner {
+      max-width: 740px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .rt-intro h2 {
+      font-family: 'Playfair Display SC', serif;
+      font-weight: 400;
+      font-size: clamp(22px, 3.5vw, 30px);
+      color: var(--espresso);
+      margin: 0 0 18px;
+      letter-spacing: 0.04em;
+    }
+    .rt-intro p {
+      color: var(--espresso);
+      line-height: 1.8;
+      font-size: 16px;
+      margin: 0 0 14px;
+    }
+
+    .rt-trips {
+      padding: 50px 0 90px;
+    }
+    .rt-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 28px;
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+    .rt-card {
+      background: #ffffff;
+      border: 1px solid rgba(200, 191, 182, 0.5);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 6px 24px rgba(59, 47, 42, 0.08);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .rt-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 14px 34px rgba(59, 47, 42, 0.14);
+    }
+    .rt-banner {
+      height: 140px;
+      background: linear-gradient(135deg, #C9A24D 0%, #6492D8 100%);
+      position: relative;
+    }
+    .rt-banner.surf      { background: linear-gradient(135deg, #2C7B9B 0%, #93D6DA 100%); }
+    .rt-banner.kite      { background: linear-gradient(135deg, #4A6FA5 0%, #C9A24D 100%); }
+    .rt-banner.culture-1 { background: linear-gradient(135deg, #B85042 0%, #E9D7B0 100%); }
+    .rt-banner.culture-2 { background: linear-gradient(135deg, #3B2F2A 0%, #C9A24D 100%); }
+    .rt-banner .country {
+      position: absolute;
+      bottom: 16px;
+      left: 24px;
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.95);
+    }
+    .rt-card-body {
+      padding: 28px 30px 26px;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .rt-card-body h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-size: 26px;
+      color: var(--espresso);
+      margin: 0 0 8px;
+      line-height: 1.25;
+    }
+    .rt-card-body .activities {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 11px;
+      color: var(--gold);
+      margin-bottom: 18px;
+    }
+    .rt-card-body p {
+      color: var(--espresso);
+      line-height: 1.7;
+      font-size: 15px;
+      margin: 0 0 22px;
+      flex: 1 1 auto;
+    }
+    .rt-interest-btn {
+      align-self: flex-start;
+      background: transparent;
+      color: var(--espresso);
+      border: 2px solid var(--espresso);
+      border-radius: 999px;
+      padding: 12px 24px;
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .rt-interest-btn:hover {
+      background: var(--espresso);
+      color: var(--cream);
+    }
+
+    .rt-foot {
+      text-align: center;
+      padding: 30px 0 90px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .rt-foot p {
+      color: var(--espresso);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ---------- Modal ---------- */
+    .rt-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(59, 47, 42, 0.55);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .rt-modal-backdrop.open { display: block; }
+    .rt-modal-wrap {
+      min-height: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 6vh 16px;
+    }
+    .rt-modal {
+      background: #ffffff;
+      border-radius: 16px;
+      max-width: 480px;
+      width: 100%;
+      padding: 36px 36px 32px;
+      box-shadow: 0 20px 60px rgba(59, 47, 42, 0.25);
+    }
+    .rt-modal .eyebrow {
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .rt-modal h2 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 400;
+      font-size: 24px;
+      color: var(--espresso);
+      margin: 0 0 8px;
+      line-height: 1.3;
+    }
+    .rt-modal p.sub {
+      color: var(--espresso);
+      line-height: 1.6;
+      font-size: 14px;
+      margin: 0 0 22px;
+    }
+    .rt-field {
+      display: block;
+      margin-bottom: 16px;
+    }
+    .rt-field label {
+      display: block;
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 10.5px;
+      color: var(--espresso);
+      margin-bottom: 6px;
+    }
+    .rt-field input,
+    .rt-field textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1px solid rgba(200, 191, 182, 0.7);
+      border-radius: 10px;
+      font-family: 'Lato', sans-serif;
+      font-size: 15px;
+      color: var(--espresso);
+      background: #ffffff;
+      box-sizing: border-box;
+    }
+    .rt-field input:focus,
+    .rt-field textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(201, 162, 77, 0.18);
+    }
+    .rt-field textarea { resize: vertical; min-height: 90px; }
+    .rt-honeypot {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .rt-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .rt-cancel {
+      background: none;
+      border: none;
+      color: var(--taupe);
+      font-family: 'Playfair Display', serif;
+      font-size: 14.5px;
+      cursor: pointer;
+      padding: 6px 10px;
+    }
+    .rt-cancel:hover { color: var(--espresso); }
+    .rt-submit {
+      background: var(--espresso);
+      color: var(--cream);
+      border: 2px solid var(--espresso);
+      border-radius: 999px;
+      padding: 12px 26px;
+      font-family: 'Lato', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .rt-submit:hover { background: transparent; color: var(--espresso); }
+    .rt-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+    .rt-error {
+      background: #fdf1ee;
+      border: 1px solid #f0c7be;
+      color: #8a2c1a;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      margin-bottom: 16px;
+    }
+    .rt-success {
+      text-align: center;
+    }
+    .rt-success .check {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(201, 162, 77, 0.18);
+      color: var(--gold);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 760px) {
+      .rt-grid { grid-template-columns: 1fr; }
+      .rt-modal { padding: 28px 24px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header" id="header">
+    <div class="header-inner">
+      <a href="/" class="header-logo">
+        <img src="https://images.squarespace-cdn.com/content/v1/698c986abec1646881b9843f/409f84f0-c68e-45a8-a1f6-1e9c6c9f3a23/Espresso+-+One+line+-+No+tagline.png?format=750w" alt="The Pupper Club" loading="eager">
+      </a>
+      <nav class="header-nav" id="nav">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/services" class="nav-link">Services</a>
+        <a href="/about" class="nav-link">About</a>
+        <a href="/community" class="nav-link">Community<span class="beta-tag">Beta</span></a>
+        <a href="/rescue-trips" class="nav-link active">Rescue Trips</a>
+        <a href="/contact" class="nav-link">Contact</a>
+        <a href="/faq" class="nav-link">FAQ</a>
+      </nav>
+      <a href="/community/app/" class="btn btn-primary header-cta">Member Login</a>
+      <button class="burger" id="burger" aria-label="Open Menu">
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu">
+      <nav class="mobile-nav">
+        <a href="/" class="mobile-nav-link">Home</a>
+        <a href="/services" class="mobile-nav-link">Services</a>
+        <a href="/about" class="mobile-nav-link">About</a>
+        <a href="/community" class="mobile-nav-link">Community<span class="beta-tag">Beta</span></a>
+        <a href="/rescue-trips" class="mobile-nav-link active">Rescue Trips</a>
+        <a href="/contact" class="mobile-nav-link">Contact</a>
+        <a href="/faq" class="mobile-nav-link">FAQ</a>
+        <a href="/community/app/" class="btn btn-primary mobile-cta">Member Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="rt-hero">
+      <div class="container">
+        <p class="eyebrow">Coming Soon &middot; A Sneak Peek</p>
+        <h1>Rescue Trips.</h1>
+        <p class="lead">International adventures that pair real volunteer time at a local dog rescue with the kind of slow, intentional travel that lets you actually be somewhere. Surf. Kite. Culture. Sightseeing. And dogs &mdash; always dogs.</p>
+      </div>
+    </section>
+
+    <!-- Intro -->
+    <section class="rt-intro">
+      <div class="container">
+        <div class="rt-intro-inner">
+          <h2>A hybrid you won&rsquo;t find anywhere else.</h2>
+          <p>Each Rescue Trip is half meaningful volunteer work &mdash; walking, feeding, socialising, and helping at a partner rescue &mdash; and half doing the thing you love wherever we are. Small groups, locally led, with downtime built in.</p>
+          <p>We&rsquo;re finalising partners, dates, and pricing now. If something below catches your eye, tap <em>I&rsquo;m interested</em> and you&rsquo;ll be first to know.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trips -->
+    <section class="rt-trips">
+      <div class="container">
+        <div class="rt-grid">
+
+          <article class="rt-card">
+            <div class="rt-banner surf"><span class="country">Costa Rica</span></div>
+            <div class="rt-card-body">
+              <h3>Surf Camp &amp; Dog Rescue</h3>
+              <p class="activities">Surf &middot; Rescue volunteering</p>
+              <p>Days split between dawn surf sessions on the Pacific coast and afternoon shifts at a local rescue. Stay in a beachside surf camp; head home a better surfer with stories about the dogs you helped along the way.</p>
+              <button class="rt-interest-btn" data-trip="costa-rica" data-trip-label="Costa Rica — Surf Camp + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+          <article class="rt-card">
+            <div class="rt-banner kite"><span class="country">Mérida, Mexico</span></div>
+            <div class="rt-card-body">
+              <h3>Kitesurfing &amp; Dog Rescue</h3>
+              <p class="activities">Kitesurfing &middot; Rescue volunteering</p>
+              <p>Wind, warm water, and a Yucatán rescue partner that&rsquo;s short on hands. Mornings on the kite, mid-days at the shelter, evenings in a city with one of the best food scenes in Mexico.</p>
+              <button class="rt-interest-btn" data-trip="merida" data-trip-label="Mérida, Mexico — Kitesurfing + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+          <article class="rt-card">
+            <div class="rt-banner culture-1"><span class="country">Puebla, Mexico</span></div>
+            <div class="rt-card-body">
+              <h3>Culture &amp; Dog Rescue</h3>
+              <p class="activities">Culture, food, history &middot; Rescue volunteering</p>
+              <p>A slower-paced trip rooted in one of Mexico&rsquo;s most beautiful colonial cities. Spanish cooking, market walks, and volcano views; afternoons spent supporting a Puebla rescue that does extraordinary work on a shoestring.</p>
+              <button class="rt-interest-btn" data-trip="puebla" data-trip-label="Puebla, Mexico — Culture + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+          <article class="rt-card">
+            <div class="rt-banner culture-2"><span class="country">Seoul, South Korea</span></div>
+            <div class="rt-card-body">
+              <h3>Culture, Sightseeing &amp; Dog Rescue</h3>
+              <p class="activities">Culture, sightseeing &middot; Rescue volunteering</p>
+              <p>A thoughtful trip into a country where rescue work matters deeply. Days in the city &mdash; palaces, hanok villages, late-night neighbourhoods &mdash; balanced with shifts at a rescue partner outside Seoul saving dogs from the meat trade.</p>
+              <button class="rt-interest-btn" data-trip="seoul" data-trip-label="Seoul, South Korea — Culture, Sightseeing + Dog Rescue">I&rsquo;m interested</button>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Foot -->
+    <section class="rt-foot">
+      <div class="container">
+        <p>Not sure which one? Tap any &ldquo;I&rsquo;m interested&rdquo; and let us know in the comments that you&rsquo;re open to anything &mdash; we&rsquo;ll keep you in the loop on every trip.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal -->
+  <div class="rt-modal-backdrop" id="rt-modal-backdrop" aria-hidden="true">
+    <div class="rt-modal-wrap">
+      <div class="rt-modal" role="dialog" aria-modal="true" aria-labelledby="rt-modal-title">
+
+        <div id="rt-form-view">
+          <p class="eyebrow" id="rt-modal-trip-eyebrow">Rescue Trip</p>
+          <h2 id="rt-modal-title">Let us know you&rsquo;re interested.</h2>
+          <p class="sub">No pressure &mdash; we&rsquo;ll just send you details when this trip opens up. Sophie reads every reply.</p>
+
+          <div class="rt-error" id="rt-error" style="display:none;"></div>
+
+          <form id="rt-form" novalidate>
+            <div class="rt-field">
+              <label for="rt-name">Your name</label>
+              <input id="rt-name" name="name" type="text" required maxlength="120" autocomplete="name">
+            </div>
+            <div class="rt-field">
+              <label for="rt-email">Email</label>
+              <input id="rt-email" name="email" type="email" required maxlength="255" autocomplete="email">
+            </div>
+            <div class="rt-field">
+              <label for="rt-comments">Comments (optional)</label>
+              <textarea id="rt-comments" name="comments" maxlength="2000" placeholder="Dates that work, who you'd come with, anything else…"></textarea>
+            </div>
+            <!-- Honeypot — humans don't fill this in -->
+            <div class="rt-honeypot" aria-hidden="true">
+              <label for="rt-website">Website</label>
+              <input id="rt-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <input type="hidden" id="rt-trip" name="trip" value="general">
+
+            <div class="rt-actions">
+              <button type="button" class="rt-cancel" id="rt-cancel">Cancel</button>
+              <button type="submit" class="rt-submit" id="rt-submit">Send</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="rt-success-view" class="rt-success" style="display:none;">
+          <div class="check" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2>Got it — thanks!</h2>
+          <p class="sub">We&rsquo;ll be in touch as soon as this trip opens up. Watch for an email from <strong>sophie@thepupperclub.ca</strong>.</p>
+          <div class="rt-actions" style="justify-content:center;">
+            <button type="button" class="rt-submit" id="rt-close-success">Close</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <h3>The Pupper Club</h3>
+        </div>
+        <div class="footer-col">
+          <h4>Location</h4>
+          <p>Port Moody, BC</p>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <p>
+            <a href="mailto:sophie@thepupperclub.ca">sophie@thepupperclub.ca</a><br>
+            <a href="tel:+16049981418">604-998-1418</a>
+          </p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 The Pupper Club. All rights reserved. &nbsp;|&nbsp; <a href="/privacy">Privacy Policy</a> &nbsp;|&nbsp; <a href="/terms">Terms of Service</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/nav.js"></script>
+  <script>
+    (function () {
+      var backdrop  = document.getElementById('rt-modal-backdrop');
+      var formView  = document.getElementById('rt-form-view');
+      var doneView  = document.getElementById('rt-success-view');
+      var form      = document.getElementById('rt-form');
+      var nameI     = document.getElementById('rt-name');
+      var emailI    = document.getElementById('rt-email');
+      var commentsI = document.getElementById('rt-comments');
+      var tripI     = document.getElementById('rt-trip');
+      var hpI       = document.getElementById('rt-website');
+      var eyebrow   = document.getElementById('rt-modal-trip-eyebrow');
+      var titleEl   = document.getElementById('rt-modal-title');
+      var errBox    = document.getElementById('rt-error');
+      var submitB   = document.getElementById('rt-submit');
+
+      function openFor(slug, label) {
+        tripI.value = slug || 'general';
+        eyebrow.textContent = label || 'Rescue Trip';
+        titleEl.textContent = label
+          ? 'Tell us you’re interested in ' + label.split(' — ')[0] + '.'
+          : 'Let us know you’re interested.';
+        formView.style.display = '';
+        doneView.style.display = 'none';
+        errBox.style.display = 'none';
+        errBox.textContent = '';
+        form.reset();
+        tripI.value = slug || 'general';
+        backdrop.classList.add('open');
+        backdrop.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { nameI.focus(); }, 30);
+      }
+
+      function close() {
+        backdrop.classList.remove('open');
+        backdrop.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+      }
+
+      document.querySelectorAll('.rt-interest-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openFor(btn.getAttribute('data-trip'), btn.getAttribute('data-trip-label'));
+        });
+      });
+
+      document.getElementById('rt-cancel').addEventListener('click', close);
+      document.getElementById('rt-close-success').addEventListener('click', close);
+      backdrop.addEventListener('click', function (e) { if (e.target === backdrop) close(); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && backdrop.classList.contains('open')) close();
+      });
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        errBox.style.display = 'none';
+        errBox.textContent = '';
+
+        var name  = nameI.value.trim();
+        var email = emailI.value.trim();
+        if (!name || !email) {
+          errBox.textContent = 'Please add your name and email.';
+          errBox.style.display = 'block';
+          return;
+        }
+
+        submitB.disabled = true;
+        submitB.textContent = 'Sending…';
+
+        fetch('/api/rescue-trip-interest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            name: name,
+            email: email,
+            trip: tripI.value,
+            comments: commentsI.value.trim(),
+            website: hpI.value, // honeypot
+          }),
+        })
+          .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, status: res.status, body: body }; }); })
+          .then(function (r) {
+            if (r.ok) {
+              formView.style.display = 'none';
+              doneView.style.display = '';
+            } else {
+              var msg = (r.body && (r.body.message || (r.body.errors && Object.values(r.body.errors).flat()[0]))) || 'Something went wrong. Please try again.';
+              errBox.textContent = msg;
+              errBox.style.display = 'block';
+            }
+          })
+          .catch(function () {
+            errBox.textContent = 'Couldn’t reach the server. Please try again in a moment.';
+            errBox.style.display = 'block';
+          })
+          .finally(function () {
+            submitB.disabled = false;
+            submitB.textContent = 'Send';
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

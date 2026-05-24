@@ -578,6 +578,7 @@ Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 Route::post('/webhooks/stripe',     [StripeWebhookController::class, 'handle']);
 Route::post('/webhooks/email',      [\App\Http\Controllers\InboundEmailController::class, 'handle']);
 Route::post('/contact',             [ContactController::class, 'submit']);
+Route::post('/rescue-trip-interest', [\App\Http\Controllers\RescueTripInterestController::class, 'store']);
 
 // Public inline images (must be accessible for emails)
 Route::get('/admin/broadcast-images/{filename}', [Admin\NotificationController::class, 'serveInlineImage'])
