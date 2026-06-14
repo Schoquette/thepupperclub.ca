@@ -104,8 +104,8 @@
 /* Packages */
 .packages-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
   align-items: stretch;
 }
 
@@ -128,6 +128,19 @@
 .package-card.featured {
   border-color: var(--gold);
   box-shadow: 0 4px 24px rgba(201, 162, 77, 0.12);
+}
+
+/* À la carte 10-pack card — quieter, set apart from the subscriptions. */
+.package-card.alacarte {
+  background: #FAF8F4;
+  border-style: dashed;
+  border-color: rgba(200, 191, 182, 0.55);
+}
+.package-card.alacarte .package-price span {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  color: var(--taupe);
 }
 
 .package-badge {
@@ -805,8 +818,9 @@
   }
 
   .packages-grid {
-    grid-template-columns: 1fr;
-    max-width: 500px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    max-width: 720px;
     margin: 0 auto;
   }
 
@@ -818,6 +832,11 @@
 @media (max-width: 768px) {
   .page-hero {
     padding: 120px 0 40px;
+  }
+
+  .packages-grid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
   }
 
   .section-white,

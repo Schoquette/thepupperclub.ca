@@ -79,17 +79,81 @@
         <!-- Pricing Tabs -->
         <div class="pricing-tabs">
           <div class="pricing-tab-buttons">
-            <button class="pricing-tab-btn active" data-tab="60min">60 Min Visits</button>
-            <button class="pricing-tab-btn" data-tab="30min">30 Min Visits</button>
+            <button class="pricing-tab-btn active" data-tab="midday">Midday Pack Walks</button>
+            <button class="pricing-tab-btn" data-tab="60min">Min. 60 Minutes</button>
+            <button class="pricing-tab-btn" data-tab="30min">Min. 30 Minutes</button>
           </div>
 
-          <div class="pricing-panel active" id="panel-60min">
+          <!-- Midday Pack walks (default) -->
+          <div class="pricing-panel active" id="panel-midday">
+            <div class="packages-grid">
+              <div class="package-card">
+                <div class="package-header">
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>The Essential Club</h3>
+                  <p class="package-price">$360 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>2 walks per week</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card featured">
+                <div class="package-badge">Most Popular</div>
+                <div class="package-header">
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>The Signature Club</h3>
+                  <p class="package-price">$495 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>3 walks per week</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card">
+                <div class="package-header">
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>The Premier Club</h3>
+                  <p class="package-price">$795 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>5 walks per week, priority scheduling</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$375 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 walks, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 60-minute private visits -->
+          <div class="pricing-panel" id="panel-60min">
             <div class="packages-grid">
               <div class="package-card">
                 <div class="package-header">
                   <p class="package-duration">60 min</p>
-                  <h3>The Essentials Club</h3>
-                  <p class="package-price">$485 <span>/ month</span></p>
+                  <h3>The Essential Club</h3>
+                  <p class="package-price">$435 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
                   <p>2 visits per week</p>
@@ -104,7 +168,7 @@
                 <div class="package-header">
                   <p class="package-duration">60 min</p>
                   <h3>The Signature Club</h3>
-                  <p class="package-price">$695 <span>/ month</span></p>
+                  <p class="package-price">$615 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
                   <p>3 visits per week</p>
@@ -118,7 +182,7 @@
                 <div class="package-header">
                   <p class="package-duration">60 min</p>
                   <h3>The Premier Club</h3>
-                  <p class="package-price">$1,125 <span>/ month</span></p>
+                  <p class="package-price">$995 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
                   <p>5 visits per week, priority scheduling</p>
@@ -127,15 +191,30 @@
                   <a href="/contact" class="btn btn-primary">Inquire</a>
                 </div>
               </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">60 min</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$515 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 visits, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
             </div>
           </div>
 
+          <!-- 30-minute private visits -->
           <div class="pricing-panel" id="panel-30min">
             <div class="packages-grid">
               <div class="package-card">
                 <div class="package-header">
                   <p class="package-duration">30 min</p>
-                  <h3>The Essentials Club</h3>
+                  <h3>The Essential Club</h3>
                   <p class="package-price">$355 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
@@ -174,11 +253,25 @@
                   <a href="/contact" class="btn btn-primary">Inquire</a>
                 </div>
               </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">30 min</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$410 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 visits, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <p class="pricing-note">GST not included. All plans customizable.</p>
+        <p class="pricing-note">Prices per household, not per dog. GST not included. All plans customizable.</p>
       </div>
     </section>
 
