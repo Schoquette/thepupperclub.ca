@@ -225,39 +225,6 @@ Route::get('/test-email-9x7k', function () {
     return response()->json(['message' => 'Test email sent. Check your inbox.']);
 });
 
-// Temporary: peek at the last N email_logs rows so we can see what
-// Resend actually accepted or rejected. REMOVE after diagnosing.
-Route::get('/email-log-tail-9x7k', function (\Illuminate\Http\Request $request) {
-    $limit = min(50, max(1, (int) $request->query('n', 15)));
-    $rows = \App\Models\EmailLog::query()
-        ->orderByDesc('created_at')
-        ->limit($limit)
-        ->get(['id', 'to_email', 'subject', 'mail_class', 'status', 'error_message', 'resend_id', 'created_at']);
-    return response()->json([
-        'now'  => now()->toIso8601String(),
-        'rows' => $rows,
-    ]);
-});
-
-// Temporary: simulate a contact form submission against the real
-// controller to surface any silent mail error in the response.
-// REMOVE after diagnosing.
-Route::get('/contact-test-9x7k', function () {
-    try {
-        \Illuminate\Support\Facades\Mail::raw("Test from /contact-test-9x7k\nIf you see this in your inbox, the marketing site contact form is working end-to-end.", function ($mail) {
-            $mail->to('sophie@thepupperclub.ca')
-                 ->replyTo('test@example.com', 'Diagnostic Test')
-                 ->subject('Contact Form Diagnostic — please ignore');
-        });
-        return response()->json(['ok' => true, 'message' => 'Mail::raw call returned without throwing.']);
-    } catch (\Throwable $e) {
-        return response()->json([
-            'ok'      => false,
-            'error'   => $e->getMessage(),
-            'class'   => get_class($e),
-        ], 500);
-    }
-});
 
 // Temporary: add notification_preferences JSON column to client_profiles (REMOVE after running)
 Route::get('/add-notif-prefs-9x7k', function () {
