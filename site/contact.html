@@ -176,24 +176,27 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({
-            first_name: form.first_name.value,
-            last_name: form.last_name.value,
-            email: form.email.value,
-            phone: form.phone.value,
-            dog_name: form.dog_name.value,
-            message: [
-              form.looking_for.value ? 'Looking for: ' + form.looking_for.value : '',
-              form.dog_name.value ? 'Pupper(s): ' + form.dog_name.value : '',
-              form.preferred_start.value ? 'Preferred start: ' + form.preferred_start.value : '',
-              form.referral.value ? 'Heard about us: ' + form.referral.value : '',
-            ].filter(Boolean).join('\n'),
+            first_name:      form.first_name.value.trim(),
+            last_name:       form.last_name.value.trim(),
+            email:           form.email.value.trim(),
+            phone:           form.phone.value.trim(),
+            dog_name:        form.dog_name.value.trim(),
+            looking_for:     form.looking_for.value.trim(),
+            preferred_start: form.preferred_start.value,
+            referral:        form.referral.value.trim(),
           }),
         });
-        if (!res.ok) throw new Error('Failed');
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const firstError = body && body.errors ? Object.values(body.errors).flat()[0] : null;
+          throw new Error(firstError || body.message || 'Failed');
+        }
         btn.textContent = 'Thank you!';
         form.reset();
-      } catch {
-        btn.textContent = 'Error — please try again';
+      } catch (err) {
+        btn.textContent = (err && err.message && err.message !== 'Failed')
+          ? 'Error: ' + err.message
+          : 'Error — please try again';
       }
       setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 3000);
     });
