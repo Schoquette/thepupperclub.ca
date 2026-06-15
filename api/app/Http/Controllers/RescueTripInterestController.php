@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 
 class RescueTripInterestController extends Controller
 {
@@ -27,13 +28,17 @@ class RescueTripInterestController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        // Spam control: honeypot field below. The previous IP-based rate
-        // limiter used Laravel's cache, which is configured to use the
-        // `cache` DB table on this host — and that table doesn't exist
-        // yet. For a low-volume 'Coming Soon' preview form the honeypot
-        // is sufficient. If volume picks up, switch CACHE_STORE to file
-        // or run a migration to create the cache table, then re-introduce
-        // RateLimiter::hit().
+        // Rate-limit by IP — 8 submissions per 15 minutes is plenty for a
+        // real visitor and a low ceiling for casual spam. Backed by the
+        // database cache store (see the create_cache_table migration).
+        $key = 'rescue-trip:' . ($request->ip() ?: 'anon');
+        if (RateLimiter::tooManyAttempts($key, 8)) {
+            return response()->json([
+                'message' => 'Too many submissions from this address. Please try again in a bit.',
+            ], 429);
+        }
+        RateLimiter::hit($key, 60 * 15);
+
         $data = $request->validate([
             'name'      => 'required|string|max:120',
             'email'     => 'required|email|max:255',
