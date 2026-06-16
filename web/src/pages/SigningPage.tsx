@@ -52,7 +52,7 @@ export default function SigningPage() {
   const [pageWidth, setPageWidth] = useState(700);
   const [focusedField, setFocusedField] = useState<number | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error: loadError } = useQuery({
     queryKey: ['signing', token],
     queryFn: () => publicApi.get(`/api/signing/${token}`).then(r => r.data.data),
     retry: false,
@@ -346,12 +346,40 @@ export default function SigningPage() {
   }
 
   if (isError) {
+    // Pull what the server told us so we can show a friendlier message
+    // when the doc was simply already signed or already counter-signed
+    // (HTTP 410) instead of the generic 404 'link not found' wording.
+    const status = (loadError as any)?.response?.status as number | undefined;
+    const serverMessage = (loadError as any)?.response?.data?.message as string | undefined;
+
+    let title = 'Link Not Found';
+    let detail = 'This signing link is invalid, expired, or has already been used.';
+    let emoji  = '\u{1F512}'; // 🔒
+
+    if (status === 410) {
+      // Server returns explicit copy for each case — surface it.
+      emoji = '✅'; // ✅
+      const lower = (serverMessage ?? '').toLowerCase();
+      if (lower.includes('counter')) {
+        title  = 'Already Counter-Signed';
+        detail = 'This document has been counter-signed and is fully executed. Nothing more to do here.';
+      } else if (lower.includes('signed')) {
+        title  = 'Already Signed';
+        detail = 'This document has already been signed. The administrator has been notified.';
+      } else if (serverMessage) {
+        detail = serverMessage;
+      }
+    } else if (status === 404) {
+      title  = 'Link Not Found';
+      detail = 'This signing link doesn’t match any document on file. It may have been replaced by a newer link — check your inbox for the most recent email, or reach out at sophie@thepupperclub.ca.';
+    }
+
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
-          <div className="text-4xl mb-4">&#128274;</div>
-          <h2 className="text-xl font-display text-espresso mb-2">Link Not Found</h2>
-          <p className="text-taupe text-sm">This signing link is invalid, expired, or has already been used.</p>
+          <div className="text-4xl mb-4">{emoji}</div>
+          <h2 className="text-xl font-display text-espresso mb-2">{title}</h2>
+          <p className="text-taupe text-sm leading-relaxed">{detail}</p>
         </div>
       </div>
     );
