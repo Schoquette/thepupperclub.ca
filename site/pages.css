@@ -1248,6 +1248,25 @@
   color: var(--espresso);
 }
 
+/* Custom-plans callout — sits below the pricing-note line, encourages
+   visitors who don't see what they want to reach out. */
+.custom-callout {
+  max-width: 640px;
+  margin: 2.4rem auto 0;
+  padding: 1.8rem 2rem;
+  background: var(--cream);
+  border: 1px dashed rgba(201, 162, 77, 0.5);
+  border-radius: 16px;
+  text-align: center;
+}
+.custom-callout-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--espresso);
+  margin: 0 0 1.2rem;
+}
+
 @media (max-width: 900px) {
   .transport-layout {
     grid-template-columns: 1fr;
