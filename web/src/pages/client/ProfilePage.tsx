@@ -6,49 +6,15 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ProvinceSelect } from '@/components/ui/ProvinceSelect';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { CheckCircle, Dog, CreditCard, Settings, FileText, ChevronRight } from 'lucide-react';
+import { CheckCircle, Dog, CreditCard, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const DAY_OPTIONS = [
-  { value: 'monday', label: 'Mon' },
-  { value: 'tuesday', label: 'Tue' },
-  { value: 'wednesday', label: 'Wed' },
-  { value: 'thursday', label: 'Thu' },
-  { value: 'friday', label: 'Fri' },
-];
-
-const TIME_OPTIONS = [
-  { value: 'early_morning', label: 'Early Morning (6–9 AM)' },
-  { value: 'morning', label: 'Morning (9 AM–12 PM)' },
-  { value: 'midday', label: 'Midday (12–3 PM)' },
-  { value: 'afternoon', label: 'Afternoon (3–6 PM)' },
-  { value: 'evening', label: 'Evening (6–9 PM)' },
-];
-
-// Legacy time-block enum values that may still be stored on older profiles.
-// They map to the same human labels as the canonical keys above so the
-// display is consistent regardless of which schema the row was saved in.
-const LEGACY_TIME_LABELS: Record<string, string> = {
-  morning_7_10: 'Morning (9 AM–12 PM)',
-  midday_11_2: 'Midday (12–3 PM)',
-  afternoon_3_6: 'Afternoon (3–6 PM)',
-  evening_6_9: 'Evening (6–9 PM)',
-};
-
-// Fallback prettifier for any unknown time-block enum value.
-// e.g. "afternoon_3_6" → "Afternoon 3-6".
-function prettifyTimeBlock(value: string): string {
-  const parts = value.split('_');
-  if (!parts.length) return value;
-  const words: string[] = [];
-  const nums: string[] = [];
-  for (const p of parts) {
-    if (/^\d+$/.test(p)) nums.push(p);
-    else words.push(p.charAt(0).toUpperCase() + p.slice(1));
-  }
-  const label = words.join(' ');
-  return nums.length ? `${label} ${nums.join('-')}` : label;
-}
+import {
+  VetInformationCard,
+  VisitPreferencesCard as IntakeVisitPreferencesCard,
+  CareGoalsCard,
+  CommunicationCard,
+  GeneralNotesCard,
+} from '@/components/intake/IntakeProfileCards';
 
 export default function ClientProfilePage() {
   const qc = useQueryClient();
@@ -244,33 +210,20 @@ export default function ClientProfilePage() {
         ))}
       </div>
 
-      {/* Full intake form access — single source of truth for every field
-          (walk preferences, care options, communication, notes, etc.).
-          Linked prominently because the cards on this page only cover a
-          subset and clients should be able to edit anything any time. */}
-      <Link
-        to="/client/intake-form"
-        className="block bg-blue/5 border border-blue/20 rounded-2xl p-5 hover:bg-blue/10 hover:border-blue/30 transition-all"
-      >
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 rounded-full bg-blue/15 flex items-center justify-center shrink-0">
-            <FileText className="w-5 h-5 text-blue" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-espresso">View &amp; edit my full profile</p>
-            <p className="text-xs text-taupe mt-0.5">
-              Walk preferences, care options, communication preferences, dog notes &mdash; every intake field, editable any time.
-            </p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-blue shrink-0" />
-        </div>
-      </Link>
-
-      {/* Visit Preferences */}
-      <VisitPreferencesCard profile={p} />
+      {/* Intake-derived sections — visible + editable inline so this
+          page mirrors the full intake form (and the admin's view of
+          this client). VetInformationCard, VisitPreferencesCard (the
+          full version with length / customized care / food storage),
+          CareGoalsCard, CommunicationCard, GeneralNotesCard. */}
+      <VetInformationCard profile={p} mode="client" />
+      <IntakeVisitPreferencesCard profile={p} mode="client" />
+      <CareGoalsCard profile={p} mode="client" />
+      <CommunicationCard profile={p} mode="client" />
 
       {/* Home Access */}
       <HomeAccessCard />
+
+      <GeneralNotesCard profile={p} mode="client" />
 
       {/* Confirm button — shown when admin submitted intake but client hasn't confirmed */}
       {needsReview && !editing && (
@@ -287,124 +240,6 @@ export default function ClientProfilePage() {
         </div>
       )}
     </div>
-  );
-}
-
-// ── Visit Preferences ─────────────────────────────────────────────────────────
-
-function VisitPreferencesCard({ profile }: { profile: any }) {
-  const qc = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [days, setDays] = useState<string[]>(profile?.preferred_walk_days ?? []);
-  const [times, setTimes] = useState<string[]>(profile?.preferred_walk_times ?? []);
-  const [successMsg, setSuccessMsg] = useState('');
-
-  useEffect(() => {
-    setDays(profile?.preferred_walk_days ?? []);
-    setTimes(profile?.preferred_walk_times ?? []);
-  }, [profile]);
-
-  const save = useMutation({
-    mutationFn: () => api.patch('/client/profile', { preferred_walk_days: days, preferred_walk_times: times }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['client-profile'] });
-      setEditing(false);
-      setSuccessMsg('Saved!');
-      setTimeout(() => setSuccessMsg(''), 2500);
-    },
-    onError: () => {},
-  });
-
-  const toggleDay = (d: string) => setDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
-  const toggleTime = (t: string) => setTimes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
-
-  const dayLabels = Object.fromEntries(DAY_OPTIONS.map(o => [o.value, o.label]));
-  const timeLabels: Record<string, string> = {
-    ...Object.fromEntries(TIME_OPTIONS.map(o => [o.value, o.label])),
-    ...LEGACY_TIME_LABELS,
-  };
-  const formatTimeBlock = (v: string) => timeLabels[v] ?? prettifyTimeBlock(v);
-
-  return (
-    <Card>
-      <CardHeader
-        title="Visit Preferences"
-        action={
-          <div className="flex items-center gap-2">
-            {successMsg && <span className="text-sm text-green-600 font-medium">{successMsg}</span>}
-            {editing ? (
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => { setEditing(false); setDays(profile?.preferred_walk_days ?? []); setTimes(profile?.preferred_walk_times ?? []); }}>Cancel</Button>
-                <Button size="sm" loading={save.isPending} onClick={() => save.mutate()}>Save</Button>
-              </div>
-            ) : (
-              <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Edit</Button>
-            )}
-          </div>
-        }
-      />
-      {editing ? (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-espresso mb-2">Preferred Days</label>
-            <div className="flex gap-2 flex-wrap">
-              {DAY_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => toggleDay(opt.value)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                    days.includes(opt.value)
-                      ? 'bg-gold text-white border-gold'
-                      : 'border-taupe text-espresso hover:border-gold/60 hover:bg-cream'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-espresso mb-2">Preferred Time Slots</label>
-            <div className="flex gap-2 flex-wrap">
-              {TIME_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => toggleTime(opt.value)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                    times.includes(opt.value)
-                      ? 'bg-gold text-white border-gold'
-                      : 'border-taupe text-espresso hover:border-gold/60 hover:bg-cream'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <dl className="space-y-3 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-taupe">Preferred Days</dt>
-            <dd className="text-espresso font-medium">
-              {(profile?.preferred_walk_days ?? []).length > 0
-                ? (profile.preferred_walk_days as string[]).map(d => dayLabels[d] || d).join(', ')
-                : '—'}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-taupe">Preferred Times</dt>
-            <dd className="text-espresso font-medium">
-              {(profile?.preferred_walk_times ?? []).length > 0
-                ? (profile.preferred_walk_times as string[]).map(formatTimeBlock).join(', ')
-                : '—'}
-            </dd>
-          </div>
-        </dl>
-      )}
-    </Card>
   );
 }
 

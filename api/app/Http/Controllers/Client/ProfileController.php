@@ -57,7 +57,31 @@ class ProfileController extends Controller
             'preferred_walk_days.*'    => 'string',
             'preferred_walk_times'     => 'sometimes|array',
             'preferred_walk_times.*'   => 'string',
+            'preferred_walk_length'    => 'sometimes|nullable|string|max:50',
             'notification_preferences' => 'sometimes|array',
+
+            // Vet
+            'vet_clinic_name'          => 'sometimes|nullable|string|max:255',
+            'vet_phone'                => 'sometimes|nullable|string|max:30',
+            'vet_address'              => 'sometimes|nullable|string|max:500',
+
+            // Care options + storage
+            'food_storage_location'    => 'sometimes|nullable|string|max:500',
+            'customized_care_options'  => 'sometimes|array',
+            'customized_care_options.*' => 'string',
+
+            // Goals / context
+            'what_great_care_looks_like' => 'sometimes|nullable|string|max:5000',
+            'biggest_concern'            => 'sometimes|nullable|string|max:5000',
+            'comfort_factors'            => 'sometimes|nullable|string|max:5000',
+            'referral_source'            => 'sometimes|nullable|string|max:100',
+
+            // Communication
+            'preferred_update_method'  => 'sometimes|nullable|string|max:50',
+            'report_detail_level'      => 'sometimes|nullable|string|max:50',
+
+            // General notes (the catch-all profile-level field)
+            'additional_notes'         => 'sometimes|nullable|string|max:8000',
         ]);
 
         $user = $request->user();

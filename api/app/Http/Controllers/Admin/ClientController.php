@@ -97,6 +97,26 @@ class ClientController extends Controller
             'profile.subscription_end_date'   => 'sometimes|nullable|date',
             'profile.walks_per_week'          => 'sometimes|nullable|integer|min:0|max:14',
             'profile.notes'                   => 'sometimes|nullable|string',
+
+            // Intake-derived profile fields (mirror of /client/profile rules)
+            'profile.preferred_walk_days'     => 'sometimes|array',
+            'profile.preferred_walk_days.*'   => 'string',
+            'profile.preferred_walk_times'    => 'sometimes|array',
+            'profile.preferred_walk_times.*'  => 'string',
+            'profile.preferred_walk_length'   => 'sometimes|nullable|string|max:50',
+            'profile.vet_clinic_name'         => 'sometimes|nullable|string|max:255',
+            'profile.vet_phone'               => 'sometimes|nullable|string|max:30',
+            'profile.vet_address'             => 'sometimes|nullable|string|max:500',
+            'profile.food_storage_location'   => 'sometimes|nullable|string|max:500',
+            'profile.customized_care_options' => 'sometimes|array',
+            'profile.customized_care_options.*' => 'string',
+            'profile.what_great_care_looks_like' => 'sometimes|nullable|string|max:5000',
+            'profile.biggest_concern'           => 'sometimes|nullable|string|max:5000',
+            'profile.comfort_factors'           => 'sometimes|nullable|string|max:5000',
+            'profile.referral_source'           => 'sometimes|nullable|string|max:100',
+            'profile.preferred_update_method'   => 'sometimes|nullable|string|max:50',
+            'profile.report_detail_level'       => 'sometimes|nullable|string|max:50',
+            'profile.additional_notes'          => 'sometimes|nullable|string|max:8000',
         ]);
 
         $client->update(array_filter([

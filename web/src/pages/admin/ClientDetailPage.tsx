@@ -10,6 +10,13 @@ import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { Pencil, ArrowUp, ArrowDown, Plus, Clock, AlertCircle, FileText, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
+import {
+  VetInformationCard,
+  VisitPreferencesCard as IntakeVisitPreferencesCard,
+  CareGoalsCard,
+  CommunicationCard,
+  GeneralNotesCard,
+} from '@/components/intake/IntakeProfileCards';
 
 type Tab = 'profile' | 'dogs' | 'billing' | 'documents' | 'access';
 
@@ -2636,6 +2643,18 @@ export default function AdminClientDetailPage() {
                   <p className="text-sm text-espresso whitespace-pre-wrap">{p.notes}</p>
                 </Card>
               )}
+
+              {/* Intake-derived sections — mirror of the cards the
+                  client sees on their Profile page so we edit the same
+                  fields from either side without leaving the page. */}
+              <div className="md:col-span-2 space-y-6 pt-2 border-t border-cream/60">
+                <h3 className="text-xs uppercase tracking-wide text-taupe font-semibold pt-4">Intake-derived profile</h3>
+                <VetInformationCard profile={p} mode="admin" clientId={Number(id)} />
+                <IntakeVisitPreferencesCard profile={p} mode="admin" clientId={Number(id)} />
+                <CareGoalsCard profile={p} mode="admin" clientId={Number(id)} />
+                <CommunicationCard profile={p} mode="admin" clientId={Number(id)} />
+                <GeneralNotesCard profile={p} mode="admin" clientId={Number(id)} />
+              </div>
             </div>
           )}
         </div>
