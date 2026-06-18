@@ -1226,6 +1226,28 @@
   text-align: center;
 }
 
+/* Permanent booking note at the bottom of the calculator card — sits
+   below the result panel (or directly below the button when no result
+   has been calculated yet). Always visible. */
+.transport-booking-note {
+  margin-top: 1.4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(200, 191, 182, 0.4);
+  font-size: 13px;
+  color: #5a4a44;
+  line-height: 1.65;
+  text-align: center;
+}
+.transport-booking-note a {
+  color: var(--gold);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.transport-booking-note a:hover {
+  color: var(--espresso);
+}
+
 @media (max-width: 900px) {
   .transport-layout {
     grid-template-columns: 1fr;
