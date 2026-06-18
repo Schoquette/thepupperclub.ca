@@ -104,8 +104,8 @@
 /* Packages */
 .packages-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
   align-items: stretch;
 }
 
@@ -128,6 +128,19 @@
 .package-card.featured {
   border-color: var(--gold);
   box-shadow: 0 4px 24px rgba(201, 162, 77, 0.12);
+}
+
+/* À la carte 10-pack card — quieter, set apart from the subscriptions. */
+.package-card.alacarte {
+  background: #FAF8F4;
+  border-style: dashed;
+  border-color: rgba(200, 191, 182, 0.55);
+}
+.package-card.alacarte .package-price span {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  color: var(--taupe);
 }
 
 .package-badge {
@@ -623,6 +636,7 @@
 .pricing-tab-buttons {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 0;
   margin-bottom: 3rem;
   border-bottom: 1px solid rgba(200, 191, 182, 0.4);
@@ -805,8 +819,9 @@
   }
 
   .packages-grid {
-    grid-template-columns: 1fr;
-    max-width: 500px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    max-width: 720px;
     margin: 0 auto;
   }
 
@@ -818,6 +833,11 @@
 @media (max-width: 768px) {
   .page-hero {
     padding: 120px 0 40px;
+  }
+
+  .packages-grid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
   }
 
   .section-white,
@@ -898,3 +918,436 @@
     position: static;
   }
 }
+
+/* --- Community cross-link in the footer --- */
+.footer-community {
+  margin: 36px 0 22px;
+  padding: 36px 28px 32px;
+  background: rgba(100, 146, 216, 0.06);
+  border: 1px solid rgba(100, 146, 216, 0.2);
+  border-radius: 12px;
+  text-align: center;
+}
+.footer-community-logo {
+  display: inline-block;
+  position: relative;
+  margin-bottom: 4px;
+  padding-right: 38px; /* room for the floating "Beta" */
+}
+.script-community {
+  font-family: 'Allura', 'Pinyon Script', cursive;
+  font-size: clamp(52px, 7vw, 64px);
+  font-weight: 400;
+  color: var(--espresso);
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+.script-beta {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(15px, 1.6vw, 19px);
+  color: var(--espresso);
+  letter-spacing: 0.02em;
+}
+.footer-community-text {
+  max-width: 540px;
+  margin: 6px auto 20px;
+  color: var(--espresso);
+  font-size: 14px;
+  line-height: 1.65;
+}
+.footer-community .btn-blue-outline {
+  display: inline-block;
+  background: transparent;
+  color: var(--blue);
+  border: 2px solid var(--blue);
+  padding: 10px 26px;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.25s ease;
+}
+.footer-community .btn-blue-outline:hover { background: var(--blue); color: #fff; }
+
+
+/* --- "Community | Beta" inline label in nav/headings --- */
+.beta-tag {
+  display: inline;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--blue);
+  margin-left: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.beta-tag::before {
+  content: '|';
+  margin-right: 6px;
+  font-weight: 300;
+  color: var(--taupe);
+}
+
+
+/* ───────────── Appointment Transportation tab ─────────────
+   Lives inside the pricing-tabs system as the 4th panel. Two-column
+   layout on desktop (copy left, live calculator right), stacks on
+   mobile. */
+.transport-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 3.5rem;
+  align-items: start;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* ── Left column: copy + bullets ── */
+.transport-eyebrow {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 11px;
+  color: var(--gold);
+  margin: 0 0 0.9rem;
+}
+.transport-headline {
+  font-family: 'Playfair Display', serif;
+  font-weight: 400;
+  font-size: clamp(1.6rem, 2.5vw, 2rem);
+  line-height: 1.25;
+  color: var(--espresso);
+  margin: 0 0 1.2rem;
+}
+.transport-included {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--espresso);
+  margin: 0 0 1.8rem;
+  padding-left: 16px;
+  border-left: 2px solid var(--gold);
+}
+.transport-included strong {
+  color: var(--espresso);
+}
+.transport-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.transport-bullets li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(200, 191, 182, 0.35);
+  font-size: 15px;
+  color: #5a4a44;
+  line-height: 1.5;
+}
+.transport-bullets li:last-child { border-bottom: none; }
+.transport-num {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--espresso);
+  white-space: nowrap;
+  min-width: 56px;
+}
+
+/* ── Right column: live calculator card ── */
+.transport-calc {
+  background: #ffffff;
+  border: 1px solid rgba(200, 191, 182, 0.5);
+  border-radius: 18px;
+  padding: 36px 36px 32px;
+  box-shadow: 0 14px 38px rgba(59, 47, 42, 0.08);
+  position: relative;
+}
+.transport-calc::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--gold);
+  border-radius: 18px 18px 0 0;
+}
+.transport-calc-heading {
+  font-family: 'Playfair Display', serif;
+  font-weight: 400;
+  font-size: 1.35rem;
+  color: var(--espresso);
+  margin: 0 0 0.35rem;
+}
+.transport-calc-sub {
+  font-size: 13px;
+  color: var(--taupe);
+  margin: 0 0 1.8rem;
+}
+
+.transport-field {
+  display: block;
+  margin-bottom: 1.1rem;
+}
+.transport-field label {
+  display: block;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 10.5px;
+  color: var(--espresso);
+  margin-bottom: 6px;
+}
+.transport-field input[type="text"] {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(200, 191, 182, 0.6);
+  border-radius: 10px;
+  font-family: 'Lato', sans-serif;
+  font-size: 14.5px;
+  color: var(--espresso);
+  background: #ffffff;
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.transport-field input[type="text"]::placeholder {
+  color: rgba(107, 94, 88, 0.55);
+}
+.transport-field input[type="text"]:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201, 162, 77, 0.18);
+}
+
+/* Trip-type pill toggles. Real radios hidden visually; the surrounding
+   label takes the gold border + tinted background when checked. */
+.transport-trip-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.transport-radio {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 11px 16px;
+  background: #ffffff;
+  border: 1.5px solid rgba(200, 191, 182, 0.6);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--espresso);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+  text-align: center;
+}
+.transport-radio input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.transport-radio:has(input:checked) {
+  background: rgba(201, 162, 77, 0.10);
+  border-color: var(--gold);
+  color: var(--espresso);
+  font-weight: 700;
+}
+.transport-radio:hover {
+  border-color: var(--gold);
+}
+
+.transport-calc-btn {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+.transport-error {
+  background: #fdf1ee;
+  border: 1px solid #f0c7be;
+  color: #8a2c1a;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  margin-top: 1.2rem;
+}
+
+/* Result panel — distinct background + accent line under the total */
+.transport-result {
+  margin-top: 1.8rem;
+  padding: 1.4rem 1.4rem 1.2rem;
+  background: var(--cream);
+  border-radius: 14px;
+}
+.transport-result-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--espresso);
+}
+.transport-result-line em {
+  font-style: normal;
+  color: var(--taupe);
+  font-size: 12.5px;
+  margin-left: 4px;
+}
+.transport-result-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 2px solid var(--gold);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--espresso);
+}
+.transport-result-note {
+  margin-top: 1rem;
+  font-size: 12.5px;
+  color: #6b5e58;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Permanent booking note at the bottom of the calculator card — sits
+   below the result panel (or directly below the button when no result
+   has been calculated yet). Always visible. */
+.transport-booking-note {
+  margin-top: 1.4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(200, 191, 182, 0.4);
+  font-size: 13px;
+  color: #5a4a44;
+  line-height: 1.65;
+  text-align: center;
+}
+.transport-booking-note a {
+  color: var(--gold);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.transport-booking-note a:hover {
+  color: var(--espresso);
+}
+
+/* Custom & Casual full-width callout — its own blue section sitting
+   between the pricing tabs and the Nitty Gritty FAQ. Centered, with
+   white type on Just Blue. */
+.custom-plans-section {
+  background: var(--blue);
+  color: #ffffff;
+  padding: 80px 0;
+  text-align: center;
+}
+.custom-plans-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+.custom-plans-eyebrow {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 1.1rem;
+}
+.custom-plans-heading {
+  font-family: 'Playfair Display SC', serif;
+  font-weight: 400;
+  color: #ffffff;
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  letter-spacing: 0.04em;
+  line-height: 1.25;
+  margin: 0 0 1.2rem;
+}
+.custom-plans-text {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.94);
+  margin: 0 auto 1.8rem;
+  max-width: 560px;
+}
+.custom-plans-cta {
+  background: #ffffff;
+  color: var(--blue);
+  border-color: #ffffff;
+}
+.custom-plans-cta:hover {
+  background: transparent;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+@media (max-width: 600px) {
+  .custom-plans-section { padding: 56px 0; }
+  .custom-plans-text { font-size: 1rem; }
+  .custom-plans-cta { width: 100%; max-width: 320px; }
+}
+
+@media (max-width: 900px) {
+  .transport-layout {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+    max-width: 580px;
+  }
+}
+@media (max-width: 600px) {
+  .transport-calc {
+    padding: 28px 22px 24px;
+  }
+  .transport-trip-options {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Google Places Autocomplete dropdown — Google appends .pac-container
+   directly to document.body. Without an explicit z-index it can fall
+   behind page chrome; without explicit type the default font + spacing
+   reads as foreign. Match the brand. */
+.pac-container {
+  z-index: 10000 !important;
+  background: #ffffff;
+  border: 1px solid rgba(200, 191, 182, 0.7);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(59, 47, 42, 0.14);
+  font-family: 'Lato', sans-serif;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.pac-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--espresso);
+  border-top: 1px solid var(--cream);
+  line-height: 1.45;
+}
+.pac-item:first-child { border-top: none; }
+.pac-item:hover,
+.pac-item-selected {
+  background: var(--cream);
+}
+.pac-item-query { color: var(--espresso); font-weight: 600; }
+.pac-matched { color: var(--gold); }
+.pac-icon { margin-top: 4px; }
