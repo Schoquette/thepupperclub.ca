@@ -45,7 +45,15 @@ const TIME_BLOCKS = [
   { value: 'midday',        label: '12–3 PM',     startHour: 12, endHour: 15 },
   { value: 'afternoon',     label: '3–6 PM',      startHour: 15, endHour: 18 },
   { value: 'evening',       label: '6–9 PM',      startHour: 18, endHour: 21 },
+  { value: 'all_day',       label: 'All day',     startHour: 0,  endHour: 24 },
 ];
+
+/** Services where a time-block doesn't make sense — boarding fills the
+ *  whole day(s) regardless of drop-off / pick-up time. */
+const FULL_DAY_SERVICES = ['day_boarding', 'overnight'];
+function isFullDayService(svc: string): boolean {
+  return FULL_DAY_SERVICES.includes(svc);
+}
 
 function getTimeBlock(dateTimeStr: string): string {
   if (!dateTimeStr) return 'morning';
@@ -483,7 +491,11 @@ export default function AdminCalendarPage() {
     const payload: any = {
       id: appointment.id,
       scheduled_time: toLocalISO(newStart),
-      client_time_block: getTimeBlock(toLocalISO(newStart)),
+      // Boarding services keep 'all_day'; everything else derives a
+      // block from the new start hour.
+      client_time_block: isFullDayService(appointment.service_type)
+        ? 'all_day'
+        : getTimeBlock(toLocalISO(newStart)),
       duration_minutes: durationMin,
     };
     // Show notify prompt instead of saving directly
@@ -497,7 +509,9 @@ export default function AdminCalendarPage() {
       service_type: editForm.service_type,
       duration_minutes: editForm.duration_minutes,
       scheduled_time: editForm.scheduled_time,
-      client_time_block: getTimeBlock(editForm.scheduled_time),
+      client_time_block: isFullDayService(editForm.service_type)
+        ? 'all_day'
+        : getTimeBlock(editForm.scheduled_time),
       notes: editForm.notes || null,
       dog_ids: editForm.dog_ids,
     };
@@ -999,7 +1013,7 @@ export default function AdminCalendarPage() {
             const days = (profile?.preferred_walk_days ?? []).map((d: string) =>
               ({ monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' })[d] || d);
             const times = (profile?.preferred_walk_times ?? []).map((t: string) =>
-              ({ early_morning: 'Early Morning (6–9am)', morning: 'Morning (9am–12pm)', midday: 'Midday (12–3pm)', afternoon: 'Afternoon (3–6pm)', evening: 'Evening (6–9pm)', morning_7_10: 'Morning (9am–12pm)', midday_11_2: 'Midday (12–3pm)', afternoon_3_6: 'Afternoon (3–6pm)', evening_6_9: 'Evening (6–9pm)' })[t] || t);
+              ({ early_morning: 'Early Morning (6–9am)', morning: 'Morning (9am–12pm)', midday: 'Midday (12–3pm)', afternoon: 'Afternoon (3–6pm)', evening: 'Evening (6–9pm)', all_day: 'All day', morning_7_10: 'Morning (9am–12pm)', midday_11_2: 'Midday (12–3pm)', afternoon_3_6: 'Afternoon (3–6pm)', evening_6_9: 'Evening (6–9pm)' })[t] || t);
             return (days.length > 0 || times.length > 0) ? (
               <div className="text-xs text-blue-600 mt-1.5 space-y-0.5">
                 {days.length > 0 && <div>Preferred Days: {days.join(', ')}</div>}
@@ -1068,15 +1082,28 @@ export default function AdminCalendarPage() {
                         service_type: nextType,
                         end_date: endDate,
                         duration_minutes: overnightMinutes(startDate, endDate),
+                        client_time_block: 'all_day',
                       };
                     }
-                    // Switching AWAY from overnight: clear end_date and
-                    // reset duration to the new service default.
+                    // Switching to day boarding: full-day with no time block.
+                    if (nextType === 'day_boarding') {
+                      return {
+                        ...f,
+                        service_type: nextType,
+                        end_date: '',
+                        duration_minutes: svc.defaultDuration,
+                        client_time_block: 'all_day',
+                      };
+                    }
+                    // Switching to a normal service: clear end_date,
+                    // reset duration, and restore a real time block
+                    // derived from the scheduled hour.
                     return {
                       ...f,
                       service_type: nextType,
                       end_date: '',
                       duration_minutes: svc.defaultDuration,
+                      client_time_block: f.scheduled_time ? getTimeBlock(f.scheduled_time) : 'morning',
                     };
                   });
                 }}
@@ -1125,7 +1152,13 @@ export default function AdminCalendarPage() {
                   const time = newForm.scheduled_time ? newForm.scheduled_time.split('T')[1] || '09:00' : '09:00';
                   const dt = `${newDate}T${time}`;
                   setNewForm(f => {
-                    const next = { ...f, scheduled_time: dt, client_time_block: getTimeBlock(dt) };
+                    const next = {
+                      ...f,
+                      scheduled_time: dt,
+                      // Preserve 'all_day' for boarding services; derive
+                      // a normal block from the hour for everything else.
+                      client_time_block: isFullDayService(f.service_type) ? 'all_day' : getTimeBlock(dt),
+                    };
                     if (f.service_type === 'overnight') {
                       // If end_date is before the new check-in, bump it
                       // to the same day (single night minimum).
@@ -1180,7 +1213,11 @@ export default function AdminCalendarPage() {
                 onChange={e => {
                   const date = newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : '';
                   const dt = `${date}T${e.target.value}`;
-                  setNewForm(f => ({ ...f, scheduled_time: dt, client_time_block: getTimeBlock(dt) }));
+                  setNewForm(f => ({
+                    ...f,
+                    scheduled_time: dt,
+                    client_time_block: isFullDayService(f.service_type) ? 'all_day' : getTimeBlock(dt),
+                  }));
                 }}
               >
                 <option value="" disabled>Select time</option>
@@ -1190,17 +1227,21 @@ export default function AdminCalendarPage() {
               </select>
             </div>
 
-            {/* Time block */}
-            <div>
-              <label className="label">Client Time Block *</label>
-              <select
-                className="input"
-                value={newForm.client_time_block}
-                onChange={e => setNewForm(f => ({ ...f, client_time_block: e.target.value }))}
-              >
-                {TIME_BLOCKS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
+            {/* Time block — hidden for boarding (always all-day) */}
+            {!isFullDayService(newForm.service_type) && (
+              <div>
+                <label className="label">Client Time Block *</label>
+                <select
+                  className="input"
+                  value={newForm.client_time_block}
+                  onChange={e => setNewForm(f => ({ ...f, client_time_block: e.target.value }))}
+                >
+                  {TIME_BLOCKS
+                    .filter(t => t.value !== 'all_day')
+                    .map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Schedule overlap/buffer warnings */}

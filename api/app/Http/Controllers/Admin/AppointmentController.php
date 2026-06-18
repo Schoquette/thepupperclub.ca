@@ -92,7 +92,7 @@ class AppointmentController extends Controller
             'dog_ids.*'        => 'exists:dogs,id',
             'service_type'     => 'required|in:walk_30,walk_60,drop_in,overnight,day_boarding',
             'scheduled_time'   => 'required|date',
-            'client_time_block'=> 'required|in:early_morning,morning,midday,afternoon,evening',
+            'client_time_block'=> 'required|in:early_morning,morning,midday,afternoon,evening,all_day',
             'duration_minutes' => 'required|integer|min:15',
             'notes'            => 'nullable|string',
             'recurrence_rule'  => 'nullable|array',
@@ -122,7 +122,7 @@ class AppointmentController extends Controller
     {
         $rules = [
             'scheduled_time'    => 'sometimes|date',
-            'client_time_block' => 'sometimes|in:early_morning,morning,midday,afternoon,evening',
+            'client_time_block' => 'sometimes|in:early_morning,morning,midday,afternoon,evening,all_day',
             'service_type'      => 'sometimes|in:walk_30,walk_60,drop_in,overnight,day_boarding',
             'duration_minutes'  => 'sometimes|integer|min:15',
             'dog_ids'           => 'sometimes|array|min:1',
