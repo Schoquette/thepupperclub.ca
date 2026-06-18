@@ -83,6 +83,37 @@ Route::get('/migrate-community-9x7k', function () {
     }
 });
 
+// Temporary: bypass Laravel's migration tracker and force the
+// appointments.client_time_block enum to include 'all_day' directly.
+// The matching migration file was marked as run in a prior deploy
+// before the ALTER actually applied, so `php artisan migrate` is a
+// no-op. Hitting this once forces the column into the right shape.
+// REMOVE after the column is widened.
+Route::get('/fix-time-block-enum-9x7k', function () {
+    try {
+        // Show the current column shape first so we can confirm before/after.
+        $before = \Illuminate\Support\Facades\DB::select(
+            "SHOW COLUMNS FROM appointments WHERE Field = 'client_time_block'"
+        );
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE appointments
+             MODIFY client_time_block ENUM(
+                'early_morning', 'morning', 'midday', 'afternoon', 'evening', 'all_day'
+             ) NOT NULL"
+        );
+        $after = \Illuminate\Support\Facades\DB::select(
+            "SHOW COLUMNS FROM appointments WHERE Field = 'client_time_block'"
+        );
+        return response()->json([
+            'message' => 'client_time_block enum widened to include all_day.',
+            'before'  => $before,
+            'after'   => $after,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // Temporary: diagnose Discover visibility. Shows every community member's
 // key state at a glance — has_geohash is the usual culprit for "I'm not
 // seeing anyone". Remove this endpoint once we're past beta.
