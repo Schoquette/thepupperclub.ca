@@ -7,16 +7,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
   <title>Services — The Pupper Club</title>
-  <meta name="description" content="Explore our dog walking packages in Port Moody, Coquitlam & Anmore. Monthly subscriptions for 30 or 60 minute visits.">
+  <meta name="description" content="Explore our dog walking packages in Port Moody and surrounding areas. Monthly subscriptions for 30 or 60 minute visits.">
   <meta property="og:title" content="Services — The Pupper Club">
-  <meta property="og:description" content="Explore our dog walking packages in Port Moody, Coquitlam & Anmore. Monthly subscriptions for 30 or 60 minute visits.">
+  <meta property="og:description" content="Explore our dog walking packages in Port Moody and surrounding areas. Monthly subscriptions for 30 or 60 minute visits.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://thepupperclub.ca/services">
   <meta property="og:image" content="https://images.squarespace-cdn.com/content/v1/698c986abec1646881b9843f/409f84f0-c68e-45a8-a1f6-1e9c6c9f3a23/Espresso+-+One+line+-+No+tagline.png?format=1500w">
   <link rel="canonical" href="https://thepupperclub.ca/services">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Allura&family=Playfair+Display+SC:wght@400;700&family=Playfair+Display:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=2">
   <link rel="stylesheet" href="pages.css">
 </head>
@@ -32,6 +32,8 @@
         <a href="/" class="nav-link">Home</a>
         <a href="/services" class="nav-link active">Services</a>
         <a href="/about" class="nav-link">About</a>
+        <a href="/community" class="nav-link">Community<span class="beta-tag">Beta</span></a>
+        <a href="/rescue-trips" class="nav-link">Rescue Trips</a>
         <a href="/contact" class="nav-link">Contact</a>
         <a href="/faq" class="nav-link">FAQ</a>
       </nav>
@@ -45,6 +47,8 @@
         <a href="/" class="mobile-nav-link">Home</a>
         <a href="/services" class="mobile-nav-link active">Services</a>
         <a href="/about" class="mobile-nav-link">About</a>
+        <a href="/community" class="mobile-nav-link">Community<span class="beta-tag">Beta</span></a>
+        <a href="/rescue-trips" class="mobile-nav-link">Rescue Trips</a>
         <a href="/contact" class="mobile-nav-link">Contact</a>
         <a href="/faq" class="mobile-nav-link">FAQ</a>
         <a href="/login" class="btn btn-primary mobile-cta">Client Login</a>
@@ -67,25 +71,89 @@
       <div class="container">
         <h2 class="section-title">What We Offer</h2>
         <div class="offer-intro">
-          <p>We offer monthly subscription packages to match your volume needs. The subscription model aligns with our value of getting to know your pup and all of us investing time and energy into creating the best experience.</p>
-          <p>We have three tiers to choose from. Every package is customizable (that's the point!), and we offer additional a la carte services to be added as you need them.</p>
+          <p>We offer monthly subscription packages to match your volume needs &mdash; choose from <strong>custom 1-on-1 visits</strong> (30 or 60 minutes) or our shared <strong>midday pack walks</strong>. The subscription model aligns with our value of getting to know your pup and all of us investing time and energy into creating the best experience.</p>
+          <p>We have three tiers to choose from. Every package is customizable (that's the point!), and we offer additional a la carte services to be added as you need them &mdash; including a <strong>10-punch pass</strong> for clients who&rsquo;d rather pay as they go.</p>
           <p><strong>Prices listed below are per household, there is no extra charge for additional pups.</strong></p>
         </div>
 
         <!-- Pricing Tabs -->
         <div class="pricing-tabs">
           <div class="pricing-tab-buttons">
-            <button class="pricing-tab-btn active" data-tab="60min">60 Min Visits</button>
-            <button class="pricing-tab-btn" data-tab="30min">30 Min Visits</button>
+            <button class="pricing-tab-btn active" data-tab="custom60">Custom Visits | Min. 60 min</button>
+            <button class="pricing-tab-btn" data-tab="custom30">Custom Visits | Min. 30 min</button>
+            <button class="pricing-tab-btn" data-tab="midday">Midday Pack Walks</button>
           </div>
 
-          <div class="pricing-panel active" id="panel-60min">
+          <!-- Midday Pack walks -->
+          <div class="pricing-panel" id="panel-midday">
             <div class="packages-grid">
               <div class="package-card">
                 <div class="package-header">
-                  <p class="package-duration">60 min</p>
-                  <h3>The Essentials Club</h3>
-                  <p class="package-price">$485 <span>/ month</span></p>
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>The Essential Club</h3>
+                  <p class="package-price">$360 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>2 walks per week</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card featured">
+                <div class="package-badge">Most Popular</div>
+                <div class="package-header">
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>The Signature Club</h3>
+                  <p class="package-price">$495 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>3 walks per week</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card">
+                <div class="package-header">
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>The Premier Club</h3>
+                  <p class="package-price">$795 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>5 walks per week, priority scheduling</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Midday Pack</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$375 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 walks, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom 60-minute private visits (default) -->
+          <div class="pricing-panel active" id="panel-custom60">
+            <div class="packages-grid">
+              <div class="package-card">
+                <div class="package-header">
+                  <p class="package-duration">Custom · 60 min</p>
+                  <h3>The Essential Club</h3>
+                  <p class="package-price">$435 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
                   <p>2 visits per week</p>
@@ -98,9 +166,9 @@
               <div class="package-card featured">
                 <div class="package-badge">Most Popular</div>
                 <div class="package-header">
-                  <p class="package-duration">60 min</p>
+                  <p class="package-duration">Custom · 60 min</p>
                   <h3>The Signature Club</h3>
-                  <p class="package-price">$695 <span>/ month</span></p>
+                  <p class="package-price">$615 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
                   <p>3 visits per week</p>
@@ -112,9 +180,9 @@
 
               <div class="package-card">
                 <div class="package-header">
-                  <p class="package-duration">60 min</p>
+                  <p class="package-duration">Custom · 60 min</p>
                   <h3>The Premier Club</h3>
-                  <p class="package-price">$1,125 <span>/ month</span></p>
+                  <p class="package-price">$995 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
                   <p>5 visits per week, priority scheduling</p>
@@ -123,15 +191,30 @@
                   <a href="/contact" class="btn btn-primary">Inquire</a>
                 </div>
               </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Custom · 60 min</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$515 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 visits, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="pricing-panel" id="panel-30min">
+          <!-- Custom 30-minute private visits -->
+          <div class="pricing-panel" id="panel-custom30">
             <div class="packages-grid">
               <div class="package-card">
                 <div class="package-header">
-                  <p class="package-duration">30 min</p>
-                  <h3>The Essentials Club</h3>
+                  <p class="package-duration">Custom · 30 min</p>
+                  <h3>The Essential Club</h3>
                   <p class="package-price">$355 <span>/ month</span></p>
                 </div>
                 <div class="package-body">
@@ -145,7 +228,7 @@
               <div class="package-card featured">
                 <div class="package-badge">Most Popular</div>
                 <div class="package-header">
-                  <p class="package-duration">30 min</p>
+                  <p class="package-duration">Custom · 30 min</p>
                   <h3>The Signature Club</h3>
                   <p class="package-price">$525 <span>/ month</span></p>
                 </div>
@@ -159,7 +242,7 @@
 
               <div class="package-card">
                 <div class="package-header">
-                  <p class="package-duration">30 min</p>
+                  <p class="package-duration">Custom · 30 min</p>
                   <h3>The Premier Club</h3>
                   <p class="package-price">$825 <span>/ month</span></p>
                 </div>
@@ -170,11 +253,25 @@
                   <a href="/contact" class="btn btn-primary">Inquire</a>
                 </div>
               </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Custom · 30 min</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$410 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 visits, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <p class="pricing-note">GST not included. All plans customizable.</p>
+        <p class="pricing-note">Prices per household, not per dog. GST not included. All plans customizable.</p>
       </div>
     </section>
 
@@ -326,8 +423,16 @@
         </div>
         <div class="footer-col">
           <h4>Contact</h4>
-          <p><a href="mailto:sophie@thepupperclub.ca">sophie@thepupperclub.ca</a><br><a href="tel:+16049981814">604-998-1814</a></p>
+          <p><a href="mailto:sophie@thepupperclub.ca">sophie@thepupperclub.ca</a><br><a href="tel:+16049981418">604-998-1418</a></p>
         </div>
+      </div>
+      <div class="footer-community">
+        <div class="footer-community-logo">
+          <span class="script-community">Community</span>
+          <span class="script-beta">Beta</span>
+        </div>
+        <p class="footer-community-text">A small, trusted circle of verified neighbours who show up for each other&rsquo;s pets. Coming soon.</p>
+        <a href="/community" class="btn-blue-outline">Learn More</a>
       </div>
       <div class="footer-bottom">
         <p>&copy; 2026 The Pupper Club. All rights reserved. &nbsp;|&nbsp; <a href="/privacy">Privacy Policy</a> &nbsp;|&nbsp; <a href="/terms">Terms of Service</a></p>
@@ -370,7 +475,7 @@
       "@type": "LocalBusiness",
       "name": "The Pupper Club",
       "url": "https://thepupperclub.ca",
-      "telephone": "+1-604-998-1814",
+      "telephone": "+1-604-998-1418",
       "address": {
         "@type": "PostalAddress",
         "addressLocality": "Port Moody",
@@ -380,7 +485,6 @@
     },
     "areaServed": [
       { "@type": "City", "name": "Port Moody" },
-      { "@type": "City", "name": "Anmore" },
       { "@type": "City", "name": "Coquitlam" },
       { "@type": "City", "name": "Belcarra" }
     ],

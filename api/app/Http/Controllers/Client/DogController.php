@@ -170,6 +170,8 @@ class DogController extends Controller
             'treats_notes'                  => 'sometimes|nullable|string',
             'training_commands'             => 'sometimes|nullable|string',
             'avoid_on_walks'                => 'sometimes|nullable|string',
+            'walking_notes'                 => 'sometimes|nullable|string',
+            'general_notes'                 => 'sometimes|nullable|string',
         ]);
     }
 

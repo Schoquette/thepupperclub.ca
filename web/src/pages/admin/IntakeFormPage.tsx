@@ -47,6 +47,8 @@ interface DogData {
   treats_notes: string;
   training_commands: string;
   avoid_on_walks: string;
+  walking_notes: string;
+  general_notes: string;
 }
 
 interface FormData {
@@ -125,6 +127,8 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     treats_notes: '',
     training_commands: '',
     avoid_on_walks: '',
+    walking_notes: '',
+    general_notes: '',
     ...partial,
   };
 }
@@ -164,6 +168,8 @@ function buildForm(data: any): FormData {
     treats_notes: d.treats_notes ?? '',
     training_commands: d.training_commands ?? '',
     avoid_on_walks: d.avoid_on_walks ?? '',
+    walking_notes: d.walking_notes ?? '',
+    general_notes: d.general_notes ?? '',
   }));
 
   return {
@@ -899,6 +905,18 @@ function DogCard({
                   : <textarea className={`${fieldCls} resize-none`} rows={2} value={dog.avoid_on_walks} onChange={e => set({ avoid_on_walks: e.target.value })} placeholder="e.g. dog parks, off-leash areas…" />
                 }
               </FieldRow>
+              <FieldRow label="Walking Notes">
+                {readOnly
+                  ? <ReadValue value={dog.walking_notes} />
+                  : <textarea className={`${fieldCls} resize-none`} rows={3} value={dog.walking_notes} onChange={e => set({ walking_notes: e.target.value })} placeholder="Anything else relevant to walks — pace, leash handling, encounters to avoid…" />
+                }
+              </FieldRow>
+              <FieldRow label="General Notes">
+                {readOnly
+                  ? <ReadValue value={dog.general_notes} />
+                  : <textarea className={`${fieldCls} resize-none`} rows={3} value={dog.general_notes} onChange={e => set({ general_notes: e.target.value })} placeholder="Anything else about this dog worth knowing — quirks, preferences, history…" />
+                }
+              </FieldRow>
             </div>
           </div>
         </div>
@@ -916,6 +934,7 @@ const SECTION_LABELS = [
   { id: 'section-4', label: 'Home Access' },
   { id: 'section-5', label: 'Care Options' },
   { id: 'section-6', label: 'Communication' },
+  { id: 'section-7', label: 'General Notes' },
 ];
 
 function SectionNav() {
@@ -1565,13 +1584,31 @@ export default function IntakeFormPage() {
               </div>
             </div>
 
-            <FieldRow label="Additional Notes">
-              {readOnly
-                ? <ReadValue value={form.additional_notes} />
-                : <textarea className={`${fieldCls} resize-none`} rows={3} value={form.additional_notes} onChange={e => update({ additional_notes: e.target.value })} placeholder="Anything else we should know?" />
-              }
-            </FieldRow>
           </div>
+        </SectionCard>
+
+        {/* ── Section 7: General Notes ────────────────────────────────────── */}
+        <SectionCard id="section-7">
+          <SectionHeading>7. General Notes</SectionHeading>
+
+          <p className="text-sm text-taupe mb-4 leading-relaxed">
+            Anything else worth noting &mdash; household quirks, schedule
+            notes, special requests, context that helps care for the dogs
+            well.
+          </p>
+
+          {readOnly
+            ? <ReadValue value={form.additional_notes} />
+            : (
+              <textarea
+                className={`${fieldCls} resize-none`}
+                rows={8}
+                value={form.additional_notes}
+                onChange={e => update({ additional_notes: e.target.value })}
+                placeholder="Anything else worth noting…"
+              />
+            )
+          }
         </SectionCard>
 
         {/* ── Footer action area ──────────────────────────────────────────── */}

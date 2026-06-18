@@ -322,16 +322,22 @@
           @if($dog->avoid_on_walks)
           <tr><td class="lbl">Avoid on Walks</td><td class="val">{{ $dog->avoid_on_walks }}</td></tr>
           @endif
+          @if($dog->walking_notes)
+          <tr><td class="lbl">Walking notes</td><td class="val">{{ $dog->walking_notes }}</td></tr>
+          @endif
+          @if($dog->general_notes)
+          <tr><td class="lbl">General notes</td><td class="val">{{ $dog->general_notes }}</td></tr>
+          @endif
         </table>
       </div>
       @endforeach
     </div>
     @endif
 
-    {{-- Additional Notes --}}
+    {{-- General Notes (matches the 'General Notes' section in the portal intake form) --}}
     @if($profile && ($profile->what_great_care_looks_like || $profile->biggest_concern || $profile->comfort_factors || $profile->additional_notes))
     <div class="section">
-      <div class="section-title">Additional Notes</div>
+      <div class="section-title">General Notes</div>
       <table class="fields">
         @if($profile->what_great_care_looks_like)
         <tr><td class="lbl">What great care looks like</td><td class="val">{{ $profile->what_great_care_looks_like }}</td></tr>
@@ -346,7 +352,7 @@
         <tr><td class="lbl">Referral source</td><td class="val">{{ intakeFmt($profile->referral_source) }}</td></tr>
         @endif
         @if($profile->additional_notes)
-        <tr><td class="lbl">Additional notes</td><td class="val">{{ $profile->additional_notes }}</td></tr>
+        <tr><td class="lbl">General notes</td><td class="val">{{ $profile->additional_notes }}</td></tr>
         @endif
       </table>
     </div>

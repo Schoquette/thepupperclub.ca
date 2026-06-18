@@ -53,6 +53,8 @@ class Dog extends Model
         'treats_notes',
         'training_commands',
         'avoid_on_walks',
+        'walking_notes',
+        'general_notes',
         'medical_conditions',
         'allergies',
         'administer_medication_on_visits',

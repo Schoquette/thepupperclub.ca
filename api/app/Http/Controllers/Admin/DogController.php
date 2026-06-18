@@ -158,6 +158,8 @@ class DogController extends Controller
             'medications.*.frequency' => 'required|string',
             'medications.*.notes'     => 'nullable|string',
             'special_instructions'   => 'nullable|string',
+            'walking_notes'          => 'sometimes|nullable|string',
+            'general_notes'          => 'sometimes|nullable|string',
             'is_active'          => 'sometimes|boolean',
             'is_archived'        => 'sometimes|boolean',
             'off_leash_approved' => 'sometimes|boolean',

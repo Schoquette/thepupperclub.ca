@@ -49,6 +49,8 @@ $pages = [
     '/faq'      => 'faq.html',
     '/privacy'  => 'privacy.html',
     '/terms'    => 'terms.html',
+    '/rescue-trips'  => 'rescue-trips.html',
+    '/rescue-trips/' => 'rescue-trips.html',
 
     // Community sub-brand. /community and /community/ are served by IIS
     // directly via the directory's index.html (community/index.html).

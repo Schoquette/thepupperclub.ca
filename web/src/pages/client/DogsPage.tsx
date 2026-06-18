@@ -115,6 +115,8 @@ const EMPTY_FORM = {
   treats_notes: '',
   training_commands: '',
   avoid_on_walks: '',
+  walking_notes: '',
+  general_notes: '',
 };
 
 type DogForm = typeof EMPTY_FORM;
@@ -156,6 +158,8 @@ function dogToForm(dog: any): DogForm {
     treats_notes: dog.treats_notes ?? '',
     training_commands: dog.training_commands ?? '',
     avoid_on_walks: dog.avoid_on_walks ?? '',
+    walking_notes: dog.walking_notes ?? '',
+    general_notes: dog.general_notes ?? '',
   };
 }
 
@@ -441,6 +445,8 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
           )}
           <Textarea label="Known Training Commands" rows={2} value={form.training_commands} onChange={e => setForm(f => ({ ...f, training_commands: e.target.value }))} placeholder="e.g. sit, stay, leave it…" />
           <Textarea label="Avoid on Walks" rows={2} value={form.avoid_on_walks} onChange={e => setForm(f => ({ ...f, avoid_on_walks: e.target.value }))} placeholder="e.g. dog parks, off-leash areas…" />
+          <Textarea label="Walking Notes" rows={3} value={form.walking_notes} onChange={e => setForm(f => ({ ...f, walking_notes: e.target.value }))} placeholder="Anything else relevant to walks — pace, leash handling, encounters to avoid…" />
+          <Textarea label="General Notes" rows={3} value={form.general_notes} onChange={e => setForm(f => ({ ...f, general_notes: e.target.value }))} placeholder="Anything else about your dog worth knowing — quirks, preferences, history…" />
         </div>
       </Card>
     </>
