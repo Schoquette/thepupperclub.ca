@@ -160,6 +160,7 @@ class DogController extends Controller
             'special_instructions'   => 'nullable|string',
             'walking_notes'          => 'sometimes|nullable|string',
             'general_notes'          => 'sometimes|nullable|string',
+            'petsitting_notes'       => 'sometimes|nullable|string',
             'is_active'          => 'sometimes|boolean',
             'is_archived'        => 'sometimes|boolean',
             'off_leash_approved' => 'sometimes|boolean',

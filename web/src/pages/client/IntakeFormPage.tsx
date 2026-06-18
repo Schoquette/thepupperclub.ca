@@ -49,6 +49,7 @@ interface DogData {
   avoid_on_walks: string;
   walking_notes: string;
   general_notes: string;
+  petsitting_notes: string;
 }
 
 interface FormData {
@@ -129,6 +130,7 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     avoid_on_walks: '',
     walking_notes: '',
     general_notes: '',
+    petsitting_notes: '',
     ...partial,
   };
 }
@@ -170,6 +172,7 @@ function buildForm(data: any): FormData {
     avoid_on_walks: d.avoid_on_walks ?? '',
     walking_notes: d.walking_notes ?? '',
     general_notes: d.general_notes ?? '',
+    petsitting_notes: d.petsitting_notes ?? '',
   }));
 
   return {
@@ -919,6 +922,12 @@ function DogCard({
                 {readOnly
                   ? <ReadValue value={dog.walking_notes} />
                   : <textarea className={`${fieldCls} resize-none`} rows={3} value={dog.walking_notes} onChange={e => set({ walking_notes: e.target.value })} placeholder="Anything else we should know about walks &mdash; pace, leash handling, encounters to avoid…" />
+                }
+              </FieldRow>
+              <FieldRow label="Petsitting Notes">
+                {readOnly
+                  ? <ReadValue value={dog.petsitting_notes} />
+                  : <textarea className={`${fieldCls} resize-none`} rows={3} value={dog.petsitting_notes} onChange={e => set({ petsitting_notes: e.target.value })} placeholder="Anything we should know for overnight or in-home sitting &mdash; routines, sleep arrangements, separation anxiety, comfort items…" />
                 }
               </FieldRow>
               <FieldRow label="General Notes">

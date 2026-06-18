@@ -325,6 +325,9 @@
           @if($dog->walking_notes)
           <tr><td class="lbl">Walking notes</td><td class="val">{{ $dog->walking_notes }}</td></tr>
           @endif
+          @if($dog->petsitting_notes)
+          <tr><td class="lbl">Petsitting notes</td><td class="val">{{ $dog->petsitting_notes }}</td></tr>
+          @endif
           @if($dog->general_notes)
           <tr><td class="lbl">General notes</td><td class="val">{{ $dog->general_notes }}</td></tr>
           @endif
