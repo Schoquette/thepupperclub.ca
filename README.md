@@ -191,7 +191,7 @@ The Community app uses the same React Router shell, but every screen passes thro
 | Page | Description |
 |------|-------------|
 | Home (`index.html`) | Hero, ethos section, contact form, JSON-LD LocalBusiness schema |
-| Services (`services.html`) | Tabbed pricing (60min/30min), packages, testimonials, JSON-LD Service schema |
+| Services (`services.html`) | Four pricing tabs — Custom Visits 60 min / Custom Visits 30 min / Midday Pack Walks / **Appointment Transportation**. Each subscription tab has Essential / Signature / Premier / 10-Pack cards. Transportation tab pairs marketing copy with a **live fare calculator** (Google Places autocomplete on both address fields → `POST /api/transport-quote` → server-side Distance Matrix → $30 base + $1/km past 5 km, doubled for return trips). Includes a "Custom & Casual" blue callout section linking to /contact for off-menu plans, plus the existing JSON-LD Service schema. |
 | About (`about.html`) | Founder story, Instagram feed |
 | Contact (`contact.html`) | Contact form, email, phone, service area |
 | FAQ (`faq.html`) | 9-item accordion, JSON-LD FAQPage schema |
@@ -230,6 +230,8 @@ The `/shared` package (`@pupper/shared`) provides TypeScript interfaces used by 
 | `thepupperclub.ca/community` | Marketing landing for the Community sub-brand |
 | `thepupperclub.ca/community/app/` | Community web SPA (sign-in for the Community product) |
 | `thepupperclub.ca/api/` | Laravel REST API (paid service + Community) |
+| `thepupperclub.ca/api/transport-quote` | Public `POST` endpoint — computes transportation fare for the Services page calculator |
+| `thepupperclub.ca/api/maps-key` | Public `GET` endpoint — returns the Google Maps browser key so static marketing pages can attach Places Autocomplete without committing the key to source |
 | `thepupperclub.ca/api/webhooks/stripe` | Stripe paid-service webhook |
 | `thepupperclub.ca/api/webhooks/stripe-identity` | Stripe Identity webhook (Community ID verification) |
 | `thepupperclub.ca/api/webhooks/community-checkout` | Stripe Checkout webhook for Community $5 verification fee + donations |

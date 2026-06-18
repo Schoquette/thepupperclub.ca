@@ -1248,23 +1248,60 @@
   color: var(--espresso);
 }
 
-/* Custom-plans callout — sits below the pricing-note line, encourages
-   visitors who don't see what they want to reach out. */
-.custom-callout {
-  max-width: 640px;
-  margin: 2.4rem auto 0;
-  padding: 1.8rem 2rem;
-  background: var(--cream);
-  border: 1px dashed rgba(201, 162, 77, 0.5);
-  border-radius: 16px;
+/* Custom & Casual full-width callout — its own blue section sitting
+   between the pricing tabs and the Nitty Gritty FAQ. Centered, with
+   white type on Just Blue. */
+.custom-plans-section {
+  background: var(--blue);
+  color: #ffffff;
+  padding: 80px 0;
   text-align: center;
 }
-.custom-callout-text {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.05rem;
-  line-height: 1.55;
-  color: var(--espresso);
+.custom-plans-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+.custom-plans-eyebrow {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 1.1rem;
+}
+.custom-plans-heading {
+  font-family: 'Playfair Display SC', serif;
+  font-weight: 400;
+  color: #ffffff;
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  letter-spacing: 0.04em;
+  line-height: 1.25;
   margin: 0 0 1.2rem;
+}
+.custom-plans-text {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.94);
+  margin: 0 auto 1.8rem;
+  max-width: 560px;
+}
+.custom-plans-cta {
+  background: #ffffff;
+  color: var(--blue);
+  border-color: #ffffff;
+}
+.custom-plans-cta:hover {
+  background: transparent;
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+@media (max-width: 600px) {
+  .custom-plans-section { padding: 56px 0; }
+  .custom-plans-text { font-size: 1rem; }
+  .custom-plans-cta { width: 100%; max-width: 320px; }
 }
 
 @media (max-width: 900px) {
