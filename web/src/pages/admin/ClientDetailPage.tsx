@@ -101,6 +101,9 @@ interface DogForm {
   vet_address: string;
   medications: Medication[];
   special_instructions: string;
+  walking_notes: string;
+  petsitting_notes: string;
+  general_notes: string;
   is_active: boolean;
   is_archived: boolean;
   off_leash_approved: boolean;
@@ -128,6 +131,9 @@ function buildDogForm(dog?: any): DogForm {
     vet_address:        dog?.vet_address ?? '',
     medications:        dog?.medications ?? [],
     special_instructions: dog?.special_instructions ?? '',
+    walking_notes:      dog?.walking_notes ?? '',
+    petsitting_notes:   dog?.petsitting_notes ?? '',
+    general_notes:      dog?.general_notes ?? '',
     is_active:          dog?.is_active ?? true,
     is_archived:        dog?.is_archived ?? false,
     off_leash_approved: dog?.off_leash_approved ?? false,
@@ -157,6 +163,9 @@ function dogPayload(f: DogForm, userId: number) {
     vet_address:        f.vet_address || null,
     medications:        f.medications.length ? f.medications : null,
     special_instructions: f.special_instructions || null,
+    walking_notes:      f.walking_notes || null,
+    petsitting_notes:   f.petsitting_notes || null,
+    general_notes:      f.general_notes || null,
     is_active:          f.is_active,
     is_archived:        f.is_archived,
     off_leash_approved: f.off_leash_approved,
@@ -359,6 +368,35 @@ function DogEditForm({
         <label className="label">Special Instructions</label>
         <textarea className="input min-h-20 resize-y" value={form.special_instructions}
           onChange={e => onChange({ special_instructions: e.target.value })} />
+      </div>
+
+      {/* Per-dog notes — walking / petsitting / general */}
+      <div>
+        <label className="label">Walking notes</label>
+        <textarea
+          className="input min-h-20 resize-y"
+          value={form.walking_notes}
+          onChange={e => onChange({ walking_notes: e.target.value })}
+          placeholder="Anything relevant to walks — pace, leash handling, encounters to avoid…"
+        />
+      </div>
+      <div>
+        <label className="label">Petsitting notes</label>
+        <textarea
+          className="input min-h-20 resize-y"
+          value={form.petsitting_notes}
+          onChange={e => onChange({ petsitting_notes: e.target.value })}
+          placeholder="Overnight / in-home sitting context — routines, sleep, separation anxiety, comfort items…"
+        />
+      </div>
+      <div>
+        <label className="label">General notes</label>
+        <textarea
+          className="input min-h-20 resize-y"
+          value={form.general_notes}
+          onChange={e => onChange({ general_notes: e.target.value })}
+          placeholder="Anything else about this dog worth knowing — quirks, preferences, history…"
+        />
       </div>
     </div>
   );
@@ -1332,6 +1370,33 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
             <div>
               <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Special Instructions</h4>
               <p className="text-sm text-espresso whitespace-pre-wrap">{dog.special_instructions}</p>
+            </div>
+          )}
+
+          {/* Per-dog notes — walking / petsitting / general */}
+          {(dog.walking_notes || dog.petsitting_notes || dog.general_notes) && (
+            <div>
+              <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Notes</h4>
+              <div className="space-y-3 text-sm">
+                {dog.walking_notes && (
+                  <div>
+                    <div className="text-xs font-medium text-taupe mb-1">Walking notes</div>
+                    <p className="text-espresso whitespace-pre-wrap">{dog.walking_notes}</p>
+                  </div>
+                )}
+                {dog.petsitting_notes && (
+                  <div>
+                    <div className="text-xs font-medium text-taupe mb-1">Petsitting notes</div>
+                    <p className="text-espresso whitespace-pre-wrap">{dog.petsitting_notes}</p>
+                  </div>
+                )}
+                {dog.general_notes && (
+                  <div>
+                    <div className="text-xs font-medium text-taupe mb-1">General notes</div>
+                    <p className="text-espresso whitespace-pre-wrap">{dog.general_notes}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
