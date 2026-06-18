@@ -275,6 +275,96 @@
       </div>
     </section>
 
+    <!-- ───────────────────── Appointment Transportation ───────────────────── -->
+    <section class="section-white transport-section">
+      <div class="container">
+        <h2 class="section-title">Appointment Transportation</h2>
+
+        <div class="transport-intro">
+          <p class="transport-included">
+            <strong>Transportation is already included in your subscription visits.</strong>
+            If you want to purchase <em>only</em> the transportation service &mdash;
+            a vet ride, groomer drop-off, day-care shuttle &mdash; without an added
+            walk or care, this section is for you.
+          </p>
+          <p class="transport-rate">
+            Base rate is <strong>$30 for clients within 5 km</strong>. Each additional
+            kilometre is <strong>$1</strong>. For return trips, mileage is counted both
+            ways &mdash; the base rate stays a one-time charge.
+          </p>
+        </div>
+
+        <div class="transport-calc">
+          <p class="transport-calc-heading">Estimate your fare</p>
+
+          <div class="transport-field">
+            <label for="transport-origin">Starting point</label>
+            <input
+              id="transport-origin"
+              type="text"
+              autocomplete="off"
+              placeholder="e.g. 123 Heritage Mountain Blvd, Port Moody, BC"
+            >
+          </div>
+
+          <div class="transport-field">
+            <label for="transport-destination">Appointment location</label>
+            <input
+              id="transport-destination"
+              type="text"
+              autocomplete="off"
+              placeholder="e.g. Cates Hill Veterinary, Bowen Island, BC"
+            >
+          </div>
+
+          <div class="transport-field transport-trip-type">
+            <label>Trip type</label>
+            <div class="transport-trip-options">
+              <label class="transport-radio">
+                <input type="radio" name="transport-trip" value="one_way" checked>
+                <span>One-way</span>
+              </label>
+              <label class="transport-radio">
+                <input type="radio" name="transport-trip" value="return">
+                <span>Return trip</span>
+              </label>
+            </div>
+          </div>
+
+          <button class="btn btn-primary transport-calc-btn" id="transport-calc-btn" type="button">
+            Calculate estimate
+          </button>
+
+          <div class="transport-error" id="transport-error" hidden></div>
+
+          <div class="transport-result" id="transport-result" hidden>
+            <div class="transport-result-line">
+              <span>Distance</span>
+              <span id="transport-r-distance">—</span>
+            </div>
+            <div class="transport-result-line">
+              <span>Base rate <em>(first 5 km)</em></span>
+              <span id="transport-r-base">—</span>
+            </div>
+            <div class="transport-result-line">
+              <span>Mileage <em id="transport-r-mileage-label">(0 km × $1)</em></span>
+              <span id="transport-r-mileage">—</span>
+            </div>
+            <div class="transport-result-total">
+              <span>Estimated total</span>
+              <span id="transport-r-total">—</span>
+            </div>
+            <p class="transport-result-note">
+              Estimate only &mdash; final fare confirmed when we book the trip.
+              GST extra. Wait time during the appointment is included for stays
+              up to 60 minutes.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ───────────── /Appointment Transportation ───────────── -->
+
     <!-- The Nitty Gritty -->
     <section class="section-cream">
       <div class="container">
@@ -465,6 +555,72 @@
         document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
       });
     });
+
+    // Appointment transportation calculator
+    (function () {
+      var btn      = document.getElementById('transport-calc-btn');
+      if (!btn) return;
+      var originEl = document.getElementById('transport-origin');
+      var destEl   = document.getElementById('transport-destination');
+      var errBox   = document.getElementById('transport-error');
+      var resultEl = document.getElementById('transport-result');
+
+      function setError(msg) {
+        errBox.textContent = msg;
+        errBox.hidden = false;
+        resultEl.hidden = true;
+      }
+
+      function clearError() {
+        errBox.hidden = true;
+      }
+
+      btn.addEventListener('click', async function () {
+        clearError();
+        var origin = originEl.value.trim();
+        var dest   = destEl.value.trim();
+        if (origin.length < 4 || dest.length < 4) {
+          setError('Please enter both a starting point and an appointment location.');
+          return;
+        }
+
+        var tripType = (document.querySelector('input[name="transport-trip"]:checked') || {}).value || 'one_way';
+
+        var original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Calculating…';
+
+        try {
+          var res = await fetch('/api/transport-quote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ origin: origin, destination: dest, trip_type: tripType }),
+          });
+          var body = await res.json().catch(function () { return {}; });
+          if (!res.ok) {
+            setError(body.message || (body.errors && Object.values(body.errors).flat()[0]) || 'Couldn’t calculate that estimate. Please try again.');
+            return;
+          }
+
+          document.getElementById('transport-r-distance').textContent = body.formatted.distance_km;
+          document.getElementById('transport-r-base').textContent     = body.formatted.base_rate;
+          document.getElementById('transport-r-mileage').textContent  = body.formatted.mileage_cost;
+          document.getElementById('transport-r-total').textContent    = body.formatted.total_cost;
+
+          var mileageLabel = '(' + body.billable_km.toFixed(1) + ' km × $1';
+          if (body.trip_type === 'return') mileageLabel += ' × 2 (return)';
+          mileageLabel += ')';
+          document.getElementById('transport-r-mileage-label').textContent = mileageLabel;
+
+          resultEl.hidden = false;
+        } catch (err) {
+          setError('Couldn’t reach the server. Please try again in a moment.');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      });
+    })();
   </script>
   <script type="application/ld+json">
   {
