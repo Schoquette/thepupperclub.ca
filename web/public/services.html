@@ -82,6 +82,7 @@
             <button class="pricing-tab-btn active" data-tab="custom60">Custom Visits | Min. 60 min</button>
             <button class="pricing-tab-btn" data-tab="custom30">Custom Visits | Min. 30 min</button>
             <button class="pricing-tab-btn" data-tab="midday">Midday Pack Walks</button>
+            <button class="pricing-tab-btn" data-tab="transport">Appointment Transportation</button>
           </div>
 
           <!-- Midday Pack walks -->
@@ -269,101 +270,100 @@
               </div>
             </div>
           </div>
+
+          <!-- Appointment Transportation panel -->
+          <div class="pricing-panel" id="panel-transport">
+            <div class="transport-layout">
+              <div class="transport-copy">
+                <p class="transport-eyebrow">Appointment Transportation</p>
+                <h3 class="transport-headline">Door-to-door rides, just for your pup.</h3>
+                <p class="transport-included">
+                  <strong>Already included in every subscription visit.</strong>
+                  If you&rsquo;d like the transportation on its own &mdash; a
+                  vet ride, groomer drop-off, day-care shuttle &mdash; without
+                  an added walk or care, this is for you.
+                </p>
+                <ul class="transport-bullets">
+                  <li><span class="transport-num">$30</span> base rate (first 5 km included)</li>
+                  <li><span class="transport-num">+$1</span> per additional km</li>
+                  <li><span class="transport-num">2&times;</span> mileage on return trips, base stays one-time</li>
+                  <li><span class="transport-num">60 min</span> wait time included at appointment</li>
+                </ul>
+              </div>
+
+              <div class="transport-calc">
+                <p class="transport-calc-heading">Estimate your fare</p>
+                <p class="transport-calc-sub">Enter both addresses and we&rsquo;ll calculate it for you.</p>
+
+                <div class="transport-field">
+                  <label for="transport-origin">Starting point</label>
+                  <input
+                    id="transport-origin"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="123 Heritage Mountain Blvd, Port Moody, BC"
+                  >
+                </div>
+
+                <div class="transport-field">
+                  <label for="transport-destination">Appointment location</label>
+                  <input
+                    id="transport-destination"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="Cates Hill Veterinary, Bowen Island, BC"
+                  >
+                </div>
+
+                <div class="transport-field">
+                  <label>Trip type</label>
+                  <div class="transport-trip-options">
+                    <label class="transport-radio">
+                      <input type="radio" name="transport-trip" value="one_way" checked>
+                      <span>One-way</span>
+                    </label>
+                    <label class="transport-radio">
+                      <input type="radio" name="transport-trip" value="return">
+                      <span>Return trip</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button class="btn btn-primary transport-calc-btn" id="transport-calc-btn" type="button">
+                  Calculate estimate
+                </button>
+
+                <div class="transport-error" id="transport-error" hidden></div>
+
+                <div class="transport-result" id="transport-result" hidden>
+                  <div class="transport-result-line">
+                    <span>Distance</span>
+                    <span id="transport-r-distance">&mdash;</span>
+                  </div>
+                  <div class="transport-result-line">
+                    <span>Base rate <em>(first 5 km)</em></span>
+                    <span id="transport-r-base">&mdash;</span>
+                  </div>
+                  <div class="transport-result-line">
+                    <span>Mileage <em id="transport-r-mileage-label">(0 km &times; $1)</em></span>
+                    <span id="transport-r-mileage">&mdash;</span>
+                  </div>
+                  <div class="transport-result-total">
+                    <span>Estimated total</span>
+                    <span id="transport-r-total">&mdash;</span>
+                  </div>
+                  <p class="transport-result-note">
+                    Estimate only &mdash; final fare confirmed at booking. GST extra.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <p class="pricing-note">Prices per household, not per dog. GST not included. All plans customizable.</p>
       </div>
     </section>
-
-    <!-- ───────────────────── Appointment Transportation ───────────────────── -->
-    <section class="section-white transport-section">
-      <div class="container">
-        <h2 class="section-title">Appointment Transportation</h2>
-
-        <div class="transport-intro">
-          <p class="transport-included">
-            <strong>Transportation is already included in your subscription visits.</strong>
-            If you want to purchase <em>only</em> the transportation service &mdash;
-            a vet ride, groomer drop-off, day-care shuttle &mdash; without an added
-            walk or care, this section is for you.
-          </p>
-          <p class="transport-rate">
-            Base rate is <strong>$30 for clients within 5 km</strong>. Each additional
-            kilometre is <strong>$1</strong>. For return trips, mileage is counted both
-            ways &mdash; the base rate stays a one-time charge.
-          </p>
-        </div>
-
-        <div class="transport-calc">
-          <p class="transport-calc-heading">Estimate your fare</p>
-
-          <div class="transport-field">
-            <label for="transport-origin">Starting point</label>
-            <input
-              id="transport-origin"
-              type="text"
-              autocomplete="off"
-              placeholder="e.g. 123 Heritage Mountain Blvd, Port Moody, BC"
-            >
-          </div>
-
-          <div class="transport-field">
-            <label for="transport-destination">Appointment location</label>
-            <input
-              id="transport-destination"
-              type="text"
-              autocomplete="off"
-              placeholder="e.g. Cates Hill Veterinary, Bowen Island, BC"
-            >
-          </div>
-
-          <div class="transport-field transport-trip-type">
-            <label>Trip type</label>
-            <div class="transport-trip-options">
-              <label class="transport-radio">
-                <input type="radio" name="transport-trip" value="one_way" checked>
-                <span>One-way</span>
-              </label>
-              <label class="transport-radio">
-                <input type="radio" name="transport-trip" value="return">
-                <span>Return trip</span>
-              </label>
-            </div>
-          </div>
-
-          <button class="btn btn-primary transport-calc-btn" id="transport-calc-btn" type="button">
-            Calculate estimate
-          </button>
-
-          <div class="transport-error" id="transport-error" hidden></div>
-
-          <div class="transport-result" id="transport-result" hidden>
-            <div class="transport-result-line">
-              <span>Distance</span>
-              <span id="transport-r-distance">—</span>
-            </div>
-            <div class="transport-result-line">
-              <span>Base rate <em>(first 5 km)</em></span>
-              <span id="transport-r-base">—</span>
-            </div>
-            <div class="transport-result-line">
-              <span>Mileage <em id="transport-r-mileage-label">(0 km × $1)</em></span>
-              <span id="transport-r-mileage">—</span>
-            </div>
-            <div class="transport-result-total">
-              <span>Estimated total</span>
-              <span id="transport-r-total">—</span>
-            </div>
-            <p class="transport-result-note">
-              Estimate only &mdash; final fare confirmed when we book the trip.
-              GST extra. Wait time during the appointment is included for stays
-              up to 60 minutes.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-    <!-- ───────────── /Appointment Transportation ───────────── -->
 
     <!-- The Nitty Gritty -->
     <section class="section-cream">
