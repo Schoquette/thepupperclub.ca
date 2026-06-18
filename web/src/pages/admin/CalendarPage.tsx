@@ -1112,30 +1112,40 @@ export default function AdminCalendarPage() {
               </select>
             </div>
 
-            {/* Duration */}
-            <div>
-              <label className="label">Duration *</label>
-              {(() => {
-                const svc = SERVICE_TYPES.find(s => s.value === newForm.service_type)!;
-                const durations = svc.durations;
-                const isFixed = durations.length === 1 && svc.value !== 'custom';
-                return (
-                  <select
-                    className="input"
-                    value={newForm.duration_minutes}
-                    disabled={isFixed}
-                    onChange={e => setNewForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
-                  >
-                    {svc.value === 'custom' && newForm.duration_minutes === 0 && (
-                      <option value={0} disabled>Select duration</option>
-                    )}
-                    {durations.map(d => (
-                      <option key={d} value={d}>{formatDuration(d)}</option>
-                    ))}
-                  </select>
-                );
-              })()}
-            </div>
+            {/* Duration (read-only label for overnight — the check-out
+                date drives the value; the dropdown only has [1440] in
+                SERVICE_TYPES so a multi-night duration would never
+                render correctly). */}
+            {newForm.service_type === 'overnight' ? (
+              <div>
+                <label className="label">Length *</label>
+                <input className="input" value={formatDuration(newForm.duration_minutes)} disabled />
+              </div>
+            ) : (
+              <div>
+                <label className="label">Duration *</label>
+                {(() => {
+                  const svc = SERVICE_TYPES.find(s => s.value === newForm.service_type)!;
+                  const durations = svc.durations;
+                  const isFixed = durations.length === 1 && svc.value !== 'custom';
+                  return (
+                    <select
+                      className="input"
+                      value={newForm.duration_minutes}
+                      disabled={isFixed}
+                      onChange={e => setNewForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
+                    >
+                      {svc.value === 'custom' && newForm.duration_minutes === 0 && (
+                        <option value={0} disabled>Select duration</option>
+                      )}
+                      {durations.map(d => (
+                        <option key={d} value={d}>{formatDuration(d)}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Date (check-in for overnight) */}
             <div>
