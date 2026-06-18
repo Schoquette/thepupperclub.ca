@@ -1242,3 +1242,34 @@
     gap: 8px;
   }
 }
+
+/* Google Places Autocomplete dropdown — Google appends .pac-container
+   directly to document.body. Without an explicit z-index it can fall
+   behind page chrome; without explicit type the default font + spacing
+   reads as foreign. Match the brand. */
+.pac-container {
+  z-index: 10000 !important;
+  background: #ffffff;
+  border: 1px solid rgba(200, 191, 182, 0.7);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(59, 47, 42, 0.14);
+  font-family: 'Lato', sans-serif;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.pac-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--espresso);
+  border-top: 1px solid var(--cream);
+  line-height: 1.45;
+}
+.pac-item:first-child { border-top: none; }
+.pac-item:hover,
+.pac-item-selected {
+  background: var(--cream);
+}
+.pac-item-query { color: var(--espresso); font-weight: 600; }
+.pac-matched { color: var(--gold); }
+.pac-icon { margin-top: 4px; }

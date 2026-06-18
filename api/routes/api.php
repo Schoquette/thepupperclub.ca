@@ -613,6 +613,15 @@ Route::post('/contact',             [ContactController::class, 'submit']);
 Route::post('/rescue-trip-interest', [\App\Http\Controllers\RescueTripInterestController::class, 'store']);
 Route::post('/transport-quote',      [\App\Http\Controllers\TransportQuoteController::class, 'quote']);
 
+// Public — returns the Google Maps browser key so static marketing
+// pages can attach Places Autocomplete without committing the key.
+// The key is restricted by HTTP referrer in Google Cloud Console.
+Route::get('/maps-key', function () {
+    return response()->json([
+        'key' => config('services.google.maps_api_key') ?: '',
+    ])->header('Cache-Control', 'public, max-age=3600');
+});
+
 // Public inline images (must be accessible for emails)
 Route::get('/admin/broadcast-images/{filename}', [Admin\NotificationController::class, 'serveInlineImage'])
     ->where('filename', '[a-zA-Z0-9_\-\.]+');

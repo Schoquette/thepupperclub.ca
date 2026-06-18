@@ -279,9 +279,9 @@
                 <h3 class="transport-headline">Door-to-door rides, just for your pup.</h3>
                 <p class="transport-included">
                   <strong>Already included in every subscription visit.</strong>
-                  If you&rsquo;d like the transportation on its own &mdash; a
-                  vet ride, groomer drop-off, day-care shuttle &mdash; without
-                  an added walk or care, this is for you.
+                  If you&rsquo;d like this service on its own &mdash; a vet
+                  ride, groomer drop-off, day-care shuttle &mdash; without an
+                  added walk or care, this is for you.
                 </p>
                 <ul class="transport-bullets">
                   <li><span class="transport-num">$30</span> base rate (first 5 km included)</li>
@@ -563,6 +563,75 @@
       var destEl   = document.getElementById('transport-destination');
       var errBox   = document.getElementById('transport-error');
       var resultEl = document.getElementById('transport-result');
+
+      // ── Google Places Autocomplete ──
+      // Lazy-load Maps JS the first time the calculator becomes visible
+      // (a click on the Transportation tab). Single load, cached.
+      var mapsLoading = null;
+      function loadMaps() {
+        if (window.google && window.google.maps && window.google.maps.places) {
+          return Promise.resolve();
+        }
+        if (mapsLoading) return mapsLoading;
+        mapsLoading = fetch('/api/maps-key', { headers: { 'Accept': 'application/json' } })
+          .then(function (r) { return r.json(); })
+          .then(function (body) {
+            var key = body && body.key;
+            if (!key) throw new Error('Maps key unavailable.');
+            return new Promise(function (resolve, reject) {
+              var s = document.createElement('script');
+              s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places';
+              s.async = true;
+              s.defer = true;
+              s.onload = resolve;
+              s.onerror = function () { reject(new Error('Maps script failed to load.')); };
+              document.head.appendChild(s);
+            });
+          });
+        return mapsLoading;
+      }
+
+      var autocompleteAttached = false;
+      function attachAutocomplete() {
+        if (autocompleteAttached) return;
+        if (!(window.google && window.google.maps && window.google.maps.places)) return;
+        var opts = {
+          componentRestrictions: { country: 'ca' },
+          fields: ['formatted_address', 'geometry'],
+          types: ['geocode', 'establishment'],
+        };
+        var acOrigin = new google.maps.places.Autocomplete(originEl, opts);
+        var acDest   = new google.maps.places.Autocomplete(destEl, opts);
+        // Replace the field's value with the formatted address Google
+        // returns, so the backend gets a clean geocodable string.
+        acOrigin.addListener('place_changed', function () {
+          var p = acOrigin.getPlace();
+          if (p && p.formatted_address) originEl.value = p.formatted_address;
+        });
+        acDest.addListener('place_changed', function () {
+          var p = acDest.getPlace();
+          if (p && p.formatted_address) destEl.value = p.formatted_address;
+        });
+        autocompleteAttached = true;
+      }
+
+      // Try to load + attach when the transport tab opens (and proactively
+      // on page load so the first focus already has suggestions).
+      function initAutocomplete() {
+        loadMaps().then(attachAutocomplete).catch(function () {
+          // Silent — plain text input still works, the backend will
+          // geocode whatever string the visitor types.
+        });
+      }
+      document.querySelectorAll('.pricing-tab-btn').forEach(function (b) {
+        if (b.dataset.tab === 'transport') {
+          b.addEventListener('click', initAutocomplete);
+        }
+      });
+      // Also init on first focus, in case someone navigates directly
+      // into the field without clicking the tab.
+      originEl.addEventListener('focus', initAutocomplete, { once: true });
+      destEl.addEventListener('focus',   initAutocomplete, { once: true });
 
       function setError(msg) {
         errBox.textContent = msg;
