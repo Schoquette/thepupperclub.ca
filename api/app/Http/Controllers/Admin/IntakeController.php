@@ -26,13 +26,14 @@ class IntakeController extends Controller
     {
         abort_unless($client->role === 'client', 404);
 
-        if ($client->clientProfile?->intake_submitted_at) {
-            return response()->json(['message' => 'Intake form already submitted and locked.'], 422);
-        }
-
+        // Admins can keep updating the intake after submission — the
+        // submit endpoint is the only thing that flips the timestamp +
+        // fires the submission notification.
         $this->applyFormData($request, $client);
 
-        return response()->json(['message' => 'Draft saved.']);
+        return response()->json([
+            'message' => $client->clientProfile?->intake_submitted_at ? 'Changes saved.' : 'Draft saved.',
+        ]);
     }
 
     public function submit(Request $request, User $client): JsonResponse

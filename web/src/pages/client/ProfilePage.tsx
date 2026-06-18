@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ProvinceSelect } from '@/components/ui/ProvinceSelect';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
-import { CheckCircle, Dog, CreditCard, Settings } from 'lucide-react';
+import { CheckCircle, Dog, CreditCard, Settings, FileText, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const DAY_OPTIONS = [
@@ -243,6 +243,28 @@ export default function ClientProfilePage() {
           </Link>
         ))}
       </div>
+
+      {/* Full intake form access — single source of truth for every field
+          (walk preferences, care options, communication, notes, etc.).
+          Linked prominently because the cards on this page only cover a
+          subset and clients should be able to edit anything any time. */}
+      <Link
+        to="/client/intake-form"
+        className="block bg-blue/5 border border-blue/20 rounded-2xl p-5 hover:bg-blue/10 hover:border-blue/30 transition-all"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-11 h-11 rounded-full bg-blue/15 flex items-center justify-center shrink-0">
+            <FileText className="w-5 h-5 text-blue" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-espresso">View &amp; edit my full profile</p>
+            <p className="text-xs text-taupe mt-0.5">
+              Walk preferences, care options, communication preferences, dog notes &mdash; every intake field, editable any time.
+            </p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-blue shrink-0" />
+        </div>
+      </Link>
 
       {/* Visit Preferences */}
       <VisitPreferencesCard profile={p} />

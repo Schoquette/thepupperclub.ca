@@ -2350,7 +2350,7 @@ export default function AdminClientDetailPage() {
             size="sm"
             onClick={() => navigate(`/admin/clients/${id}/intake`)}
           >
-            {client.client_profile?.intake_submitted_at ? '📋 View Intake' : '📋 Intake Form'}
+            📋 View &amp; Edit Intake
           </Button>
           <Button variant="outline" size="sm" onClick={() => { setShowSetPassword(!showSetPassword); setPasswordMsg(''); setNewPassword(''); }}>
             Set Password

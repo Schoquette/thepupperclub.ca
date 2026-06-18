@@ -1064,7 +1064,9 @@ export default function IntakeFormPage() {
 
   const isSubmitted = Boolean(clientData?.client_profile?.intake_submitted_at);
   const submittedAt: string | null = clientData?.client_profile?.intake_submitted_at ?? null;
-  const readOnly = isSubmitted;
+  // Admins always edit. The 'submitted' flag is a historical marker
+  // (notifications fired, profile finalised), not a lock on the data.
+  const readOnly = false;
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -1212,24 +1214,21 @@ export default function IntakeFormPage() {
             {inviteSent ? 'Resend Invite' : 'Send Invite'}
           </Button>
 
-          {/* Save Draft */}
-          {!readOnly && (
-            <Button
-              variant="outline"
-              size="sm"
-              loading={saveDraft.isPending}
-              disabled={!isDirty}
-              onClick={() => form && saveDraft.mutate(form)}
-            >
-              Save Draft
-            </Button>
-          )}
+          {/* Save / Save Draft */}
+          <Button
+            variant="outline"
+            size="sm"
+            loading={saveDraft.isPending}
+            disabled={!isDirty}
+            onClick={() => form && saveDraft.mutate(form)}
+          >
+            {isSubmitted ? 'Save Changes' : 'Save Draft'}
+          </Button>
 
-          {/* Submit */}
-          {!readOnly && (
+          {/* Submit (only before first submission) */}
+          {!isSubmitted && (
             <Button
               size="sm"
-              disabled={isSubmitted}
               onClick={() => setShowSubmitModal(true)}
             >
               Submit Form
@@ -1253,7 +1252,7 @@ export default function IntakeFormPage() {
       {/* ── Submission info banner ─────────────────────────────────────────── */}
       {isSubmitted && submittedAt && (
         <div className="bg-green-50 border-b border-green-200 px-6 py-2 text-sm text-green-700">
-          This intake form was submitted on {new Date(submittedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}. All fields are read-only.
+          Submitted on {new Date(submittedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}. You can still update any field — changes save without re-firing the submit notification.
         </div>
       )}
 
@@ -1621,21 +1620,31 @@ export default function IntakeFormPage() {
         </SectionCard>
 
         {/* ── Footer action area ──────────────────────────────────────────── */}
-        {!readOnly && (
-          <div className="flex justify-end gap-3 pb-10">
+        <div className="flex justify-end gap-3 pb-10">
+          {isSubmitted ? (
             <Button
-              variant="outline"
               loading={saveDraft.isPending}
               disabled={!isDirty}
               onClick={() => form && saveDraft.mutate(form)}
             >
-              Save Draft
+              Save Changes
             </Button>
-            <Button onClick={() => setShowSubmitModal(true)}>
-              Submit Form
-            </Button>
-          </div>
-        )}
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                loading={saveDraft.isPending}
+                disabled={!isDirty}
+                onClick={() => form && saveDraft.mutate(form)}
+              >
+                Save Draft
+              </Button>
+              <Button onClick={() => setShowSubmitModal(true)}>
+                Submit Form
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Submit confirmation modal ───────────────────────────────────────── */}

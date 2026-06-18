@@ -28,19 +28,20 @@ class IntakeController extends Controller
     }
 
     /**
-     * Save the client's intake form as a draft.
+     * Save the client's intake form. Used both for pre-submission drafts
+     * and for post-submission updates — clients can keep editing their
+     * profile after submitting (life changes, new dog, address change,
+     * etc.). The submit endpoint is still the only thing that sets
+     * intake_submitted_at + fires the admin submission notification.
      */
     public function save(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        if ($user->clientProfile?->intake_submitted_at) {
-            return response()->json(['message' => 'Intake form already submitted.'], 422);
-        }
-
         $this->applyFormData($request, $user);
 
-        return response()->json(['message' => 'Draft saved.']);
+        return response()->json([
+            'message' => $user->clientProfile?->intake_submitted_at ? 'Changes saved.' : 'Draft saved.',
+        ]);
     }
 
     /**
