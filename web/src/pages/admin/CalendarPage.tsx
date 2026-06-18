@@ -78,7 +78,10 @@ function formatTime12(t: string): string {
 }
 
 function formatDuration(d: number): string {
-  if (d >= 1440) return 'All day (overnight)';
+  if (d >= 1440) {
+    const nights = Math.round(d / 1440);
+    return nights === 1 ? '1 night (overnight)' : `${nights} nights (overnight)`;
+  }
   if (d >= 480) return 'All day';
   if (d >= 60) return `${Math.floor(d / 60)}h${d % 60 ? ` ${d % 60}m` : ''}`;
   return `${d} min`;
@@ -199,6 +202,9 @@ type NewApptForm = {
   dog_ids: number[];
   service_type: string;
   scheduled_time: string;
+  /** Check-out date for overnight boarding stays (YYYY-MM-DD). Ignored
+   *  for any other service. Derives duration_minutes when set. */
+  end_date: string;
   client_time_block: string;
   duration_minutes: number;
   notes: string;
@@ -212,11 +218,24 @@ function blankForm(): NewApptForm {
     dog_ids: [],
     service_type: 'walk_60',
     scheduled_time: '',
+    end_date: '',
     client_time_block: 'morning',
     duration_minutes: 60,
     notes: '',
     recurrence: blankRecurrence(),
   };
+}
+
+/** Compute total minutes for an overnight stay spanning `start` →
+ *  `end` (inclusive of both nights). Returns 1440 minimum (single
+ *  night) so the date pickers landing on the same day still book
+ *  one full overnight. */
+function overnightMinutes(startDate: string, endDate: string): number {
+  if (!startDate) return 1440;
+  if (!endDate || endDate <= startDate) return 1440;
+  const ms = new Date(`${endDate}T00:00:00`).getTime() - new Date(`${startDate}T00:00:00`).getTime();
+  const nights = Math.max(1, Math.round(ms / 86_400_000));
+  return nights * 1440;
 }
 
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -1036,8 +1055,30 @@ export default function AdminCalendarPage() {
                 className="input"
                 value={newForm.service_type}
                 onChange={e => {
-                  const svc = SERVICE_TYPES.find(s => s.value === e.target.value)!;
-                  setNewForm(f => ({ ...f, service_type: e.target.value, duration_minutes: svc.defaultDuration }));
+                  const nextType = e.target.value;
+                  const svc = SERVICE_TYPES.find(s => s.value === nextType)!;
+                  setNewForm(f => {
+                    // Switching INTO overnight: start with one night
+                    // unless the user already had an end_date set.
+                    if (nextType === 'overnight') {
+                      const startDate = f.scheduled_time ? f.scheduled_time.split('T')[0] : '';
+                      const endDate = f.end_date || startDate;
+                      return {
+                        ...f,
+                        service_type: nextType,
+                        end_date: endDate,
+                        duration_minutes: overnightMinutes(startDate, endDate),
+                      };
+                    }
+                    // Switching AWAY from overnight: clear end_date and
+                    // reset duration to the new service default.
+                    return {
+                      ...f,
+                      service_type: nextType,
+                      end_date: '',
+                      duration_minutes: svc.defaultDuration,
+                    };
+                  });
                 }}
               >
                 {SERVICE_TYPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -1069,21 +1110,66 @@ export default function AdminCalendarPage() {
               })()}
             </div>
 
-            {/* Date */}
+            {/* Date (check-in for overnight) */}
             <div>
-              <label className="label">Date *</label>
+              <label className="label">
+                {newForm.service_type === 'overnight' ? 'Check-in date *' : 'Date *'}
+              </label>
               <input
                 type="date"
                 className="input"
                 min={format(new Date(), 'yyyy-MM-dd')}
                 value={newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : ''}
                 onChange={e => {
+                  const newDate = e.target.value;
                   const time = newForm.scheduled_time ? newForm.scheduled_time.split('T')[1] || '09:00' : '09:00';
-                  const dt = `${e.target.value}T${time}`;
-                  setNewForm(f => ({ ...f, scheduled_time: dt, client_time_block: getTimeBlock(dt) }));
+                  const dt = `${newDate}T${time}`;
+                  setNewForm(f => {
+                    const next = { ...f, scheduled_time: dt, client_time_block: getTimeBlock(dt) };
+                    if (f.service_type === 'overnight') {
+                      // If end_date is before the new check-in, bump it
+                      // to the same day (single night minimum).
+                      const endDate = !f.end_date || f.end_date < newDate ? newDate : f.end_date;
+                      next.end_date = endDate;
+                      next.duration_minutes = overnightMinutes(newDate, endDate);
+                    }
+                    return next;
+                  });
                 }}
               />
             </div>
+
+            {/* Check-out date — only for overnight boarding */}
+            {newForm.service_type === 'overnight' && (
+              <div>
+                <label className="label">Check-out date *</label>
+                <input
+                  type="date"
+                  className="input"
+                  min={newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : format(new Date(), 'yyyy-MM-dd')}
+                  value={newForm.end_date}
+                  onChange={e => {
+                    const newEnd = e.target.value;
+                    const startDate = newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : '';
+                    setNewForm(f => ({
+                      ...f,
+                      end_date: newEnd,
+                      duration_minutes: overnightMinutes(startDate, newEnd),
+                    }));
+                  }}
+                />
+                <p className="text-xs text-taupe mt-1">
+                  {(() => {
+                    const startDate = newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : '';
+                    if (!startDate || !newForm.end_date) return 'Pick the night they head home.';
+                    const nights = Math.max(1, Math.round(
+                      (new Date(`${newForm.end_date}T00:00:00`).getTime() - new Date(`${startDate}T00:00:00`).getTime()) / 86_400_000,
+                    ));
+                    return nights === 1 ? '1 night.' : `${nights} nights.`;
+                  })()}
+                </p>
+              </div>
+            )}
 
             {/* Time */}
             <div>
@@ -1464,50 +1550,119 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
             className="input"
             value={editForm.service_type}
             onChange={e => {
-              const svc = SERVICE_TYPES.find(s => s.value === e.target.value)!;
-              setEditForm((f: any) => ({ ...f, service_type: e.target.value, duration_minutes: svc.defaultDuration || f.duration_minutes }));
+              const nextType = e.target.value;
+              const svc = SERVICE_TYPES.find(s => s.value === nextType)!;
+              setEditForm((f: any) => {
+                if (nextType === 'overnight') {
+                  // Preserve existing duration if it's already >= 1 night,
+                  // else default to one.
+                  const dur = f.duration_minutes >= 1440 ? f.duration_minutes : 1440;
+                  return { ...f, service_type: nextType, duration_minutes: dur };
+                }
+                return { ...f, service_type: nextType, duration_minutes: svc.defaultDuration || f.duration_minutes };
+              });
             }}
           >
             {SERVICE_TYPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
 
-        {/* Duration */}
-        <div>
-          <label className="label">Duration</label>
-          {(() => {
-            const svc = SERVICE_TYPES.find(s => s.value === editForm.service_type)!;
-            const durations = svc.durations;
-            const isFixed = durations.length === 1 && svc.value !== 'custom';
-            return (
-              <select
-                className="input"
-                value={editForm.duration_minutes}
-                disabled={isFixed}
-                onChange={e => setEditForm((f: any) => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
-              >
-                {durations.map((d: number) => (
-                  <option key={d} value={d}>{formatDuration(d)}</option>
-                ))}
-              </select>
-            );
-          })()}
-        </div>
+        {/* Duration (hidden for overnight — derived from check-out date) */}
+        {editForm.service_type !== 'overnight' ? (
+          <div>
+            <label className="label">Duration</label>
+            {(() => {
+              const svc = SERVICE_TYPES.find(s => s.value === editForm.service_type)!;
+              const durations = svc.durations;
+              const isFixed = durations.length === 1 && svc.value !== 'custom';
+              return (
+                <select
+                  className="input"
+                  value={editForm.duration_minutes}
+                  disabled={isFixed}
+                  onChange={e => setEditForm((f: any) => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
+                >
+                  {durations.map((d: number) => (
+                    <option key={d} value={d}>{formatDuration(d)}</option>
+                  ))}
+                </select>
+              );
+            })()}
+          </div>
+        ) : (
+          <div>
+            <label className="label">Length</label>
+            <input className="input" value={formatDuration(editForm.duration_minutes)} disabled />
+          </div>
+        )}
 
-        {/* Date */}
+        {/* Date (check-in for overnight) */}
         <div>
-          <label className="label">Date</label>
+          <label className="label">
+            {editForm.service_type === 'overnight' ? 'Check-in date' : 'Date'}
+          </label>
           <input
             type="date"
             className="input"
             min={format(new Date(), 'yyyy-MM-dd')}
             value={dateStr}
             onChange={e => {
+              const newDate = e.target.value;
               const time = timeStr || '09:00';
-              setEditForm((f: any) => ({ ...f, scheduled_time: `${e.target.value}T${time}` }));
+              setEditForm((f: any) => {
+                const next = { ...f, scheduled_time: `${newDate}T${time}` };
+                // For overnight, recompute duration if shifting check-in
+                // would push it past the current check-out.
+                if (f.service_type === 'overnight') {
+                  const oldStart = f.scheduled_time ? f.scheduled_time.substring(0, 10) : newDate;
+                  const nights = Math.max(1, Math.round((f.duration_minutes || 1440) / 1440));
+                  const oldEnd = new Date(`${oldStart}T00:00:00`);
+                  oldEnd.setDate(oldEnd.getDate() + nights);
+                  const oldEndStr = oldEnd.toISOString().slice(0, 10);
+                  // Preserve the existing check-out date by keeping the
+                  // duration the same (start moves; end stays). Floor at
+                  // one night if the user picked check-in == old check-out
+                  // or later.
+                  next.duration_minutes = overnightMinutes(newDate, oldEndStr);
+                }
+                return next;
+              });
             }}
           />
         </div>
+
+        {/* Check-out date — only for overnight boarding */}
+        {editForm.service_type === 'overnight' && (() => {
+          // Derive the current check-out date from start + duration so
+          // editing pre-existing overnights surfaces the right value.
+          const nights = Math.max(1, Math.round((editForm.duration_minutes || 1440) / 1440));
+          const startStr = dateStr;
+          let endStr = startStr;
+          if (startStr) {
+            const d = new Date(`${startStr}T00:00:00`);
+            d.setDate(d.getDate() + nights);
+            endStr = d.toISOString().slice(0, 10);
+          }
+          return (
+            <div>
+              <label className="label">Check-out date</label>
+              <input
+                type="date"
+                className="input"
+                min={startStr || format(new Date(), 'yyyy-MM-dd')}
+                value={endStr}
+                onChange={e => {
+                  const newEnd = e.target.value;
+                  setEditForm((f: any) => ({
+                    ...f,
+                    duration_minutes: overnightMinutes(startStr, newEnd),
+                  }));
+                }}
+              />
+              <p className="text-xs text-taupe mt-1">{nights === 1 ? '1 night.' : `${nights} nights.`}</p>
+            </div>
+          );
+        })()}
 
         {/* Time */}
         <div>
