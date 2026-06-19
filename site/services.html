@@ -286,7 +286,7 @@
                 <ul class="transport-bullets">
                   <li><span class="transport-num">$30</span> base rate (first 5 km included)</li>
                   <li><span class="transport-num">+$1</span> per additional km</li>
-                  <li><span class="transport-num">2&times;</span> mileage on return trips, base stays one-time</li>
+                  <li><span class="transport-num">+$10</span> return-trip surcharge, plus 2&times; mileage</li>
                 </ul>
               </div>
 
@@ -340,7 +340,7 @@
                     <span id="transport-r-distance">&mdash;</span>
                   </div>
                   <div class="transport-result-line">
-                    <span>Base rate <em>(first 5 km)</em></span>
+                    <span>Base rate <em id="transport-r-base-label">(first 5 km)</em></span>
                     <span id="transport-r-base">&mdash;</span>
                   </div>
                   <div class="transport-result-line">
@@ -701,6 +701,11 @@
           if (body.trip_type === 'return') mileageLabel += ' × 2 (return)';
           mileageLabel += ')';
           document.getElementById('transport-r-mileage-label').textContent = mileageLabel;
+
+          var baseLabel = body.trip_type === 'return'
+            ? '(first 5 km + $10 return)'
+            : '(first 5 km)';
+          document.getElementById('transport-r-base-label').textContent = baseLabel;
 
           resultEl.hidden = false;
         } catch (err) {

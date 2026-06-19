@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Log;
 
 class TransportQuoteController extends Controller
 {
-    /** Flat fee charged for the first 5km. */
+    /** Flat fee charged for the first 5km on a one-way trip. */
     private const BASE_RATE        = 30.00;
+    /** Extra flat fee added to the base when the trip is a return. */
+    private const RETURN_SURCHARGE = 10.00;
     /** Kilometres included in the base rate. */
     private const FREE_KM          = 5;
     /** Dollars charged per km beyond FREE_KM. */
@@ -51,25 +53,30 @@ class TransportQuoteController extends Controller
         }
 
         // Mileage charged per km past the free allowance. For a return trip
-        // the mileage is doubled (we drive there + back) but the base rate
-        // covers the trip as a whole, not each leg.
+        // the mileage is doubled (we drive there + back) AND the base is
+        // bumped by a flat $10 to cover the extra coordination + idle time
+        // at the appointment.
+        $isReturn       = $tripType === 'return';
+        $baseRate       = $isReturn ? self::BASE_RATE + self::RETURN_SURCHARGE : self::BASE_RATE;
         $billableKm     = max(0, $distanceKm - self::FREE_KM);
-        $mileageMult    = $tripType === 'return' ? 2 : 1;
+        $mileageMult    = $isReturn ? 2 : 1;
         $mileageCost    = round($billableKm * self::PER_KM_OVERAGE * $mileageMult, 2);
-        $total          = round(self::BASE_RATE + $mileageCost, 2);
+        $total          = round($baseRate + $mileageCost, 2);
 
         return response()->json([
-            'distance_km'    => round($distanceKm, 2),
-            'trip_type'      => $tripType,
-            'base_rate'      => self::BASE_RATE,
-            'free_km'        => self::FREE_KM,
-            'per_km_overage' => self::PER_KM_OVERAGE,
-            'billable_km'    => round($billableKm, 2),
-            'mileage_cost'   => $mileageCost,
-            'total_cost'     => $total,
-            'formatted'      => [
+            'distance_km'      => round($distanceKm, 2),
+            'trip_type'        => $tripType,
+            'base_rate'        => $baseRate,
+            'base_rate_oneway' => self::BASE_RATE,
+            'return_surcharge' => $isReturn ? self::RETURN_SURCHARGE : 0.00,
+            'free_km'          => self::FREE_KM,
+            'per_km_overage'   => self::PER_KM_OVERAGE,
+            'billable_km'      => round($billableKm, 2),
+            'mileage_cost'     => $mileageCost,
+            'total_cost'       => $total,
+            'formatted'        => [
                 'distance_km'  => number_format($distanceKm, 1) . ' km',
-                'base_rate'    => '$' . number_format(self::BASE_RATE, 2),
+                'base_rate'    => '$' . number_format($baseRate, 2),
                 'mileage_cost' => '$' . number_format($mileageCost, 2),
                 'total_cost'   => '$' . number_format($total, 2),
             ],
