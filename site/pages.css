@@ -681,6 +681,46 @@
   margin-top: 2rem;
 }
 
+/* Short intro paragraph sitting above a pricing-panel's package grid.
+   Used on Custom Visits 60, Custom Visits 30, and Pack Hikes. */
+.panel-intro {
+  max-width: 720px;
+  margin: 0 auto 2rem;
+  text-align: center;
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: var(--espresso);
+}
+
+/* Household discount callout — sits below all pricing panels and is
+   intentionally more prominent than the old "Prices per household"
+   fine print, since the 50% multi-dog discount is a real selling
+   point. */
+.pricing-household-note {
+  text-align: center;
+  font-size: 1.05rem;
+  color: var(--espresso);
+  background: rgba(201, 162, 77, 0.12); /* soft gold tint */
+  border: 1px solid rgba(201, 162, 77, 0.45);
+  border-radius: 999px;
+  padding: 0.85rem 1.4rem;
+  margin: 2.2rem auto 0.8rem;
+  max-width: 560px;
+  font-family: 'Lato', sans-serif;
+}
+.pricing-household-note strong {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* The remaining "GST not included" tail — kept small + taupe. */
+.pricing-fine-print {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--taupe);
+  margin: 0.4rem 0 0;
+}
+
 /* --- Package Price --- */
 .package-price {
   font-family: 'Playfair Display', Georgia, serif;
