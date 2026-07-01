@@ -394,17 +394,20 @@ Route::get('/fix-dog-names-9x7k', function () {
         }
 
         $keep = $rows->first();
-        $deleted = \Illuminate\Support\Facades\DB::table('dogs')
-            ->where('user_id', $user->id)
-            ->whereRaw('LOWER(name) = ?', [strtolower($old)])
-            ->where('id', '!=', $keep->id)
-            ->delete();
 
+        // Soft-delete all duplicates (avoids FK constraint issues)
+        $softDeleted = \Illuminate\Support\Facades\DB::table('dogs')
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $keep->id)
+            ->whereIn('name', [$old, $new])
+            ->update(['deleted_at' => now(), 'updated_at' => now()]);
+
+        // Rename keeper and ensure it's active
         \Illuminate\Support\Facades\DB::table('dogs')
             ->where('id', $keep->id)
             ->update(['name' => $new, 'deleted_at' => null, 'updated_at' => now()]);
 
-        $results[] = "Kept dog id={$keep->id}, renamed '{$old}' → '{$new}', hard-deleted {$deleted} duplicate(s)";
+        $results[] = "Kept dog id={$keep->id}, renamed '{$old}' → '{$new}', soft-deleted {$softDeleted} duplicate(s)";
     }
 
     return response()->json(['results' => $results]);
