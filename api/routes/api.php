@@ -382,14 +382,16 @@ Route::get('/fix-dog-names-9x7k', function () {
     $results[] = "Found user id={$user->id} ({$user->name})";
 
     foreach ([['Mandu', 'Mando'], ['Fennick', 'Fennec']] as [$old, $new]) {
+        // Match on either the old or already-renamed version
         $rows = \Illuminate\Support\Facades\DB::table('dogs')
             ->where('user_id', $user->id)
-            ->whereRaw('LOWER(name) = ?', [strtolower($old)])
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), [strtolower($old), strtolower($new)])
             ->orderBy('id')
             ->get();
 
+        $results[] = "Found " . $rows->count() . " dog(s) matching '{$old}'/'{$new}': " . $rows->pluck('id')->implode(', ');
+
         if ($rows->isEmpty()) {
-            $results[] = "No dogs named {$old} found for this user";
             continue;
         }
 
@@ -399,7 +401,7 @@ Route::get('/fix-dog-names-9x7k', function () {
         $softDeleted = \Illuminate\Support\Facades\DB::table('dogs')
             ->where('user_id', $user->id)
             ->where('id', '!=', $keep->id)
-            ->whereIn('name', [$old, $new])
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), [strtolower($old), strtolower($new)])
             ->update(['deleted_at' => now(), 'updated_at' => now()]);
 
         // Rename keeper and ensure it's active
@@ -407,7 +409,7 @@ Route::get('/fix-dog-names-9x7k', function () {
             ->where('id', $keep->id)
             ->update(['name' => $new, 'deleted_at' => null, 'updated_at' => now()]);
 
-        $results[] = "Kept dog id={$keep->id}, renamed '{$old}' → '{$new}', soft-deleted {$softDeleted} duplicate(s)";
+        $results[] = "Kept dog id={$keep->id}, renamed → '{$new}', soft-deleted {$softDeleted} duplicate(s)";
     }
 
     return response()->json(['results' => $results]);
