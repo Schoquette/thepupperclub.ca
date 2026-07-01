@@ -373,13 +373,13 @@ Route::get('/fix-dog-names-9x7k', function () {
 
     // Find Ricarda's user id
     $user = \Illuminate\Support\Facades\DB::table('users')
-        ->whereRaw("LOWER(first_name) = 'ricarda'")
+        ->whereRaw("LOWER(name) LIKE 'ricarda%'")
         ->first();
 
     if (!$user) {
         return response()->json(['error' => 'User Ricarda not found'], 404);
     }
-    $results[] = "Found user id={$user->id} ({$user->first_name} {$user->last_name})";
+    $results[] = "Found user id={$user->id} ({$user->name})";
 
     foreach ([['Mandu', 'Mando'], ['Fennick', 'Fennec']] as [$old, $new]) {
         $rows = \Illuminate\Support\Facades\DB::table('dogs')
