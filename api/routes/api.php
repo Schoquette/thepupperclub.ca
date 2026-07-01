@@ -367,6 +367,49 @@ Route::get('/fix-dog-size-enum-9x7k', function () {
     }
 });
 
+// Temporary: dedupe + rename Mandu→Mando and Fennick→Fennec for user Ricarda (REMOVE after running)
+Route::get('/fix-dog-names-9x7k', function () {
+    $results = [];
+
+    // Find Ricarda's user id
+    $user = \Illuminate\Support\Facades\DB::table('users')
+        ->whereRaw("LOWER(first_name) = 'ricarda'")
+        ->first();
+
+    if (!$user) {
+        return response()->json(['error' => 'User Ricarda not found'], 404);
+    }
+    $results[] = "Found user id={$user->id} ({$user->first_name} {$user->last_name})";
+
+    foreach ([['Mandu', 'Mando'], ['Fennick', 'Fennec']] as [$old, $new]) {
+        $rows = \Illuminate\Support\Facades\DB::table('dogs')
+            ->where('user_id', $user->id)
+            ->whereRaw('LOWER(name) = ?', [strtolower($old)])
+            ->orderBy('id')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            $results[] = "No dogs named {$old} found for this user";
+            continue;
+        }
+
+        $keep = $rows->first();
+        $deleted = \Illuminate\Support\Facades\DB::table('dogs')
+            ->where('user_id', $user->id)
+            ->whereRaw('LOWER(name) = ?', [strtolower($old)])
+            ->where('id', '!=', $keep->id)
+            ->delete();
+
+        \Illuminate\Support\Facades\DB::table('dogs')
+            ->where('id', $keep->id)
+            ->update(['name' => $new, 'deleted_at' => null, 'updated_at' => now()]);
+
+        $results[] = "Kept dog id={$keep->id}, renamed '{$old}' → '{$new}', hard-deleted {$deleted} duplicate(s)";
+    }
+
+    return response()->json(['results' => $results]);
+});
+
 // Temporary: add notify columns to users table for admin prefs (REMOVE after running)
 Route::get('/add-user-notify-cols-9x7k', function () {
     \App\Models\User::ensureNotifyColumns();
