@@ -578,6 +578,42 @@ export default function AdminCalendarPage() {
   };
 
   // Cancelled appointments this week
+  const weekKey = format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const storageKey = `dismissed-cancellations-${weekKey}`;
+
+  const [dismissedIds, setDismissedIds] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  // Re-read from localStorage when the week changes
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      setDismissedIds(stored ? new Set(JSON.parse(stored)) : new Set());
+    } catch { setDismissedIds(new Set()); }
+  }, [storageKey]);
+
+  const dismissCancellation = (id: number) => {
+    setDismissedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem(storageKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const dismissAllCancellations = (ids: number[]) => {
+    setDismissedIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => next.add(id));
+      localStorage.setItem(storageKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
   const cancelledThisWeek = useMemo(() => {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
@@ -588,6 +624,11 @@ export default function AdminCalendarPage() {
       return d >= weekStart && d <= weekEnd;
     });
   }, [data, currentDate]);
+
+  const visibleCancellations = useMemo(
+    () => cancelledThisWeek.filter((a: any) => !dismissedIds.has(a.id)),
+    [cancelledThisWeek, dismissedIds],
+  );
 
   const appointmentEvents = (data ?? []).filter((appt: any) => appt.status !== 'cancelled').map((appt: any) => {
     // Parse as local time — strip trailing Z/offset so JS doesn't convert from UTC
@@ -668,13 +709,19 @@ export default function AdminCalendarPage() {
       />
 
       {/* Cancellation Notices */}
-      {cancelledThisWeek.length > 0 && (
+      {visibleCancellations.length > 0 && (
         <Card padding="none">
-          <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center gap-2">
-            <span className="text-red-500 font-semibold text-sm">Cancellations This Week ({cancelledThisWeek.length})</span>
+          <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center justify-between gap-2">
+            <span className="text-red-500 font-semibold text-sm">Cancellations This Week ({visibleCancellations.length})</span>
+            <button
+              onClick={() => dismissAllCancellations(visibleCancellations.map((a: any) => a.id))}
+              className="text-xs text-red-400 hover:text-red-600 underline"
+            >
+              Dismiss all
+            </button>
           </div>
           <div className="divide-y divide-cream">
-            {cancelledThisWeek.map((appt: any) => {
+            {visibleCancellations.map((appt: any) => {
               const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
               const d = new Date(localStr);
               return (
@@ -694,6 +741,13 @@ export default function AdminCalendarPage() {
                   <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">
                     Cancelled
                   </span>
+                  <button
+                    onClick={() => dismissCancellation(appt.id)}
+                    className="text-taupe hover:text-espresso text-lg leading-none flex-shrink-0"
+                    title="Dismiss"
+                  >
+                    ×
+                  </button>
                 </div>
               );
             })}
