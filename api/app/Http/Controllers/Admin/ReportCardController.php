@@ -96,6 +96,17 @@ class ReportCardController extends Controller
         $fields['dog_ids'] = $data['dog_ids'] ?? null;
         $fields['dog_data'] = $dogData;
 
+        // Auto-fix: appointment_id was NOT NULL in the original migration but must be nullable
+        $apptNullable = \Illuminate\Support\Facades\DB::selectOne(
+            "SELECT IS_NULLABLE FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'visit_reports' AND COLUMN_NAME = 'appointment_id'"
+        )?->IS_NULLABLE ?? 'YES';
+        if ($apptNullable !== 'YES') {
+            \Illuminate\Support\Facades\DB::statement(
+                'ALTER TABLE visit_reports MODIFY COLUMN appointment_id BIGINT UNSIGNED NULL'
+            );
+        }
+
         $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
 
         if ($request->hasFile('photos')) {
