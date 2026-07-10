@@ -107,7 +107,11 @@ class ReportCardController extends Controller
             );
         }
 
-        $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
+        try {
+            $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Store failed: ' . $e->getMessage()], 422);
+        }
 
         if ($request->hasFile('photos')) {
             $paths = collect($request->file('photos'))
@@ -180,7 +184,11 @@ class ReportCardController extends Controller
 
     public function send(VisitReport $reportCard): JsonResponse
     {
-        $this->service->send($reportCard);
+        try {
+            $this->service->send($reportCard);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Send failed: ' . $e->getMessage()], 422);
+        }
 
         return response()->json(['message' => 'Report card sent.', 'data' => $reportCard->fresh()]);
     }
