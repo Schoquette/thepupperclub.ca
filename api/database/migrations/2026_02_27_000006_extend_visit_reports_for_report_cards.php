@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::table('visit_reports', function (Blueprint $table) {
             // Make appointment_id nullable (allow standalone reports)
+            $table->unsignedBigInteger('appointment_id')->nullable()->change();
             $table->foreignId('user_id')->nullable()->after('id')->constrained()->nullOnDelete();
             $table->dateTime('arrival_time')->nullable()->after('appointment_id');
             $table->dateTime('departure_time')->nullable()->after('arrival_time');

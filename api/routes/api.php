@@ -367,6 +367,18 @@ Route::get('/fix-dog-size-enum-9x7k', function () {
     }
 });
 
+// Temporary: make visit_reports.appointment_id nullable (REMOVE after running)
+Route::get('/fix-visit-reports-appt-nullable-9x7k', function () {
+    try {
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE visit_reports MODIFY COLUMN appointment_id BIGINT UNSIGNED NULL"
+        );
+        return response()->json(['message' => 'visit_reports.appointment_id is now nullable.']);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
+
 // Temporary: dedupe + rename Mandu→Mando and Fennick→Fennec for user Ricarda (REMOVE after running)
 Route::get('/fix-dog-names-9x7k', function () {
     $results = [];
