@@ -367,16 +367,42 @@ Route::get('/fix-dog-size-enum-9x7k', function () {
     }
 });
 
-// Temporary: make visit_reports.appointment_id nullable (REMOVE after running)
+// Temporary: diagnose + fix visit_reports schema (REMOVE after running)
 Route::get('/fix-visit-reports-appt-nullable-9x7k', function () {
+    $results = [];
+
+    // Show current table definition for appointment_id
+    $col = \Illuminate\Support\Facades\DB::selectOne(
+        "SELECT COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'visit_reports' AND COLUMN_NAME = 'appointment_id'"
+    );
+    $results['appointment_id_current'] = $col ? (array) $col : 'column not found';
+
+    // Try to make it nullable
     try {
         \Illuminate\Support\Facades\DB::statement(
             "ALTER TABLE visit_reports MODIFY COLUMN appointment_id BIGINT UNSIGNED NULL"
         );
-        return response()->json(['message' => 'visit_reports.appointment_id is now nullable.']);
+        $results['alter'] = 'success';
     } catch (\Throwable $e) {
-        return response()->json(['error' => $e->getMessage()], 500);
+        $results['alter_error'] = $e->getMessage();
     }
+
+    // Also try a minimal insert to surface any other NOT NULL issues
+    try {
+        $id = \Illuminate\Support\Facades\DB::table('visit_reports')->insertGetId([
+            'user_id'    => \Illuminate\Support\Facades\DB::table('users')->where('role', 'admin')->value('id') ?? 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        \Illuminate\Support\Facades\DB::table('visit_reports')->where('id', $id)->delete();
+        $results['test_insert'] = 'success (cleaned up)';
+    } catch (\Throwable $e) {
+        $results['test_insert_error'] = $e->getMessage();
+    }
+
+    return response()->json($results);
 });
 
 // Temporary: dedupe + rename Mandu→Mando and Fennick→Fennec for user Ricarda (REMOVE after running)
