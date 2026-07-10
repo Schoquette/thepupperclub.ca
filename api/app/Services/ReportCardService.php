@@ -51,8 +51,16 @@ class ReportCardService
 
         $report->update(['sent_at' => now()]);
 
-        // ── 2. Email ───────────────────────────────────────────────────────────
-        $this->sendEmail($report, $client, $adminId);
+        // ── 2. Email (best-effort — failure logged but doesn't block the send) ─
+        try {
+            $this->sendEmail($report, $client, $adminId);
+        } catch (\Throwable $e) {
+            // Email log already written by ResendTransport; log the exception too
+            \Illuminate\Support\Facades\Log::error('ReportCardService: email failed', [
+                'report_id' => $report->id,
+                'error'     => $e->getMessage(),
+            ]);
+        }
     }
 
     private function sendEmail(VisitReport $report, User $client, int $adminId): void

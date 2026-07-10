@@ -296,7 +296,7 @@ export default function AdminReportCardFormPage() {
       qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
       navigate('/admin/report-cards');
     },
-    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to save.'),
+    onError: (e: any) => setError(e.response?.data?.message ?? e.response?.data?.error ?? `Failed to save. (${e.response?.status ?? 'network error'})`),
   });
 
   const createAndSend = useMutation({
@@ -311,7 +311,7 @@ export default function AdminReportCardFormPage() {
       qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
       navigate('/admin/report-cards');
     },
-    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to send.'),
+    onError: (e: any) => setError(e.response?.data?.message ?? e.response?.data?.error ?? `Failed to send. (${e.response?.status ?? 'network error'})`),
   });
 
   const updateReport = useMutation({
@@ -323,7 +323,7 @@ export default function AdminReportCardFormPage() {
       qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
       qc.invalidateQueries({ queryKey: ['admin-report-card', id] });
     },
-    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to save.'),
+    onError: (e: any) => setError(e.response?.data?.message ?? e.response?.data?.error ?? `Failed to save. (${e.response?.status ?? 'network error'})`),
   });
 
   const sendReport = useMutation({
@@ -339,7 +339,7 @@ export default function AdminReportCardFormPage() {
       qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
       navigate('/admin/report-cards');
     },
-    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to send.'),
+    onError: (e: any) => setError(e.response?.data?.message ?? e.response?.data?.error ?? `Failed to send. (${e.response?.status ?? 'network error'})`),
   });
 
   const deleteReport = useMutation({
