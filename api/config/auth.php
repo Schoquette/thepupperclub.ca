@@ -29,7 +29,7 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => 'password_reset_tokens',
-            'expire' => 4320, // 72 hours (in minutes) — gives invited clients time to set their password
+            'expire' => 10080, // 7 days (in minutes) — gives invited clients time to set their password
             'throttle' => 60,
         ],
 
