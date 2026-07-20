@@ -2,21 +2,21 @@
 
 @section('body')
   <div style="text-align: center; margin-bottom: 24px;">
-    <h2 style="margin: 0 0 6px; font-family: 'Playfair Display SC', Georgia, 'Times New Roman', serif; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: #3B2F2A;">Visit Report Card</h2>
+    <div style="margin: 0 0 6px; font-family: 'Playfair Display SC', Georgia, 'Times New Roman', serif; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; color: #3B2F2A; font-weight: bold;">Visit Report Card</div>
     <div style="color: #C9A24D; font-size: 15px; font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;">{{ $dogNames }}</div>
   </div>
 
-  @if(!empty($dogPhotoUrl))
+  @if(!empty($dogPhotoCid))
   <div style="text-align: center; margin-bottom: 20px;">
-    <img src="{{ $dogPhotoUrl }}" alt="Dog photo" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #C9A24D;" />
+    <img src="cid:{{ $dogPhotoCid }}" alt="Dog photo" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #C9A24D;" />
   </div>
   @endif
 
-  {{-- All visit photos --}}
-  @if(!empty($photoUrls))
+  {{-- Visit photos embedded as inline CID attachments --}}
+  @if(!empty($photoCids))
   <div style="margin: 0 -40px 20px; overflow: hidden;">
-    @foreach($photoUrls as $i => $url)
-    <img src="{{ $url }}" alt="Visit photo {{ $i + 1 }}" style="width: 100%; height: auto; display: block; border-radius: 8px;{{ $i > 0 ? ' margin-top: 8px;' : '' }}">
+    @foreach($photoCids as $i => $cid)
+    <img src="cid:{{ $cid }}" alt="Visit photo {{ $i + 1 }}" style="width: 100%; height: auto; display: block; border-radius: 8px;{{ $i > 0 ? ' margin-top: 8px;' : '' }}">
     @endforeach
   </div>
   @endif

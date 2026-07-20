@@ -107,27 +107,21 @@ class ReportCardService
         // Flat checklist for token replacement (merged)
         $checklist = collect($dogSections)->flatMap(fn($s) => $s['checklist'])->unique()->values()->all();
 
-        // Build photo URLs (multi-photo support)
-        $baseUrl = rtrim(config('app.url'), '/');
+        // Build photo CIDs for inline embedding (auth-free in email clients)
         $photoPaths = $report->photo_paths ?? [];
         if (empty($photoPaths) && $report->report_photo_path) {
             $photoPaths = [$report->report_photo_path];
         }
-        $photoUrls = [];
+        $photoCids = [];
         foreach ($photoPaths as $i => $path) {
-            $photoUrls[] = "{$baseUrl}/api/admin/report-cards/{$report->id}/photos/{$i}";
+            $photoCids[] = "report-photo-{$i}@thepupperclub.ca";
         }
 
-        // Legacy single photo URL for token replacement
-        $photoUrl = $photoUrls[0] ?? null;
-
-        // Get first dog's profile photo URL
+        // Dog profile photo CID
         $firstDog = $dogs->first();
-        $dogPhotoUrl = ($firstDog && $firstDog->photo_path)
-            ? "{$baseUrl}/api/admin/dogs/{$firstDog->id}/photo"
-            : null;
+        $dogPhotoCid = ($firstDog && $firstDog->photo_path) ? 'dog-photo@thepupperclub.ca' : null;
 
-        Mail::send([], [], function ($mail) use ($client, $report, $dogNames, $checklist, $photoUrl, $dogPhotoUrl, $photoUrls, $dogSections) {
+        Mail::send([], [], function ($mail) use ($client, $report, $dogNames, $checklist, $photoCids, $photoPaths, $dogPhotoCid, $firstDog, $dogSections) {
             $arrivalTime   = $report->arrival_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
             $departureTime = $report->departure_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
             $visitDate     = $report->arrival_time?->setTimezone('America/Vancouver')->format('F j, Y') ?? '';
@@ -140,11 +134,11 @@ class ReportCardService
             }
             $checklistHtml .= '</div>';
 
-            $visitPhotoHtml = $photoUrl
-                ? '<div style="margin:0 -40px 20px;overflow:hidden;"><img src="' . e($photoUrl) . '" alt="Visit photo" style="width:100%;max-height:320px;object-fit:cover;display:block;"></div>'
+            $visitPhotoHtml = !empty($photoCids)
+                ? '<div style="margin:0 -40px 20px;overflow:hidden;"><img src="cid:' . $photoCids[0] . '" alt="Visit photo" style="width:100%;max-height:320px;object-fit:cover;display:block;"></div>'
                 : '';
-            $dogPhotoHtmlStr = $dogPhotoUrl
-                ? '<div style="text-align:center;margin-bottom:20px;"><img src="' . e($dogPhotoUrl) . '" alt="Dog photo" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #C9A24D;" /></div>'
+            $dogPhotoHtmlStr = $dogPhotoCid
+                ? '<div style="text-align:center;margin-bottom:20px;"><img src="cid:' . $dogPhotoCid . '" alt="Dog photo" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #C9A24D;" /></div>'
                 : '';
 
             // Check for custom template
@@ -165,21 +159,20 @@ class ReportCardService
             $customHtml    = NotificationController::renderSystemTemplate('report_card', $tokens);
 
             $html = $customHtml ?? view('emails.report_card', [
-                'client'             => $client,
-                'report'             => $report,
-                'dogNames'           => $dogNames,
-                'dogSections'        => $dogSections,
-                'checklist'          => $checklist,
-                'specialTrip'        => ($report->checklist['special_trip'] ?? false)
-                                         ? ($report->special_trip_details ?: 'Yes')
-                                         : null,
-                'photoUrls'          => $photoUrls,
-                'photoUrl'           => $photoUrl,
-                'dogPhotoUrl'        => $dogPhotoUrl,
-                'arrivalTime'        => $arrivalTime,
-                'departureTime'      => $departureTime,
-                'visitDate'          => $visitDate,
-                'portalUrl'          => $portalUrl,
+                'client'        => $client,
+                'report'        => $report,
+                'dogNames'      => $dogNames,
+                'dogSections'   => $dogSections,
+                'checklist'     => $checklist,
+                'specialTrip'   => ($report->checklist['special_trip'] ?? false)
+                                     ? ($report->special_trip_details ?: 'Yes')
+                                     : null,
+                'photoCids'     => $photoCids,
+                'dogPhotoCid'   => $dogPhotoCid,
+                'arrivalTime'   => $arrivalTime,
+                'departureTime' => $departureTime,
+                'visitDate'     => $visitDate,
+                'portalUrl'     => $portalUrl,
             ])->render();
 
             $replyAddr = config('services.resend.inbound_address') ?: config('mail.from.address');
@@ -199,6 +192,31 @@ class ReportCardService
                 $logoPart->asInline();
                 $logoPart->setContentId('logo@thepupperclub.ca');
                 $mail->getSymfonyMessage()->addPart($logoPart);
+            }
+
+            // Embed visit photos as inline CID attachments
+            foreach ($photoPaths as $i => $path) {
+                if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+                    $content  = \Illuminate\Support\Facades\Storage::disk('local')->get($path);
+                    $ext      = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                    $mime     = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
+                    $part     = new \Symfony\Component\Mime\Part\DataPart($content, "photo-{$i}.{$ext}", $mime);
+                    $part->asInline();
+                    $part->setContentId($photoCids[$i]);
+                    $mail->getSymfonyMessage()->addPart($part);
+                }
+            }
+
+            // Embed dog profile photo as inline CID attachment
+            if ($dogPhotoCid && $firstDog && $firstDog->photo_path &&
+                \Illuminate\Support\Facades\Storage::disk('local')->exists($firstDog->photo_path)) {
+                $content = \Illuminate\Support\Facades\Storage::disk('local')->get($firstDog->photo_path);
+                $ext     = strtolower(pathinfo($firstDog->photo_path, PATHINFO_EXTENSION));
+                $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
+                $part    = new \Symfony\Component\Mime\Part\DataPart($content, "dog-photo.{$ext}", $mime);
+                $part->asInline();
+                $part->setContentId($dogPhotoCid);
+                $mail->getSymfonyMessage()->addPart($part);
             }
         });
 
