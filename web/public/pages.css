@@ -677,7 +677,7 @@
 .pricing-note {
   text-align: center;
   font-size: 0.85rem;
-  color: var(--taupe);
+  color: var(--espresso);
   margin-top: 2rem;
 }
 
@@ -713,11 +713,11 @@
   font-weight: 700;
 }
 
-/* The remaining "GST not included" tail — kept small + taupe. */
+/* The remaining "GST not included" tail. */
 .pricing-fine-print {
   text-align: center;
   font-size: 0.85rem;
-  color: var(--taupe);
+  color: var(--espresso);
   margin: 0.4rem 0 0;
 }
 
