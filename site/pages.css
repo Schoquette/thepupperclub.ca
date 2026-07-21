@@ -110,13 +110,18 @@
   padding-top: 18px;
 }
 
-.alacarte-grid {
-  display: grid;
+/* Single Walks section — 2-col centred grid */
+#single-tabs .packages-grid {
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.25rem;
   max-width: 680px;
-  margin: 1.5rem auto 0;
-  align-items: stretch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Sub-heading between the two pricing tab groups */
+.pricing-section-sub {
+  margin-top: 4rem;
+  margin-bottom: 0;
 }
 
 .package-card {
@@ -876,7 +881,7 @@
     margin: 0 auto;
   }
 
-  .alacarte-grid {
+  #single-tabs .packages-grid {
     grid-template-columns: repeat(2, 1fr);
     max-width: 480px;
   }
@@ -896,7 +901,7 @@
     max-width: 500px;
   }
 
-  .alacarte-grid {
+  #single-tabs .packages-grid {
     grid-template-columns: 1fr;
     max-width: 500px;
   }

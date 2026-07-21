@@ -76,101 +76,12 @@
           <p><strong>Prices listed below are per household, there is no extra charge for additional pups <em>(except Pack Hikes)</em>.</strong></p>
         </div>
 
-        <!-- Pricing Tabs -->
-        <div class="pricing-tabs">
+        <!-- Membership Pricing Tabs -->
+        <div class="pricing-tabs" id="membership-tabs">
           <div class="pricing-tab-buttons">
             <button class="pricing-tab-btn active" data-tab="custom60">Custom Visits | Min. 60 min</button>
             <button class="pricing-tab-btn" data-tab="custom30">Custom Visits | Min. 30 min</button>
             <button class="pricing-tab-btn" data-tab="midday">Pack Hikes</button>
-            <button class="pricing-tab-btn" data-tab="transport">Appointment Transportation</button>
-          </div>
-
-          <!-- Pack Hikes -->
-          <div class="pricing-panel" id="panel-midday">
-            <p class="panel-intro">
-              Small-group adventures on local trails. Minimum 1 hour of
-              hike time, scheduled in the late morning so your pup comes
-              home happily tired.
-            </p>
-            <div class="packages-grid">
-              <div class="package-card">
-                <div class="package-header">
-                  <p class="package-duration">Pack Hike</p>
-                  <h3>The Essential Club</h3>
-                  <p class="package-price">$355 <span>/ month</span></p>
-                </div>
-                <div class="package-body">
-                  <p>2 hikes per week</p>
-                </div>
-                <div class="package-footer">
-                  <a href="/contact" class="btn btn-primary">Inquire</a>
-                </div>
-              </div>
-
-              <div class="package-card featured">
-                <div class="package-badge">Most Popular</div>
-                <div class="package-header">
-                  <p class="package-duration">Pack Hike</p>
-                  <h3>The Signature Club</h3>
-                  <p class="package-price">$525 <span>/ month</span></p>
-                </div>
-                <div class="package-body">
-                  <p>3 hikes per week</p>
-                </div>
-                <div class="package-footer">
-                  <a href="/contact" class="btn btn-primary">Inquire</a>
-                </div>
-              </div>
-
-              <div class="package-card">
-                <div class="package-header">
-                  <p class="package-duration">Pack Hike</p>
-                  <h3>The Premier Club</h3>
-                  <p class="package-price">$825 <span>/ month</span></p>
-                </div>
-                <div class="package-body">
-                  <p>5 hikes per week, priority scheduling</p>
-                </div>
-                <div class="package-footer">
-                  <a href="/contact" class="btn btn-primary">Inquire</a>
-                </div>
-              </div>
-
-            </div>
-
-            <div class="alacarte-grid">
-              <div class="package-card alacarte">
-                <div class="package-header">
-                  <p class="package-duration">Pack Hike</p>
-                  <h3>10-Pack</h3>
-                  <p class="package-price">$410 <span>one-time</span></p>
-                </div>
-                <div class="package-body">
-                  <p>10 hikes, prepaid &mdash; use as you need them.</p>
-                </div>
-                <div class="package-footer">
-                  <a href="/contact" class="btn btn-primary">Inquire</a>
-                </div>
-              </div>
-
-              <div class="package-card alacarte">
-                <div class="package-header">
-                  <p class="package-duration">Pack Hike</p>
-                  <h3>Single Visit</h3>
-                  <p class="package-price">$50 <span>per hike</span></p>
-                </div>
-                <div class="package-body">
-                  <p>One hike, no commitment required.</p>
-                </div>
-                <div class="package-footer">
-                  <a href="/contact" class="btn btn-primary">Inquire</a>
-                </div>
-              </div>
-            </div>
-            <p class="pricing-household-note">
-              Additional dogs in the same household are <strong>50% off</strong>.
-            </p>
-            <p class="pricing-fine-print">GST not included. All plans customizable.</p>
           </div>
 
           <!-- Custom 60-minute private visits (default) -->
@@ -218,37 +129,6 @@
                 </div>
                 <div class="package-body">
                   <p>5 visits per week, priority scheduling</p>
-                </div>
-                <div class="package-footer">
-                  <a href="/contact" class="btn btn-primary">Inquire</a>
-                </div>
-              </div>
-
-            </div>
-
-            <div class="alacarte-grid">
-              <div class="package-card alacarte">
-                <div class="package-header">
-                  <p class="package-duration">Custom · 60 min</p>
-                  <h3>10-Pack</h3>
-                  <p class="package-price">$515 <span>one-time</span></p>
-                </div>
-                <div class="package-body">
-                  <p>10 visits, prepaid &mdash; use as you need them.</p>
-                </div>
-                <div class="package-footer">
-                  <a href="/contact" class="btn btn-primary">Inquire</a>
-                </div>
-              </div>
-
-              <div class="package-card alacarte">
-                <div class="package-header">
-                  <p class="package-duration">Custom · 60 min</p>
-                  <h3>Single Visit</h3>
-                  <p class="package-price">$60 <span>per visit</span></p>
-                </div>
-                <div class="package-body">
-                  <p>One visit, no commitment required.</p>
                 </div>
                 <div class="package-footer">
                   <a href="/contact" class="btn btn-primary">Inquire</a>
@@ -308,10 +188,115 @@
                   <a href="/contact" class="btn btn-primary">Inquire</a>
                 </div>
               </div>
-
             </div>
+            <p class="pricing-note">Prices per household, not per dog. GST not included. All plans customizable.</p>
+          </div>
 
-            <div class="alacarte-grid">
+          <!-- Pack Hikes -->
+          <div class="pricing-panel" id="panel-midday">
+            <p class="panel-intro">
+              Small-group adventures on local trails. Minimum 1 hour of
+              hike time, scheduled in the late morning so your pup comes
+              home happily tired.
+            </p>
+            <div class="packages-grid">
+              <div class="package-card">
+                <div class="package-header">
+                  <p class="package-duration">Pack Hike</p>
+                  <h3>The Essential Club</h3>
+                  <p class="package-price">$355 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>2 hikes per week</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card featured">
+                <div class="package-badge">Most Popular</div>
+                <div class="package-header">
+                  <p class="package-duration">Pack Hike</p>
+                  <h3>The Signature Club</h3>
+                  <p class="package-price">$525 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>3 hikes per week</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card">
+                <div class="package-header">
+                  <p class="package-duration">Pack Hike</p>
+                  <h3>The Premier Club</h3>
+                  <p class="package-price">$825 <span>/ month</span></p>
+                </div>
+                <div class="package-body">
+                  <p>5 hikes per week, priority scheduling</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+            </div>
+            <p class="pricing-household-note">
+              Additional dogs in the same household are <strong>50% off</strong>.
+            </p>
+            <p class="pricing-fine-print">GST not included. All plans customizable.</p>
+          </div>
+        </div>
+
+        <!-- Single Walks Pricing Tabs -->
+        <h2 class="section-title pricing-section-sub">Single Walks</h2>
+        <div class="pricing-tabs" id="single-tabs">
+          <div class="pricing-tab-buttons">
+            <button class="pricing-tab-btn active" data-tab="sg-custom60">Custom Visits | 60 min</button>
+            <button class="pricing-tab-btn" data-tab="sg-custom30">Custom Visits | 30 min</button>
+            <button class="pricing-tab-btn" data-tab="sg-midday">Pack Hikes</button>
+            <button class="pricing-tab-btn" data-tab="sg-transport">Appointment Transportation</button>
+          </div>
+
+          <!-- Single · Custom 60 min (default) -->
+          <div class="pricing-panel active" id="panel-sg-custom60">
+            <div class="packages-grid">
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Custom · 60 min</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$515 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 visits, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Custom · 60 min</p>
+                  <h3>Single Visit</h3>
+                  <p class="package-price">$60 <span>per visit</span></p>
+                </div>
+                <div class="package-body">
+                  <p>One visit, no commitment required.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+            </div>
+            <p class="pricing-note">Prices per household, not per dog. GST not included.</p>
+          </div>
+
+          <!-- Single · Custom 30 min -->
+          <div class="pricing-panel" id="panel-sg-custom30">
+            <div class="packages-grid">
               <div class="package-card alacarte">
                 <div class="package-header">
                   <p class="package-duration">Custom · 30 min</p>
@@ -340,11 +325,48 @@
                 </div>
               </div>
             </div>
-            <p class="pricing-note">Prices per household, not per dog. GST not included. All plans customizable.</p>
+            <p class="pricing-note">Prices per household, not per dog. GST not included.</p>
           </div>
 
-          <!-- Appointment Transportation panel -->
-          <div class="pricing-panel" id="panel-transport">
+          <!-- Single · Pack Hikes -->
+          <div class="pricing-panel" id="panel-sg-midday">
+            <div class="packages-grid">
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Pack Hike</p>
+                  <h3>10-Pack</h3>
+                  <p class="package-price">$410 <span>one-time</span></p>
+                </div>
+                <div class="package-body">
+                  <p>10 hikes, prepaid &mdash; use as you need them.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+
+              <div class="package-card alacarte">
+                <div class="package-header">
+                  <p class="package-duration">Pack Hike</p>
+                  <h3>Single Visit</h3>
+                  <p class="package-price">$50 <span>per hike</span></p>
+                </div>
+                <div class="package-body">
+                  <p>One hike, no commitment required.</p>
+                </div>
+                <div class="package-footer">
+                  <a href="/contact" class="btn btn-primary">Inquire</a>
+                </div>
+              </div>
+            </div>
+            <p class="pricing-household-note">
+              Additional dogs in the same household are <strong>50% off</strong>.
+            </p>
+            <p class="pricing-fine-print">GST not included.</p>
+          </div>
+
+          <!-- Appointment Transportation -->
+          <div class="pricing-panel" id="panel-sg-transport">
             <div class="transport-layout">
               <div class="transport-copy">
                 <p class="transport-eyebrow">Appointment Transportation</p>
@@ -435,7 +457,7 @@
                 </p>
               </div>
             </div>
-            <p class="pricing-note">Prices per household, not per dog. GST not included. All plans customizable.</p>
+            <p class="pricing-note">GST not included.</p>
           </div>
         </div>
       </div>
@@ -638,13 +660,15 @@
       });
     });
 
-    // Pricing tabs
-    document.querySelectorAll('.pricing-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.pricing-tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.pricing-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    // Pricing tabs — scoped per container so multiple tab groups don't interfere
+    document.querySelectorAll('.pricing-tabs').forEach(function (tabGroup) {
+      tabGroup.querySelectorAll('.pricing-tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          tabGroup.querySelectorAll('.pricing-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+          tabGroup.querySelectorAll('.pricing-panel').forEach(function (p) { p.classList.remove('active'); });
+          btn.classList.add('active');
+          tabGroup.querySelector('#panel-' + btn.dataset.tab).classList.add('active');
+        });
       });
     });
 
@@ -717,7 +741,7 @@
         });
       }
       document.querySelectorAll('.pricing-tab-btn').forEach(function (b) {
-        if (b.dataset.tab === 'transport') {
+        if (b.dataset.tab === 'sg-transport') {
           b.addEventListener('click', initAutocomplete);
         }
       });
