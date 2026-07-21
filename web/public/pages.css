@@ -112,15 +112,21 @@
 
 /* Single Walks section — 2-col centred grid */
 #single-tabs .packages-grid {
-  grid-template-columns: repeat(2, 1fr);
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
+  grid-template-columns: repeat(2, minmax(0, 340px));
+  justify-content: center;
+  max-width: none;
 }
 
-/* Sub-heading between the two pricing tab groups */
+/* Divider between Memberships and Single Walks */
+.pricing-divider {
+  border: none;
+  border-top: 1px solid rgba(200, 191, 182, 0.5);
+  margin: 3.5rem 0 0;
+}
+
+/* Sub-heading for each pricing tab group */
 .pricing-section-sub {
-  margin-top: 4rem;
+  margin-top: 2.5rem;
   margin-bottom: 0;
 }
 
@@ -882,8 +888,7 @@
   }
 
   #single-tabs .packages-grid {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 480px;
+    grid-template-columns: repeat(2, minmax(0, 300px));
   }
 
   .credentials-grid {
@@ -902,8 +907,8 @@
   }
 
   #single-tabs .packages-grid {
-    grid-template-columns: 1fr;
-    max-width: 500px;
+    grid-template-columns: minmax(0, 500px);
+    justify-content: center;
   }
 
   .section-white,
