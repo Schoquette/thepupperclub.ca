@@ -104,15 +104,24 @@
 /* Packages */
 .packages-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
+  align-items: stretch;
+  padding-top: 18px;
+}
+
+.alacarte-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  max-width: 680px;
+  margin: 1.5rem auto 0;
   align-items: stretch;
 }
 
 .package-card {
   background: var(--white);
   border-radius: 16px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(200, 191, 182, 0.3);
@@ -145,8 +154,9 @@
 
 .package-badge {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
   background: var(--gold);
   color: var(--white);
   font-size: 0.7rem;
@@ -155,6 +165,7 @@
   letter-spacing: 0.08em;
   padding: 5px 12px;
   border-radius: 50px;
+  white-space: nowrap;
 }
 
 .package-header {
@@ -865,6 +876,11 @@
     margin: 0 auto;
   }
 
+  .alacarte-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 480px;
+  }
+
   .credentials-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -876,6 +892,11 @@
   }
 
   .packages-grid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+  }
+
+  .alacarte-grid {
     grid-template-columns: 1fr;
     max-width: 500px;
   }
