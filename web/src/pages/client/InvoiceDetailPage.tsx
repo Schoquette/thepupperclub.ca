@@ -8,6 +8,12 @@ import { Badge, statusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
+
+const fmtDate = (s: string | null | undefined, pattern: string, fallback = '—'): string => {
+  if (!s) return fallback;
+  const d = new Date(String(s).slice(0, 10) + 'T00:00:00');
+  return isNaN(d.getTime()) ? fallback : format(d, pattern);
+};
 import { Download, Heart, CreditCard, CheckCircle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -178,7 +184,7 @@ export default function ClientInvoiceDetailPage() {
   const displayGst = invoice.gst != null ? Number(invoice.gst) : Math.round(displaySubtotal * 0.05 * 100) / 100;
 
   const billingPeriodStr = invoice.billing_period_start && invoice.billing_period_end
-    ? `${format(new Date(invoice.billing_period_start + 'T00:00:00'), 'MMMM d, yyyy')} - ${format(new Date(invoice.billing_period_end + 'T00:00:00'), 'MMMM d, yyyy')}`
+    ? `${fmtDate(invoice.billing_period_start, 'MMMM d, yyyy')} - ${fmtDate(invoice.billing_period_end, 'MMMM d, yyyy')}`
     : null;
 
   return (
@@ -267,7 +273,7 @@ export default function ClientInvoiceDetailPage() {
             <div className="text-right">
               {invoice.due_date && (
                 <div className="text-sm text-espresso">
-                  <span className="text-taupe">Due:</span> {format(new Date(invoice.due_date + 'T00:00:00'), 'MMMM d, yyyy')}
+                  <span className="text-taupe">Due:</span> {fmtDate(invoice.due_date, 'MMMM d, yyyy')}
                 </div>
               )}
               {invoice.paid_at && (
@@ -297,7 +303,7 @@ export default function ClientInvoiceDetailPage() {
                       {item.description}
                       {item.gst_exempt && <span className="ml-2 text-xs text-taupe border border-taupe/40 rounded px-1 py-0.5">No GST</span>}
                     </td>
-                    <td className="py-2.5 px-3 text-taupe">{item.service_date ? format(new Date(item.service_date + 'T00:00:00'), 'MMM d, yyyy') : '\u2014'}</td>
+                    <td className="py-2.5 px-3 text-taupe">{fmtDate(item.service_date, 'MMM d, yyyy')}</td>
                     <td className="py-2.5 px-3 text-center text-taupe">{Number(item.quantity)}</td>
                     <td className="py-2.5 px-3 text-right text-taupe">${Number(item.unit_price).toFixed(2)}</td>
                     <td className="py-2.5 px-3 text-right font-medium text-espresso">${Number(item.total).toFixed(2)}</td>

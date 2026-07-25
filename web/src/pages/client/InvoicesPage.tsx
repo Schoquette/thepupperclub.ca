@@ -213,11 +213,11 @@ export default function ClientInvoicesPage() {
                     <div className="font-bold text-espresso">${Number(inv.total).toFixed(2)}</div>
                     {inv.billing_period_start && inv.billing_period_end && (
                       <div className="text-xs text-taupe mt-0.5">
-                        {format(new Date(inv.billing_period_start + 'T00:00:00'), 'MMM d')} – {format(new Date(inv.billing_period_end + 'T00:00:00'), 'MMM d, yyyy')}
+                        {format(new Date(String(inv.billing_period_start).slice(0, 10) + 'T00:00:00'), 'MMM d')} – {format(new Date(String(inv.billing_period_end).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}
                       </div>
                     )}
                     {inv.due_date && (
-                      <div className="text-xs text-red-500 mt-0.5">Due {format(new Date(inv.due_date + 'T00:00:00'), 'MMM d, yyyy')}</div>
+                      <div className="text-xs text-red-500 mt-0.5">Due {format(new Date(String(inv.due_date).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}</div>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-1.5" onClick={e => e.stopPropagation()}>
@@ -263,11 +263,11 @@ export default function ClientInvoicesPage() {
                     <div className="font-bold text-espresso mt-0.5">${Number(inv.total).toFixed(2)}</div>
                     {inv.billing_period_start && inv.billing_period_end && (
                       <div className="text-xs text-taupe mt-0.5">
-                        {format(new Date(inv.billing_period_start + 'T00:00:00'), 'MMM d')} – {format(new Date(inv.billing_period_end + 'T00:00:00'), 'MMM d, yyyy')}
+                        {format(new Date(String(inv.billing_period_start).slice(0, 10) + 'T00:00:00'), 'MMM d')} – {format(new Date(String(inv.billing_period_end).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}
                       </div>
                     )}
                     {inv.due_date && !inv.billing_period_start && (
-                      <div className="text-xs text-taupe mt-0.5">{format(new Date(inv.due_date + 'T00:00:00'), 'MMM d, yyyy')}</div>
+                      <div className="text-xs text-taupe mt-0.5">{format(new Date(String(inv.due_date).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}</div>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2" onClick={e => e.stopPropagation()}>

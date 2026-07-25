@@ -11,6 +11,14 @@ import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 import { Download, Send, Bell, CheckCircle } from 'lucide-react';
 
+// Safe formatter for date-only fields (due_date, service_date, billing_period_*).
+// Slices to YYYY-MM-DD before parsing so timezone-qualified strings don't double-append.
+const fmtDate = (s: string | null | undefined, pattern: string, fallback = '—'): string => {
+  if (!s) return fallback;
+  const d = new Date(String(s).slice(0, 10) + 'T00:00:00');
+  return isNaN(d.getTime()) ? fallback : format(d, pattern);
+};
+
 interface LineItem {
   id?: number;
   description: string;
@@ -87,12 +95,12 @@ export default function AdminInvoiceDetailPage() {
     if (!invoice) return '';
     const total = `$${Number(invoice.total).toFixed(2)}`;
     const period = invoice.billing_period_start && invoice.billing_period_end
-      ? ` Service period: ${format(new Date(invoice.billing_period_start + 'T00:00:00'), 'MMMM d, yyyy')} - ${format(new Date(invoice.billing_period_end + 'T00:00:00'), 'MMMM d, yyyy')}.`
+      ? ` Service period: ${fmtDate(invoice.billing_period_start, 'MMMM d, yyyy')} - ${fmtDate(invoice.billing_period_end, 'MMMM d, yyyy')}.`
       : '';
     if (type === 'resend') {
-      return `Invoice #${invoice.invoice_number} for ${total} is ready.${period}${invoice.due_date ? ` Payment is due by ${format(new Date(invoice.due_date + 'T00:00:00'), 'MMMM d, yyyy')}.` : ''}`;
+      return `Invoice #${invoice.invoice_number} for ${total} is ready.${period}${invoice.due_date ? ` Payment is due by ${fmtDate(invoice.due_date, 'MMMM d, yyyy')}.` : ''}`;
     }
-    return `Friendly reminder: your payment of ${total} (Invoice #${invoice.invoice_number}) is due${invoice.due_date ? ` on ${format(new Date(invoice.due_date + 'T00:00:00'), 'MMMM d, yyyy')}` : ' soon'}.${period} If you'd like to update your payment method, you can do so in your portal.`;
+    return `Friendly reminder: your payment of ${total} (Invoice #${invoice.invoice_number}) is due${invoice.due_date ? ` on ${fmtDate(invoice.due_date, 'MMMM d, yyyy')}` : ' soon'}.${period} If you'd like to update your payment method, you can do so in your portal.`;
   };
 
   const openMessageModal = (type: 'resend' | 'reminder') => {
@@ -231,7 +239,7 @@ export default function AdminInvoiceDetailPage() {
   const displayGst = invoice.gst != null ? Number(invoice.gst) : Math.round(displaySubtotal * 0.05 * 100) / 100;
 
   const billingPeriodStr = invoice.billing_period_start && invoice.billing_period_end
-    ? `${format(new Date(invoice.billing_period_start + 'T00:00:00'), 'MMMM d, yyyy')} - ${format(new Date(invoice.billing_period_end + 'T00:00:00'), 'MMMM d, yyyy')}`
+    ? `${fmtDate(invoice.billing_period_start, 'MMMM d, yyyy')} - ${fmtDate(invoice.billing_period_end, 'MMMM d, yyyy')}`
     : null;
 
   return (
@@ -468,7 +476,7 @@ export default function AdminInvoiceDetailPage() {
                 <>
                   {invoice.due_date && (
                     <div className="text-sm text-espresso">
-                      <span className="text-taupe">Due:</span> {format(new Date(invoice.due_date + 'T00:00:00'), 'MMMM d, yyyy')}
+                      <span className="text-taupe">Due:</span> {fmtDate(invoice.due_date, 'MMMM d, yyyy')}
                     </div>
                   )}
                   {invoice.paid_at && (
@@ -606,7 +614,7 @@ export default function AdminInvoiceDetailPage() {
                         {item.description}
                         {item.gst_exempt && <span className="ml-2 text-xs text-taupe border border-taupe/40 rounded px-1 py-0.5">No GST</span>}
                       </td>
-                      <td className="py-2.5 px-3 text-taupe">{item.service_date ? format(new Date(item.service_date + 'T00:00:00'), 'MMM d, yyyy') : '—'}</td>
+                      <td className="py-2.5 px-3 text-taupe">{fmtDate(item.service_date, 'MMM d, yyyy')}</td>
                       <td className="py-2.5 px-3 text-center text-taupe">{Number(item.quantity)}</td>
                       <td className="py-2.5 px-3 text-right text-taupe">${Number(item.unit_price).toFixed(2)}</td>
                       <td className="py-2.5 px-3 text-right font-medium text-espresso">${Number(item.total).toFixed(2)}</td>
