@@ -36,7 +36,7 @@ class Invoice extends Model
             'credit_card_surcharge'  => 'decimal:2',
             'tip'                    => 'decimal:2',
             'total'                  => 'decimal:2',
-            'due_date'               => 'date',
+            'due_date'               => 'datetime',
             'paid_at'                => 'datetime',
             'apply_cc_surcharge'     => 'boolean',
             'billing_period_start'   => 'date',
