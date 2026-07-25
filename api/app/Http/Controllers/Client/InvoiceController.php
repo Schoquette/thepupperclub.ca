@@ -67,10 +67,11 @@ class InvoiceController extends Controller
     {
         abort_unless($invoice->user_id === $request->user()->id, 403);
 
-        $pdf = Pdf::setOption(['isRemoteEnabled' => true])
+        $pdf = Pdf::setOption(['isRemoteEnabled' => false])
             ->loadView('invoices.pdf', [
-                'invoice' => $invoice->load(['user.clientProfile', 'lineItems']),
+                'invoice'  => $invoice->load(['user.clientProfile', 'lineItems']),
                 'logoPath' => resource_path('images/logo.png'),
+                'fontsDir' => resource_path('fonts'),
             ]);
 
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");

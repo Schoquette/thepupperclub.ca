@@ -3,7 +3,30 @@
 <head>
   <meta charset="utf-8">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display+SC:wght@400;700&family=Lato:wght@400;700&display=swap');
+    @font-face {
+      font-family: 'Lato';
+      font-style: normal;
+      font-weight: 400;
+      src: url('{{ $fontsDir }}/Lato-Regular.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'Lato';
+      font-style: normal;
+      font-weight: 700;
+      src: url('{{ $fontsDir }}/Lato-Bold.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'Playfair Display SC';
+      font-style: normal;
+      font-weight: 400;
+      src: url('{{ $fontsDir }}/PlayfairDisplaySC-Regular.ttf') format('truetype');
+    }
+    @font-face {
+      font-family: 'Playfair Display SC';
+      font-style: normal;
+      font-weight: 700;
+      src: url('{{ $fontsDir }}/PlayfairDisplaySC-Bold.ttf') format('truetype');
+    }
 
     body { font-family: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #3B2F2A; font-size: 13px; margin: 0; padding: 0; letter-spacing: 0; }
     .page { padding: 0; }
