@@ -218,7 +218,7 @@ export default function InvoiceCreatePage() {
                 <div className="col-span-2">
                   {idx === 0 && <label className="label">Qty</label>}
                   <Input
-                    type="number" min="1"
+                    type="number" step="0.01" min="0.01"
                     value={line.quantity}
                     onChange={e => updateLine(idx, 'quantity', Number(e.target.value))}
                   />
