@@ -131,7 +131,7 @@ export default function AdminInvoicesPage() {
                   <td className="px-6 py-4 font-semibold">${Number(inv.total).toFixed(2)}</td>
                   <td className="px-6 py-4"><Badge variant={statusBadge(inv.status)}>{inv.status}</Badge></td>
                   <td className="px-6 py-4 text-taupe text-xs">
-                    {inv.due_date ? format(new Date(inv.due_date), 'MMM d') : '—'}
+                    {inv.due_date ? format(new Date(inv.due_date + 'T00:00:00'), 'MMM d') : '—'}
                   </td>
                   <td className="px-6 py-4">
                     <button

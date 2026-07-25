@@ -87,12 +87,12 @@ export default function AdminInvoiceDetailPage() {
     if (!invoice) return '';
     const total = `$${Number(invoice.total).toFixed(2)}`;
     const period = invoice.billing_period_start && invoice.billing_period_end
-      ? ` Service period: ${format(new Date(invoice.billing_period_start), 'MMMM d, yyyy')} - ${format(new Date(invoice.billing_period_end), 'MMMM d, yyyy')}.`
+      ? ` Service period: ${format(new Date(invoice.billing_period_start + 'T00:00:00'), 'MMMM d, yyyy')} - ${format(new Date(invoice.billing_period_end + 'T00:00:00'), 'MMMM d, yyyy')}.`
       : '';
     if (type === 'resend') {
-      return `Invoice #${invoice.invoice_number} for ${total} is ready.${period}${invoice.due_date ? ` Payment is due by ${format(new Date(invoice.due_date), 'MMMM d, yyyy')}.` : ''}`;
+      return `Invoice #${invoice.invoice_number} for ${total} is ready.${period}${invoice.due_date ? ` Payment is due by ${format(new Date(invoice.due_date + 'T00:00:00'), 'MMMM d, yyyy')}.` : ''}`;
     }
-    return `Friendly reminder: your payment of ${total} (Invoice #${invoice.invoice_number}) is due${invoice.due_date ? ` on ${format(new Date(invoice.due_date), 'MMMM d, yyyy')}` : ' soon'}.${period} If you'd like to update your payment method, you can do so in your portal.`;
+    return `Friendly reminder: your payment of ${total} (Invoice #${invoice.invoice_number}) is due${invoice.due_date ? ` on ${format(new Date(invoice.due_date + 'T00:00:00'), 'MMMM d, yyyy')}` : ' soon'}.${period} If you'd like to update your payment method, you can do so in your portal.`;
   };
 
   const openMessageModal = (type: 'resend' | 'reminder') => {
@@ -228,10 +228,10 @@ export default function AdminInvoiceDetailPage() {
 
   // Compute subtotal/GST with fallback for older invoices missing these values
   const displaySubtotal = Number(invoice.subtotal) || (invoice.line_items ?? []).reduce((s: number, li: any) => s + Number(li.total), 0);
-  const displayGst = Number(invoice.gst) || Math.round(displaySubtotal * 0.05 * 100) / 100;
+  const displayGst = invoice.gst != null ? Number(invoice.gst) : Math.round(displaySubtotal * 0.05 * 100) / 100;
 
   const billingPeriodStr = invoice.billing_period_start && invoice.billing_period_end
-    ? `${format(new Date(invoice.billing_period_start), 'MMMM d, yyyy')} - ${format(new Date(invoice.billing_period_end), 'MMMM d, yyyy')}`
+    ? `${format(new Date(invoice.billing_period_start + 'T00:00:00'), 'MMMM d, yyyy')} - ${format(new Date(invoice.billing_period_end + 'T00:00:00'), 'MMMM d, yyyy')}`
     : null;
 
   return (
@@ -468,7 +468,7 @@ export default function AdminInvoiceDetailPage() {
                 <>
                   {invoice.due_date && (
                     <div className="text-sm text-espresso">
-                      <span className="text-taupe">Due:</span> {format(new Date(invoice.due_date), 'MMMM d, yyyy')}
+                      <span className="text-taupe">Due:</span> {format(new Date(invoice.due_date + 'T00:00:00'), 'MMMM d, yyyy')}
                     </div>
                   )}
                   {invoice.paid_at && (
@@ -606,8 +606,8 @@ export default function AdminInvoiceDetailPage() {
                         {item.description}
                         {item.gst_exempt && <span className="ml-2 text-xs text-taupe border border-taupe/40 rounded px-1 py-0.5">No GST</span>}
                       </td>
-                      <td className="py-2.5 px-3 text-taupe">{item.service_date ? format(new Date(item.service_date), 'MMM d, yyyy') : '—'}</td>
-                      <td className="py-2.5 px-3 text-center text-taupe">{item.quantity}</td>
+                      <td className="py-2.5 px-3 text-taupe">{item.service_date ? format(new Date(item.service_date + 'T00:00:00'), 'MMM d, yyyy') : '—'}</td>
+                      <td className="py-2.5 px-3 text-center text-taupe">{Number(item.quantity)}</td>
                       <td className="py-2.5 px-3 text-right text-taupe">${Number(item.unit_price).toFixed(2)}</td>
                       <td className="py-2.5 px-3 text-right font-medium text-espresso">${Number(item.total).toFixed(2)}</td>
                     </tr>
@@ -620,7 +620,7 @@ export default function AdminInvoiceDetailPage() {
               <div className="ml-auto w-full sm:w-72 space-y-2 text-sm">
                 {[
                   { label: 'Subtotal', value: displaySubtotal },
-                  { label: 'GST (5%)', value: displayGst },
+                  displayGst > 0 && { label: 'GST (5%)', value: displayGst },
                   Number(invoice.credit_card_surcharge) > 0 && { label: 'CC Surcharge (2%)', value: invoice.credit_card_surcharge },
                   Number(invoice.tip) > 0 && { label: 'Tip', value: invoice.tip },
                 ].filter(Boolean).map((row: any) => (

@@ -196,7 +196,7 @@
             @endif
           </td>
           <td class="td-muted">{{ $item->service_date?->format('M j, Y') ?? '—' }}</td>
-          <td class="td-muted" style="text-align:center">{{ $item->quantity }}</td>
+          <td class="td-muted" style="text-align:center">{{ rtrim(rtrim(number_format((float)$item->quantity, 2, '.', ''), '0'), '.') }}</td>
           <td class="td-muted" style="text-align:right">${{ number_format($item->unit_price, 2) }}</td>
           <td class="td-bold" style="text-align:right">${{ number_format($item->total, 2) }}</td>
         </tr>
@@ -207,7 +207,7 @@
     {{-- Totals --}}
     @php
       $displaySubtotal = $invoice->subtotal > 0 ? $invoice->subtotal : $invoice->lineItems->sum('total');
-      $displayGst = $invoice->gst > 0 ? $invoice->gst : round($displaySubtotal * 0.05, 2);
+      $displayGst = $invoice->gst !== null ? $invoice->gst : round($displaySubtotal * 0.05, 2);
     @endphp
     <div class="totals">
       <table>
@@ -215,10 +215,12 @@
           <td class="t-label">Subtotal</td>
           <td class="t-amount">${{ number_format($displaySubtotal, 2) }}</td>
         </tr>
+        @if($displayGst > 0)
         <tr>
           <td class="t-label">GST (5%)</td>
           <td class="t-amount">${{ number_format($displayGst, 2) }}</td>
         </tr>
+        @endif
         @if($invoice->credit_card_surcharge > 0)
         <tr>
           <td class="t-label">CC Surcharge (2%)</td>

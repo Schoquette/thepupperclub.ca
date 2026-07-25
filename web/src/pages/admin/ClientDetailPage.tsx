@@ -1607,7 +1607,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
           <div className="text-xs text-[#C8BFB6] mt-0.5">
             {inv.created_at ? format(new Date(inv.created_at), 'MMM d, yyyy') : '—'}
             {inv.billing_period_start && inv.billing_period_end
-              ? ` · ${format(new Date(inv.billing_period_start), 'MMM d')} – ${format(new Date(inv.billing_period_end), 'MMM d')}`
+              ? ` · ${format(new Date(inv.billing_period_start + 'T00:00:00'), 'MMM d')} – ${format(new Date(inv.billing_period_end + 'T00:00:00'), 'MMM d')}`
               : ''}
             {inv.line_items?.length ? ` · ${inv.line_items.length} item${inv.line_items.length > 1 ? 's' : ''}` : ''}
           </div>
