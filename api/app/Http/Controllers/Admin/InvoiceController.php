@@ -207,11 +207,11 @@ class InvoiceController extends Controller
 
     public function pdf(Invoice $invoice): Response
     {
-        $pdf = Pdf::setOption(['isRemoteEnabled' => false])
+        $pdf = Pdf::setOption(['isRemoteEnabled' => true])
             ->loadView('invoices.pdf', [
                 'invoice'  => $invoice->load(['user.clientProfile', 'lineItems']),
                 'logoPath' => resource_path('images/logo.png'),
-                'fontsDir' => resource_path('fonts'),
+                'fontsDir' => str_replace('\\', '/', resource_path('fonts')),
             ]);
 
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
