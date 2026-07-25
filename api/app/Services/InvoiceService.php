@@ -54,6 +54,13 @@ class InvoiceService
 
     public function attachLineItems(Invoice $invoice, array $lineItems): void
     {
+        // Auto-add column if it doesn't exist yet (safe on shared host with no CLI access)
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('invoice_line_items', 'gst_exempt')) {
+            \Illuminate\Support\Facades\Schema::table('invoice_line_items', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->boolean('gst_exempt')->default(false);
+            });
+        }
+
         foreach ($lineItems as $item) {
             $total = $item['quantity'] * $item['unit_price'];
             $invoice->lineItems()->create(array_merge($item, [
