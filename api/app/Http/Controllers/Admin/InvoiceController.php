@@ -40,9 +40,10 @@ class InvoiceController extends Controller
             'billing_period_start' => 'nullable|date',
             'billing_period_end'   => 'nullable|date',
             'line_items'           => 'required|array|min:1',
-            'line_items.*.description'    => 'required|string',
-            'line_items.*.quantity'       => 'required|integer|min:1',
-            'line_items.*.unit_price'     => 'required|numeric',
+            'line_items.*.description'         => 'required|string',
+            'line_items.*.quantity'            => 'required|numeric|min:0.01',
+            'line_items.*.unit_price'          => 'required|numeric',
+            'line_items.*.gst_exempt'          => 'sometimes|boolean',
             'line_items.*.service_date'        => 'nullable|date',
             'line_items.*.appointment_id'      => 'nullable|exists:appointments,id',
             'line_items.*.service_request_id'  => 'nullable|integer',
@@ -77,8 +78,12 @@ class InvoiceController extends Controller
             'due_date'           => 'sometimes|nullable|date',
             'notes'              => 'sometimes|nullable|string',
             'apply_cc_surcharge' => 'sometimes|boolean',
-            'billing_method'     => 'sometimes|nullable|in:credit_card,e_transfer,cash',
-            'line_items'         => 'sometimes|array|min:1',
+            'billing_method'              => 'sometimes|nullable|in:credit_card,e_transfer,cash',
+            'line_items'                  => 'sometimes|array|min:1',
+            'line_items.*.description'    => 'required_with:line_items|string',
+            'line_items.*.quantity'       => 'required_with:line_items|numeric|min:0.01',
+            'line_items.*.unit_price'     => 'required_with:line_items|numeric',
+            'line_items.*.gst_exempt'     => 'sometimes|boolean',
         ]);
 
         if (array_key_exists('apply_cc_surcharge', $data)) {

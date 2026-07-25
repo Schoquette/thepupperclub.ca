@@ -15,6 +15,7 @@ class InvoiceLineItem extends Model
         'total',
         'service_date',
         'appointment_id',
+        'gst_exempt',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class InvoiceLineItem extends Model
             'unit_price'   => 'decimal:2',
             'total'        => 'decimal:2',
             'service_date' => 'date',
+            'gst_exempt'   => 'boolean',
         ];
     }
 

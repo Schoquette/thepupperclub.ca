@@ -17,6 +17,7 @@ interface LineItem {
   quantity: number;
   unit_price: number;
   total?: number;
+  gst_exempt?: boolean;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -75,6 +76,7 @@ export default function AdminInvoiceDetailPage() {
       description: li.description,
       quantity: li.quantity,
       unit_price: Number(li.unit_price),
+      gst_exempt: !!li.gst_exempt,
     })));
     setEditing(true);
   };
@@ -212,7 +214,9 @@ export default function AdminInvoiceDetailPage() {
     setLineItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
   };
 
-  const editTotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0);
+  const editSubtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0);
+  const editTaxable  = lineItems.filter(li => !li.gst_exempt).reduce((sum, li) => sum + li.quantity * li.unit_price, 0);
+  const editGst      = Math.round(editTaxable * 0.05 * 100) / 100;
 
   if (isLoading) return <PageLoader />;
   if (!invoice) return <div className="text-center py-12 text-taupe">Invoice not found.</div>;
@@ -510,36 +514,48 @@ export default function AdminInvoiceDetailPage() {
 
               <div className="text-xs font-semibold text-taupe uppercase tracking-wide">Line Items</div>
               {lineItems.map((item, i) => (
-                <div key={i} className="grid grid-cols-[1fr_50px_80px_28px] sm:grid-cols-[1fr_60px_90px_28px] gap-2 items-center">
-                  <input
-                    className="input text-sm"
-                    placeholder="Description"
-                    value={item.description}
-                    onChange={e => updateLineItem(i, 'description', e.target.value)}
-                  />
-                  <input
-                    className="input text-sm text-center"
-                    type="number"
-                    min="1"
-                    placeholder="Qty"
-                    value={item.quantity}
-                    onChange={e => updateLineItem(i, 'quantity', Number(e.target.value))}
-                  />
-                  <input
-                    className="input text-sm text-right"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Price"
-                    value={item.unit_price}
-                    onChange={e => updateLineItem(i, 'unit_price', Number(e.target.value))}
-                  />
-                  <button onClick={() => removeLineItem(i)} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+                <div key={i} className="space-y-1">
+                  <div className="grid grid-cols-[1fr_50px_80px_28px] sm:grid-cols-[1fr_60px_90px_28px] gap-2 items-center">
+                    <input
+                      className="input text-sm"
+                      placeholder="Description"
+                      value={item.description}
+                      onChange={e => updateLineItem(i, 'description', e.target.value)}
+                    />
+                    <input
+                      className="input text-sm text-center"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      placeholder="Qty"
+                      value={item.quantity}
+                      onChange={e => updateLineItem(i, 'quantity', Number(e.target.value))}
+                    />
+                    <input
+                      className="input text-sm text-right"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Price"
+                      value={item.unit_price}
+                      onChange={e => updateLineItem(i, 'unit_price', Number(e.target.value))}
+                    />
+                    <button onClick={() => removeLineItem(i)} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+                  </div>
+                  <label className="flex items-center gap-1.5 cursor-pointer pl-0.5">
+                    <input
+                      type="checkbox"
+                      checked={!!item.gst_exempt}
+                      onChange={e => updateLineItem(i, 'gst_exempt', e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-taupe text-gold focus:ring-gold"
+                    />
+                    <span className="text-xs text-taupe">Exclude GST</span>
+                  </label>
                 </div>
               ))}
               <button onClick={addLineItem} className="text-sm text-gold hover:text-espresso font-medium">+ Add line item</button>
               <div className="text-right text-sm font-semibold text-espresso mt-2">
-                Estimated subtotal: ${editTotal.toFixed(2)} + GST
+                Subtotal: ${editSubtotal.toFixed(2)} + GST ${editGst.toFixed(2)} = ${(editSubtotal + editGst).toFixed(2)}
               </div>
               <label className="flex items-center gap-3 cursor-pointer pt-2">
                 <input

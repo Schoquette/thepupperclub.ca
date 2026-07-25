@@ -56,7 +56,10 @@ class InvoiceService
     {
         foreach ($lineItems as $item) {
             $total = $item['quantity'] * $item['unit_price'];
-            $invoice->lineItems()->create(array_merge($item, ['total' => $total]));
+            $invoice->lineItems()->create(array_merge($item, [
+                'total'      => $total,
+                'gst_exempt' => (bool) ($item['gst_exempt'] ?? false),
+            ]));
         }
     }
 
@@ -64,7 +67,8 @@ class InvoiceService
     {
         $invoice->refresh();
         $subtotal  = $invoice->lineItems->sum('total');
-        $gst       = round($subtotal * self::GST_RATE, 2);
+        $taxable   = $invoice->lineItems->where('gst_exempt', false)->sum('total');
+        $gst       = round($taxable * self::GST_RATE, 2);
 
         $surcharge = $invoice->apply_cc_surcharge
             ? round(($subtotal + $gst) * self::CC_SURCHARGE, 2)

@@ -689,6 +689,13 @@ Route::get('/create-document-tables-9x7k', function () {
     }
 });
 
+Route::get('/add-line-item-gst-exempt-9x7k', function () {
+    $exists = DB::selectOne("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoice_line_items' AND COLUMN_NAME = 'gst_exempt'");
+    if ($exists) return response()->json(['status' => 'already exists']);
+    DB::statement("ALTER TABLE invoice_line_items ADD COLUMN gst_exempt TINYINT(1) NOT NULL DEFAULT 0");
+    return response()->json(['status' => 'added gst_exempt column']);
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);

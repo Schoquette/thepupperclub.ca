@@ -27,6 +27,7 @@ interface LineItem {
   quantity: number;
   unit_price: string;
   service_date: string;
+  gst_exempt: boolean;
 }
 
 const emptyLine = (): LineItem => ({
@@ -34,6 +35,7 @@ const emptyLine = (): LineItem => ({
   quantity: 1,
   unit_price: '',
   service_date: '',
+  gst_exempt: false,
 });
 
 const GST_RATE = 0.05;
@@ -93,7 +95,13 @@ export default function InvoiceCreatePage() {
     const price = Number(l.unit_price) || 0;
     return sum + qty * price;
   }, 0);
-  const gst = subtotal * GST_RATE;
+  const taxable = lines.reduce((sum, l) => {
+    if (l.gst_exempt) return sum;
+    const qty = Number(l.quantity) || 0;
+    const price = Number(l.unit_price) || 0;
+    return sum + qty * price;
+  }, 0);
+  const gst = taxable * GST_RATE;
   const surcharge = applyCcSurcharge && subtotal > 0 ? (subtotal + gst) * CC_SURCHARGE : 0;
   const total = subtotal + gst + surcharge;
 
@@ -113,6 +121,7 @@ export default function InvoiceCreatePage() {
         description:  l.description,
         quantity:     Number(l.quantity),
         unit_price:   Number(l.unit_price),
+        gst_exempt:   l.gst_exempt,
         service_date: l.service_date || undefined,
       })),
     });
@@ -206,7 +215,8 @@ export default function InvoiceCreatePage() {
 
           <div className="space-y-3">
             {lines.map((line, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+              <div key={idx} className="space-y-1">
+              <div className="grid grid-cols-12 gap-2 items-end">
                 <div className="col-span-5">
                   {idx === 0 && <label className="label">Description</label>}
                   <Input
@@ -250,6 +260,16 @@ export default function InvoiceCreatePage() {
                     </button>
                   )}
                 </div>
+              </div>
+              <label className="flex items-center gap-1.5 cursor-pointer pl-0.5">
+                <input
+                  type="checkbox"
+                  checked={!!line.gst_exempt}
+                  onChange={e => updateLine(idx, 'gst_exempt', e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-taupe text-gold focus:ring-gold"
+                />
+                <span className="text-xs text-taupe">Exclude GST</span>
+              </label>
               </div>
             ))}
             <button
