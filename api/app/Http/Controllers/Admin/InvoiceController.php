@@ -84,6 +84,7 @@ class InvoiceController extends Controller
             'line_items.*.quantity'       => 'required_with:line_items|numeric|min:0.01',
             'line_items.*.unit_price'     => 'required_with:line_items|numeric',
             'line_items.*.gst_exempt'     => 'sometimes|boolean',
+            'line_items.*.service_date'   => 'nullable|date',
         ]);
 
         if (array_key_exists('apply_cc_surcharge', $data)) {
