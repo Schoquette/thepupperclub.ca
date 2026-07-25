@@ -71,7 +71,7 @@ class InvoiceController extends Controller
             ->loadView('invoices.pdf', [
                 'invoice'  => $invoice->load(['user.clientProfile', 'lineItems']),
                 'logoPath' => resource_path('images/logo.png'),
-                'fontsDir' => str_replace('\\', '/', resource_path('fonts')),
+                'fontsDir' => 'file:///' . ltrim(str_replace('\\', '/', resource_path('fonts')), '/'),
             ]);
 
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
