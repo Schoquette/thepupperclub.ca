@@ -12,7 +12,7 @@
     .header-bar { background: #F6F3EE; padding: 20px 32px; color: #3B2F2A; }
     .header-bar table { width: 100%; }
     .header-bar td { vertical-align: middle; }
-    .invoice-label { font-family: 'Playfair Display SC', serif; font-size: 14px; letter-spacing: 0.05em; color: #3B2F2A; text-align: right; font-weight: 700; }
+    .invoice-label { font-family: 'Playfair Display SC', serif; font-size: 14px; letter-spacing: 0.05em; color: #3B2F2A; text-align: right; font-weight: 400; }
     .invoice-meta { font-size: 11px; color: rgba(59,47,42,0.7); text-align: right; margin-top: 4px; line-height: 1.7; }
 
     /* Gold accent */
@@ -26,6 +26,7 @@
     .status-sent { background: #fff3cd; color: #856404; }
     .status-overdue { background: #f8d7da; color: #721c24; }
     .status-draft { background: #e2e8f0; color: #475569; }
+    .status-approved { background: #e2e8f0; color: #475569; }
     .status-void { background: #f1f1f1; color: #888; }
 
     /* Parties (From / Bill To) */
@@ -40,8 +41,8 @@
     .dates-row { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #F6F3EE; }
     .dates-row table { width: 100%; }
     .dates-row td { font-size: 13px; vertical-align: top; }
-    .dates-label { color: #C8BFB6; }
-    .dates-value { color: #3B2F2A; }
+    .dates-label { color: #C8BFB6; margin-right: 4px; }
+    .dates-value { color: #3B2F2A; font-weight: 600; }
     .paid-text { color: #155724; font-weight: 700; margin-top: 4px; }
 
     /* Line items table */
@@ -52,7 +53,7 @@
     .items-table tbody tr.alt { background: rgba(246,243,238,0.5); }
     .items-table tbody td { padding: 10px 12px; font-size: 13px; }
     .td-muted { color: #C8BFB6; }
-    .td-bold { font-weight: 500; }
+    .td-bold { font-weight: 400; color: #3B2F2A; }
     .no-gst { display: inline-block; margin-left: 6px; font-size: 9px; color: #C8BFB6; border: 1px solid #C8BFB6; border-radius: 3px; padding: 1px 4px; vertical-align: middle; }
 
     /* Totals */
