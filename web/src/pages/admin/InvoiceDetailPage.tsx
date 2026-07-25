@@ -32,7 +32,7 @@ export default function AdminInvoiceDetailPage() {
 
   const [editing, setEditing] = useState(false);
   const [dueDate, setDueDate] = useState('');
-  const [dueTime, setDueTime] = useState('');
+  const [billingMethod, setBillingMethod] = useState('');
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -67,7 +67,7 @@ export default function AdminInvoiceDetailPage() {
   const startEditing = () => {
     if (!invoice) return;
     setDueDate(invoice.due_date ? invoice.due_date.substring(0, 10) : '');
-    setDueTime(invoice.due_date && invoice.due_date.length > 10 ? invoice.due_date.substring(11, 16) : '');
+    setBillingMethod(invoice.billing_method || invoice.user?.client_profile?.billing_method || '');
     setNotes(invoice.notes ?? '');
     setApplyCcSurcharge(!!invoice.apply_cc_surcharge);
     setLineItems((invoice.line_items ?? []).map((li: any) => ({
@@ -119,7 +119,8 @@ export default function AdminInvoiceDetailPage() {
 
   const saveEdit = useMutation({
     mutationFn: () => api.patch(`/admin/invoices/${id}`, {
-      due_date: dueDate ? (dueTime ? `${dueDate} ${dueTime}:00` : dueDate) : null,
+      due_date: dueDate || null,
+      billing_method: billingMethod || null,
       notes: notes || null,
       apply_cc_surcharge: applyCcSurcharge,
       line_items: lineItems,
@@ -443,22 +444,25 @@ export default function AdminInvoiceDetailPage() {
                     value={dueDate}
                     onChange={e => setDueDate(e.target.value)}
                   />
-                  <Input
-                    label="Due time (optional)"
-                    type="time"
-                    value={dueTime}
-                    onChange={e => setDueTime(e.target.value)}
-                  />
+                  <div className="flex flex-col gap-1">
+                    <label className="label text-right">Payment type</label>
+                    <select
+                      className="input text-sm"
+                      value={billingMethod}
+                      onChange={e => setBillingMethod(e.target.value)}
+                    >
+                      <option value="">— select —</option>
+                      <option value="credit_card">Credit Card</option>
+                      <option value="e_transfer">E-Transfer</option>
+                      <option value="cash">Cash</option>
+                    </select>
+                  </div>
                 </div>
               ) : (
                 <>
                   {invoice.due_date && (
                     <div className="text-sm text-espresso">
-                      <span className="text-taupe">Due:</span>{' '}
-                      {format(new Date(invoice.due_date), 'MMMM d, yyyy')}
-                      {invoice.due_date.length > 10 && invoice.due_date.substring(11, 16) !== '00:00' && (
-                        <span className="text-taupe ml-1">at {format(new Date(invoice.due_date), 'h:mm a')}</span>
-                      )}
+                      <span className="text-taupe">Due:</span> {format(new Date(invoice.due_date), 'MMMM d, yyyy')}
                     </div>
                   )}
                   {invoice.paid_at && (

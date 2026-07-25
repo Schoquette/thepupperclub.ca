@@ -77,6 +77,7 @@ class InvoiceController extends Controller
             'due_date'           => 'sometimes|nullable|date',
             'notes'              => 'sometimes|nullable|string',
             'apply_cc_surcharge' => 'sometimes|boolean',
+            'billing_method'     => 'sometimes|nullable|in:credit_card,e_transfer,cash',
             'line_items'         => 'sometimes|array|min:1',
         ]);
 
@@ -94,7 +95,11 @@ class InvoiceController extends Controller
             $this->invoiceService->recalculate($invoice);
         }
 
-        $invoice->update(array_filter(['due_date' => $data['due_date'] ?? null, 'notes' => $data['notes'] ?? null]));
+        $invoice->update(array_filter([
+            'due_date'       => $data['due_date'] ?? null,
+            'notes'          => $data['notes'] ?? null,
+            'billing_method' => $data['billing_method'] ?? null,
+        ], fn($v) => $v !== null));
 
         return response()->json(['data' => $invoice->fresh('lineItems')]);
     }

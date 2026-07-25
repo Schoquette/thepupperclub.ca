@@ -689,14 +689,6 @@ Route::get('/create-document-tables-9x7k', function () {
     }
 });
 
-Route::get('/fix-invoice-due-datetime-9x7k', function () {
-    $col = DB::selectOne("SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'invoices' AND COLUMN_NAME = 'due_date'");
-    $current = $col ? $col->DATA_TYPE : 'not found';
-    if ($current === 'datetime') return response()->json(['status' => 'already datetime']);
-    DB::statement("ALTER TABLE invoices MODIFY COLUMN due_date DATETIME NULL");
-    return response()->json(['status' => 'altered to datetime', 'was' => $current]);
-});
-
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login']);
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
