@@ -602,7 +602,10 @@ export default function AdminInvoiceDetailPage() {
                 <tbody>
                   {invoice.line_items?.map((item: any, idx: number) => (
                     <tr key={item.id} className={`border-b border-cream ${idx % 2 === 1 ? 'bg-cream/30' : ''}`}>
-                      <td className="py-2.5 px-3 text-espresso">{item.description}</td>
+                      <td className="py-2.5 px-3 text-espresso">
+                        {item.description}
+                        {item.gst_exempt && <span className="ml-2 text-xs text-taupe border border-taupe/40 rounded px-1 py-0.5">No GST</span>}
+                      </td>
                       <td className="py-2.5 px-3 text-taupe">{item.service_date ? format(new Date(item.service_date), 'MMM d, yyyy') : '—'}</td>
                       <td className="py-2.5 px-3 text-center text-taupe">{item.quantity}</td>
                       <td className="py-2.5 px-3 text-right text-taupe">${Number(item.unit_price).toFixed(2)}</td>

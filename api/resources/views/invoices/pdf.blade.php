@@ -177,7 +177,12 @@
       <tbody>
         @foreach($invoice->lineItems as $item)
         <tr>
-          <td>{{ $item->description }}</td>
+          <td>
+            {{ $item->description }}
+            @if($item->gst_exempt)
+            <span style="display:inline-block;margin-left:6px;font-size:9px;color:#C8BFB6;border:1px solid #C8BFB6;border-radius:3px;padding:1px 4px;vertical-align:middle;">No GST</span>
+            @endif
+          </td>
           <td>{{ $item->service_date?->format('M j, Y') ?? '—' }}</td>
           <td style="text-align:center">{{ $item->quantity }}</td>
           <td style="text-align:right">${{ number_format($item->unit_price, 2) }}</td>
