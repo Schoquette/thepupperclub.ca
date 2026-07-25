@@ -18,6 +18,7 @@ interface LineItem {
   unit_price: number;
   total?: number;
   gst_exempt?: boolean;
+  service_date?: string;
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -77,6 +78,7 @@ export default function AdminInvoiceDetailPage() {
       quantity: li.quantity,
       unit_price: Number(li.unit_price),
       gst_exempt: !!li.gst_exempt,
+      service_date: li.service_date ? li.service_date.substring(0, 10) : '',
     })));
     setEditing(true);
   };
@@ -210,7 +212,7 @@ export default function AdminInvoiceDetailPage() {
 
   const addLineItem = () => setLineItems(prev => [...prev, { description: '', quantity: 1, unit_price: 0 }]);
   const removeLineItem = (i: number) => setLineItems(prev => prev.filter((_, idx) => idx !== i));
-  const updateLineItem = (i: number, field: keyof LineItem, value: string | number) => {
+  const updateLineItem = (i: number, field: keyof LineItem, value: string | number | boolean) => {
     setLineItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
   };
 
@@ -515,7 +517,7 @@ export default function AdminInvoiceDetailPage() {
               <div className="text-xs font-semibold text-taupe uppercase tracking-wide">Line Items</div>
               {lineItems.map((item, i) => (
                 <div key={i} className="space-y-1">
-                  <div className="grid grid-cols-[1fr_50px_80px_28px] sm:grid-cols-[1fr_60px_90px_28px] gap-2 items-center">
+                  <div className="grid grid-cols-[1fr_50px_80px_110px_28px] sm:grid-cols-[1fr_60px_90px_120px_28px] gap-2 items-center">
                     <input
                       className="input text-sm"
                       placeholder="Description"
@@ -539,6 +541,12 @@ export default function AdminInvoiceDetailPage() {
                       placeholder="Price"
                       value={item.unit_price}
                       onChange={e => updateLineItem(i, 'unit_price', Number(e.target.value))}
+                    />
+                    <input
+                      className="input text-sm"
+                      type="date"
+                      value={item.service_date ?? ''}
+                      onChange={e => updateLineItem(i, 'service_date', e.target.value)}
                     />
                     <button onClick={() => removeLineItem(i)} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
                   </div>

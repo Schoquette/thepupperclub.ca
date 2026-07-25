@@ -74,6 +74,7 @@ export default function InvoiceCreatePage() {
       quantity: 1,
       unit_price: price.amount?.toString() ?? '',
       service_date: '',
+      gst_exempt: false,
     }]);
   };
 
@@ -83,7 +84,7 @@ export default function InvoiceCreatePage() {
     onError: (err: any) => setError(err.response?.data?.message ?? 'Failed to create invoice.'),
   });
 
-  const updateLine = (idx: number, field: keyof LineItem, value: string | number) => {
+  const updateLine = (idx: number, field: keyof LineItem, value: string | number | boolean) => {
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l));
   };
 
