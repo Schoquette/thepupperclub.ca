@@ -54,11 +54,21 @@ class InvoiceService
 
     public function attachLineItems(Invoice $invoice, array $lineItems): void
     {
-        // Auto-add column if it doesn't exist yet (safe on shared host with no CLI access)
+        // Auto-add gst_exempt column if missing
         if (!\Illuminate\Support\Facades\Schema::hasColumn('invoice_line_items', 'gst_exempt')) {
             \Illuminate\Support\Facades\Schema::table('invoice_line_items', function (\Illuminate\Database\Schema\Blueprint $table) {
                 $table->boolean('gst_exempt')->default(false);
             });
+        }
+
+        // Auto-widen quantity from integer to decimal if needed (was originally unsignedSmallInteger)
+        $colInfo = \Illuminate\Support\Facades\DB::selectOne(
+            'SHOW COLUMNS FROM invoice_line_items WHERE Field = ?', ['quantity']
+        );
+        if ($colInfo && !str_contains(strtolower($colInfo->Type ?? ''), 'decimal')) {
+            \Illuminate\Support\Facades\DB::statement(
+                'ALTER TABLE invoice_line_items MODIFY COLUMN quantity DECIMAL(10,2) NOT NULL DEFAULT 1.00'
+            );
         }
 
         foreach ($lineItems as $item) {
