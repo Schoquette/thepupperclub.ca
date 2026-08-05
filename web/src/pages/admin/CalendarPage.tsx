@@ -1210,7 +1210,6 @@ export default function AdminCalendarPage() {
               <input
                 type="date"
                 className="input"
-                min={format(new Date(), 'yyyy-MM-dd')}
                 value={newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : ''}
                 onChange={e => {
                   const newDate = e.target.value;
@@ -1244,7 +1243,7 @@ export default function AdminCalendarPage() {
                 <input
                   type="date"
                   className="input"
-                  min={newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : format(new Date(), 'yyyy-MM-dd')}
+                  min={newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : undefined}
                   value={newForm.end_date}
                   onChange={e => {
                     const newEnd = e.target.value;
@@ -1442,7 +1441,7 @@ export default function AdminCalendarPage() {
             </Button>
             <Button
               loading={createAppointment.isPending}
-              disabled={!newForm.user_id || newForm.dog_ids.length === 0 || !newForm.scheduled_time || isBefore(new Date(newForm.scheduled_time), new Date())}
+              disabled={!newForm.user_id || newForm.dog_ids.length === 0 || !newForm.scheduled_time}
               onClick={handleCreate}
             >
               Create Appointment
