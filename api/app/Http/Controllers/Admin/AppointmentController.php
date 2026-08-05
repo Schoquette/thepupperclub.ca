@@ -90,7 +90,7 @@ class AppointmentController extends Controller
             'user_id'          => 'required|exists:users,id',
             'dog_ids'          => 'required|array|min:1',
             'dog_ids.*'        => 'exists:dogs,id',
-            'service_type'     => 'required|in:walk_30,walk_60,drop_in,overnight,day_boarding',
+            'service_type'     => 'required|in:walk_30,walk_60,pack_hike,drop_in,overnight,day_boarding',
             'scheduled_time'   => 'required|date',
             'client_time_block'=> 'required|in:early_morning,morning,midday,afternoon,evening,all_day',
             'duration_minutes' => 'required|integer|min:15',
@@ -123,7 +123,7 @@ class AppointmentController extends Controller
         $rules = [
             'scheduled_time'    => 'sometimes|date',
             'client_time_block' => 'sometimes|in:early_morning,morning,midday,afternoon,evening,all_day',
-            'service_type'      => 'sometimes|in:walk_30,walk_60,drop_in,overnight,day_boarding',
+            'service_type'      => 'sometimes|in:walk_30,walk_60,pack_hike,drop_in,overnight,day_boarding',
             'duration_minutes'  => 'sometimes|integer|min:15',
             'dog_ids'           => 'sometimes|array|min:1',
             'dog_ids.*'         => 'exists:dogs,id',
@@ -303,6 +303,7 @@ class AppointmentController extends Controller
 
         $serviceLabels = [
             'walk_30' => '30-min Visit', 'walk_60' => '60-min Visit',
+            'pack_hike' => 'Group Hike',
             'drop_in' => 'Drop-in', 'day_boarding' => 'Day Boarding',
             'overnight' => 'Overnight',
         ];

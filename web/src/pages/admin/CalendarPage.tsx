@@ -34,6 +34,7 @@ const STATUS_COLORS: Record<string, string> = {
 const SERVICE_TYPES = [
   { value: 'walk_30',      label: '30-Minute Visit',   defaultDuration: 30,   durations: [30] },
   { value: 'walk_60',      label: '60-Minute Visit',   defaultDuration: 60,   durations: [60] },
+  { value: 'pack_hike',    label: 'Group Hike',         defaultDuration: 60,   durations: [60, 90] },
   { value: 'custom',       label: 'Custom Visit',      defaultDuration: 0,    durations: [15, 45, 75, 90, 120] },
   { value: 'day_boarding', label: 'Day Boarding',       defaultDuration: 480,  durations: [480] },
   { value: 'overnight',    label: 'Overnight Boarding', defaultDuration: 1440, durations: [1440] },
@@ -426,7 +427,7 @@ export default function AdminCalendarPage() {
         format(end, 'h:mm a'),
         a.user?.name || '',
         a.dogs?.map((dog: any) => dog.name).join(', ') || '',
-        (a.service_type === 'walk_30' ? '30-Minute Visit' : a.service_type === 'walk_60' ? '60-Minute Visit' : a.service_type?.replace(/_/g, ' ')) || '',
+        (a.service_type === 'walk_30' ? '30-Minute Visit' : a.service_type === 'walk_60' ? '60-Minute Visit' : a.service_type === 'pack_hike' ? 'Group Hike' : a.service_type?.replace(/_/g, ' ')) || '',
         [addr, city].filter(Boolean).join(', '),
         a.status,
       ];
@@ -458,7 +459,7 @@ export default function AdminCalendarPage() {
         <td>${format(d, 'h:mm a')} – ${format(end, 'h:mm a')}</td>
         <td>${a.user?.name || '—'}</td>
         <td>${a.dogs?.map((dog: any) => dog.name).join(', ') || ''}</td>
-        <td>${a.service_type === 'walk_30' ? '30-Minute Visit' : a.service_type === 'walk_60' ? '60-Minute Visit' : (a.service_type || '').replace(/_/g, ' ')}</td>
+        <td>${a.service_type === 'walk_30' ? '30-Minute Visit' : a.service_type === 'walk_60' ? '60-Minute Visit' : a.service_type === 'pack_hike' ? 'Group Hike' : (a.service_type || '').replace(/_/g, ' ')}</td>
         <td>${[addr, city].filter(Boolean).join(', ')}</td>
       </tr>`;
     });
@@ -942,7 +943,7 @@ export default function AdminCalendarPage() {
               return (
                 <>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div><span className="text-taupe">Service:</span> {selected.service_type === 'walk_30' ? '30-Minute Visit' : selected.service_type === 'walk_60' ? '60-Minute Visit' : selected.service_type.replace(/_/g, ' ')}</div>
+                    <div><span className="text-taupe">Service:</span> {selected.service_type === 'walk_30' ? '30-Minute Visit' : selected.service_type === 'walk_60' ? '60-Minute Visit' : selected.service_type === 'pack_hike' ? 'Group Hike' : selected.service_type.replace(/_/g, ' ')}</div>
                     <div><span className="text-taupe">Duration:</span> {formatDuration(selected.duration_minutes)}</div>
                     <div><span className="text-taupe">Time:</span> {format(apptDate, 'h:mm a')}</div>
                     <div><span className="text-taupe">Date:</span> {format(apptDate, 'MMM d, yyyy')}</div>
@@ -2131,6 +2132,7 @@ function VisitHistory() {
   const serviceLabel = (type: string) => {
     if (type === 'walk_30') return '30-Minute Visit';
     if (type === 'walk_60') return '60-Minute Visit';
+    if (type === 'pack_hike') return 'Group Hike';
     return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 

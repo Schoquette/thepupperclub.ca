@@ -39,7 +39,7 @@ class ServiceRequestController extends Controller
     {
         $data = $request->validate([
             'user_id'              => 'required|exists:users,id',
-            'service_type'         => 'required|in:walk_30,walk_60,drop_in,overnight,day_boarding',
+            'service_type'         => 'required|in:walk_30,walk_60,pack_hike,drop_in,overnight,day_boarding',
             'preferred_time_block' => 'required|in:early_morning,morning,midday,afternoon,evening',
             'preferred_date'       => 'required|date',
             'notes'                => 'nullable|string',
