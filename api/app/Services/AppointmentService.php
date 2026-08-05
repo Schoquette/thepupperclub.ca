@@ -108,7 +108,7 @@ class AppointmentService
                       $q2->where('recurrence_parent_id', $appointment->recurrence_parent_id ?? $appointment->id)
                          ->where('scheduled_time', '>=', $appointment->scheduled_time);
                   });
-            })->update(['status' => 'cancelled']);
+            })->each(fn ($a) => $a->delete());
         } else {
             $appointment->update(['status' => 'cancelled']);
         }
