@@ -86,6 +86,18 @@ class AppointmentController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // Auto-migrate service_type ENUM to include pack_hike if not already present
+        foreach (['appointments', 'service_requests'] as $table) {
+            if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                $col = \Illuminate\Support\Facades\DB::selectOne("SHOW COLUMNS FROM `{$table}` WHERE Field = 'service_type'");
+                if ($col && !str_contains((string) ($col->Type ?? ''), 'pack_hike')) {
+                    \Illuminate\Support\Facades\DB::statement(
+                        "ALTER TABLE `{$table}` MODIFY COLUMN `service_type` ENUM('walk_30','walk_60','pack_hike','drop_in','overnight','day_boarding')"
+                    );
+                }
+            }
+        }
+
         $rules = [
             'user_id'          => 'required|exists:users,id',
             'dog_ids'          => 'required|array|min:1',
