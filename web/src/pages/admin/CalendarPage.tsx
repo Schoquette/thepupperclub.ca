@@ -635,13 +635,16 @@ export default function AdminCalendarPage() {
     // Parse as local time — strip trailing Z/offset so JS doesn't convert from UTC
     const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
     const start = new Date(localStr);
-    const end = new Date(start.getTime() + appt.duration_minutes * 60_000);
+    const fullDay = isFullDayService(appt.service_type);
+    const end = fullDay
+      ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + Math.round(appt.duration_minutes / 1440) || 1)
+      : new Date(start.getTime() + appt.duration_minutes * 60_000);
     return {
       id: appt.id,
       title: `${appt.user?.name} — ${appt.dogs?.map((d: any) => d.name).join(', ')}`,
       start,
       end,
-      allDay: false,
+      allDay: fullDay,
       resource: appt,
     };
   });
