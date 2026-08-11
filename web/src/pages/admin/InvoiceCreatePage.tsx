@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { GripVertical } from 'lucide-react';
 
 interface StripePrice {
   id: string;
@@ -51,6 +52,21 @@ export default function InvoiceCreatePage() {
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
   const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
   const [error, setError] = useState('');
+  const dragIndex = useRef<number | null>(null);
+
+  const handleLineDragStart = (i: number) => { dragIndex.current = i; };
+  const handleLineDragOver = (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    if (dragIndex.current === null || dragIndex.current === i) return;
+    setLines(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIndex.current!, 1);
+      next.splice(i, 0, moved);
+      return next;
+    });
+    dragIndex.current = i;
+  };
+  const handleLineDragEnd = () => { dragIndex.current = null; };
 
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
@@ -216,9 +232,19 @@ export default function InvoiceCreatePage() {
 
           <div className="space-y-3">
             {lines.map((line, idx) => (
-              <div key={idx} className="space-y-1">
+              <div
+                key={idx}
+                className="space-y-1"
+                draggable
+                onDragStart={() => handleLineDragStart(idx)}
+                onDragOver={e => handleLineDragOver(e, idx)}
+                onDragEnd={handleLineDragEnd}
+              >
               <div className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5">
+                <div className="col-span-1 flex items-end pb-2">
+                  <GripVertical className="w-4 h-4 text-taupe cursor-grab active:cursor-grabbing" />
+                </div>
+                <div className="col-span-4">
                   {idx === 0 && <label className="label">Description</label>}
                   <Input
                     placeholder="e.g. Dog walk — Mon Jan 6"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
-import { Download, Send, Bell, CheckCircle } from 'lucide-react';
+import { Download, Send, Bell, CheckCircle, GripVertical } from 'lucide-react';
 
 // Safe formatter for date-only fields (due_date, service_date, billing_period_*).
 // Slices to YYYY-MM-DD before parsing so timezone-qualified strings don't double-append.
@@ -45,6 +45,21 @@ export default function AdminInvoiceDetailPage() {
   const [billingMethod, setBillingMethod] = useState('');
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const liDragIndex = useRef<number | null>(null);
+
+  const handleLiDragStart = (i: number) => { liDragIndex.current = i; };
+  const handleLiDragOver = (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    if (liDragIndex.current === null || liDragIndex.current === i) return;
+    setLineItems(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(liDragIndex.current!, 1);
+      next.splice(i, 0, moved);
+      return next;
+    });
+    liDragIndex.current = i;
+  };
+  const handleLiDragEnd = () => { liDragIndex.current = null; };
   const [pdfLoading, setPdfLoading] = useState(false);
   const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
@@ -524,8 +539,16 @@ export default function AdminInvoiceDetailPage() {
 
               <div className="text-xs font-semibold text-taupe uppercase tracking-wide">Line Items</div>
               {lineItems.map((item, i) => (
-                <div key={i} className="space-y-1">
-                  <div className="grid grid-cols-[1fr_50px_80px_110px_28px] sm:grid-cols-[1fr_60px_90px_120px_28px] gap-2 items-center">
+                <div
+                  key={i}
+                  className="space-y-1"
+                  draggable
+                  onDragStart={() => handleLiDragStart(i)}
+                  onDragOver={e => handleLiDragOver(e, i)}
+                  onDragEnd={handleLiDragEnd}
+                >
+                  <div className="grid grid-cols-[16px_1fr_50px_80px_110px_28px] sm:grid-cols-[16px_1fr_60px_90px_120px_28px] gap-2 items-center">
+                    <GripVertical className="w-4 h-4 text-taupe cursor-grab active:cursor-grabbing flex-shrink-0" />
                     <input
                       className="input text-sm"
                       placeholder="Description"
