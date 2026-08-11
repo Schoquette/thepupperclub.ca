@@ -358,17 +358,16 @@
 
 .volunteer-org {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .volunteer-logo {
   width: auto;
-  height: 36px;
+  height: 72px;
   object-fit: contain;
   filter: brightness(0) saturate(100%) opacity(0.65);
-  flex-shrink: 0;
 }
 
 .volunteer-role {
@@ -378,7 +377,18 @@
   color: rgba(59, 47, 42, 0.7);
   margin: 0;
   line-height: 1.4;
-  text-align: left;
+  text-align: center;
+}
+
+.volunteer-org-name {
+  font-family: 'Lato', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(59, 47, 42, 0.45);
+  margin: 0;
+  text-align: center;
 }
 
 .instagram-grid {
