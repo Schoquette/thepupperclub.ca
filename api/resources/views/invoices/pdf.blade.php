@@ -41,7 +41,7 @@
     /* Gold accent */
     .gold-bar { height: 4px; background: #C9A24D; }
 
-    .content { padding: 28px 32px 36px; }
+    .content { padding: 20px 32px 24px; }
 
     /* Status badge */
     .status-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -53,7 +53,7 @@
     .status-void { background: #f1f1f1; color: #888; }
 
     /* Parties (From / Bill To) */
-    .parties { margin-bottom: 28px; }
+    .parties { margin-bottom: 16px; }
     .parties table { width: 100%; }
     .parties td { vertical-align: top; width: 50%; padding-right: 20px; }
     .party-label { font-family: 'Lato', sans-serif; color: #C9A24D; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; margin: 0 0 8px; }
@@ -61,7 +61,7 @@
     .party-detail { font-size: 13px; color: #C8BFB6; margin: 2px 0; line-height: 1.5; }
 
     /* Dates row */
-    .dates-row { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #F6F3EE; }
+    .dates-row { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #F6F3EE; }
     .dates-row table { width: 100%; }
     .dates-row td { font-size: 13px; vertical-align: top; }
     .dates-label { color: #C8BFB6; margin-right: 4px; }
@@ -69,12 +69,12 @@
     .paid-text { color: #155724; font-weight: 700; margin-top: 4px; }
 
     /* Line items table */
-    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
     .items-table thead tr { background: #F6F3EE; }
-    .items-table thead th { font-family: 'Lato', sans-serif; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #3B2F2A; }
+    .items-table thead th { font-family: 'Lato', sans-serif; padding: 7px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #3B2F2A; }
     .items-table tbody tr { border-bottom: 1px solid #F6F3EE; }
     .items-table tbody tr.alt { background: rgba(246,243,238,0.5); }
-    .items-table tbody td { padding: 10px 12px; font-size: 13px; }
+    .items-table tbody td { padding: 6px 12px; font-size: 13px; }
     .td-muted { color: #C8BFB6; }
     .td-bold { font-weight: 400; color: #3B2F2A; }
     .no-gst { display: inline-block; margin-left: 6px; font-size: 9px; color: #C8BFB6; border: 1px solid #C8BFB6; border-radius: 3px; padding: 1px 4px; vertical-align: middle; }
@@ -91,7 +91,7 @@
     .total-grand td.t-amount { text-align: right; }
 
     /* Payment method box */
-    .payment-box { margin-top: 28px; padding: 14px 16px; background: #F6F3EE; border-radius: 6px; border: 1px solid rgba(200,191,182,0.3); }
+    .payment-box { margin-top: 16px; padding: 10px 16px; background: #F6F3EE; border-radius: 6px; border: 1px solid rgba(200,191,182,0.3); }
     .payment-title { margin: 0 0 6px; font-weight: 700; color: #3B2F2A; font-size: 13px; }
     .payment-detail { margin: 0; font-size: 12px; color: #7a6560; }
 
@@ -99,7 +99,7 @@
     .notes { margin-top: 16px; color: #888; font-size: 12px; }
 
     /* Footer */
-    .footer { margin-top: 36px; text-align: center; color: #C8BFB6; font-size: 11px; border-top: 1px solid #F6F3EE; padding-top: 16px; }
+    .footer { margin-top: 20px; text-align: center; color: #C8BFB6; font-size: 11px; border-top: 1px solid #F6F3EE; padding-top: 12px; }
 
     /* Void watermark */
     .void-watermark {
@@ -148,7 +148,7 @@
 
   <div class="content">
     {{-- Status badge --}}
-    <div style="margin-bottom: 20px;">
+    <div style="margin-bottom: 12px;">
       <span class="status-badge status-{{ $invoice->status }}">{{ ucfirst($invoice->status) }}</span>
     </div>
 
