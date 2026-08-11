@@ -235,13 +235,16 @@ export default function InvoiceCreatePage() {
               <div
                 key={idx}
                 className="space-y-1"
-                draggable
-                onDragStart={() => handleLineDragStart(idx)}
                 onDragOver={e => handleLineDragOver(e, idx)}
-                onDragEnd={handleLineDragEnd}
+                onDrop={e => e.preventDefault()}
               >
               <div className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-1 flex items-end pb-2">
+                <div
+                  className="col-span-1 flex items-end pb-2"
+                  draggable
+                  onDragStart={e => { e.dataTransfer.setData('text/plain', ''); handleLineDragStart(idx); }}
+                  onDragEnd={handleLineDragEnd}
+                >
                   <GripVertical className="w-4 h-4 text-taupe cursor-grab active:cursor-grabbing" />
                 </div>
                 <div className="col-span-4">

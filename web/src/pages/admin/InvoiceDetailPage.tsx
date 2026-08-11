@@ -542,13 +542,18 @@ export default function AdminInvoiceDetailPage() {
                 <div
                   key={i}
                   className="space-y-1"
-                  draggable
-                  onDragStart={() => handleLiDragStart(i)}
                   onDragOver={e => handleLiDragOver(e, i)}
-                  onDragEnd={handleLiDragEnd}
+                  onDrop={e => e.preventDefault()}
                 >
                   <div className="grid grid-cols-[16px_1fr_50px_80px_110px_28px] sm:grid-cols-[16px_1fr_60px_90px_120px_28px] gap-2 items-center">
-                    <GripVertical className="w-4 h-4 text-taupe cursor-grab active:cursor-grabbing flex-shrink-0" />
+                    <span
+                      draggable
+                      onDragStart={e => { e.dataTransfer.setData('text/plain', ''); handleLiDragStart(i); }}
+                      onDragEnd={handleLiDragEnd}
+                      className="flex items-center cursor-grab active:cursor-grabbing"
+                    >
+                      <GripVertical className="w-4 h-4 text-taupe flex-shrink-0" />
+                    </span>
                     <input
                       className="input text-sm"
                       placeholder="Description"
