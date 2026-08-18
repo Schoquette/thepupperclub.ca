@@ -7,6 +7,7 @@ use App\Models\Dog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -47,7 +48,11 @@ class DogController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->ensureAgeColumns();
         $data = $this->validated($request);
+        if (!empty($data['age_estimate']) && empty($data['age_estimate_date'])) {
+            $data['age_estimate_date'] = now()->toDateString();
+        }
         $dog = Dog::create($data);
 
         return response()->json(['data' => $dog->load('vaccinationRecords')], 201);
@@ -60,7 +65,11 @@ class DogController extends Controller
 
     public function update(Request $request, Dog $dog): JsonResponse
     {
+        $this->ensureAgeColumns();
         $data = $this->validated($request);
+        if (array_key_exists('age_estimate', $data) && $data['age_estimate'] != $dog->age_estimate) {
+            $data['age_estimate_date'] = $data['age_estimate'] !== null ? now()->toDateString() : null;
+        }
         $dog->update($data);
 
         return response()->json(['data' => $dog->fresh('vaccinationRecords')]);
@@ -132,6 +141,16 @@ class DogController extends Controller
         return response()->json(['data' => $dogs]);
     }
 
+    private function ensureAgeColumns(): void
+    {
+        if (!Schema::hasColumn('dogs', 'age_estimate')) {
+            DB::statement("ALTER TABLE `dogs` ADD COLUMN `age_estimate` DECIMAL(4,1) NULL AFTER `date_of_birth`");
+        }
+        if (!Schema::hasColumn('dogs', 'age_estimate_date')) {
+            DB::statement("ALTER TABLE `dogs` ADD COLUMN `age_estimate_date` DATE NULL AFTER `age_estimate`");
+        }
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -139,6 +158,7 @@ class DogController extends Controller
             'name'               => 'required|string|max:100',
             'breed'              => 'nullable|string|max:100',
             'date_of_birth'      => 'nullable|date',
+            'age_estimate'       => 'sometimes|nullable|numeric|min:0|max:99',
             'adoptaversary'      => 'nullable|date',
             'size'               => 'nullable|in:toy,small,medium,large,extra_large,xl',
             'sex'                => 'nullable|in:male,female',

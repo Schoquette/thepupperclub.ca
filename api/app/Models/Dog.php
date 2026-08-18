@@ -19,6 +19,8 @@ class Dog extends Model
         'name',
         'breed',
         'date_of_birth',
+        'age_estimate',
+        'age_estimate_date',
         'adoptaversary',
         'size',
         'sex',
@@ -67,6 +69,8 @@ class Dog extends Model
     {
         return [
             'date_of_birth'                     => 'date',
+            'age_estimate'                      => 'decimal:1',
+            'age_estimate_date'                 => 'date',
             'adoptaversary'                     => 'date',
             'weight_kg'                         => 'decimal:2',
             'spayed_neutered'                   => 'boolean',

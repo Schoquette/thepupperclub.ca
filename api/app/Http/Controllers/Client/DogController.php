@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -28,7 +30,12 @@ class DogController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->ensureAgeColumns();
         $data = $this->validated($request);
+
+        if (!empty($data['age_estimate']) && empty($data['age_estimate_date'])) {
+            $data['age_estimate_date'] = now()->toDateString();
+        }
 
         // New dogs from clients start as inactive pending admin review
         $data['user_id']   = $request->user()->id;
@@ -45,8 +52,12 @@ class DogController extends Controller
     {
         abort_unless($dog->user_id === $request->user()->id, 403);
 
+        $this->ensureAgeColumns();
         $oldData = $dog->toArray();
         $data    = $this->validated($request, required: false);
+        if (array_key_exists('age_estimate', $data) && $data['age_estimate'] != $dog->age_estimate) {
+            $data['age_estimate_date'] = $data['age_estimate'] !== null ? now()->toDateString() : null;
+        }
         $dog->update($data);
 
         $diff = $this->computeDiff($oldData, $dog->fresh()->toArray());
@@ -130,6 +141,16 @@ class DogController extends Controller
         return response()->json(['data' => $doc], 201);
     }
 
+    private function ensureAgeColumns(): void
+    {
+        if (!Schema::hasColumn('dogs', 'age_estimate')) {
+            DB::statement("ALTER TABLE `dogs` ADD COLUMN `age_estimate` DECIMAL(4,1) NULL AFTER `date_of_birth`");
+        }
+        if (!Schema::hasColumn('dogs', 'age_estimate_date')) {
+            DB::statement("ALTER TABLE `dogs` ADD COLUMN `age_estimate_date` DATE NULL AFTER `age_estimate`");
+        }
+    }
+
     private function validated(Request $request, bool $required = true): array
     {
         $prefix = $required ? 'required|' : 'sometimes|';
@@ -137,6 +158,7 @@ class DogController extends Controller
             'name'               => "{$prefix}string|max:100",
             'breed'              => 'sometimes|nullable|string|max:100',
             'date_of_birth'      => 'sometimes|nullable|date',
+            'age_estimate'       => 'sometimes|nullable|numeric|min:0|max:99',
             'adoptaversary'      => 'sometimes|nullable|date',
             'size'               => 'sometimes|nullable|in:toy,small,medium,large,extra_large,xl',
             'sex'                => 'sometimes|nullable|in:male,female',

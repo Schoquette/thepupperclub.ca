@@ -82,10 +82,24 @@ function buildProfileForm(client: any): ProfileForm {
 // ── Dog form ──────────────────────────────────────────────────────────────────
 
 interface Medication { name: string; dosage: string; frequency: string; notes: string }
+function computeDogAge(dog: { date_of_birth?: string | null; age_estimate?: number | null; age_estimate_date?: string | null }): number | null {
+  if (dog.date_of_birth) {
+    const dob = new Date(dog.date_of_birth + 'T00:00:00');
+    return Math.round((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000) * 10) / 10;
+  }
+  if (dog.age_estimate != null && dog.age_estimate_date) {
+    const entry = new Date(dog.age_estimate_date + 'T00:00:00');
+    const elapsed = (Date.now() - entry.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    return Math.round((dog.age_estimate + elapsed) * 10) / 10;
+  }
+  return null;
+}
+
 interface DogForm {
   name: string;
   breed: string;
   date_of_birth: string;
+  age_estimate: string;
   adoptaversary: string;
   size: string;
   sex: string;
@@ -116,6 +130,7 @@ function buildDogForm(dog?: any): DogForm {
     name:               dog?.name ?? '',
     breed:              dog?.breed ?? '',
     date_of_birth:      dog?.date_of_birth?.split('T')[0] ?? '',
+    age_estimate:       dog?.age_estimate != null ? String(dog.age_estimate) : '',
     adoptaversary:      dog?.adoptaversary?.split('T')[0] ?? '',
     size:               dog?.size ?? '',
     sex:                dog?.sex ?? '',
@@ -148,6 +163,7 @@ function dogPayload(f: DogForm, userId: number) {
     name:               f.name,
     breed:              f.breed || null,
     date_of_birth:      f.date_of_birth || null,
+    age_estimate:       f.date_of_birth ? null : (f.age_estimate ? Number(f.age_estimate) : null),
     adoptaversary:      f.adoptaversary || null,
     size:               f.size || null,
     sex:                f.sex || null,
@@ -251,7 +267,27 @@ function DogEditForm({
         </div>
         <div>
           <label className="label">Date of Birth (or est.)</label>
-          <Input type="date" value={form.date_of_birth} onChange={e => onChange({ date_of_birth: e.target.value })} />
+          <Input type="date" value={form.date_of_birth} onChange={e => onChange({ date_of_birth: e.target.value, age_estimate: '' })} />
+        </div>
+        <div>
+          <label className="label">
+            Age (years){form.date_of_birth ? ' — calculated' : ''}
+          </label>
+          {form.date_of_birth ? (
+            <Input
+              type="number"
+              value={computeDogAge({ date_of_birth: form.date_of_birth }) ?? ''}
+              disabled
+              className="opacity-60"
+            />
+          ) : (
+            <Input
+              type="number" step="0.1" min="0" max="99"
+              placeholder="e.g. 3.5"
+              value={form.age_estimate}
+              onChange={e => onChange({ age_estimate: e.target.value })}
+            />
+          )}
         </div>
         <div>
           <label className="label">Adopt-aversary</label>
@@ -2604,7 +2640,6 @@ export default function AdminClientDetailPage() {
                     {([
                       ['notify_app', 'App notifications', 'Push notifications on their phone'],
                       ['notify_email', 'Email', 'Receive updates at their email address'],
-                      ['notify_sms', 'Text message (SMS)', 'Receive updates via text to their phone number'],
                     ] as const).map(([key, label, desc]) => (
                       <label key={key} className="flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
                         <input
@@ -2691,10 +2726,7 @@ export default function AdminClientDetailPage() {
                   {p.notify_email && (
                     <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>
                   )}
-                  {p.notify_sms && (
-                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>
-                  )}
-                  {!(p.notify_app ?? true) && !p.notify_email && !p.notify_sms && (
+                  {!(p.notify_app ?? true) && !p.notify_email && (
                     <span className="text-xs text-taupe italic">No channels selected</span>
                   )}
                 </div>

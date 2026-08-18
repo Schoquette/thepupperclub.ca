@@ -147,7 +147,6 @@ export default function ClientSettingsPage() {
                 setNotifForm({
                   notify_app: p.notify_app ?? true,
                   notify_email: p.notify_email ?? false,
-                  notify_sms: p.notify_sms ?? false,
                 });
                 setNotifEditing(true);
               }}>
@@ -164,7 +163,6 @@ export default function ClientSettingsPage() {
             {[
               { key: 'notify_app', label: 'App / Push notifications' },
               { key: 'notify_email', label: 'Email' },
-              { key: 'notify_sms', label: 'Text message (SMS)' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-cream/50">
                 <input
@@ -181,8 +179,7 @@ export default function ClientSettingsPage() {
           <div className="flex flex-wrap gap-2">
             {(p.notify_app ?? true) && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">App</span>}
             {!!p.notify_email && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">Email</span>}
-            {!!p.notify_sms && <span className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">SMS</span>}
-            {!(p.notify_app ?? true) && !p.notify_email && !p.notify_sms && <span className="text-xs text-taupe">None selected</span>}
+            {!(p.notify_app ?? true) && !p.notify_email && <span className="text-xs text-taupe">None selected</span>}
           </div>
         )}
       </Card>

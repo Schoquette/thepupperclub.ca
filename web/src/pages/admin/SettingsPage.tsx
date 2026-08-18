@@ -87,7 +87,6 @@ export default function AdminSettingsPage() {
   const notifChannels = [
     { key: 'notify_app', label: 'In-app notifications', icon: Smartphone, desc: 'Push notifications on mobile app' },
     { key: 'notify_email', label: 'Email', icon: Mail, desc: 'Get notified via email' },
-    { key: 'notify_sms', label: 'Text message (SMS)', icon: MessageSquare, desc: 'Receive SMS alerts' },
   ];
 
   return (
@@ -112,7 +111,6 @@ export default function AdminSettingsPage() {
                 setNotifForm({
                   notify_app: userData?.notify_app ?? true,
                   notify_email: userData?.notify_email ?? true,
-                  notify_sms: userData?.notify_sms ?? false,
                 });
                 setNotifEditing(true);
               }}>
@@ -158,12 +156,7 @@ export default function AdminSettingsPage() {
                 <Mail className="w-3 h-3" /> Email
               </span>
             )}
-            {!!userData?.notify_sms && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gold/10 text-gold border border-gold/20">
-                <MessageSquare className="w-3 h-3" /> SMS
-              </span>
-            )}
-            {!(userData?.notify_app ?? true) && !(userData?.notify_email ?? true) && !userData?.notify_sms && (
+            {!(userData?.notify_app ?? true) && !(userData?.notify_email ?? true) && (
               <span className="text-xs text-taupe">None selected</span>
             )}
           </div>

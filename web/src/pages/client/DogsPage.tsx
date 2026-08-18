@@ -89,9 +89,22 @@ interface Medication {
   dosage: string;
 }
 
+function computeDogAge(dog: { date_of_birth?: string | null; age_estimate?: number | null; age_estimate_date?: string | null }): number | null {
+  if (dog.date_of_birth) {
+    const dob = new Date(dog.date_of_birth + 'T00:00:00');
+    return Math.round((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000) * 10) / 10;
+  }
+  if (dog.age_estimate != null && dog.age_estimate_date) {
+    const entry = new Date(dog.age_estimate_date + 'T00:00:00');
+    const elapsed = (Date.now() - entry.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    return Math.round((dog.age_estimate + elapsed) * 10) / 10;
+  }
+  return null;
+}
+
 const EMPTY_FORM = {
   name: '', breed: '', size: '', sex: '',
-  date_of_birth: '', adoptaversary: '', weight_kg: '',
+  date_of_birth: '', age_estimate: '', adoptaversary: '', weight_kg: '',
   colour: '', microchip_number: '',
   spayed_neutered: false, special_instructions: '',
   vet_name: '', vet_phone: '', vet_address: '',
@@ -129,6 +142,7 @@ function dogToForm(dog: any): DogForm {
     size: dog.size ?? '',
     sex: dog.sex ?? '',
     date_of_birth: dog.date_of_birth ? dog.date_of_birth.slice(0, 10) : '',
+    age_estimate: dog.age_estimate != null ? String(dog.age_estimate) : '',
     adoptaversary: dog.adoptaversary ? dog.adoptaversary.slice(0, 10) : '',
     weight_kg: dog.weight_kg ?? '',
     colour: dog.colour ?? '',
@@ -169,6 +183,7 @@ function preparePayload(form: DogForm) {
   return {
     ...form,
     weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
+    age_estimate: form.date_of_birth ? null : (form.age_estimate ? Number(form.age_estimate) : null),
   };
 }
 
@@ -380,7 +395,27 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Colour / Markings" value={form.colour} onChange={e => setForm(f => ({ ...f, colour: e.target.value }))} />
-            <Input label="Date of Birth (or est.)" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))} />
+            <Input label="Date of Birth (or est.)" type="date" value={form.date_of_birth} onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value, age_estimate: '' }))} />
+            <div>
+              <label className="label">
+                Age (years){form.date_of_birth ? ' — calculated' : ''}
+              </label>
+              {form.date_of_birth ? (
+                <Input
+                  type="number"
+                  value={computeDogAge({ date_of_birth: form.date_of_birth }) ?? ''}
+                  disabled
+                  className="opacity-60"
+                />
+              ) : (
+                <Input
+                  type="number" step="0.1" min="0" max="99"
+                  placeholder="e.g. 3.5"
+                  value={form.age_estimate}
+                  onChange={e => setForm(f => ({ ...f, age_estimate: e.target.value }))}
+                />
+              )}
+            </div>
             <Input label="Adopt-aversary" type="date" value={form.adoptaversary} onChange={e => setForm(f => ({ ...f, adoptaversary: e.target.value }))} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -569,7 +604,8 @@ export default function ClientDogsPage() {
                 <DetailRow label="Breed" value={dog.breed} />
                 <DetailRow label="Size" value={SIZE_LABELS[dog.size] ?? dog.size} />
                 <DetailRow label="Sex" value={dog.sex === 'male' ? 'Male' : dog.sex === 'female' ? 'Female' : null} />
-                <DetailRow label="Date of Birth (or est.)" value={dog.date_of_birth ? new Date(dog.date_of_birth).toLocaleDateString('en-CA') : null} />
+                <DetailRow label="Date of Birth (or est.)" value={dog.date_of_birth ? new Date(dog.date_of_birth + 'T00:00:00').toLocaleDateString('en-CA') : null} />
+                <DetailRow label="Age" value={computeDogAge(dog) != null ? `${computeDogAge(dog)} yrs` : null} />
                 {dog.adoptaversary && <DetailRow label="Adopt-aversary" value={new Date(dog.adoptaversary).toLocaleDateString('en-CA')} />}
                 <DetailRow label="Weight" value={dog.weight_kg ? `${dog.weight_kg} lbs` : null} />
                 <DetailRow label="Colour" value={dog.colour} />
