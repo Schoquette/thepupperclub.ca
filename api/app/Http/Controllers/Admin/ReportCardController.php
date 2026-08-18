@@ -67,7 +67,7 @@ class ReportCardController extends Controller
             'notes'                => 'nullable|string|max:5000',
             'dog_data'             => 'nullable|json',
             'photos'               => 'nullable|array',
-            'photos.*'             => 'file|image|max:10240',
+            'photos.*'             => 'file|max:20480', // skip image MIME check — HEIC unsupported on GoDaddy
         ]);
 
         $checklist = isset($data['checklist'])
@@ -96,17 +96,6 @@ class ReportCardController extends Controller
         $fields['dog_ids'] = $data['dog_ids'] ?? null;
         $fields['dog_data'] = $dogData;
 
-        // Auto-fix: appointment_id was NOT NULL in the original migration but must be nullable
-        $apptNullable = \Illuminate\Support\Facades\DB::selectOne(
-            "SELECT IS_NULLABLE FROM information_schema.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'visit_reports' AND COLUMN_NAME = 'appointment_id'"
-        )?->IS_NULLABLE ?? 'YES';
-        if ($apptNullable !== 'YES') {
-            \Illuminate\Support\Facades\DB::statement(
-                'ALTER TABLE visit_reports MODIFY COLUMN appointment_id BIGINT UNSIGNED NULL'
-            );
-        }
-
         try {
             $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
         } catch (\Throwable $e) {
@@ -114,10 +103,14 @@ class ReportCardController extends Controller
         }
 
         if ($request->hasFile('photos')) {
-            $paths = collect($request->file('photos'))
-                ->map(fn($file) => $file->store("report_cards/{$report->id}", 'local'))
-                ->all();
-            $report->update(['photo_paths' => $paths]);
+            try {
+                $paths = collect($request->file('photos'))
+                    ->map(fn($file) => $file->store("report_cards/{$report->id}", 'local'))
+                    ->all();
+                $report->update(['photo_paths' => $paths]);
+            } catch (\Throwable $e) {
+                return response()->json(['message' => 'Report saved but photo upload failed: ' . $e->getMessage()], 201);
+            }
         }
 
         return response()->json(['data' => $report->fresh(['user', 'appointment'])], 201);
@@ -133,7 +126,7 @@ class ReportCardController extends Controller
             'notes'                => 'sometimes|nullable|string|max:5000',
             'dog_data'             => 'sometimes|nullable|json',
             'photos'               => 'sometimes|array',
-            'photos.*'             => 'file|image|max:10240',
+            'photos.*'             => 'file|max:20480', // skip image MIME check — HEIC unsupported on GoDaddy
         ]);
 
         if (isset($data['checklist'])) {
@@ -141,8 +134,9 @@ class ReportCardController extends Controller
         }
         if (isset($data['dog_data'])) {
             if (!Schema::hasColumn('visit_reports', 'dog_data')) {
-                Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->json('dog_ids')->nullable();
+                $hasIds = Schema::hasColumn('visit_reports', 'dog_ids');
+                Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) use ($hasIds) {
+                    if (!$hasIds) $table->json('dog_ids')->nullable();
                     $table->json('dog_data')->nullable();
                 });
             }
@@ -154,11 +148,18 @@ class ReportCardController extends Controller
 
         // Append new photos
         if ($request->hasFile('photos')) {
-            $existing = $reportCard->photo_paths ?? [];
-            $newPaths = collect($request->file('photos'))
-                ->map(fn($file) => $file->store("report_cards/{$reportCard->id}", 'local'))
-                ->all();
-            $reportCard->update(['photo_paths' => array_merge($existing, $newPaths)]);
+            try {
+                $existing = $reportCard->photo_paths ?? [];
+                $newPaths = collect($request->file('photos'))
+                    ->map(fn($file) => $file->store("report_cards/{$reportCard->id}", 'local'))
+                    ->all();
+                $reportCard->update(['photo_paths' => array_merge($existing, $newPaths)]);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'data' => $reportCard->fresh(['user', 'appointment']),
+                    'message' => 'Saved but photo upload failed: ' . $e->getMessage(),
+                ]);
+            }
         }
 
         return response()->json(['data' => $reportCard->fresh(['user', 'appointment'])]);
