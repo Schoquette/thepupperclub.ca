@@ -419,13 +419,37 @@ export default function SigningPage() {
   };
 
   const scrollToNextField = () => {
-    const next = fields.find(f => {
-      if (f.field_type === 'signature') return !inlineSignatures[f.id];
-      if (!f.required) return false;
-      const val = fieldValues[f.id];
-      if (f.field_type === 'checkbox') return val !== 'true' && val !== '1';
-      return !val || !val.trim();
+    // Fields sorted by page, then top-to-bottom, left-to-right
+    const sorted = [...fields].sort((a, b) => {
+      if (a.page !== b.page) return a.page - b.page;
+      if (Math.abs(a.y - b.y) > 2) return a.y - b.y;
+      return a.x - b.x;
     });
+
+    const currentIdx = focusedField !== null ? sorted.findIndex(f => f.id === focusedField) : -1;
+    const currentField = currentIdx >= 0 ? sorted[currentIdx] : null;
+
+    // If currently on a non-required, non-signature field, step to the next field in order
+    const isSkippable = currentField && !currentField.required && currentField.field_type !== 'signature';
+
+    let next: TemplateField | undefined;
+
+    if (isSkippable) {
+      next = sorted[currentIdx + 1];
+    } else {
+      // Find the next incomplete required or unsigned signature field, searching
+      // forward from after the current position, then wrapping to the start.
+      const isIncomplete = (f: TemplateField) => {
+        if (f.field_type === 'signature') return !inlineSignatures[f.id];
+        if (!f.required) return false;
+        const val = fieldValues[f.id];
+        if (f.field_type === 'checkbox') return val !== 'true' && val !== '1';
+        return !val || !val.trim();
+      };
+      next = sorted.slice(currentIdx + 1).find(isIncomplete)
+          ?? sorted.slice(0, currentIdx + 1).find(isIncomplete);
+    }
+
     if (next) {
       const el = document.getElementById(`field-overlay-${next.id}`);
       if (el) {
@@ -436,7 +460,7 @@ export default function SigningPage() {
           input?.focus();
         }, 400);
         if (next.field_type === 'signature') {
-          setTimeout(() => setSignatureModalField(next), 500);
+          setTimeout(() => setSignatureModalField(next!), 500);
         }
       }
     } else {
