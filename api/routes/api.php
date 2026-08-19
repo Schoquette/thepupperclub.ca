@@ -739,6 +739,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard', [Admin\DashboardController::class, 'index']);
         Route::get('/error-logs', [Admin\DashboardController::class, 'errorLogs']);
         Route::get('/email-logs', [Admin\DashboardController::class, 'emailLogs']);
+        Route::get('/email-logs/{id}', [Admin\DashboardController::class, 'emailLogPreview']);
 
         // Clients
         Route::get('/clients/pending',                  [Admin\ClientController::class, 'pending']);

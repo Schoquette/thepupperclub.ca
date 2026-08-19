@@ -133,18 +133,26 @@ class ReportCardController extends Controller
             $data['checklist'] = array_map('boolval', $data['checklist']);
         }
         if (isset($data['dog_data'])) {
-            if (!Schema::hasColumn('visit_reports', 'dog_data')) {
-                $hasIds = Schema::hasColumn('visit_reports', 'dog_ids');
-                Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) use ($hasIds) {
-                    if (!$hasIds) $table->json('dog_ids')->nullable();
-                    $table->json('dog_data')->nullable();
-                });
+            try {
+                if (!Schema::hasColumn('visit_reports', 'dog_data')) {
+                    $hasIds = Schema::hasColumn('visit_reports', 'dog_ids');
+                    Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) use ($hasIds) {
+                        if (!$hasIds) $table->json('dog_ids')->nullable();
+                        $table->json('dog_data')->nullable();
+                    });
+                }
+            } catch (\Throwable $e) {
+                // Column might already exist if migration ran concurrently; continue
             }
             $data['dog_data'] = json_decode($data['dog_data'], true);
         }
 
         unset($data['photos']);
-        $reportCard->update($data);
+        try {
+            $reportCard->update($data);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Update failed: ' . $e->getMessage()], 422);
+        }
 
         // Append new photos
         if ($request->hasFile('photos')) {

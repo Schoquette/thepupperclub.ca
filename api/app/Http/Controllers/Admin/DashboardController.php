@@ -126,6 +126,20 @@ class DashboardController extends Controller
             });
         }
 
-        return response()->json($query->paginate(50));
+        return response()->json($query->paginate(50)->through(fn ($log) => collect($log)->except('body_html')));
+    }
+
+    public function emailLogPreview(int $id): JsonResponse
+    {
+        if (!Schema::hasTable('email_logs')) {
+            abort(404);
+        }
+        $log = EmailLog::findOrFail($id);
+        return response()->json(['data' => [
+            'id'       => $log->id,
+            'subject'  => $log->subject,
+            'to_email' => $log->to_email,
+            'body_html' => $log->body_html,
+        ]]);
     }
 }

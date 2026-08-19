@@ -5,6 +5,8 @@ namespace App\Mail;
 use App\Models\EmailLog;
 use App\Models\User;
 use GuzzleHttp\Client;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Symfony\Component\Mime\Address;
@@ -94,9 +96,9 @@ class ResendTransport extends AbstractTransport
                 $message->setMessageId($resendId);
             }
 
-            $this->logEmail($toEmail, $subject, $mailClass, 'sent', null, $resendId);
+            $this->logEmail($toEmail, $subject, $mailClass, 'sent', null, $resendId, $email->getHtmlBody());
         } catch (\Throwable $e) {
-            $this->logEmail($toEmail, $subject, $mailClass, 'failed', $e->getMessage(), null);
+            $this->logEmail($toEmail, $subject, $mailClass, 'failed', $e->getMessage(), null, $email->getHtmlBody());
             throw $e;
         }
     }
@@ -106,9 +108,17 @@ class ResendTransport extends AbstractTransport
         return 'resend';
     }
 
-    private function logEmail(string $to, string $subject, string $mailClass, string $status, ?string $error, ?string $resendId): void
+    private function logEmail(string $to, string $subject, string $mailClass, string $status, ?string $error, ?string $resendId, ?string $bodyHtml = null): void
     {
         try {
+            static $bodyHtmlColumnChecked = false;
+            if (!$bodyHtmlColumnChecked) {
+                $bodyHtmlColumnChecked = true;
+                if (!Schema::hasColumn('email_logs', 'body_html')) {
+                    DB::statement("ALTER TABLE `email_logs` ADD COLUMN `body_html` MEDIUMTEXT NULL");
+                }
+            }
+
             $user = User::where('email', $to)->first();
             EmailLog::create([
                 'user_id'       => $user?->id,
@@ -118,6 +128,7 @@ class ResendTransport extends AbstractTransport
                 'status'        => $status,
                 'error_message' => $error,
                 'resend_id'     => $resendId,
+                'body_html'     => $bodyHtml,
                 'created_at'    => now(),
             ]);
         } catch (\Throwable $e) {

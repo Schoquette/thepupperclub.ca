@@ -39,8 +39,9 @@ function buildFormData(fields: {
     fields.dogIds.forEach(id => fd.append('dog_ids[]', String(id)));
   }
   if (fields.appointmentId) fd.append('appointment_id', fields.appointmentId);
-  if (fields.arrivalTime) fd.append('arrival_time', fields.arrivalTime);
-  if (fields.departureTime) fd.append('departure_time', fields.departureTime);
+  // Convert datetime-local (local time) to UTC ISO so the backend stores true UTC
+  if (fields.arrivalTime) fd.append('arrival_time', new Date(fields.arrivalTime).toISOString());
+  if (fields.departureTime) fd.append('departure_time', new Date(fields.departureTime).toISOString());
   if (fields.specialTripDetails) fd.append('special_trip_details', fields.specialTripDetails);
   if (fields.dogData) {
     // Send per-dog data as JSON string

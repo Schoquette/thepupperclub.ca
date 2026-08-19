@@ -1,16 +1,62 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
-import { Mail, XCircle, CheckCircle } from 'lucide-react';
+import { Mail, XCircle, CheckCircle, X } from 'lucide-react';
+
+function EmailPreviewModal({ id, onClose }: { id: number; onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['email-log-preview', id],
+    queryFn: () => api.get(`/admin/email-logs/${id}`).then(r => r.data.data),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-gray-100">
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 mb-0.5">{data?.to_email}</p>
+            <h2 className="font-semibold text-gray-800 truncate">{data?.subject ?? 'Loading…'}</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0 mt-0.5">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-hidden relative">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <PageLoader />
+            </div>
+          ) : data?.body_html ? (
+            <iframe
+              srcDoc={data.body_html}
+              title="Email preview"
+              className="w-full h-full border-0"
+              sandbox="allow-same-origin"
+              style={{ minHeight: '60vh' }}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-2">
+              <Mail className="w-8 h-8 opacity-40" />
+              <p className="text-sm">Preview not available for this email.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function EmailLogsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [previewId, setPreviewId] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['email-logs', search, statusFilter],
@@ -58,7 +104,11 @@ export default function EmailLogsPage() {
               </thead>
               <tbody>
                 {logs.map((log: any) => (
-                  <tr key={log.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
+                  <tr
+                    key={log.id}
+                    className="border-b border-cream last:border-0 hover:bg-cream/50 cursor-pointer"
+                    onClick={() => setPreviewId(log.id)}
+                  >
                     <td className="px-6 py-4">
                       {log.status === 'sent' ? (
                         <span className="flex items-center gap-1.5 text-green-600">
@@ -98,6 +148,10 @@ export default function EmailLogsPage() {
             </div>
           )}
         </Card>
+      )}
+
+      {previewId && (
+        <EmailPreviewModal id={previewId} onClose={() => setPreviewId(null)} />
       )}
     </div>
   );

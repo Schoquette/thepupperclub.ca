@@ -17,6 +17,7 @@ class EmailLog extends Model
         'status',
         'error_message',
         'resend_id',
+        'body_html',
         'created_at',
     ];
 
