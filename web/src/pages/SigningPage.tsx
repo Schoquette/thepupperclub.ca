@@ -290,6 +290,7 @@ export default function SigningPage() {
 
     const serverValues: Record<string, string> = data.field_values ?? {};
     const today = new Date().toISOString().slice(0, 10);
+    const defaultName = data.is_countersign ? 'Sophie Choquette' : (data.client ?? '');
     const initial: Record<string, string> = {};
 
     fields.forEach(f => {
@@ -297,7 +298,7 @@ export default function SigningPage() {
       if (stored) {
         initial[f.id] = stored;
       } else if (f.field_type === 'name') {
-        initial[f.id] = data.client ?? '';
+        initial[f.id] = defaultName;
       } else if (f.field_type === 'date') {
         initial[f.id] = today;
       } else {
@@ -307,12 +308,8 @@ export default function SigningPage() {
 
     setFieldValues(initial);
 
-    // Derive signerName from the name field or from data.client
     const nameField = fields.find(f => f.field_type === 'name');
-    const derivedName = nameField
-      ? (initial[nameField.id] || data.client || '')
-      : (data.client || '');
-    setSignerName(derivedName);
+    setSignerName(nameField ? (initial[nameField.id] || defaultName) : defaultName);
   }, [data]); // eslint-disable-line
 
   // ── Fallback canvas (no template signature field) ───────────────────────────
