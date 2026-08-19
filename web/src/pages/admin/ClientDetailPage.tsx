@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { Pencil, ArrowUp, ArrowDown, Plus, Clock, AlertCircle, FileText, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
+import { todayPacific } from '@/lib/date';
 import {
   VetInformationCard,
   VisitPreferencesCard as IntakeVisitPreferencesCard,
@@ -947,7 +948,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                   </div>
                 </div>
               ) : (
-                <Button size="sm" variant="outline" onClick={() => { setShowPause(true); setPauseFrom(new Date().toISOString().split('T')[0]); }}>
+                <Button size="sm" variant="outline" onClick={() => { setShowPause(true); setPauseFrom(todayPacific()); }}>
                   Pause Subscription
                 </Button>
               )}

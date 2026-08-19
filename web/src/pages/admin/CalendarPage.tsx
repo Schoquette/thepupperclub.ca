@@ -7,6 +7,7 @@ import { format, parse, startOfWeek, getDay, endOfWeek, addDays, isBefore, start
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { enCA } from 'date-fns/locale';
 import api from '@/lib/api';
+import { toDateStrPacific } from '@/lib/date';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -1726,7 +1727,7 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
                   const nights = Math.max(1, Math.round((f.duration_minutes || 1440) / 1440));
                   const oldEnd = new Date(`${oldStart}T00:00:00`);
                   oldEnd.setDate(oldEnd.getDate() + nights);
-                  const oldEndStr = oldEnd.toISOString().slice(0, 10);
+                  const oldEndStr = toDateStrPacific(oldEnd);
                   // Preserve the existing check-out date by keeping the
                   // duration the same (start moves; end stays). Floor at
                   // one night if the user picked check-in == old check-out
@@ -1749,7 +1750,7 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
           if (startStr) {
             const d = new Date(`${startStr}T00:00:00`);
             d.setDate(d.getDate() + nights);
-            endStr = d.toISOString().slice(0, 10);
+            endStr = toDateStrPacific(d);
           }
           return (
             <div>

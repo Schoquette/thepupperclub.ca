@@ -5,6 +5,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Lock, Bell, Settings, Mail, MessageSquare, Smartphone, Download, Database } from 'lucide-react';
+import { todayPacific } from '@/lib/date';
 
 export default function AdminSettingsPage() {
   const qc = useQueryClient();
@@ -27,7 +28,7 @@ export default function AdminSettingsPage() {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `thepupperclub-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.download = `thepupperclub-backup-${todayPacific()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       setBackupMsg('Backup downloaded successfully.');

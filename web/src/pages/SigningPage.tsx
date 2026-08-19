@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import { X, Pen, Type, ChevronDown } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { todayPacific } from '@/lib/date';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const publicApi = axios.create({
@@ -289,7 +290,7 @@ export default function SigningPage() {
     if (!data) return;
 
     const serverValues: Record<string, string> = data.field_values ?? {};
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayPacific();
     const defaultName = data.is_countersign ? 'Sophie Choquette' : (data.client ?? '');
     const initial: Record<string, string> = {};
 
@@ -582,9 +583,8 @@ export default function SigningPage() {
 
     // ── Date field — read-only, auto-filled ──
     if (field.field_type === 'date') {
-      const displayDate = val
-        ? new Date(val + 'T00:00:00').toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })
-        : new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+      const displayDate = new Date((val || todayPacific()) + 'T00:00:00')
+        .toLocaleDateString('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: 'long', day: 'numeric' });
       return (
         <div
           key={field.id}

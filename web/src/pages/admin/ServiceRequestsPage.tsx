@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Input';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format, parseISO } from 'date-fns';
+import { todayPacific } from '@/lib/date';
 import { ChevronUp, ChevronDown, Filter, Download } from 'lucide-react';
 
 const TIME_BLOCK_LABELS = {
@@ -459,7 +460,7 @@ export default function AdminServiceRequestsPage() {
             <Input
               label="Preferred Date *"
               type="date"
-              min={new Date().toISOString().substring(0, 10)}
+              min={todayPacific()}
               value={createForm.preferred_date}
               onChange={e => setCreateForm(f => ({ ...f, preferred_date: e.target.value }))}
             />
@@ -707,7 +708,7 @@ export default function AdminServiceRequestsPage() {
             {action === 'approve' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Date" type="date" min={new Date().toISOString().substring(0, 10)} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+                  <Input label="Date" type="date" min={todayPacific()} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
                   <div>
                     <label className="label">Time</label>
                     <select className="input" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)}>
@@ -809,7 +810,7 @@ export default function AdminServiceRequestsPage() {
             {action === 'counter' && (
               <div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Counter date" type="date" min={new Date().toISOString().substring(0, 10)} value={counterDate} onChange={e => setCounterDate(e.target.value)} />
+                  <Input label="Counter date" type="date" min={todayPacific()} value={counterDate} onChange={e => setCounterDate(e.target.value)} />
                   <div>
                     <label className="label">Counter time</label>
                     <select className="input" value={counterTime} onChange={e => setCounterTime(e.target.value)}>
