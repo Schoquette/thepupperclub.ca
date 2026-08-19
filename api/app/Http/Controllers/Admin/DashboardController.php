@@ -126,7 +126,7 @@ class DashboardController extends Controller
             });
         }
 
-        return response()->json($query->paginate(50)->through(fn ($log) => collect($log)->except('body_html')));
+        return response()->json($query->paginate(50)->through(fn ($log) => $log->makeHidden(['body_html'])));
     }
 
     public function emailLogPreview(int $id): JsonResponse

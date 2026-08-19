@@ -366,16 +366,18 @@ export default function AdminInvoiceDetailPage() {
               <Send className="w-3.5 h-3.5 mr-1" /> Send Now
             </Button>
           )}
+          {['draft', 'approved', 'sent', 'overdue'].includes(invoice.status) && !editing && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => { if (confirm('Mark this invoice as paid?')) markPaid.mutate(); }}
+              loading={markPaid.isPending}
+            >
+              Mark Paid
+            </Button>
+          )}
           {['sent', 'overdue'].includes(invoice.status) && (
             <>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => { if (confirm('Mark this invoice as paid?')) markPaid.mutate(); }}
-                loading={markPaid.isPending}
-              >
-                Mark Paid
-              </Button>
               <Button size="sm" variant="outline" onClick={() => openMessageModal('resend')}>
                 <Send className="w-3.5 h-3.5 mr-1" /> Re-Send
               </Button>

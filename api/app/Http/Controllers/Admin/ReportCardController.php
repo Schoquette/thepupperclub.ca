@@ -133,18 +133,24 @@ class ReportCardController extends Controller
             $data['checklist'] = array_map('boolval', $data['checklist']);
         }
         if (isset($data['dog_data'])) {
-            try {
-                if (!Schema::hasColumn('visit_reports', 'dog_data')) {
+            $dogDataColumnOk = Schema::hasColumn('visit_reports', 'dog_data');
+            if (!$dogDataColumnOk) {
+                try {
                     $hasIds = Schema::hasColumn('visit_reports', 'dog_ids');
                     Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) use ($hasIds) {
                         if (!$hasIds) $table->json('dog_ids')->nullable();
                         $table->json('dog_data')->nullable();
                     });
+                    $dogDataColumnOk = true;
+                } catch (\Throwable $e) {
+                    // Migration failed — skip dog_data so the rest of the update succeeds
                 }
-            } catch (\Throwable $e) {
-                // Column might already exist if migration ran concurrently; continue
             }
-            $data['dog_data'] = json_decode($data['dog_data'], true);
+            if ($dogDataColumnOk) {
+                $data['dog_data'] = json_decode($data['dog_data'], true);
+            } else {
+                unset($data['dog_data']);
+            }
         }
 
         unset($data['photos']);
