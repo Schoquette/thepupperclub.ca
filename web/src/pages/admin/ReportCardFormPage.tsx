@@ -598,11 +598,20 @@ export default function AdminReportCardFormPage() {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,.heic,.HEIC"
+            accept="image/jpeg,image/png,image/webp,image/gif"
             multiple
             className="hidden"
             onChange={(e) => {
               const files = Array.from(e.target.files ?? []);
+              const unsupported = files.filter(f => {
+                const ext = f.name.split('.').pop()?.toLowerCase() ?? '';
+                return ['heic', 'heif'].includes(ext) || (!f.type.startsWith('image/') && f.type !== '');
+              });
+              if (unsupported.length) {
+                setError(`HEIC/HEIF photos from iPhone can't be uploaded from the browser. Please convert them to JPEG first, or use the mobile app which converts automatically.`);
+                e.target.value = '';
+                return;
+              }
               if (files.length) setNewPhotos(prev => [...prev, ...files]);
               e.target.value = '';
             }}
