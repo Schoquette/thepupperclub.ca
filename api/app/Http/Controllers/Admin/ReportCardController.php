@@ -86,15 +86,23 @@ class ReportCardController extends Controller
             'notes'                => $data['notes'] ?? null,
         ];
 
-        // Auto-add columns if they don't exist yet
-        if (!Schema::hasColumn('visit_reports', 'dog_ids')) {
-            Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) {
-                $table->json('dog_ids')->nullable();
-                $table->json('dog_data')->nullable();
-            });
+        // Auto-add columns if they don't exist yet — guarded so a migration
+        // failure doesn't surface as a 500; we just omit those fields instead.
+        $hasIds  = Schema::hasColumn('visit_reports', 'dog_ids');
+        $hasData = Schema::hasColumn('visit_reports', 'dog_data');
+        if (!$hasIds || !$hasData) {
+            try {
+                Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) use ($hasIds, $hasData) {
+                    if (!$hasIds)  $table->json('dog_ids')->nullable();
+                    if (!$hasData) $table->json('dog_data')->nullable();
+                });
+                $hasIds = $hasData = true;
+            } catch (\Throwable $e) {
+                // Migration failed — skip these fields so the report still saves
+            }
         }
-        $fields['dog_ids'] = $data['dog_ids'] ?? null;
-        $fields['dog_data'] = $dogData;
+        if ($hasIds)  $fields['dog_ids']  = $data['dog_ids'] ?? null;
+        if ($hasData) $fields['dog_data'] = $dogData;
 
         try {
             $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
