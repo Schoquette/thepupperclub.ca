@@ -4,6 +4,7 @@ import {
   Modal, TextInput, ActivityIndicator, Alert, Switch,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
@@ -63,11 +64,17 @@ export default function AdminReportsScreen() {
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: true,
+      allowsEditing: false,
+      quality: 1,
     });
     if (!result.canceled) {
-      setPhotoUri(result.assets[0].uri);
+      // Convert HEIC/HEIF (and any other format) to JPEG so browsers can display it
+      const compressed = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [],
+        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      setPhotoUri(compressed.uri);
     }
   };
 
@@ -84,9 +91,8 @@ export default function AdminReportsScreen() {
       if (notes) fd.append('notes', notes);
       if (photoUri) {
         const filename = photoUri.split('/').pop() ?? 'photo.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        (fd as any).append('photo', { uri: photoUri, name: filename, type });
+        // Always JPEG after manipulator conversion
+        (fd as any).append('photos[]', { uri: photoUri, name: filename.replace(/\.\w+$/, '.jpg'), type: 'image/jpeg' });
       }
       return api.post('/admin/report-cards', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },

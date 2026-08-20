@@ -55,20 +55,24 @@ class ReportCardController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'user_id'              => 'required|exists:users,id',
-            'dog_ids'              => 'nullable|array',
-            'dog_ids.*'            => 'integer|exists:dogs,id',
-            'appointment_id'       => 'nullable|exists:appointments,id',
-            'arrival_time'         => 'nullable|date',
-            'departure_time'       => 'nullable|date',
-            'checklist'            => 'nullable|array',
-            'special_trip_details' => 'nullable|string|max:255',
-            'notes'                => 'nullable|string|max:5000',
-            'dog_data'             => 'nullable|json',
-            'photos'               => 'nullable|array',
-            'photos.*'             => 'file|max:20480', // skip image MIME check — HEIC unsupported on GoDaddy
-        ]);
+        try {
+            $data = $request->validate([
+                'user_id'              => 'required|exists:users,id',
+                'dog_ids'              => 'nullable|array',
+                'dog_ids.*'            => 'integer|exists:dogs,id',
+                'appointment_id'       => 'nullable|exists:appointments,id',
+                'arrival_time'         => 'nullable|date',
+                'departure_time'       => 'nullable|date',
+                'checklist'            => 'nullable|array',
+                'special_trip_details' => 'nullable|string|max:255',
+                'notes'                => 'nullable|string|max:5000',
+                'dog_data'             => 'nullable|json',
+                'photos'               => 'nullable|array',
+                'photos.*'             => 'file|max:20480',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e; // let Laravel return the standard 422 with field errors
+        }
 
         $checklist = isset($data['checklist'])
             ? array_map('boolval', $data['checklist'])
@@ -86,23 +90,22 @@ class ReportCardController extends Controller
             'notes'                => $data['notes'] ?? null,
         ];
 
-        // Auto-add columns if they don't exist yet — guarded so a migration
-        // failure doesn't surface as a 500; we just omit those fields instead.
-        $hasIds  = Schema::hasColumn('visit_reports', 'dog_ids');
-        $hasData = Schema::hasColumn('visit_reports', 'dog_data');
-        if (!$hasIds || !$hasData) {
-            try {
+        // Guard hasColumn() + migration in one try/catch — GoDaddy may restrict DDL
+        try {
+            $hasIds  = Schema::hasColumn('visit_reports', 'dog_ids');
+            $hasData = Schema::hasColumn('visit_reports', 'dog_data');
+            if (!$hasIds || !$hasData) {
                 Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) use ($hasIds, $hasData) {
                     if (!$hasIds)  $table->json('dog_ids')->nullable();
                     if (!$hasData) $table->json('dog_data')->nullable();
                 });
                 $hasIds = $hasData = true;
-            } catch (\Throwable $e) {
-                // Migration failed — skip these fields so the report still saves
             }
+            if ($hasIds)  $fields['dog_ids']  = $data['dog_ids'] ?? null;
+            if ($hasData) $fields['dog_data'] = $dogData;
+        } catch (\Throwable $e) {
+            // Columns unavailable — report still saves without them
         }
-        if ($hasIds)  $fields['dog_ids']  = $data['dog_ids'] ?? null;
-        if ($hasData) $fields['dog_data'] = $dogData;
 
         try {
             $report = VisitReport::create(array_filter($fields, fn($v) => $v !== null));
