@@ -194,15 +194,17 @@ class ReportCardService
                 $mail->getSymfonyMessage()->addPart($logoPart);
             }
 
-            // Embed visit photos as inline CID attachments
-            foreach ($photoPaths as $i => $path) {
+            // Embed only the first visit photo inline — the email template only
+            // shows one hero image; embedding all photos risks memory exhaustion.
+            if (!empty($photoPaths) && !empty($photoCids)) {
+                $path = $photoPaths[0];
                 if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
-                    $content  = \Illuminate\Support\Facades\Storage::disk('local')->get($path);
-                    $ext      = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-                    $mime     = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
-                    $part     = new \Symfony\Component\Mime\Part\DataPart($content, "photo-{$i}.{$ext}", $mime);
+                    $content = \Illuminate\Support\Facades\Storage::disk('local')->get($path);
+                    $ext     = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                    $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
+                    $part    = new \Symfony\Component\Mime\Part\DataPart($content, "photo-0.{$ext}", $mime);
                     $part->asInline();
-                    $part->setContentId($photoCids[$i]);
+                    $part->setContentId($photoCids[0]);
                     $mail->getSymfonyMessage()->addPart($part);
                 }
             }
