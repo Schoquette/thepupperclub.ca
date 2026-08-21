@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import heic2any from 'heic2any';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -598,22 +599,30 @@ export default function AdminReportCardFormPage() {
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/*,.heic,.heif,.HEIC,.HEIF"
             multiple
             className="hidden"
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              const unsupported = files.filter(f => {
-                const ext = f.name.split('.').pop()?.toLowerCase() ?? '';
-                return ['heic', 'heif'].includes(ext) || (!f.type.startsWith('image/') && f.type !== '');
-              });
-              if (unsupported.length) {
-                setError(`HEIC/HEIF photos from iPhone can't be uploaded from the browser. Please convert them to JPEG first, or use the mobile app which converts automatically.`);
-                e.target.value = '';
-                return;
-              }
-              if (files.length) setNewPhotos(prev => [...prev, ...files]);
+            onChange={async (e) => {
+              const raw = Array.from(e.target.files ?? []);
               e.target.value = '';
+              if (!raw.length) return;
+
+              const converted: File[] = [];
+              for (const file of raw) {
+                const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+                if (ext === 'heic' || ext === 'heif' || file.type === 'image/heic' || file.type === 'image/heif') {
+                  try {
+                    const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 }) as Blob;
+                    const jpegName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+                    converted.push(new File([blob], jpegName, { type: 'image/jpeg' }));
+                  } catch {
+                    setError(`Could not convert "${file.name}" — try saving it as JPEG first.`);
+                  }
+                } else {
+                  converted.push(file);
+                }
+              }
+              if (converted.length) setNewPhotos(prev => [...prev, ...converted]);
             }}
           />
         </div>
