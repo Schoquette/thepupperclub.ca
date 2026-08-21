@@ -180,7 +180,7 @@ class ReportCardService
         $report->update(['email_sent_at' => now()]);
 
         // ── Secondary contact (if opted in) ───────────────────────────────────
-        $profile = $client->profile;
+        $profile = $client->clientProfile;
         if ($profile && $profile->secondary_notify_report_cards && !empty($profile->secondary_contact_email)) {
             $secondaryName   = $profile->secondary_contact_name ?: $profile->secondary_contact_email;
             $secondaryTokens = array_merge($tokens, ['{client_name}' => $secondaryName, '{dog_photo_html}' => '']);
