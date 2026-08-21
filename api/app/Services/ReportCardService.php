@@ -223,5 +223,97 @@ class ReportCardService
         });
 
         $report->update(['email_sent_at' => now()]);
+
+        // ── Secondary contact ──────────────────────────────────────────────────
+        $profile = $client->profile;
+        if ($profile &&
+            $profile->secondary_notify_report_cards &&
+            !empty($profile->secondary_contact_email)) {
+
+            $secondaryName = $profile->secondary_contact_name ?: $profile->secondary_contact_email;
+
+            Mail::send([], [], function ($mail) use (
+                $profile, $secondaryName, $client, $report,
+                $dogNames, $checklist, $photoCids, $photoPaths,
+                $dogPhotoCid, $firstDog, $dogSections
+            ) {
+                $arrivalTime   = $report->arrival_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
+                $departureTime = $report->departure_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
+                $visitDate     = $report->arrival_time?->setTimezone('America/Vancouver')->format('F j, Y') ?? '';
+                $portalUrl     = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/report-cards';
+
+                $checklistHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+                foreach ($checklist as $item) {
+                    $checklistHtml .= '<span style="display:inline-flex;align-items:center;gap:6px;background:#F6F3EE;border-radius:20px;padding:6px 12px;font-size:13px;color:#3B2F2A;"><span style="width:8px;height:8px;border-radius:50%;background:#C9A24D;display:inline-block;"></span>' . e($item) . '</span>';
+                }
+                $checklistHtml .= '</div>';
+
+                $visitPhotoHtml = !empty($photoCids)
+                    ? '<div style="margin:0 -40px 20px;overflow:hidden;"><img src="cid:' . $photoCids[0] . '" alt="Visit photo" style="width:100%;max-height:320px;object-fit:cover;display:block;"></div>'
+                    : '';
+
+                $tokens = [
+                    '{client_name}'      => $secondaryName,
+                    '{dog_names}'        => $dogNames,
+                    '{visit_date}'       => $visitDate,
+                    '{arrival_time}'     => $arrivalTime,
+                    '{departure_time}'   => $departureTime,
+                    '{checklist_html}'   => $checklistHtml,
+                    '{notes}'            => e($report->notes ?? ''),
+                    '{visit_photo_html}' => $visitPhotoHtml,
+                    '{dog_photo_html}'   => '',
+                    '{portal_url}'       => $portalUrl,
+                ];
+
+                $customSubject = \App\Http\Controllers\Admin\NotificationController::getSystemSubject('report_card', $tokens);
+                $customHtml    = \App\Http\Controllers\Admin\NotificationController::renderSystemTemplate('report_card', $tokens);
+
+                $html = $customHtml ?? view('emails.report_card', [
+                    'client'        => $client,
+                    'report'        => $report,
+                    'dogNames'      => $dogNames,
+                    'dogSections'   => $dogSections,
+                    'checklist'     => $checklist,
+                    'specialTrip'   => ($report->checklist['special_trip'] ?? false)
+                                         ? ($report->special_trip_details ?: 'Yes')
+                                         : null,
+                    'photoCids'     => $photoCids,
+                    'dogPhotoCid'   => null,
+                    'arrivalTime'   => $arrivalTime,
+                    'departureTime' => $departureTime,
+                    'visitDate'     => $visitDate,
+                    'portalUrl'     => $portalUrl,
+                ])->render();
+
+                $replyAddr = config('services.resend.inbound_address') ?: config('mail.from.address');
+                $mail->to($profile->secondary_contact_email, $secondaryName)
+                     ->subject($customSubject ?? 'Visit Report Card — The Pupper Club')
+                     ->replyTo($replyAddr)
+                     ->html($html);
+
+                $logoPath = public_path('images/logo-cream-stacked.png');
+                if (file_exists($logoPath)) {
+                    $logoPart = new \Symfony\Component\Mime\Part\DataPart(
+                        file_get_contents($logoPath), 'logo.png', 'image/png'
+                    );
+                    $logoPart->asInline();
+                    $logoPart->setContentId('logo@thepupperclub.ca');
+                    $mail->getSymfonyMessage()->addPart($logoPart);
+                }
+
+                if (!empty($photoPaths) && !empty($photoCids)) {
+                    $path = $photoPaths[0];
+                    if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
+                        $content = \Illuminate\Support\Facades\Storage::disk('local')->get($path);
+                        $ext     = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                        $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
+                        $part    = new \Symfony\Component\Mime\Part\DataPart($content, "photo-0.{$ext}", $mime);
+                        $part->asInline();
+                        $part->setContentId($photoCids[0]);
+                        $mail->getSymfonyMessage()->addPart($part);
+                    }
+                }
+            });
+        }
     }
 }
