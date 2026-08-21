@@ -134,9 +134,7 @@ class ReportCardService
             }
             $checklistHtml .= '</div>';
 
-            $visitPhotoHtml = !empty($photoCids)
-                ? '<div style="margin:0 -40px 20px;overflow:hidden;"><img src="cid:' . $photoCids[0] . '" alt="Visit photo" style="width:100%;max-height:320px;object-fit:cover;display:block;"></div>'
-                : '';
+            $visitPhotoHtml  = $this->buildPhotoGridHtml($photoCids);
             $dogPhotoHtmlStr = $dogPhotoCid
                 ? '<div style="text-align:center;margin-bottom:20px;"><img src="cid:' . $dogPhotoCid . '" alt="Dog photo" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid #C9A24D;" /></div>'
                 : '';
@@ -194,20 +192,7 @@ class ReportCardService
                 $mail->getSymfonyMessage()->addPart($logoPart);
             }
 
-            // Embed only the first visit photo inline — the email template only
-            // shows one hero image; embedding all photos risks memory exhaustion.
-            if (!empty($photoPaths) && !empty($photoCids)) {
-                $path = $photoPaths[0];
-                if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
-                    $content = \Illuminate\Support\Facades\Storage::disk('local')->get($path);
-                    $ext     = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-                    $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
-                    $part    = new \Symfony\Component\Mime\Part\DataPart($content, "photo-0.{$ext}", $mime);
-                    $part->asInline();
-                    $part->setContentId($photoCids[0]);
-                    $mail->getSymfonyMessage()->addPart($part);
-                }
-            }
+            $this->embedPhotos($mail->getSymfonyMessage(), $photoPaths, $photoCids);
 
             // Embed dog profile photo as inline CID attachment
             if ($dogPhotoCid && $firstDog && $firstDog->photo_path &&
@@ -223,6 +208,61 @@ class ReportCardService
         });
 
         $report->update(['email_sent_at' => now()]);
+    }
+
+    /**
+     * Build a table-based photo grid for email (3 columns, ~180px tall thumbnails).
+     */
+    private function buildPhotoGridHtml(array $photoCids): string
+    {
+        if (empty($photoCids)) return '';
+
+        $cols  = min(count($photoCids), 3);
+        $width = match ($cols) { 1 => '100%', 2 => '49%', default => '32%' };
+        $height = count($photoCids) === 1 ? '300px' : '180px';
+
+        $html  = '<div style="margin:0 0 20px;">';
+        $html .= '<table width="100%" cellspacing="4" cellpadding="0" border="0"><tr>';
+
+        foreach ($photoCids as $i => $cid) {
+            if ($i > 0 && $i % $cols === 0) {
+                $html .= '</tr><tr>';
+            }
+            $html .= '<td width="' . $width . '" style="vertical-align:top;">'
+                   . '<img src="cid:' . $cid . '" alt="Visit photo" '
+                   . 'style="width:100%;height:' . $height . ';object-fit:cover;border-radius:6px;display:block;">'
+                   . '</td>';
+        }
+
+        // Fill empty cells in the last row so the table doesn't stretch
+        $remainder = count($photoCids) % $cols;
+        if ($remainder > 0) {
+            for ($j = $remainder; $j < $cols; $j++) {
+                $html .= '<td width="' . $width . '"></td>';
+            }
+        }
+
+        $html .= '</tr></table></div>';
+        return $html;
+    }
+
+    /**
+     * Embed all visit photos as inline CID attachments on a Symfony email message.
+     */
+    private function embedPhotos(\Symfony\Component\Mime\Email $message, array $photoPaths, array $photoCids): void
+    {
+        foreach ($photoPaths as $i => $path) {
+            if (!isset($photoCids[$i])) continue;
+            if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) continue;
+
+            $content = \Illuminate\Support\Facades\Storage::disk('local')->get($path);
+            $ext     = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
+            $part    = new \Symfony\Component\Mime\Part\DataPart($content, "photo-{$i}.{$ext}", $mime);
+            $part->asInline();
+            $part->setContentId($photoCids[$i]);
+            $message->addPart($part);
+        }
 
         // ── Secondary contact ──────────────────────────────────────────────────
         $profile = $client->profile;
@@ -248,9 +288,7 @@ class ReportCardService
                 }
                 $checklistHtml .= '</div>';
 
-                $visitPhotoHtml = !empty($photoCids)
-                    ? '<div style="margin:0 -40px 20px;overflow:hidden;"><img src="cid:' . $photoCids[0] . '" alt="Visit photo" style="width:100%;max-height:320px;object-fit:cover;display:block;"></div>'
-                    : '';
+                $visitPhotoHtml = $this->buildPhotoGridHtml($photoCids);
 
                 $tokens = [
                     '{client_name}'      => $secondaryName,
@@ -301,18 +339,7 @@ class ReportCardService
                     $mail->getSymfonyMessage()->addPart($logoPart);
                 }
 
-                if (!empty($photoPaths) && !empty($photoCids)) {
-                    $path = $photoPaths[0];
-                    if (\Illuminate\Support\Facades\Storage::disk('local')->exists($path)) {
-                        $content = \Illuminate\Support\Facades\Storage::disk('local')->get($path);
-                        $ext     = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-                        $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
-                        $part    = new \Symfony\Component\Mime\Part\DataPart($content, "photo-0.{$ext}", $mime);
-                        $part->asInline();
-                        $part->setContentId($photoCids[0]);
-                        $mail->getSymfonyMessage()->addPart($part);
-                    }
-                }
+                $this->embedPhotos($mail->getSymfonyMessage(), $photoPaths, $photoCids);
             });
         }
     }
