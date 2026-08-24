@@ -56,9 +56,19 @@ export default function InvoiceCreatePage() {
   const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
   const [error, setError] = useState('');
   const dragIndex = useRef<number | null>(null);
+  const dragOverIndex = useRef<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
-  const handleLineDragStart = (i: number) => { dragIndex.current = i; };
+  const handleLineDragStart = (i: number) => {
+    dragIndex.current = i;
+    dragOverIndex.current = i;
+  };
   const handleLineDragOver = (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    dragOverIndex.current = i;
+    setDragOverIdx(i);
+  };
+  const handleLineDrop = (e: React.DragEvent, i: number) => {
     e.preventDefault();
     if (dragIndex.current === null || dragIndex.current === i) return;
     setLines(prev => {
@@ -67,9 +77,12 @@ export default function InvoiceCreatePage() {
       next.splice(i, 0, moved);
       return next;
     });
-    dragIndex.current = i;
   };
-  const handleLineDragEnd = () => { dragIndex.current = null; };
+  const handleLineDragEnd = () => {
+    dragIndex.current = null;
+    dragOverIndex.current = null;
+    setDragOverIdx(null);
+  };
 
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
@@ -238,15 +251,15 @@ export default function InvoiceCreatePage() {
             {lines.map((line, idx) => (
               <div
                 key={line._id}
-                className="space-y-1"
+                className={`space-y-1 rounded-lg transition-colors ${dragOverIdx === idx && dragIndex.current !== idx ? 'ring-2 ring-gold/50 bg-gold/5' : ''}`}
                 onDragOver={e => handleLineDragOver(e, idx)}
-                onDrop={e => e.preventDefault()}
+                onDrop={e => handleLineDrop(e, idx)}
               >
               <div className="grid grid-cols-12 gap-2 items-end">
                 <div
                   className="col-span-1 flex items-end pb-2"
                   draggable
-                  onDragStart={e => { e.dataTransfer.setData('text/plain', ''); handleLineDragStart(idx); }}
+                  onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); handleLineDragStart(idx); }}
                   onDragEnd={handleLineDragEnd}
                 >
                   <GripVertical className="w-4 h-4 text-taupe cursor-grab active:cursor-grabbing" />
@@ -306,13 +319,31 @@ export default function InvoiceCreatePage() {
               </label>
               </div>
             ))}
-            <button
-              type="button"
-              onClick={() => setLines(p => [...p, emptyLine()])}
-              className="text-sm text-blue hover:underline mt-1"
-            >
-              + Add line item
-            </button>
+            <div className="flex items-center gap-4 mt-1">
+              <button
+                type="button"
+                onClick={() => setLines(p => [...p, emptyLine()])}
+                className="text-sm text-blue hover:underline"
+              >
+                + Add line item
+              </button>
+              {lines.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setLines(prev => [...prev].sort((a, b) => {
+                    if (a.service_date !== b.service_date) {
+                      if (!a.service_date) return 1;
+                      if (!b.service_date) return -1;
+                      return a.service_date < b.service_date ? -1 : 1;
+                    }
+                    return Number(b.unit_price || 0) - Number(a.unit_price || 0);
+                  }))}
+                  className="text-sm text-taupe hover:text-espresso hover:underline"
+                >
+                  Sort by date
+                </button>
+              )}
+            </div>
           </div>
         </Card>
 
