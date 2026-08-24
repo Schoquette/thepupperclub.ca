@@ -20,6 +20,7 @@ const fmtDate = (s: string | null | undefined, pattern: string, fallback = '—'
 };
 
 interface LineItem {
+  _id: number;
   id?: number;
   description: string;
   quantity: number;
@@ -28,6 +29,8 @@ interface LineItem {
   gst_exempt?: boolean;
   service_date?: string;
 }
+
+let _liCounter = 0;
 
 const METHOD_LABELS: Record<string, string> = {
   credit_card: 'Credit Card',
@@ -46,9 +49,16 @@ export default function AdminInvoiceDetailPage() {
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const liDragIndex = useRef<number | null>(null);
+  const liDragOverIndex = useRef<number | null>(null);
+  const [liDragOverIdx, setLiDragOverIdx] = useState<number | null>(null);
 
-  const handleLiDragStart = (i: number) => { liDragIndex.current = i; };
+  const handleLiDragStart = (i: number) => { liDragIndex.current = i; liDragOverIndex.current = i; };
   const handleLiDragOver = (e: React.DragEvent, i: number) => {
+    e.preventDefault();
+    liDragOverIndex.current = i;
+    setLiDragOverIdx(i);
+  };
+  const handleLiDrop = (e: React.DragEvent, i: number) => {
     e.preventDefault();
     if (liDragIndex.current === null || liDragIndex.current === i) return;
     setLineItems(prev => {
@@ -57,9 +67,8 @@ export default function AdminInvoiceDetailPage() {
       next.splice(i, 0, moved);
       return next;
     });
-    liDragIndex.current = i;
   };
-  const handleLiDragEnd = () => { liDragIndex.current = null; };
+  const handleLiDragEnd = () => { liDragIndex.current = null; liDragOverIndex.current = null; setLiDragOverIdx(null); };
   const [pdfLoading, setPdfLoading] = useState(false);
   const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
   const [showDiscount, setShowDiscount] = useState(false);
@@ -96,6 +105,7 @@ export default function AdminInvoiceDetailPage() {
     setNotes(invoice.notes ?? '');
     setApplyCcSurcharge(!!invoice.apply_cc_surcharge);
     setLineItems((invoice.line_items ?? []).map((li: any) => ({
+      _id: ++_liCounter,
       id: li.id,
       description: li.description,
       quantity: li.quantity,
@@ -233,7 +243,7 @@ export default function AdminInvoiceDetailPage() {
     }
   };
 
-  const addLineItem = () => setLineItems(prev => [...prev, { description: '', quantity: 1, unit_price: 0 }]);
+  const addLineItem = () => setLineItems(prev => [...prev, { _id: ++_liCounter, description: '', quantity: 1, unit_price: 0 }]);
   const removeLineItem = (i: number) => setLineItems(prev => prev.filter((_, idx) => idx !== i));
   const updateLineItem = (i: number, field: keyof LineItem, value: string | number | boolean) => {
     setLineItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
@@ -521,7 +531,7 @@ export default function AdminInvoiceDetailPage() {
                           type="button"
                           onClick={() => {
                             const label = price.nickname ? `${product.name} — ${price.nickname}` : product.name;
-                            setLineItems(prev => [...prev, { description: label, quantity: 1, unit_price: price.amount ?? 0 }]);
+                            setLineItems(prev => [...prev, { _id: ++_liCounter, description: label, quantity: 1, unit_price: price.amount ?? 0 }]);
                           }}
                           className="inline-flex items-center gap-1.5 bg-cream hover:bg-gold/10 border border-taupe/30 hover:border-gold/50 text-espresso text-xs px-3 py-1.5 rounded-full transition-colors"
                         >
@@ -539,18 +549,36 @@ export default function AdminInvoiceDetailPage() {
                 </div>
               )}
 
-              <div className="text-xs font-semibold text-taupe uppercase tracking-wide">Line Items</div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-taupe uppercase tracking-wide">Line Items</div>
+                {lineItems.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setLineItems(prev => [...prev].sort((a, b) => {
+                      if (a.service_date !== b.service_date) {
+                        if (!a.service_date) return 1;
+                        if (!b.service_date) return -1;
+                        return a.service_date < b.service_date ? -1 : 1;
+                      }
+                      return (b.unit_price || 0) - (a.unit_price || 0);
+                    }))}
+                    className="text-xs text-taupe hover:text-espresso hover:underline"
+                  >
+                    Sort by date
+                  </button>
+                )}
+              </div>
               {lineItems.map((item, i) => (
                 <div
-                  key={i}
-                  className="space-y-1"
+                  key={item._id}
+                  className={`space-y-1 rounded-lg transition-colors ${liDragOverIdx === i && liDragIndex.current !== i ? 'ring-2 ring-gold/50 bg-gold/5' : ''}`}
                   onDragOver={e => handleLiDragOver(e, i)}
-                  onDrop={e => e.preventDefault()}
+                  onDrop={e => handleLiDrop(e, i)}
                 >
                   <div className="grid grid-cols-[16px_1fr_50px_80px_110px_28px] sm:grid-cols-[16px_1fr_60px_90px_120px_28px] gap-2 items-center">
                     <span
                       draggable
-                      onDragStart={e => { e.dataTransfer.setData('text/plain', ''); handleLiDragStart(i); }}
+                      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); handleLiDragStart(i); }}
                       onDragEnd={handleLiDragEnd}
                       className="flex items-center cursor-grab active:cursor-grabbing"
                     >
