@@ -24,6 +24,7 @@ interface StripeProduct {
 }
 
 interface LineItem {
+  _id: number;
   description: string;
   quantity: number;
   unit_price: string;
@@ -31,7 +32,9 @@ interface LineItem {
   gst_exempt: boolean;
 }
 
+let _lineCounter = 0;
 const emptyLine = (): LineItem => ({
+  _id: ++_lineCounter,
   description: '',
   quantity: 1,
   unit_price: '',
@@ -86,6 +89,7 @@ export default function InvoiceCreatePage() {
   const addFromStripe = (product: StripeProduct, price: StripePrice) => {
     const label = price.nickname ? `${product.name} — ${price.nickname}` : product.name;
     setLines(prev => [...prev.filter(l => l.description || l.unit_price), {
+      _id: ++_lineCounter,
       description: label,
       quantity: 1,
       unit_price: price.amount?.toString() ?? '',
@@ -233,7 +237,7 @@ export default function InvoiceCreatePage() {
           <div className="space-y-3">
             {lines.map((line, idx) => (
               <div
-                key={idx}
+                key={line._id}
                 className="space-y-1"
                 onDragOver={e => handleLineDragOver(e, idx)}
                 onDrop={e => e.preventDefault()}
