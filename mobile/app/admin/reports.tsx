@@ -68,13 +68,19 @@ export default function AdminReportsScreen() {
       quality: 1,
     });
     if (!result.canceled) {
-      // Convert HEIC/HEIF (and any other format) to JPEG so browsers can display it
-      const compressed = await ImageManipulator.manipulateAsync(
-        result.assets[0].uri,
-        [],
-        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      setPhotoUri(compressed.uri);
+      const asset = result.assets[0];
+      try {
+        // Convert to JPEG so browsers can display HEIC photos
+        const compressed = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [],
+          { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+        );
+        setPhotoUri(compressed.uri);
+      } catch {
+        // Manipulator not available yet — use original URI, server accepts any image format
+        setPhotoUri(asset.uri);
+      }
     }
   };
 
@@ -91,8 +97,10 @@ export default function AdminReportsScreen() {
       if (notes) fd.append('notes', notes);
       if (photoUri) {
         const filename = photoUri.split('/').pop() ?? 'photo.jpg';
-        // Always JPEG after manipulator conversion
-        (fd as any).append('photos[]', { uri: photoUri, name: filename.replace(/\.\w+$/, '.jpg'), type: 'image/jpeg' });
+        const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+        const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+        const safeName = filename.replace(/\.(heic|heif)$/i, '.jpg');
+        (fd as any).append('photos[]', { uri: photoUri, name: safeName, type: mime });
       }
       return api.post('/admin/report-cards', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
