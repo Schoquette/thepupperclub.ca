@@ -809,8 +809,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/appointments/{appointment}',            [Admin\AppointmentController::class, 'show']);
         Route::patch('/appointments/{appointment}',          [Admin\AppointmentController::class, 'update']);
         Route::delete('/appointments/{appointment}',         [Admin\AppointmentController::class, 'destroy']);
-        Route::post('/appointments/{appointment}/check-in',  [Admin\AppointmentController::class, 'checkIn']);
-        Route::post('/appointments/{appointment}/complete',  [Admin\AppointmentController::class, 'complete']);
+        Route::post('/appointments/{appointment}/check-in',            [Admin\AppointmentController::class, 'checkIn']);
+        Route::post('/appointments/{appointment}/complete',            [Admin\AppointmentController::class, 'complete']);
+        Route::post('/appointments/{appointment}/dismiss-report-card', [Admin\ReportCardController::class, 'dismissDue']);
         Route::get('/appointments/{appointment}/report',     [Admin\AppointmentController::class, 'report']);
         Route::patch('/appointments/{appointment}/report',   [Admin\AppointmentController::class, 'updateReport']);
 

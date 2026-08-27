@@ -36,14 +36,44 @@ class ReportCardController extends Controller
      */
     public function due(Request $request): JsonResponse
     {
+        // Auto-add report_card_dismissed column if it doesn't exist
+        if (!Schema::hasColumn('appointments', 'report_card_dismissed')) {
+            try {
+                Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->boolean('report_card_dismissed')->default(false)->after('status');
+                });
+            } catch (\Throwable $e) {
+                // GoDaddy DDL restriction — proceed without the column
+            }
+        }
+
+        $hasDismissed = Schema::hasColumn('appointments', 'report_card_dismissed');
+
         $query = \App\Models\Appointment::with(['user:id,name,email', 'dogs'])
             ->whereIn('status', ['completed', 'checked_in'])
             ->where('scheduled_time', '<', now())
             ->doesntHave('visitReport')
+            ->when($hasDismissed, fn($q) => $q->where('report_card_dismissed', false))
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->orderByDesc('scheduled_time');
 
         return response()->json(['data' => $query->get()]);
+    }
+
+    public function dismissDue(\App\Models\Appointment $appointment): JsonResponse
+    {
+        if (!Schema::hasColumn('appointments', 'report_card_dismissed')) {
+            try {
+                Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->boolean('report_card_dismissed')->default(false)->after('status');
+                });
+            } catch (\Throwable $e) {
+                return response()->json(['message' => 'Could not dismiss — column unavailable.'], 422);
+            }
+        }
+
+        $appointment->update(['report_card_dismissed' => true]);
+        return response()->json(['message' => 'Dismissed.']);
     }
 
     public function show(VisitReport $reportCard): JsonResponse

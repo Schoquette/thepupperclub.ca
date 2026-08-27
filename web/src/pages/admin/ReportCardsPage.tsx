@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
@@ -10,6 +10,13 @@ import { format } from 'date-fns';
 export default function AdminReportCardsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'sent' | 'draft'>('all');
   const [clientFilter, setClientFilter] = useState('');
+  const qc = useQueryClient();
+
+  const dismissDue = useMutation({
+    mutationFn: (appointmentId: number) =>
+      api.post(`/admin/appointments/${appointmentId}/dismiss-report-card`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] }),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-report-cards', statusFilter],
@@ -122,28 +129,34 @@ export default function AdminReportCardsPage() {
                 const d = new Date(localStr);
                 const dogNames = appt.dogs?.map((dog: any) => dog.name).join(', ') || '';
                 return (
-                  <Link
-                    key={appt.id}
-                    to={`/admin/report-cards/new?appointment_id=${appt.id}&user_id=${appt.user_id}`}
-                    className="flex items-center gap-4 px-5 py-3 hover:bg-cream/50 transition-colors"
-                  >
+                  <div key={appt.id} className="flex items-center gap-4 px-5 py-3 hover:bg-cream/50 transition-colors">
                     <div className="h-9 w-9 rounded-full bg-red-100 text-red-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
                       {appt.user?.name?.charAt(0)}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <Link
+                      to={`/admin/report-cards/new?appointment_id=${appt.id}&user_id=${appt.user_id}`}
+                      className="flex-1 min-w-0"
+                    >
                       <div className="text-sm font-semibold text-espresso">{appt.user?.name}</div>
                       <div className="text-xs text-taupe mt-0.5">
                         {dogNames && <span>{dogNames} — </span>}
                         {appt.service_type === 'walk_30' ? '30-Minute Visit' : appt.service_type === 'walk_60' ? '60-Minute Visit' : appt.service_type?.replace(/_/g, ' ')}
                       </div>
-                    </div>
+                    </Link>
                     <div className="text-xs text-taupe flex-shrink-0">
                       {format(d, 'MMM d, yyyy · h:mm a')}
                     </div>
                     <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600 flex-shrink-0">
                       Due
                     </span>
-                  </Link>
+                    <button
+                      onClick={() => dismissDue.mutate(appt.id)}
+                      className="text-taupe hover:text-espresso text-lg leading-none flex-shrink-0 ml-1"
+                      title="Dismiss"
+                    >
+                      ×
+                    </button>
+                  </div>
                 );
               })}
             </div>
