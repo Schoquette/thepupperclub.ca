@@ -47,10 +47,11 @@ class Invoice extends Model
     public static function generateNumber(): string
     {
         $year  = now()->year;
-        $prefix = "PC-{$year}-";
+        $month = now()->format('m');
+        $prefix = "TPC-{$year}-{$month}-";
         $max   = static::where('invoice_number', 'like', "{$prefix}%")->max('invoice_number');
         $next  = $max ? ((int) substr($max, strlen($prefix))) + 1 : 1;
-        return sprintf('PC-%d-%04d', $year, $next);
+        return sprintf('TPC-%d-%s-%04d', $year, $month, $next);
     }
 
     public function user(): BelongsTo
