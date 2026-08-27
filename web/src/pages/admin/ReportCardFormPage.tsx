@@ -124,7 +124,7 @@ export default function AdminReportCardFormPage() {
   const { data: appointmentsData } = useQuery({
     queryKey: ['admin-appointments-for-client', clientId],
     queryFn: () =>
-      api.get('/admin/appointments', { params: { user_id: clientId } }).then((r) => r.data.data ?? []),
+      api.get('/admin/appointments', { params: { user_id: clientId, without_report_card: 1 } }).then((r) => r.data.data ?? []),
     enabled: !!clientId,
   });
 
@@ -184,30 +184,43 @@ export default function AdminReportCardFormPage() {
     setTemplateDraft(items);
 
     const enabledKeys = items.filter((i: TemplateItem) => i.enabled).map((i: TemplateItem) => i.key);
-
-    // Determine which section keys to use
     const sectionKeys = dogIds.length > 0 ? dogIds.map(String) : [GENERAL_KEY];
 
-    const newDogData: Record<string, DogSection> = {};
-    sectionKeys.forEach(key => {
-      const existingSection = report?.dog_data?.[key];
-      const checklist: Record<string, boolean> = {};
-      enabledKeys.forEach((k: string) => {
-        if (existingSection) {
-          checklist[k] = !!existingSection.checklist?.[k];
-        } else if (key === GENERAL_KEY && report?.checklist) {
-          // Backward compat: load from flat checklist
-          checklist[k] = !!report.checklist[k];
-        } else {
-          checklist[k] = false;
-        }
+    setDogData(prev => {
+      // If there's already user-entered data in any current section, preserve it.
+      // This prevents the appointment async-load from wiping input the user already typed.
+      const hasUserInput = Object.values(prev).some(
+        s => s.notes.trim() || Object.values(s.checklist).some(Boolean)
+      );
+
+      // When transitioning from _general to dog-specific sections (appointment just loaded),
+      // seed each new section from the _general section the user may have already filled.
+      const generalSeed = hasUserInput ? prev[GENERAL_KEY] : undefined;
+
+      const newDogData: Record<string, DogSection> = {};
+      sectionKeys.forEach(key => {
+        const serverSection = report?.dog_data?.[key];
+        const prevSection   = prev[key];
+
+        // Priority: existing in-state section > server data > _general seed > defaults
+        const baseChecklist = prevSection?.checklist ?? serverSection?.checklist
+          ?? (key === GENERAL_KEY && report?.checklist ? report.checklist : null)
+          ?? generalSeed?.checklist ?? {};
+
+        const checklist: Record<string, boolean> = {};
+        enabledKeys.forEach((k: string) => { checklist[k] = !!baseChecklist[k]; });
+
+        newDogData[key] = {
+          checklist,
+          notes: prevSection?.notes
+            ?? serverSection?.notes
+            ?? (key === GENERAL_KEY ? (report?.notes ?? '') : '')
+            ?? generalSeed?.notes
+            ?? '',
+        };
       });
-      newDogData[key] = {
-        checklist,
-        notes: existingSection?.notes ?? (key === GENERAL_KEY ? (report?.notes ?? '') : ''),
-      };
+      return newDogData;
     });
-    setDogData(newDogData);
   }, [templateData, report?.id, dogIds.join(',')]); // eslint-disable-line
 
   // Load existing photos

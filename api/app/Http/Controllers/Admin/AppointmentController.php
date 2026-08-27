@@ -31,6 +31,7 @@ class AppointmentController extends Controller
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->when($hasAssignedTo && $request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->without_report_card, fn($q) => $q->doesntHave('visitReport'))
             ->orderBy('scheduled_time');
 
         return response()->json($query->paginate(50));

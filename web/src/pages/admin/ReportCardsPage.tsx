@@ -173,7 +173,7 @@ export default function AdminReportCardsPage() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-espresso text-sm">
-                          {r.user?.name ?? '—'}
+                          {r.user?.name ?? r.appointment?.user?.name ?? '—'}
                         </div>
                         <div className="text-xs text-taupe mt-0.5">
                           {r.arrival_time

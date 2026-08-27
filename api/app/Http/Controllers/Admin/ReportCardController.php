@@ -22,7 +22,7 @@ class ReportCardController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = VisitReport::with(['user:id,name,email', 'appointment'])
+        $query = VisitReport::with(['user:id,name,email', 'appointment.user:id,name,email'])
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->status === 'sent',  fn($q) => $q->whereNotNull('sent_at'))
             ->when($request->status === 'draft', fn($q) => $q->whereNull('sent_at'))
