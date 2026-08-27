@@ -32,9 +32,21 @@ class InvoiceController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // Auto-add invoice_date column if not present
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('invoices', 'invoice_date')) {
+            try {
+                \Illuminate\Support\Facades\Schema::table('invoices', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->date('invoice_date')->nullable()->after('invoice_number');
+                });
+            } catch (\Throwable $e) {
+                // GoDaddy DDL restriction — proceed without the column
+            }
+        }
+
         $data = $request->validate([
             'user_id'              => 'required|exists:users,id',
             'due_date'             => 'nullable|date',
+            'invoice_date'         => 'nullable|date',
             'notes'                => 'nullable|string',
             'apply_cc_surcharge'   => 'sometimes|boolean',
             'billing_period_start' => 'nullable|date',
@@ -59,6 +71,10 @@ class InvoiceController extends Controller
             $data['billing_period_end'] ?? null,
         );
 
+        if (!empty($data['invoice_date']) && \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'invoice_date')) {
+            $invoice->update(['invoice_date' => $data['invoice_date']]);
+        }
+
         // Link service requests to the newly created line items
         $this->linkServiceRequests($data['line_items'], $invoice->lineItems);
 
@@ -74,8 +90,20 @@ class InvoiceController extends Controller
     {
         abort_unless(in_array($invoice->status, ['draft', 'approved', 'sent']), 422, 'Cannot edit a paid or void invoice.');
 
+        // Auto-add invoice_date column if not present
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('invoices', 'invoice_date')) {
+            try {
+                \Illuminate\Support\Facades\Schema::table('invoices', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->date('invoice_date')->nullable()->after('invoice_number');
+                });
+            } catch (\Throwable $e) {
+                // GoDaddy DDL restriction — proceed without the column
+            }
+        }
+
         $data = $request->validate([
             'due_date'           => 'sometimes|nullable|date',
+            'invoice_date'       => 'sometimes|nullable|date',
             'notes'              => 'sometimes|nullable|string',
             'apply_cc_surcharge' => 'sometimes|boolean',
             'billing_method'              => 'sometimes|nullable|in:credit_card,e_transfer,cash',
@@ -101,11 +129,17 @@ class InvoiceController extends Controller
             $this->invoiceService->recalculate($invoice);
         }
 
-        $invoice->update(array_filter([
+        $updateFields = array_filter([
             'due_date'       => $data['due_date'] ?? null,
             'notes'          => $data['notes'] ?? null,
             'billing_method' => $data['billing_method'] ?? null,
-        ], fn($v) => $v !== null));
+        ], fn($v) => $v !== null);
+
+        if (array_key_exists('invoice_date', $data) && \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'invoice_date')) {
+            $updateFields['invoice_date'] = $data['invoice_date'] ?: null;
+        }
+
+        $invoice->update($updateFields);
 
         return response()->json(['data' => $invoice->fresh('lineItems')]);
     }

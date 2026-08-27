@@ -45,6 +45,7 @@ export default function AdminInvoiceDetailPage() {
 
   const [editing, setEditing] = useState(false);
   const [dueDate, setDueDate] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [billingMethod, setBillingMethod] = useState('');
   const [notes, setNotes] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -101,6 +102,8 @@ export default function AdminInvoiceDetailPage() {
   const startEditing = () => {
     if (!invoice) return;
     setDueDate(invoice.due_date ? invoice.due_date.substring(0, 10) : '');
+    const dateSource = invoice.invoice_date ?? invoice.created_at;
+    setInvoiceDate(dateSource ? dateSource.substring(0, 10) : '');
     setBillingMethod(invoice.billing_method || invoice.user?.client_profile?.billing_method || '');
     setNotes(invoice.notes ?? '');
     setApplyCcSurcharge(!!invoice.apply_cc_surcharge);
@@ -157,6 +160,7 @@ export default function AdminInvoiceDetailPage() {
   const saveEdit = useMutation({
     mutationFn: () => api.patch(`/admin/invoices/${id}`, {
       due_date: dueDate || null,
+      invoice_date: invoiceDate || null,
       billing_method: billingMethod || null,
       notes: notes || null,
       apply_cc_surcharge: applyCcSurcharge,
@@ -435,7 +439,17 @@ export default function AdminInvoiceDetailPage() {
           <div className="text-right text-espresso/70 text-xs leading-relaxed">
             <div className="font-display text-sm text-espresso tracking-wide">INVOICE</div>
             <div>{invoice.invoice_number}</div>
-            <div>{format(new Date(invoice.created_at), 'MMMM d, yyyy')}</div>
+            {editing ? (
+              <Input
+                label=""
+                type="date"
+                value={invoiceDate}
+                onChange={e => setInvoiceDate(e.target.value)}
+                className="text-right"
+              />
+            ) : (
+              <div>{fmtDate(invoice.invoice_date ?? invoice.created_at, 'MMMM d, yyyy')}</div>
+            )}
           </div>
         </div>
 

@@ -51,6 +51,7 @@ export default function InvoiceCreatePage() {
 
   const [userId, setUserId] = useState(searchParams.get('client') ?? '');
   const [dueDate, setDueDate] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
   const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
@@ -149,6 +150,7 @@ export default function InvoiceCreatePage() {
     create.mutate({
       user_id: Number(userId),
       due_date: dueDate || undefined,
+      invoice_date: invoiceDate || undefined,
       notes: notes || undefined,
       apply_cc_surcharge: applyCcSurcharge,
       line_items: validLines.map(l => ({
@@ -200,10 +202,14 @@ export default function InvoiceCreatePage() {
               </select>
             </div>
             <div>
+              <label className="label">Invoice Date</label>
+              <Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
+            </div>
+            <div>
               <label className="label">Due Date</label>
               <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
-            <div>
+            <div className="col-span-2">
               <label className="label">Notes (optional)</label>
               <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any notes…" />
             </div>
