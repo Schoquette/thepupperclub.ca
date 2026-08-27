@@ -250,6 +250,7 @@ class AppointmentController extends Controller
             $reportData['photo_paths'] = $photoPaths;
         }
 
+        $reportData['user_id'] = $appointment->user_id;
         $report = $appointment->visitReport()->create($reportData);
 
         // Auto-calculate mileage for the day using Google Maps

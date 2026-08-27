@@ -541,7 +541,11 @@ export default function AdminReportCardFormPage() {
 
         {!isNew && (
           <div className="mb-4 flex items-center justify-between">
-            <div className="font-semibold text-espresso">{report?.user?.name}</div>
+            <div className="font-semibold text-espresso">
+              {report?.user?.name ?? report?.appointment?.user?.name ?? (
+                <span className="text-taupe text-sm italic">Client not linked</span>
+              )}
+            </div>
             {isSent && report?.sent_at && (
               <div className="text-xs text-taupe">
                 Sent {format(new Date(report.sent_at), 'MMM d, yyyy')}

@@ -48,7 +48,7 @@ class ReportCardController extends Controller
 
     public function show(VisitReport $reportCard): JsonResponse
     {
-        return response()->json(['data' => $reportCard->load(['user:id,name,email', 'appointment.dogs'])]);
+        return response()->json(['data' => $reportCard->load(['user:id,name,email', 'appointment.dogs', 'appointment.user:id,name,email'])]);
     }
 
     // ── Create / Update ───────────────────────────────────────────────────────
