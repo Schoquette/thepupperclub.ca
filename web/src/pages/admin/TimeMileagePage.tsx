@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
@@ -87,6 +87,19 @@ export default function TimeMileagePage() {
   const [teamFilter, setTeamFilter] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [timeMode, setTimeMode] = useState<'actual' | 'scheduled'>('actual');
+  const [recalcDate, setRecalcDate] = useState('');
+  const [recalcMsg, setRecalcMsg] = useState('');
+  const qc = useQueryClient();
+
+  const recalculate = useMutation({
+    mutationFn: (date: string) => api.post('/admin/time-mileage/recalculate', { date }),
+    onSuccess: (res) => {
+      setRecalcMsg(res.data.message ?? 'Recalculated.');
+      qc.invalidateQueries({ queryKey: ['time-mileage'] });
+      setTimeout(() => setRecalcMsg(''), 4000);
+    },
+    onError: (e: any) => setRecalcMsg(e.response?.data?.error ?? 'Recalculation failed.'),
+  });
 
   // Load team members for filter
   const { data: teamMembers } = useQuery<any[]>({
@@ -136,7 +149,25 @@ export default function TimeMileagePage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="page-title">Time & Mileage</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="page-title">Time & Mileage</h1>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            className="input text-sm"
+            value={recalcDate}
+            onChange={e => setRecalcDate(e.target.value)}
+          />
+          <button
+            className="px-3 py-1.5 rounded-lg bg-espresso text-cream text-sm font-medium disabled:opacity-50"
+            disabled={!recalcDate || recalculate.isPending}
+            onClick={() => recalculate.mutate(recalcDate)}
+          >
+            {recalculate.isPending ? 'Calculating…' : 'Recalculate Mileage'}
+          </button>
+          {recalcMsg && <span className="text-xs text-taupe">{recalcMsg}</span>}
+        </div>
+      </div>
 
       {/* Filters */}
       <Card>

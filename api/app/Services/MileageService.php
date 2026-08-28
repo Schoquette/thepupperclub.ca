@@ -154,19 +154,28 @@ class MileageService
      */
     private function getDistance(string $origin, string $destination, string $apiKey): float
     {
-        $url = 'https://maps.googleapis.com/maps/api/distancematrix/json'
-            . '?origins=' . urlencode($origin)
-            . '&destinations=' . urlencode($destination)
-            . '&units=metric'
-            . '&key=' . $apiKey;
-
         try {
-            $response = json_decode(file_get_contents($url), true);
+            $client = new \GuzzleHttp\Client(['timeout' => 10]);
+            $response = $client->get('https://maps.googleapis.com/maps/api/distancematrix/json', [
+                'query' => [
+                    'origins'      => $origin,
+                    'destinations' => $destination,
+                    'units'        => 'metric',
+                    'key'          => $apiKey,
+                ],
+            ]);
+            $data = json_decode((string) $response->getBody(), true);
 
-            if (($response['status'] ?? '') === 'OK'
-                && ($response['rows'][0]['elements'][0]['status'] ?? '') === 'OK') {
-                return $response['rows'][0]['elements'][0]['distance']['value'] / 1000;
+            if (($data['status'] ?? '') === 'OK'
+                && ($data['rows'][0]['elements'][0]['status'] ?? '') === 'OK') {
+                return $data['rows'][0]['elements'][0]['distance']['value'] / 1000;
             }
+
+            Log::warning('MileageService: unexpected Maps response', [
+                'status' => $data['status'] ?? 'unknown',
+                'origin' => $origin,
+                'destination' => $destination,
+            ]);
         } catch (\Throwable $e) {
             Log::warning('MileageService: Google Maps API error', [
                 'origin'      => $origin,

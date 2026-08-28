@@ -207,21 +207,28 @@ class TimeMileageController extends Controller
         $addresses = $request->addresses;
         $totalMeters = 0;
         $legs = [];
+        $guzzle = new \GuzzleHttp\Client(['timeout' => 10]);
 
         // Calculate distance between consecutive addresses
         for ($i = 0; $i < count($addresses) - 1; $i++) {
-            $origin      = urlencode($addresses[$i]);
-            $destination = urlencode($addresses[$i + 1]);
+            try {
+                $res  = $guzzle->get('https://maps.googleapis.com/maps/api/distancematrix/json', [
+                    'query' => [
+                        'origins'      => $addresses[$i],
+                        'destinations' => $addresses[$i + 1],
+                        'units'        => 'metric',
+                        'key'          => $apiKey,
+                    ],
+                ]);
+                $data = json_decode((string) $res->getBody(), true);
+            } catch (\Throwable $e) {
+                continue;
+            }
 
-            $url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-                 . "?origins={$origin}&destinations={$destination}&units=metric&key={$apiKey}";
-
-            $response = json_decode(file_get_contents($url), true);
-
-            if (($response['status'] ?? '') === 'OK'
-                && ($response['rows'][0]['elements'][0]['status'] ?? '') === 'OK') {
-                $meters   = $response['rows'][0]['elements'][0]['distance']['value'];
-                $text     = $response['rows'][0]['elements'][0]['distance']['text'];
+            if (($data['status'] ?? '') === 'OK'
+                && ($data['rows'][0]['elements'][0]['status'] ?? '') === 'OK') {
+                $meters      = $data['rows'][0]['elements'][0]['distance']['value'];
+                $text        = $data['rows'][0]['elements'][0]['distance']['text'];
                 $totalMeters += $meters;
                 $legs[] = [
                     'from'     => $addresses[$i],
@@ -238,5 +245,20 @@ class TimeMileageController extends Controller
                 'legs'     => $legs,
             ],
         ]);
+    }
+
+    public function recalculateDay(Request $request): JsonResponse
+    {
+        $request->validate(['date' => 'required|date']);
+
+        $apiKey = config('services.google.maps_api_key');
+        if (!$apiKey) {
+            return response()->json(['error' => 'Google Maps API key not configured.'], 422);
+        }
+
+        $date = \Carbon\Carbon::parse($request->date)->startOfDay();
+        app(\App\Services\MileageService::class)->recalculateDay($date, null);
+
+        return response()->json(['message' => 'Mileage recalculated for ' . $date->format('M j, Y') . '.']);
     }
 }
