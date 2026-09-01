@@ -12,6 +12,17 @@ use App\Http\Controllers\Admin\IntakeController;
 use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
+// Temporary: activate client Ricarda (REMOVE after running)
+Route::get('/fix-activate-ricarda-9x7k', function () {
+    $client = \App\Models\User::where('email', 'bentham@rjmail.ca')->where('role', 'client')->first();
+    if (!$client) {
+        return response()->json(['message' => 'Client not found.']);
+    }
+    $old = $client->status;
+    $client->update(['status' => 'active']);
+    return response()->json(['message' => "Status changed from {$old} to active for {$client->name}."]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
