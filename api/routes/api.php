@@ -22,6 +22,28 @@ Route::get('/debug-maddy-dogs-9x7k', function () {
     return response()->json(['data' => $dogs]);
 });
 
+// Temporary: check for related records on the duplicate dog IDs before deleting (REMOVE after running)
+Route::get('/check-maddy-dog-refs-9x7k', function () {
+    $ids = [55, 56, 57];
+    $out = [];
+    foreach ($ids as $id) {
+        $out[$id] = [
+            'vaccination_records' => \Illuminate\Support\Facades\DB::table('vaccination_records')->where('dog_id', $id)->count(),
+            'appointment_dogs'    => \Illuminate\Support\Facades\DB::table('appointment_dog')->where('dog_id', $id)->count(),
+            'service_requests'    => \Illuminate\Support\Facades\DB::table('service_request_dog')->where('dog_id', $id)->count(),
+            'client_documents'    => \Illuminate\Support\Facades\DB::table('client_documents')->where('dog_id', $id)->count(),
+        ];
+    }
+    return response()->json($out);
+});
+
+// Temporary: delete Maddy Forrester's 3 duplicate Ryder rows, keep id 52 (REMOVE after running)
+Route::get('/fix-maddy-dog-dupes-9x7k', function () {
+    $ids = [55, 56, 57];
+    $deleted = \App\Models\Dog::whereIn('id', $ids)->where('user_id', 24)->where('name', 'Ryder')->delete();
+    return response()->json(['message' => "Deleted {$deleted} duplicate dog rows.", 'ids' => $ids]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
