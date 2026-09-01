@@ -12,6 +12,16 @@ use App\Http\Controllers\Admin\IntakeController;
 use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController;
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
+// Temporary: inspect Maddy Forrester's duplicate dog rows (REMOVE after running)
+Route::get('/debug-maddy-dogs-9x7k', function () {
+    $client = \App\Models\User::where('email', 'forrestermaddy@gmail.com')->first();
+    if (!$client) {
+        return response()->json(['message' => 'Client not found.']);
+    }
+    $dogs = \App\Models\Dog::where('user_id', $client->id)->orderBy('id')->get();
+    return response()->json(['data' => $dogs]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
