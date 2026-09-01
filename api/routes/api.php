@@ -205,6 +205,25 @@ Route::get('/community-debug-9x7k', function () {
     ]);
 });
 
+// Temporary: renumber invoice generated with wrong month before the
+// APP_TIMEZONE fix deployed (REMOVE after running)
+Route::get('/fix-invoice-number-9x7k', function () {
+    $invoice = \App\Models\Invoice::where('invoice_number', 'TPC-2026-09-0001')->first();
+    if (!$invoice) {
+        return response()->json(['message' => 'Invoice TPC-2026-09-0001 not found (already fixed?).']);
+    }
+
+    $prefix = 'TPC-2026-08-';
+    $max    = \App\Models\Invoice::where('invoice_number', 'like', "{$prefix}%")->max('invoice_number');
+    $next   = $max ? ((int) substr($max, strlen($prefix))) + 1 : 1;
+    $newNumber = sprintf('%s%04d', $prefix, $next);
+
+    $old = $invoice->invoice_number;
+    $invoice->update(['invoice_number' => $newNumber]);
+
+    return response()->json(['message' => "Renamed {$old} to {$newNumber}."]);
+});
+
 // Temporary: clear config cache (REMOVE after confirming)
 Route::get('/clear-cache-9x7k', function () {
     // Also manually delete cached config file
