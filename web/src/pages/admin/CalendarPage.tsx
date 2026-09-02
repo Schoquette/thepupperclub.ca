@@ -236,6 +236,28 @@ function blankForm(): NewApptForm {
   };
 }
 
+type BlockForm = {
+  title: string;
+  location: string;
+  assigned_to: string;
+  scheduled_time: string;
+  duration_minutes: number;
+  notes: string;
+};
+
+const BLOCK_DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240, 480];
+
+function blankBlockForm(): BlockForm {
+  return {
+    title: '',
+    location: '',
+    assigned_to: '',
+    scheduled_time: '',
+    duration_minutes: 60,
+    notes: '',
+  };
+}
+
 /** Compute total minutes for an overnight stay spanning `start` →
  *  `end` (inclusive of both nights). Returns 1440 minimum (single
  *  night) so the date pickers landing on the same day still book
@@ -262,6 +284,16 @@ export default function AdminCalendarPage() {
   const [creatingAppt, setCreatingAppt] = useState(false);
   const [newForm, setNewForm] = useState<NewApptForm>(blankForm());
   const [createError, setCreateError] = useState('');
+
+  // Non-client calendar blocks
+  const [creatingBlock, setCreatingBlock] = useState(false);
+  const [newBlockForm, setNewBlockForm] = useState<BlockForm>(blankBlockForm());
+  const [createBlockError, setCreateBlockError] = useState('');
+  const [selectedBlock, setSelectedBlock] = useState<any>(null);
+  const [editingBlock, setEditingBlock] = useState(false);
+  const [editBlockForm, setEditBlockForm] = useState<BlockForm | null>(null);
+  const [editBlockError, setEditBlockError] = useState('');
+  const [deleteBlockConfirm, setDeleteBlockConfirm] = useState<number | null>(null);
 
   // Drag-and-drop confirm
   const [dragPending, setDragPending] = useState<{ appointment: any; newStart: Date; newEnd: Date } | null>(null);
@@ -301,6 +333,17 @@ export default function AdminCalendarPage() {
     queryKey: ['admin-appointments', range],
     queryFn: () =>
       api.get('/admin/appointments', {
+        params: {
+          start: toLocalISO(range.start),
+          end: toLocalISO(range.end),
+        },
+      }).then(r => r.data.data),
+  });
+
+  const { data: blocksData } = useQuery({
+    queryKey: ['admin-calendar-blocks', range],
+    queryFn: () =>
+      api.get('/admin/calendar-blocks', {
         params: {
           start: toLocalISO(range.start),
           end: toLocalISO(range.end),
@@ -405,6 +448,40 @@ export default function AdminCalendarPage() {
     },
   });
 
+  const createBlock = useMutation({
+    mutationFn: (payload: object) => api.post('/admin/calendar-blocks', payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-calendar-blocks'] });
+      setCreatingBlock(false);
+      setNewBlockForm(blankBlockForm());
+      setCreateBlockError('');
+    },
+    onError: (err: any) => setCreateBlockError(err.response?.data?.message ?? 'Failed to create block.'),
+  });
+
+  const updateBlock = useMutation({
+    mutationFn: ({ id, ...payload }: any) => api.patch(`/admin/calendar-blocks/${id}`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-calendar-blocks'] });
+      setEditingBlock(false);
+      setEditBlockForm(null);
+      setEditBlockError('');
+      setSelectedBlock(null);
+      setCalSuccess('Block updated.'); setTimeout(() => setCalSuccess(''), 2500);
+    },
+    onError: (err: any) => setEditBlockError(err.response?.data?.message ?? 'Failed to update block.'),
+  });
+
+  const deleteBlock = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/calendar-blocks/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-calendar-blocks'] });
+      setSelectedBlock(null);
+      setDeleteBlockConfirm(null);
+      setCalSuccess('Block deleted.'); setTimeout(() => setCalSuccess(''), 2500);
+    },
+  });
+
   const [emailMsg, setEmailMsg] = useState('');
   const emailSchedule = useMutation({
     mutationFn: (date: string) => api.post('/admin/appointments/email-schedule', { date }),
@@ -480,11 +557,16 @@ export default function AdminCalendarPage() {
   };
 
   const handleDragDrop = useCallback(({ event, start, end }: any) => {
+    if (isBefore(start, new Date())) return; // don't allow moving to the past
+    if (event.resource?._isBlock) {
+      const durationMin = Math.round((end.getTime() - start.getTime()) / 60_000);
+      updateBlock.mutate({ id: event.resource.id, scheduled_time: toLocalISO(start), duration_minutes: durationMin });
+      return;
+    }
     const appt = event.resource;
     if (appt.status === 'completed' || appt.status === 'cancelled') return;
-    if (isBefore(start, new Date())) return; // don't allow moving to the past
     setDragPending({ appointment: appt, newStart: start, newEnd: end });
-  }, []);
+  }, [updateBlock]);
 
   const confirmDrag = () => {
     if (!dragPending) return;
@@ -568,6 +650,32 @@ export default function AdminCalendarPage() {
       };
     }
     createAppointment.mutate(payload);
+  };
+
+  const handleCreateBlock = () => {
+    setCreateBlockError('');
+    createBlock.mutate({
+      title:             newBlockForm.title,
+      location:          newBlockForm.location || undefined,
+      assigned_to:       newBlockForm.assigned_to ? parseInt(newBlockForm.assigned_to) : undefined,
+      scheduled_time:    newBlockForm.scheduled_time,
+      duration_minutes:  newBlockForm.duration_minutes,
+      notes:             newBlockForm.notes || undefined,
+    });
+  };
+
+  const handleEditBlockSave = () => {
+    if (!editBlockForm || !selectedBlock) return;
+    setEditBlockError('');
+    updateBlock.mutate({
+      id: selectedBlock.id,
+      title:             editBlockForm.title,
+      location:          editBlockForm.location || null,
+      assigned_to:       editBlockForm.assigned_to ? parseInt(editBlockForm.assigned_to) : null,
+      scheduled_time:    editBlockForm.scheduled_time,
+      duration_minutes:  editBlockForm.duration_minutes,
+      notes:             editBlockForm.notes || null,
+    });
   };
 
   const toggleDog = (dogId: number) => {
@@ -663,7 +771,22 @@ export default function AdminCalendarPage() {
     };
   });
 
-  const events = [...appointmentEvents, ...birthdayEvents];
+  // Non-client calendar blocks (personal time, off-site errands, etc.)
+  const blockEvents = (blocksData ?? []).map((block: any) => {
+    const localStr = block.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const start = new Date(localStr);
+    const end = new Date(start.getTime() + block.duration_minutes * 60_000);
+    return {
+      id: `block-${block.id}`,
+      title: block.title,
+      start,
+      end,
+      allDay: false,
+      resource: { _isBlock: true, ...block },
+    };
+  });
+
+  const events = [...appointmentEvents, ...birthdayEvents, ...blockEvents];
 
   const today = startOfDay(new Date());
 
@@ -692,6 +815,9 @@ export default function AdminCalendarPage() {
           </Button>
           <Button size="sm" variant="secondary" onClick={exportCalendarCSV}>Export CSV</Button>
           <Button size="sm" variant="secondary" onClick={exportCalendarPDF}>Export PDF</Button>
+          <Button size="sm" variant="secondary" onClick={() => { setCreatingBlock(true); setCreateBlockError(''); }}>
+            + New Block
+          </Button>
           <Button size="sm" onClick={() => { setCreatingAppt(true); setCreateError(''); }}>
             + New Appointment
           </Button>
@@ -798,6 +924,10 @@ export default function AdminCalendarPage() {
                 navigate(`/admin/clients/${e.resource.user_id}`);
                 return;
               }
+              if (e.resource?._isBlock) {
+                setSelectedBlock(e.resource);
+                return;
+              }
               setSelected(e.resource);
             }}
             onEventDrop={handleDragDrop}
@@ -815,6 +945,18 @@ export default function AdminCalendarPage() {
                     color: 'white',
                     fontSize: 12,
                     fontWeight: 600,
+                  },
+                };
+              }
+              if (e.resource?._isBlock) {
+                return {
+                  style: {
+                    backgroundColor: '#3B2F2A',
+                    borderRadius: 6,
+                    border: 'none',
+                    color: '#F6F3EE',
+                    fontSize: 12,
+                    backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 6px, transparent 6px, transparent 12px)',
                   },
                 };
               }
@@ -1565,6 +1707,206 @@ export default function AdminCalendarPage() {
             <Button onClick={() => handleNotifyDecision(true)} loading={updateAppointment.isPending}>
               Send Update
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Create block */}
+      <Modal open={creatingBlock} onClose={() => setCreatingBlock(false)} title="New Block">
+        <div className="space-y-4">
+          {createBlockError && <p className="text-sm text-red-600">{createBlockError}</p>}
+          <Input
+            label="Title *"
+            value={newBlockForm.title}
+            onChange={e => setNewBlockForm(f => ({ ...f, title: e.target.value }))}
+            placeholder="e.g. Vet Appointment, Errands, Lunch"
+          />
+          <Input
+            label="Location"
+            value={newBlockForm.location}
+            onChange={e => setNewBlockForm(f => ({ ...f, location: e.target.value }))}
+            placeholder="Optional"
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Start *"
+              type="datetime-local"
+              step={900}
+              value={newBlockForm.scheduled_time}
+              onChange={e => setNewBlockForm(f => ({ ...f, scheduled_time: e.target.value }))}
+            />
+            <div>
+              <label className="label">Duration *</label>
+              <select
+                className="input"
+                value={newBlockForm.duration_minutes}
+                onChange={e => setNewBlockForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
+              >
+                {BLOCK_DURATIONS.map(d => <option key={d} value={d}>{formatDuration(d)}</option>)}
+              </select>
+            </div>
+          </div>
+          {(teamMembers?.length ?? 0) > 0 && (
+            <div>
+              <label className="label">Team Member</label>
+              <select
+                className="input"
+                value={newBlockForm.assigned_to}
+                onChange={e => setNewBlockForm(f => ({ ...f, assigned_to: e.target.value }))}
+              >
+                <option value="">— Unassigned —</option>
+                {teamMembers.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="label">Notes</label>
+            <textarea
+              className="input"
+              rows={2}
+              value={newBlockForm.notes}
+              onChange={e => setNewBlockForm(f => ({ ...f, notes: e.target.value }))}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setCreatingBlock(false)}>Cancel</Button>
+            <Button
+              loading={createBlock.isPending}
+              disabled={!newBlockForm.title || !newBlockForm.scheduled_time}
+              onClick={handleCreateBlock}
+            >
+              Create Block
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Block detail / edit */}
+      <Modal
+        open={!!selectedBlock}
+        onClose={() => { setSelectedBlock(null); setEditingBlock(false); setEditBlockError(''); }}
+        title={editingBlock ? 'Edit Block' : 'Block'}
+      >
+        {selectedBlock && !editingBlock && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold text-espresso text-lg">{selectedBlock.title}</h3>
+              {selectedBlock.location && <p className="text-sm text-taupe mt-0.5">{selectedBlock.location}</p>}
+            </div>
+            <div className="text-sm space-y-1">
+              <div>
+                <span className="text-taupe">When: </span>
+                {format(new Date((selectedBlock.scheduled_time || '').replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '')), 'EEE, MMM d, h:mm a')}
+                {' – '}{formatDuration(selectedBlock.duration_minutes)}
+              </div>
+              {selectedBlock.assigned_admin && (
+                <div><span className="text-taupe">Team member: </span>{selectedBlock.assigned_admin.name}</div>
+              )}
+              {selectedBlock.notes && (
+                <div><span className="text-taupe">Notes: </span>{selectedBlock.notes}</div>
+              )}
+            </div>
+            <div className="flex justify-between pt-2 border-t border-cream">
+              <button
+                onClick={() => setDeleteBlockConfirm(selectedBlock.id)}
+                className="text-sm text-red-500 hover:text-red-700"
+              >
+                Delete
+              </button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditBlockForm({
+                    title: selectedBlock.title,
+                    location: selectedBlock.location ?? '',
+                    assigned_to: selectedBlock.assigned_to ? String(selectedBlock.assigned_to) : '',
+                    scheduled_time: (selectedBlock.scheduled_time || '').replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '').slice(0, 16),
+                    duration_minutes: selectedBlock.duration_minutes,
+                    notes: selectedBlock.notes ?? '',
+                  });
+                  setEditingBlock(true);
+                }}
+              >
+                Edit
+              </Button>
+            </div>
+          </div>
+        )}
+        {selectedBlock && editingBlock && editBlockForm && (
+          <div className="space-y-4">
+            {editBlockError && <p className="text-sm text-red-600">{editBlockError}</p>}
+            <Input
+              label="Title *"
+              value={editBlockForm.title}
+              onChange={e => setEditBlockForm((f: any) => ({ ...f, title: e.target.value }))}
+            />
+            <Input
+              label="Location"
+              value={editBlockForm.location}
+              onChange={e => setEditBlockForm((f: any) => ({ ...f, location: e.target.value }))}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Start *"
+                type="datetime-local"
+                step={900}
+                value={editBlockForm.scheduled_time}
+                onChange={e => setEditBlockForm((f: any) => ({ ...f, scheduled_time: e.target.value }))}
+              />
+              <div>
+                <label className="label">Duration *</label>
+                <select
+                  className="input"
+                  value={editBlockForm.duration_minutes}
+                  onChange={e => setEditBlockForm((f: any) => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
+                >
+                  {BLOCK_DURATIONS.map(d => <option key={d} value={d}>{formatDuration(d)}</option>)}
+                </select>
+              </div>
+            </div>
+            {(teamMembers?.length ?? 0) > 0 && (
+              <div>
+                <label className="label">Team Member</label>
+                <select
+                  className="input"
+                  value={editBlockForm.assigned_to}
+                  onChange={e => setEditBlockForm((f: any) => ({ ...f, assigned_to: e.target.value }))}
+                >
+                  <option value="">— Unassigned —</option>
+                  {teamMembers.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="label">Notes</label>
+              <textarea
+                className="input"
+                rows={2}
+                value={editBlockForm.notes}
+                onChange={e => setEditBlockForm((f: any) => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditingBlock(false)}>Cancel</Button>
+              <Button loading={updateBlock.isPending} onClick={handleEditBlockSave}>Save</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete block confirm */}
+      <Modal open={!!deleteBlockConfirm} onClose={() => setDeleteBlockConfirm(null)} title="Delete Block">
+        <div className="space-y-4">
+          <p className="text-sm text-espresso">Are you sure you want to delete this block?</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setDeleteBlockConfirm(null)}>Cancel</Button>
+            <button
+              onClick={() => deleteBlockConfirm && deleteBlock.mutate(deleteBlockConfirm)}
+              disabled={deleteBlock.isPending}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {deleteBlock.isPending ? 'Deleting…' : 'Yes, Delete'}
+            </button>
           </div>
         </div>
       </Modal>

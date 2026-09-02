@@ -13,6 +13,31 @@ use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
 
+// Temporary: create calendar_blocks table (REMOVE after running)
+Route::get('/create-calendar-blocks-table-9x7k', function () {
+    if (\Illuminate\Support\Facades\Schema::hasTable('calendar_blocks')) {
+        return response()->json(['message' => 'calendar_blocks already exists.']);
+    }
+    \Illuminate\Support\Facades\DB::statement("
+        CREATE TABLE calendar_blocks (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            location VARCHAR(255) NULL,
+            scheduled_time DATETIME NOT NULL,
+            duration_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 60,
+            assigned_to BIGINT UNSIGNED NULL,
+            created_by BIGINT UNSIGNED NULL,
+            notes TEXT NULL,
+            created_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL,
+            CONSTRAINT calendar_blocks_assigned_to_foreign FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
+            CONSTRAINT calendar_blocks_created_by_foreign FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+            INDEX calendar_blocks_scheduled_time_index (scheduled_time)
+        )
+    ");
+    return response()->json(['message' => 'calendar_blocks table created.']);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
@@ -815,6 +840,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/appointments/{appointment}/dismiss-report-card', [Admin\ReportCardController::class, 'dismissDue']);
         Route::get('/appointments/{appointment}/report',     [Admin\AppointmentController::class, 'report']);
         Route::patch('/appointments/{appointment}/report',   [Admin\AppointmentController::class, 'updateReport']);
+
+        // Calendar blocks (non-client calendar entries)
+        Route::get('/calendar-blocks',                       [Admin\CalendarBlockController::class, 'index']);
+        Route::post('/calendar-blocks',                      [Admin\CalendarBlockController::class, 'store']);
+        Route::patch('/calendar-blocks/{calendarBlock}',      [Admin\CalendarBlockController::class, 'update']);
+        Route::delete('/calendar-blocks/{calendarBlock}',     [Admin\CalendarBlockController::class, 'destroy']);
 
         // Service requests
         Route::get('/service-requests',               [Admin\ServiceRequestController::class, 'index']);
