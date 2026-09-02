@@ -1944,6 +1944,7 @@ type DocSortKey = 'filename' | 'type' | 'status' | 'date';
 type DocSortDir = 'asc' | 'desc';
 
 function DocumentsTab({ clientId, client, onChanged }: { clientId: number; client: any; onChanged: () => void }) {
+  const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [docType, setDocType] = useState('other');
@@ -1954,6 +1955,28 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
   const [docSort, setDocSort] = useState<DocSortKey>('date');
   const [docSortDir, setDocSortDir] = useState<DocSortDir>('desc');
   const [statusFilter, setStatusFilter] = useState('');
+
+  // Fillable document upload (one-off document with signing fields)
+  const [showFillableUpload, setShowFillableUpload] = useState(false);
+  const [fillableName, setFillableName] = useState('');
+  const [fillableFile, setFillableFile] = useState<File | null>(null);
+  const [fillableError, setFillableError] = useState('');
+
+  const uploadFillable = useMutation({
+    mutationFn: () => {
+      const form = new FormData();
+      form.append('name', fillableName.trim() || fillableFile!.name);
+      form.append('pdf', fillableFile!);
+      form.append('client_id', String(clientId));
+      return api.post('/admin/document-templates', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: (res) => {
+      navigate(`/admin/documents/templates/${res.data.data.id}/edit`);
+    },
+    onError: (e: any) => setFillableError(e.response?.data?.message || 'Upload failed.'),
+  });
 
   const handleDocSort = (key: DocSortKey) => {
     if (docSort === key) {
@@ -2084,9 +2107,18 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-display text-espresso">Documents</h2>
-          <Button size="sm" variant="outline" onClick={() => { setUploading(v => !v); setUploadError(''); }}>
-            {uploading ? 'Cancel' : '+ Upload'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setShowFillableUpload(true); setFillableError(''); setFillableName(''); setFillableFile(null); }}
+            >
+              + Fillable Document
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setUploading(v => !v); setUploadError(''); }}>
+              {uploading ? 'Cancel' : '+ Upload'}
+            </Button>
+          </div>
         </div>
 
         {docActionMsg && <p className="text-sm text-green-600 font-medium mb-3">{docActionMsg}</p>}
@@ -2223,6 +2255,43 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
           <p className="text-center py-8 text-taupe">No documents on file.</p>
         )}
       </Card>
+
+      {/* Fillable document upload modal */}
+      <Modal open={showFillableUpload} onClose={() => setShowFillableUpload(false)} title="New Fillable Document">
+        <div className="space-y-4">
+          <p className="text-xs text-taupe">
+            Upload a PDF, then place signing fields on it — just like a template, but this one is only for {client.name}. It won't appear in the shared template library.
+          </p>
+          <div>
+            <label className="label">Document Name</label>
+            <Input
+              value={fillableName}
+              onChange={e => setFillableName(e.target.value)}
+              placeholder="e.g. Custom Boarding Agreement"
+            />
+          </div>
+          <div>
+            <label className="label">File</label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.heic"
+              onChange={e => setFillableFile(e.target.files?.[0] ?? null)}
+              className="block w-full text-sm text-taupe file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-cream file:text-espresso hover:file:bg-taupe/20 cursor-pointer"
+            />
+          </div>
+          {fillableError && <p className="text-sm text-red-600">{fillableError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowFillableUpload(false)}>Cancel</Button>
+            <Button
+              loading={uploadFillable.isPending}
+              disabled={!fillableFile}
+              onClick={() => uploadFillable.mutate()}
+            >
+              Upload & Add Fields →
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Upload form */}
       {uploading && (

@@ -160,6 +160,21 @@ export default function TemplateEditorPage() {
     },
   });
 
+  // For one-off documents (template.client_id set): save fields, then
+  // generate the actual client document and land on that client's
+  // Documents tab so the admin can review & request signature.
+  const [generateError, setGenerateError] = useState('');
+  const generateForClient = useMutation({
+    mutationFn: async () => {
+      await saveFields.mutateAsync();
+      return api.post(`/admin/document-templates/${id}/use`, { client_id: template.client_id });
+    },
+    onSuccess: () => {
+      navigate(`/admin/clients/${template.client_id}?tab=documents`);
+    },
+    onError: (err: any) => setGenerateError(err.response?.data?.message || 'Failed to generate document.'),
+  });
+
   const addField = () => {
     const newField: Field = {
       label: fieldLabel(addType),
@@ -340,9 +355,14 @@ export default function TemplateEditorPage() {
             <div className="flex items-center gap-1.5 text-xs text-taupe mb-0.5">
               <a href="/admin/documents" onClick={e => { e.preventDefault(); navigate('/admin/documents'); }} className="hover:text-espresso hover:underline">Documents</a>
               <span>/</span>
-              <span className="text-espresso">Edit Template</span>
+              <span className="text-espresso">{template?.client_id ? 'New Document' : 'Edit Template'}</span>
             </div>
-            <h1 className="page-title">Edit Template</h1>
+            <h1 className="page-title">{template?.client_id ? 'Edit Document' : 'Edit Template'}</h1>
+            {template?.client_id && (
+              <p className="text-xs text-gold font-medium mt-0.5">
+                One-off document for {template?.client?.name ?? 'this client'} — won't appear in the template library
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -353,6 +373,15 @@ export default function TemplateEditorPage() {
           >
             Save Fields
           </Button>
+          {template?.client_id && (
+            <Button
+              loading={generateForClient.isPending}
+              disabled={fields.length === 0}
+              onClick={() => { setGenerateError(''); generateForClient.mutate(); }}
+            >
+              Generate for {template?.client?.name ?? 'Client'} →
+            </Button>
+          )}
         </div>
       </div>
 
@@ -364,6 +393,16 @@ export default function TemplateEditorPage() {
       {saveError && (
         <div className="bg-red-50 text-red-700 text-sm font-medium px-4 py-2.5 rounded-lg">
           Save failed: {saveError}
+        </div>
+      )}
+      {generateError && (
+        <div className="bg-red-50 text-red-700 text-sm font-medium px-4 py-2.5 rounded-lg">
+          {generateError}
+        </div>
+      )}
+      {template?.client_id && fields.length === 0 && (
+        <div className="bg-gold/10 text-espresso text-sm px-4 py-2.5 rounded-lg">
+          Add at least one field below, then click "Generate for {template?.client?.name ?? 'Client'}" to create the signable document.
         </div>
       )}
 

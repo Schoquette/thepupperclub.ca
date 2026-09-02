@@ -22,6 +22,7 @@ class DocumentTemplateController extends Controller
     public function index(): JsonResponse
     {
         $templates = DocumentTemplate::withCount('fields', 'documents')
+            ->whereNull('client_id')
             ->orderBy('name')
             ->get();
 
@@ -34,6 +35,7 @@ class DocumentTemplateController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'pdf' => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png,heic|max:20480',
+            'client_id' => 'nullable|exists:users,id',
         ]);
 
         $file = $request->file('pdf');
@@ -49,6 +51,7 @@ class DocumentTemplateController extends Controller
         }
 
         $template = DocumentTemplate::create([
+            'client_id'        => $request->client_id,
             'name'             => $request->name,
             'description'      => $request->description,
             'pdf_storage_path' => $path,
@@ -57,13 +60,13 @@ class DocumentTemplateController extends Controller
             'created_by'       => $request->user()->id,
         ]);
 
-        return response()->json(['data' => $template->load('fields')], 201);
+        return response()->json(['data' => $template->load(['fields', 'client:id,name'])], 201);
     }
 
     public function show(DocumentTemplate $template): JsonResponse
     {
         return response()->json([
-            'data' => $template->load('fields'),
+            'data' => $template->load(['fields', 'client:id,name']),
         ]);
     }
 
@@ -133,7 +136,7 @@ class DocumentTemplateController extends Controller
         });
 
         return response()->json([
-            'data'    => $template->load('fields'),
+            'data'    => $template->load(['fields', 'client:id,name']),
             'message' => 'Fields saved.',
         ]);
     }

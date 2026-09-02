@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class DocumentTemplate extends Model
 {
     protected $fillable = [
+        'client_id',
         'name',
         'description',
         'pdf_storage_path',
@@ -25,6 +26,13 @@ class DocumentTemplate extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    // Set only for one-off documents built for a single client (hidden
+    // from the shared template library). Null for reusable templates.
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'client_id');
     }
 
     public function documents(): HasMany

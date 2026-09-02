@@ -13,6 +13,16 @@ use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
 
+// Temporary: add client_id column to document_templates for one-off client documents (REMOVE after running)
+Route::get('/fix-document-templates-client-id-9x7k', function () {
+    if (!\Illuminate\Support\Facades\Schema::hasColumn('document_templates', 'client_id')) {
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE document_templates ADD COLUMN client_id BIGINT UNSIGNED NULL AFTER id");
+        \Illuminate\Support\Facades\DB::statement("ALTER TABLE document_templates ADD CONSTRAINT document_templates_client_id_foreign FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE");
+        return response()->json(['message' => 'client_id column added to document_templates.']);
+    }
+    return response()->json(['message' => 'client_id column already exists.']);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
