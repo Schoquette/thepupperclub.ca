@@ -97,6 +97,21 @@ function formatDuration(d: number): string {
   return `${d} min`;
 }
 
+/** Add minutes to a datetime-local string (YYYY-MM-DDTHH:mm), returned in the same format. */
+function addMinutesToLocal(dt: string, minutes: number): string {
+  const d = new Date(dt);
+  if (isNaN(d.getTime())) return '';
+  return toLocalISO(new Date(d.getTime() + minutes * 60_000));
+}
+
+/** Whole minutes between two datetime-local strings (end - start). Returns 0 if invalid/non-positive. */
+function localMinutesBetween(start: string, end: string): number {
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  if (isNaN(s) || isNaN(e) || e <= s) return 0;
+  return Math.round((e - s) / 60_000);
+}
+
 const BUFFER_MINUTES = 15;
 
 type ScheduleWarning = {
@@ -241,11 +256,9 @@ type BlockForm = {
   location: string;
   assigned_to: string;
   scheduled_time: string;
-  duration_minutes: number;
+  end_time: string;
   notes: string;
 };
-
-const BLOCK_DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240, 480];
 
 function blankBlockForm(): BlockForm {
   return {
@@ -253,7 +266,7 @@ function blankBlockForm(): BlockForm {
     location: '',
     assigned_to: '',
     scheduled_time: '',
-    duration_minutes: 60,
+    end_time: '',
     notes: '',
   };
 }
@@ -654,12 +667,17 @@ export default function AdminCalendarPage() {
 
   const handleCreateBlock = () => {
     setCreateBlockError('');
+    const duration = localMinutesBetween(newBlockForm.scheduled_time, newBlockForm.end_time);
+    if (duration <= 0) {
+      setCreateBlockError('End time must be after start time.');
+      return;
+    }
     createBlock.mutate({
       title:             newBlockForm.title,
       location:          newBlockForm.location || undefined,
       assigned_to:       newBlockForm.assigned_to ? parseInt(newBlockForm.assigned_to) : undefined,
       scheduled_time:    newBlockForm.scheduled_time,
-      duration_minutes:  newBlockForm.duration_minutes,
+      duration_minutes:  duration,
       notes:             newBlockForm.notes || undefined,
     });
   };
@@ -667,13 +685,18 @@ export default function AdminCalendarPage() {
   const handleEditBlockSave = () => {
     if (!editBlockForm || !selectedBlock) return;
     setEditBlockError('');
+    const duration = localMinutesBetween(editBlockForm.scheduled_time, editBlockForm.end_time);
+    if (duration <= 0) {
+      setEditBlockError('End time must be after start time.');
+      return;
+    }
     updateBlock.mutate({
       id: selectedBlock.id,
       title:             editBlockForm.title,
       location:          editBlockForm.location || null,
       assigned_to:       editBlockForm.assigned_to ? parseInt(editBlockForm.assigned_to) : null,
       scheduled_time:    editBlockForm.scheduled_time,
-      duration_minutes:  editBlockForm.duration_minutes,
+      duration_minutes:  duration,
       notes:             editBlockForm.notes || null,
     });
   };
@@ -1733,18 +1756,28 @@ export default function AdminCalendarPage() {
               type="datetime-local"
               step={900}
               value={newBlockForm.scheduled_time}
-              onChange={e => setNewBlockForm(f => ({ ...f, scheduled_time: e.target.value }))}
+              onChange={e => {
+                const scheduled_time = e.target.value;
+                setNewBlockForm(f => {
+                  // Keep the existing duration when shifting the start time;
+                  // default to +1h the first time a start is picked.
+                  const priorDuration = f.scheduled_time && f.end_time
+                    ? localMinutesBetween(f.scheduled_time, f.end_time)
+                    : 0;
+                  const end_time = scheduled_time
+                    ? addMinutesToLocal(scheduled_time, priorDuration > 0 ? priorDuration : 60)
+                    : f.end_time;
+                  return { ...f, scheduled_time, end_time };
+                });
+              }}
             />
-            <div>
-              <label className="label">Duration *</label>
-              <select
-                className="input"
-                value={newBlockForm.duration_minutes}
-                onChange={e => setNewBlockForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
-              >
-                {BLOCK_DURATIONS.map(d => <option key={d} value={d}>{formatDuration(d)}</option>)}
-              </select>
-            </div>
+            <Input
+              label="End *"
+              type="datetime-local"
+              step={900}
+              value={newBlockForm.end_time}
+              onChange={e => setNewBlockForm(f => ({ ...f, end_time: e.target.value }))}
+            />
           </div>
           {(teamMembers?.length ?? 0) > 0 && (
             <div>
@@ -1772,7 +1805,7 @@ export default function AdminCalendarPage() {
             <Button variant="outline" onClick={() => setCreatingBlock(false)}>Cancel</Button>
             <Button
               loading={createBlock.isPending}
-              disabled={!newBlockForm.title || !newBlockForm.scheduled_time}
+              disabled={!newBlockForm.title || !newBlockForm.scheduled_time || !newBlockForm.end_time}
               onClick={handleCreateBlock}
             >
               Create Block
@@ -1796,8 +1829,11 @@ export default function AdminCalendarPage() {
             <div className="text-sm space-y-1">
               <div>
                 <span className="text-taupe">When: </span>
-                {format(new Date((selectedBlock.scheduled_time || '').replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '')), 'EEE, MMM d, h:mm a')}
-                {' – '}{formatDuration(selectedBlock.duration_minutes)}
+                {(() => {
+                  const start = new Date((selectedBlock.scheduled_time || '').replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, ''));
+                  const end = new Date(start.getTime() + selectedBlock.duration_minutes * 60_000);
+                  return <>{format(start, 'EEE, MMM d, h:mm a')} – {format(end, 'h:mm a')}</>;
+                })()}
               </div>
               {selectedBlock.assigned_admin && (
                 <div><span className="text-taupe">Team member: </span>{selectedBlock.assigned_admin.name}</div>
@@ -1816,12 +1852,13 @@ export default function AdminCalendarPage() {
               <Button
                 size="sm"
                 onClick={() => {
+                  const startLocal = (selectedBlock.scheduled_time || '').replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '').slice(0, 16);
                   setEditBlockForm({
                     title: selectedBlock.title,
                     location: selectedBlock.location ?? '',
                     assigned_to: selectedBlock.assigned_to ? String(selectedBlock.assigned_to) : '',
-                    scheduled_time: (selectedBlock.scheduled_time || '').replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '').slice(0, 16),
-                    duration_minutes: selectedBlock.duration_minutes,
+                    scheduled_time: startLocal,
+                    end_time: addMinutesToLocal(startLocal, selectedBlock.duration_minutes),
                     notes: selectedBlock.notes ?? '',
                   });
                   setEditingBlock(true);
@@ -1851,18 +1888,26 @@ export default function AdminCalendarPage() {
                 type="datetime-local"
                 step={900}
                 value={editBlockForm.scheduled_time}
-                onChange={e => setEditBlockForm((f: any) => ({ ...f, scheduled_time: e.target.value }))}
+                onChange={e => {
+                  const scheduled_time = e.target.value;
+                  setEditBlockForm((f: any) => {
+                    const priorDuration = f.scheduled_time && f.end_time
+                      ? localMinutesBetween(f.scheduled_time, f.end_time)
+                      : 0;
+                    const end_time = scheduled_time
+                      ? addMinutesToLocal(scheduled_time, priorDuration > 0 ? priorDuration : 60)
+                      : f.end_time;
+                    return { ...f, scheduled_time, end_time };
+                  });
+                }}
               />
-              <div>
-                <label className="label">Duration *</label>
-                <select
-                  className="input"
-                  value={editBlockForm.duration_minutes}
-                  onChange={e => setEditBlockForm((f: any) => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
-                >
-                  {BLOCK_DURATIONS.map(d => <option key={d} value={d}>{formatDuration(d)}</option>)}
-                </select>
-              </div>
+              <Input
+                label="End *"
+                type="datetime-local"
+                step={900}
+                value={editBlockForm.end_time}
+                onChange={e => setEditBlockForm((f: any) => ({ ...f, end_time: e.target.value }))}
+              />
             </div>
             {(teamMembers?.length ?? 0) > 0 && (
               <div>
