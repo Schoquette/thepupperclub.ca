@@ -36,6 +36,7 @@ class Appointment extends Model
         'check_out_time',
         'pre_visit_notification_sent',
         'distance_km',
+        'report_card_dismissed',
     ];
 
     protected function casts(): array
@@ -46,6 +47,7 @@ class Appointment extends Model
             'check_out_time'               => 'datetime',
             'recurrence_rule'              => 'array',
             'pre_visit_notification_sent'  => 'boolean',
+            'report_card_dismissed'        => 'boolean',
         ];
     }
 

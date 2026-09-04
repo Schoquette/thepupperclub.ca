@@ -13,34 +13,6 @@ use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
 
-// Temporary: debug the stuck "Report Cards Due" dismiss for Ricarda (REMOVE after running)
-Route::get('/debug-dismiss-due-9x7k', function () {
-    $client = \App\Models\User::where('name', 'Ricarda')->first();
-    if (!$client) return response()->json(['message' => 'Client not found.']);
-
-    $hasCol = \Illuminate\Support\Facades\Schema::hasColumn('appointments', 'report_card_dismissed');
-
-    $appts = \App\Models\Appointment::where('user_id', $client->id)
-        ->whereDate('scheduled_time', '2026-07-11')
-        ->get();
-
-    return response()->json([
-        'has_dismissed_column' => $hasCol,
-        'client_id' => $client->id,
-        'appointments' => $appts,
-    ]);
-});
-
-// Temporary: actually try the dismiss for appointment 517 to see what happens (REMOVE after running)
-Route::get('/debug-dismiss-due-try-9x7k', function () {
-    try {
-        $appt = \App\Models\Appointment::findOrFail(517);
-        $appt->update(['report_card_dismissed' => true]);
-        return response()->json(['message' => 'Dismissed successfully.', 'appt' => $appt->fresh()]);
-    } catch (\Throwable $e) {
-        return response()->json(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
-    }
-});
 
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
