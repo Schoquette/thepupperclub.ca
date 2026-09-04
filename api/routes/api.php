@@ -31,6 +31,17 @@ Route::get('/debug-dismiss-due-9x7k', function () {
     ]);
 });
 
+// Temporary: actually try the dismiss for appointment 517 to see what happens (REMOVE after running)
+Route::get('/debug-dismiss-due-try-9x7k', function () {
+    try {
+        $appt = \App\Models\Appointment::findOrFail(517);
+        $appt->update(['report_card_dismissed' => true]);
+        return response()->json(['message' => 'Dismissed successfully.', 'appt' => $appt->fresh()]);
+    } catch (\Throwable $e) {
+        return response()->json(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
+    }
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
