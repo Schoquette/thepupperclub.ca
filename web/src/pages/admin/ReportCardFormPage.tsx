@@ -343,10 +343,10 @@ export default function AdminReportCardFormPage() {
 
   const sendReport = useMutation({
     mutationFn: async () => {
-      if (newPhotos.length > 0) {
-        const fd = buildFormData({ photos: newPhotos });
-        await api.post(`/admin/report-cards/${id}`, fd, fdConfig);
-      }
+      // Save the current form state (times, checklist, notes, photos) first —
+      // otherwise "Send"/"Update & Resend" would go out with whatever was
+      // already persisted, silently dropping anything just typed.
+      await api.post(`/admin/report-cards/${id}`, makePayload(), fdConfig);
       return api.post(`/admin/report-cards/${id}/send`);
     },
     onSuccess: () => {
