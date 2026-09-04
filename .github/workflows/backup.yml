@@ -54,6 +54,13 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          set -o pipefail
+
+          if [ -z "$DB_HOST" ] || [ -z "$DB_DATABASE" ] || [ -z "$DB_USERNAME" ]; then
+            echo "::error::DB_HOST/DB_DATABASE/DB_USERNAME secrets are not set — see setup notes at the top of this file."
+            exit 1
+          fi
+
           echo "Connecting to ${DB_HOST}:${DB_PORT:-3306}..."
           mysqldump \
             --host="$DB_HOST" \
@@ -66,10 +73,14 @@ jobs:
             --set-gtid-purged=OFF \
             --column-statistics=0 \
             "$DB_DATABASE" | gzip > backup.sql.gz
+          # pipefail above means a failed mysqldump now fails this step
+          # even though gzip (downstream) would otherwise exit 0 on empty input.
 
-          # Verify the dump is not empty
-          if [ ! -s backup.sql.gz ]; then
-            echo "::error::Backup file is empty"
+          # Verify the dump has real content, not just a non-empty gzip
+          # wrapper (an empty input still produces a small valid .gz file).
+          UNCOMPRESSED_SIZE=$(gzip -l backup.sql.gz | awk 'NR==2 {print $2}')
+          if [ -z "$UNCOMPRESSED_SIZE" ] || [ "$UNCOMPRESSED_SIZE" -lt 1024 ]; then
+            echo "::error::Backup content is empty or suspiciously small (${UNCOMPRESSED_SIZE:-0} bytes uncompressed)"
             exit 1
           fi
 
