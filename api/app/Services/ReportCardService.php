@@ -66,6 +66,22 @@ class ReportCardService
                 'report_id' => $report->id,
                 'error'     => $e->getMessage(),
             ]);
+            // Also record to the DB-backed error log (visible in the admin
+            // dashboard) since the file log isn't reachable on GoDaddy shared
+            // hosting without SSH.
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'  => $client->id,
+                    'type'     => 'report_card_email_failed',
+                    'message'  => $e->getMessage(),
+                    'context'  => ['report_id' => $report->id, 'trace' => $e->getTraceAsString()],
+                    'url'      => null,
+                    'ip_address' => null,
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $inner) {
+                // Never let error-logging itself break the send flow.
+            }
         }
     }
 

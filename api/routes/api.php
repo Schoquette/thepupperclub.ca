@@ -48,6 +48,13 @@ Route::get('/debug-maddy-report-cards-9x7k', function () {
     }
 });
 
+// Temporary: re-trigger report card #39 send to capture the real failure (REMOVE after running)
+Route::get('/debug-resend-maddy-report-9x7k', function () {
+    $report = \App\Models\VisitReport::findOrFail(39);
+    app(\App\Services\ReportCardService::class)->send($report);
+    return response()->json(['message' => 'Send triggered.', 'report' => $report->fresh()]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
