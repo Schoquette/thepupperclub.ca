@@ -30,11 +30,18 @@ Route::get('/debug-maddy-report-cards-9x7k', function () {
                 ->orderByDesc('id')->limit(10)->get()
             : [];
 
+        $errorLogs = \Illuminate\Support\Facades\Schema::hasTable('error_logs')
+            ? \Illuminate\Support\Facades\DB::table('error_logs')->orderByDesc('id')->limit(10)->get()
+            : [];
+
         return response()->json([
             'client' => $client,
             'profile' => $client->clientProfile,
             'reports' => $reports,
             'email_logs' => $emailLogs,
+            'error_logs' => $errorLogs,
+            'mail_default' => config('mail.default'),
+            'mail_mailers' => array_keys(config('mail.mailers', [])),
         ]);
     } catch (\Throwable $e) {
         return response()->json(['error' => $e->getMessage(), 'file' => $e->getFile(), 'line' => $e->getLine()], 500);
