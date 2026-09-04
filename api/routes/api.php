@@ -14,13 +14,6 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: dismiss the stuck report-card-due entry for Ricarda now that the fix is live (REMOVE after running)
-Route::get('/dismiss-ricarda-due-9x7k', function () {
-    $appt = \App\Models\Appointment::findOrFail(517);
-    $appt->update(['report_card_dismissed' => true]);
-    return response()->json(['message' => 'Dismissed.', 'report_card_dismissed' => $appt->fresh()->report_card_dismissed]);
-});
-
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
