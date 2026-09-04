@@ -14,6 +14,29 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: debug why report cards aren't sending to Maddy Forrester (REMOVE after running)
+Route::get('/debug-maddy-report-cards-9x7k', function () {
+    $client = \App\Models\User::where('email', 'forrestermaddy@gmail.com')->first();
+    if (!$client) return response()->json(['message' => 'Client not found.']);
+
+    $reports = \App\Models\VisitReport::where('user_id', $client->id)
+        ->orWhereHas('appointment', fn($q) => $q->where('user_id', $client->id))
+        ->orderByDesc('id')->get();
+
+    $emailLogs = \Illuminate\Support\Facades\Schema::hasTable('email_logs')
+        ? \Illuminate\Support\Facades\DB::table('email_logs')
+            ->where('to', 'like', '%forrestermaddy%')
+            ->orderByDesc('id')->limit(15)->get()
+        : [];
+
+    return response()->json([
+        'client' => $client,
+        'profile' => $client->clientProfile,
+        'reports' => $reports,
+        'email_logs' => $emailLogs,
+    ]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
