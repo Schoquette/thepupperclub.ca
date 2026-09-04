@@ -26,8 +26,8 @@ Route::get('/debug-maddy-report-cards-9x7k', function () {
 
         $emailLogs = \Illuminate\Support\Facades\Schema::hasTable('email_logs')
             ? \Illuminate\Support\Facades\DB::table('email_logs')
-                ->where('to_email', 'like', '%forrestermaddy%')
-                ->orderByDesc('id')->limit(15)->get()
+                ->select('id', 'user_id', 'to_email', 'subject', 'status', 'error_message', 'created_at')
+                ->orderByDesc('id')->limit(10)->get()
             : [];
 
         return response()->json([
