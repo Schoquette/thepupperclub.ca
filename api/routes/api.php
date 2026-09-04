@@ -48,6 +48,36 @@ Route::get('/debug-maddy-report-cards-9x7k', function () {
     }
 });
 
+// Temporary: check email_logs column charsets (REMOVE after running)
+Route::get('/debug-email-logs-charset-9x7k', function () {
+    $cols = \Illuminate\Support\Facades\DB::select("
+        SELECT COLUMN_NAME, CHARACTER_SET_NAME, COLLATION_NAME
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'email_logs'
+    ");
+    $tableStatus = \Illuminate\Support\Facades\DB::select("
+        SELECT TABLE_COLLATION FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'email_logs'
+    ");
+    // Try to actually reproduce the failure with a 4-byte emoji.
+    $testError = null;
+    try {
+        \Illuminate\Support\Facades\DB::table('email_logs')->insert([
+            'user_id' => null,
+            'to_email' => 'charset-test@example.com',
+            'subject' => 'charset test',
+            'mail_class' => 'test',
+            'status' => 'sent',
+            'body_html' => 'emoji test 👏🏼🦴',
+            'created_at' => now(),
+        ]);
+        \Illuminate\Support\Facades\DB::table('email_logs')->where('to_email', 'charset-test@example.com')->delete();
+    } catch (\Throwable $e) {
+        $testError = $e->getMessage();
+    }
+    return response()->json(['columns' => $cols, 'table_collation' => $tableStatus, 'emoji_insert_error' => $testError]);
+});
+
 // Temporary: re-trigger report card #39 send to capture the real failure (REMOVE after running)
 Route::get('/debug-resend-maddy-report-9x7k', function () {
     $report = \App\Models\VisitReport::findOrFail(39);
