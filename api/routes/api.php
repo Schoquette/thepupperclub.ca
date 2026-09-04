@@ -13,6 +13,16 @@ use App\Http\Controllers\Admin\ReportCardController as AdminReportCardController
 use App\Http\Controllers\Client\ReportCardController as ClientReportCardController;
 
 
+// Temporary: inspect recent report cards + email logs to debug a save/send issue (REMOVE after running)
+Route::get('/debug-recent-report-cards-9x7k', function () {
+    $reports = \App\Models\VisitReport::with('user:id,name,email')
+        ->orderByDesc('id')->limit(10)->get();
+    $emailLogs = \Illuminate\Support\Facades\Schema::hasTable('email_logs')
+        ? \Illuminate\Support\Facades\DB::table('email_logs')->orderByDesc('id')->limit(15)->get()
+        : [];
+    return response()->json(['reports' => $reports, 'email_logs' => $emailLogs]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
