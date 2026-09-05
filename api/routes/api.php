@@ -15,10 +15,25 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: check the resend_id + bcc details for email_logs row 207 (REMOVE after running)
-Route::get('/debug-maddy-email-207-9x7k', function () {
-    $log = \Illuminate\Support\Facades\DB::table('email_logs')->find(207);
-    return response()->json(['log' => $log]);
+// Temporary: check photo file sizes for report 39 + GD/Imagick availability (REMOVE after running)
+Route::get('/debug-maddy-photo-sizes-9x7k', function () {
+    $report = \App\Models\VisitReport::findOrFail(39);
+    $sizes = [];
+    $total = 0;
+    foreach ($report->photo_paths ?? [] as $path) {
+        $bytes = \Illuminate\Support\Facades\Storage::disk('local')->exists($path)
+            ? \Illuminate\Support\Facades\Storage::disk('local')->size($path)
+            : null;
+        $sizes[$path] = $bytes;
+        $total += $bytes ?? 0;
+    }
+    return response()->json([
+        'sizes_bytes' => $sizes,
+        'total_bytes' => $total,
+        'total_mb' => round($total / 1024 / 1024, 2),
+        'gd_available' => extension_loaded('gd'),
+        'imagick_available' => extension_loaded('imagick'),
+    ]);
 });
 
 // Temporary: add missing dog intake columns (REMOVE after running)
