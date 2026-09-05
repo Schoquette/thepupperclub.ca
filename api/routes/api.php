@@ -14,6 +14,13 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: force resend report card #39 to Maddy Forrester (REMOVE after running)
+Route::get('/resend-maddy-report-9x7k', function () {
+    $report = \App\Models\VisitReport::findOrFail(39);
+    app(\App\Services\ReportCardService::class)->send($report);
+    return response()->json(['message' => 'Resent.', 'sent_at' => $report->fresh()->sent_at, 'email_sent_at' => $report->fresh()->email_sent_at]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
