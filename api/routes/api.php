@@ -15,25 +15,15 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: check photo file sizes for report 39 + GD/Imagick availability (REMOVE after running)
-Route::get('/debug-maddy-photo-sizes-9x7k', function () {
+// Temporary: resend report 39 now that photos are compressed, and report the new size (REMOVE after running)
+Route::get('/verify-maddy-resend-fixed-9x7k', function () {
     $report = \App\Models\VisitReport::findOrFail(39);
-    $sizes = [];
-    $total = 0;
-    foreach ($report->photo_paths ?? [] as $path) {
-        $bytes = \Illuminate\Support\Facades\Storage::disk('local')->exists($path)
-            ? \Illuminate\Support\Facades\Storage::disk('local')->size($path)
-            : null;
-        $sizes[$path] = $bytes;
-        $total += $bytes ?? 0;
-    }
-    return response()->json([
-        'sizes_bytes' => $sizes,
-        'total_bytes' => $total,
-        'total_mb' => round($total / 1024 / 1024, 2),
-        'gd_available' => extension_loaded('gd'),
-        'imagick_available' => extension_loaded('imagick'),
-    ]);
+    app(\App\Services\ReportCardService::class)->send($report);
+    $log = \Illuminate\Support\Facades\DB::table('email_logs')
+        ->where('to_email', 'like', '%forrestermaddy%')
+        ->orderByDesc('id')->first();
+    $sizeBytes = $log ? strlen($log->body_html ?? '') : null;
+    return response()->json(['log_id' => $log->id ?? null, 'resend_id' => $log->resend_id ?? null, 'html_size_bytes' => $sizeBytes]);
 });
 
 // Temporary: add missing dog intake columns (REMOVE after running)

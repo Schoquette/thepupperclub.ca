@@ -281,10 +281,54 @@ class ReportCardService
             $content = Storage::disk('local')->get($path);
             $ext     = strtolower(pathinfo($path, PATHINFO_EXTENSION));
             $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
-            $part    = new DataPart($content, "photo-{$i}.{$ext}", $mime);
+
+            [$content, $mime, $ext] = $this->resizeForEmail($content, $mime, $ext);
+
+            $part = new DataPart($content, "photo-{$i}.{$ext}", $mime);
             $part->asInline();
             $part->setContentId($photoCids[$i]);
             $message->addPart($part);
+        }
+    }
+
+    /**
+     * Downscale + recompress an image for email embedding. Report card
+     * photos come straight off phone cameras (multiple MB each); embedding
+     * several full-resolution originals pushes the total message past
+     * providers' size limits (e.g. Gmail's 25MB) and the whole email
+     * silently bounces — the recipient never sees it, and Resend still
+     * reports "sent" since it only reflects the initial handoff, not final
+     * delivery. Emails only need to look good in an inbox, not print
+     * quality — stored originals for the portal/PDF are untouched.
+     */
+    private function resizeForEmail(string $content, string $mime, string $ext, int $maxDimension = 1280, int $quality = 72): array
+    {
+        if (!extension_loaded('gd')) {
+            return [$content, $mime, $ext];
+        }
+        try {
+            $src = @imagecreatefromstring($content);
+            if (!$src) {
+                return [$content, $mime, $ext];
+            }
+            $width = imagesx($src);
+            $height = imagesy($src);
+            if (max($width, $height) > $maxDimension) {
+                $ratio = $maxDimension / max($width, $height);
+                $newWidth = max(1, (int) round($width * $ratio));
+                $newHeight = max(1, (int) round($height * $ratio));
+                $resized = imagecreatetruecolor($newWidth, $newHeight);
+                imagecopyresampled($resized, $src, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                imagedestroy($src);
+                $src = $resized;
+            }
+            ob_start();
+            imagejpeg($src, null, $quality);
+            $data = ob_get_clean();
+            imagedestroy($src);
+            return [$data, 'image/jpeg', 'jpg'];
+        } catch (\Throwable $e) {
+            return [$content, $mime, $ext];
         }
     }
 
@@ -295,6 +339,7 @@ class ReportCardService
         $content = Storage::disk('local')->get($firstDog->photo_path);
         $ext     = strtolower(pathinfo($firstDog->photo_path, PATHINFO_EXTENSION));
         $mime    = in_array($ext, ['jpg', 'jpeg']) ? 'image/jpeg' : "image/{$ext}";
+        [$content, $mime, $ext] = $this->resizeForEmail($content, $mime, $ext, 300, 75);
         $part    = new DataPart($content, "dog-photo.{$ext}", $mime);
         $part->asInline();
         $part->setContentId($dogPhotoCid);
