@@ -15,16 +15,6 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: resend report 39 now that photos are compressed, and report the new size (REMOVE after running)
-Route::get('/verify-maddy-resend-fixed-9x7k', function () {
-    $report = \App\Models\VisitReport::findOrFail(39);
-    app(\App\Services\ReportCardService::class)->send($report);
-    $log = \Illuminate\Support\Facades\DB::table('email_logs')
-        ->where('to_email', 'like', '%forrestermaddy%')
-        ->orderByDesc('id')->first();
-    $sizeBytes = $log ? strlen($log->body_html ?? '') : null;
-    return response()->json(['log_id' => $log->id ?? null, 'resend_id' => $log->resend_id ?? null, 'html_size_bytes' => $sizeBytes]);
-});
 
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
