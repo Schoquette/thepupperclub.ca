@@ -258,6 +258,7 @@ type BlockForm = {
   scheduled_time: string;
   end_time: string;
   notes: string;
+  recurrence: RecurrencePattern;
 };
 
 function blankBlockForm(): BlockForm {
@@ -268,6 +269,7 @@ function blankBlockForm(): BlockForm {
     scheduled_time: '',
     end_time: '',
     notes: '',
+    recurrence: blankRecurrence(),
   };
 }
 
@@ -306,7 +308,8 @@ export default function AdminCalendarPage() {
   const [editingBlock, setEditingBlock] = useState(false);
   const [editBlockForm, setEditBlockForm] = useState<BlockForm | null>(null);
   const [editBlockError, setEditBlockError] = useState('');
-  const [deleteBlockConfirm, setDeleteBlockConfirm] = useState<number | null>(null);
+  const [deleteBlockConfirm, setDeleteBlockConfirm] = useState<{ id: number; hasRecurrence: boolean } | null>(null);
+  const [blockScopePrompt, setBlockScopePrompt] = useState<{ id: number; payload: any } | null>(null);
 
   // Drag-and-drop confirm
   const [dragPending, setDragPending] = useState<{ appointment: any; newStart: Date; newEnd: Date } | null>(null);
@@ -486,7 +489,7 @@ export default function AdminCalendarPage() {
   });
 
   const deleteBlock = useMutation({
-    mutationFn: (id: number) => api.delete(`/admin/calendar-blocks/${id}`),
+    mutationFn: ({ id, scope }: { id: number; scope: string }) => api.delete(`/admin/calendar-blocks/${id}`, { data: { scope } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-calendar-blocks'] });
       setSelectedBlock(null);
@@ -672,14 +675,25 @@ export default function AdminCalendarPage() {
       setCreateBlockError('End time must be after start time.');
       return;
     }
-    createBlock.mutate({
+    const payload: any = {
       title:             newBlockForm.title,
       location:          newBlockForm.location || undefined,
       assigned_to:       newBlockForm.assigned_to ? parseInt(newBlockForm.assigned_to) : undefined,
       scheduled_time:    newBlockForm.scheduled_time,
       duration_minutes:  duration,
       notes:             newBlockForm.notes || undefined,
-    });
+    };
+    if (newBlockForm.recurrence.enabled) {
+      payload.recurrence = {
+        frequency:       newBlockForm.recurrence.frequency,
+        interval:        newBlockForm.recurrence.interval,
+        days_of_week:    newBlockForm.recurrence.frequency === 'weekly' ? newBlockForm.recurrence.days_of_week : undefined,
+        end_type:        newBlockForm.recurrence.end_type,
+        end_after_count: newBlockForm.recurrence.end_type === 'after' ? newBlockForm.recurrence.end_after_count : undefined,
+        end_date:        newBlockForm.recurrence.end_type === 'on_date' ? newBlockForm.recurrence.end_date : undefined,
+      };
+    }
+    createBlock.mutate(payload);
   };
 
   const handleEditBlockSave = () => {
@@ -690,15 +704,27 @@ export default function AdminCalendarPage() {
       setEditBlockError('End time must be after start time.');
       return;
     }
-    updateBlock.mutate({
-      id: selectedBlock.id,
+    const payload: any = {
       title:             editBlockForm.title,
       location:          editBlockForm.location || null,
       assigned_to:       editBlockForm.assigned_to ? parseInt(editBlockForm.assigned_to) : null,
       scheduled_time:    editBlockForm.scheduled_time,
       duration_minutes:  duration,
       notes:             editBlockForm.notes || null,
-    });
+    };
+    const isRecurring = !!(selectedBlock.recurrence_rule || selectedBlock.recurrence_parent_id);
+    if (isRecurring) {
+      setBlockScopePrompt({ id: selectedBlock.id, payload });
+      return;
+    }
+    updateBlock.mutate({ id: selectedBlock.id, ...payload });
+  };
+
+  const handleBlockScopeDecision = (scope: 'single' | 'future_all') => {
+    if (!blockScopePrompt) return;
+    const { id, payload } = blockScopePrompt;
+    setBlockScopePrompt(null);
+    updateBlock.mutate({ id, ...payload, scope });
   };
 
   const toggleDog = (dogId: number) => {
@@ -1801,6 +1827,109 @@ export default function AdminCalendarPage() {
               onChange={e => setNewBlockForm(f => ({ ...f, notes: e.target.value }))}
             />
           </div>
+
+          {/* Recurrence */}
+          <div className="border border-taupe/30 rounded-lg p-4 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newBlockForm.recurrence.enabled}
+                onChange={e => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, enabled: e.target.checked } }))}
+                className="accent-espresso"
+              />
+              <span className="text-sm font-medium">Make this recurring</span>
+            </label>
+
+            {newBlockForm.recurrence.enabled && (
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <span>Repeat every</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={52}
+                    className="input w-16 text-center"
+                    value={newBlockForm.recurrence.interval}
+                    onChange={e => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, interval: parseInt(e.target.value) || 1 } }))}
+                  />
+                  <select
+                    className="input w-auto"
+                    value={newBlockForm.recurrence.frequency}
+                    onChange={e => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, frequency: e.target.value as any } }))}
+                  >
+                    <option value="daily">{newBlockForm.recurrence.interval === 1 ? 'day' : 'days'}</option>
+                    <option value="weekly">{newBlockForm.recurrence.interval === 1 ? 'week' : 'weeks'}</option>
+                    <option value="monthly">{newBlockForm.recurrence.interval === 1 ? 'month' : 'months'}</option>
+                  </select>
+                </div>
+
+                {newBlockForm.recurrence.frequency === 'weekly' && (
+                  <div>
+                    <label className="label text-xs mb-1">Repeat on</label>
+                    <div className="flex gap-1">
+                      {DAYS_OF_WEEK.map(day => (
+                        <button
+                          key={day.value}
+                          type="button"
+                          onClick={() => {
+                            setNewBlockForm(f => {
+                              const days = f.recurrence.days_of_week.includes(day.value)
+                                ? f.recurrence.days_of_week.filter(d => d !== day.value)
+                                : [...f.recurrence.days_of_week, day.value];
+                              return { ...f, recurrence: { ...f.recurrence, days_of_week: days } };
+                            });
+                          }}
+                          className={`w-9 h-9 rounded-full text-xs font-medium border transition-colors ${
+                            newBlockForm.recurrence.days_of_week.includes(day.value)
+                              ? 'bg-espresso text-cream border-espresso'
+                              : 'border-taupe text-espresso hover:bg-cream'
+                          }`}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="label text-xs mb-1">Ends</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="block-recur-end" checked={newBlockForm.recurrence.end_type === 'never'}
+                        onChange={() => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, end_type: 'never' } }))}
+                        className="accent-espresso" />
+                      Never
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="block-recur-end" checked={newBlockForm.recurrence.end_type === 'after'}
+                        onChange={() => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, end_type: 'after' } }))}
+                        className="accent-espresso" />
+                      After
+                      <input type="number" min={1} max={100} className="input w-16 text-center"
+                        value={newBlockForm.recurrence.end_after_count}
+                        onChange={e => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, end_after_count: parseInt(e.target.value) || 1 } }))}
+                        disabled={newBlockForm.recurrence.end_type !== 'after'}
+                      />
+                      occurrences
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="radio" name="block-recur-end" checked={newBlockForm.recurrence.end_type === 'on_date'}
+                        onChange={() => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, end_type: 'on_date' } }))}
+                        className="accent-espresso" />
+                      On
+                      <input type="date" className="input w-auto"
+                        value={newBlockForm.recurrence.end_date}
+                        onChange={e => setNewBlockForm(f => ({ ...f, recurrence: { ...f.recurrence, end_date: e.target.value } }))}
+                        disabled={newBlockForm.recurrence.end_type !== 'on_date'}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setCreatingBlock(false)}>Cancel</Button>
             <Button
@@ -1841,10 +1970,16 @@ export default function AdminCalendarPage() {
               {selectedBlock.notes && (
                 <div><span className="text-taupe">Notes: </span>{selectedBlock.notes}</div>
               )}
+              {!!(selectedBlock.recurrence_rule || selectedBlock.recurrence_parent_id) && (
+                <div><span className="text-taupe">Recurring: </span>Yes</div>
+              )}
             </div>
             <div className="flex justify-between pt-2 border-t border-cream">
               <button
-                onClick={() => setDeleteBlockConfirm(selectedBlock.id)}
+                onClick={() => setDeleteBlockConfirm({
+                  id: selectedBlock.id,
+                  hasRecurrence: !!(selectedBlock.recurrence_rule || selectedBlock.recurrence_parent_id),
+                })}
                 className="text-sm text-red-500 hover:text-red-700"
               >
                 Delete
@@ -1860,6 +1995,7 @@ export default function AdminCalendarPage() {
                     scheduled_time: startLocal,
                     end_time: addMinutesToLocal(startLocal, selectedBlock.duration_minutes),
                     notes: selectedBlock.notes ?? '',
+                    recurrence: blankRecurrence(),
                   });
                   setEditingBlock(true);
                 }}
@@ -1942,16 +2078,56 @@ export default function AdminCalendarPage() {
       {/* Delete block confirm */}
       <Modal open={!!deleteBlockConfirm} onClose={() => setDeleteBlockConfirm(null)} title="Delete Block">
         <div className="space-y-4">
-          <p className="text-sm text-espresso">Are you sure you want to delete this block?</p>
+          <p className="text-sm text-espresso">
+            {deleteBlockConfirm?.hasRecurrence
+              ? 'This block is part of a recurring series. What would you like to delete?'
+              : 'Are you sure you want to delete this block?'}
+          </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setDeleteBlockConfirm(null)}>Cancel</Button>
-            <button
-              onClick={() => deleteBlockConfirm && deleteBlock.mutate(deleteBlockConfirm)}
-              disabled={deleteBlock.isPending}
-              className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-            >
-              {deleteBlock.isPending ? 'Deleting…' : 'Yes, Delete'}
-            </button>
+            {deleteBlockConfirm?.hasRecurrence ? (
+              <>
+                <button
+                  onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'single' })}
+                  disabled={deleteBlock.isPending}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  Just This One
+                </button>
+                <button
+                  onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'future_all' })}
+                  disabled={deleteBlock.isPending}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  All Future Events
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'single' })}
+                disabled={deleteBlock.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteBlock.isPending ? 'Deleting…' : 'Yes, Delete'}
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Recurring block edit scope prompt */}
+      <Modal open={!!blockScopePrompt} onClose={() => setBlockScopePrompt(null)} title="Edit Recurring Block">
+        <div className="space-y-4">
+          <p className="text-sm text-espresso">
+            This block is part of a recurring series. Apply this change to just this one, or to it and all future occurrences?
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => handleBlockScopeDecision('single')} loading={updateBlock.isPending}>
+              Just This One
+            </Button>
+            <Button onClick={() => handleBlockScopeDecision('future_all')} loading={updateBlock.isPending}>
+              This & Future
+            </Button>
           </div>
         </div>
       </Modal>
@@ -2480,11 +2656,12 @@ function VisitHistory() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['visit-history'],
-    // Pull every past-dated appointment (the API already bounds by end date);
+    // Pull the most recent past-dated appointments (sorted desc so recent
+    // visits aren't crowded out by older ones under the page-size cap);
     // we filter out cancellations client-side so elapsed-but-uncompleted
     // visits still appear in history.
     queryFn: () => api.get('/admin/appointments', {
-      params: { start: '2020-01-01', end: format(new Date(), 'yyyy-MM-dd\'T\'23:59:59') },
+      params: { start: '2020-01-01', end: format(new Date(), 'yyyy-MM-dd\'T\'23:59:59'), sort: 'desc', per_page: 200 },
     }).then(r => r.data.data),
   });
 

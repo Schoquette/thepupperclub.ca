@@ -32,9 +32,10 @@ class AppointmentController extends Controller
             ->when($hasAssignedTo && $request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->without_report_card, fn($q) => $q->doesntHave('visitReport'))
-            ->orderBy('scheduled_time');
+            ->orderBy('scheduled_time', $request->sort === 'desc' ? 'desc' : 'asc');
 
-        return response()->json($query->paginate(50));
+        $perPage = max(1, min((int) ($request->per_page ?? 50), 500));
+        return response()->json($query->paginate($perPage));
     }
 
     public function schedulingStatus(Request $request): JsonResponse
@@ -47,6 +48,7 @@ class AppointmentController extends Controller
 
         // Get active clients with a walks_per_week quota
         $clients = User::where('role', 'client')
+            ->where('status', 'active')
             ->whereHas('clientProfile', fn($q) => $q->whereNotNull('walks_per_week')->where('walks_per_week', '>', 0))
             ->with('clientProfile:id,user_id,subscription_plan,walks_per_week,subscription_paused_from,preferred_walk_days,preferred_walk_times')
             ->with('dogs:id,user_id,name')

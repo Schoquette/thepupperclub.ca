@@ -24,12 +24,15 @@ class CalendarBlock extends Model
         'assigned_to',
         'created_by',
         'notes',
+        'recurrence_rule',
+        'recurrence_parent_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'scheduled_time' => 'datetime',
+            'scheduled_time'  => 'datetime',
+            'recurrence_rule' => 'array',
         ];
     }
 
@@ -41,5 +44,10 @@ class CalendarBlock extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(CalendarBlock::class, 'recurrence_parent_id');
     }
 }

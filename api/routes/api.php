@@ -16,16 +16,15 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: check Princess Peach's client status + upcoming appointments (REMOVE after running)
-Route::get('/debug-princess-peach-9x7k', function () {
-    $client = \App\Models\User::where('name', 'like', '%Princess Peach%')->first();
-    if (!$client) return response()->json(['message' => 'Not found.']);
-    return response()->json([
-        'client' => $client,
-        'profile' => $client->clientProfile,
-        'appointments' => \App\Models\Appointment::where('user_id', $client->id)
-            ->orderByDesc('scheduled_time')->limit(15)->get(),
-    ]);
+// Temporary: add recurrence columns to calendar_blocks (REMOVE after running)
+Route::get('/fix-calendar-blocks-recurrence-9x7k', function () {
+    if (\Illuminate\Support\Facades\Schema::hasColumn('calendar_blocks', 'recurrence_rule')) {
+        return response()->json(['message' => 'Already exists.']);
+    }
+    \Illuminate\Support\Facades\DB::statement("ALTER TABLE calendar_blocks ADD COLUMN recurrence_rule JSON NULL AFTER notes");
+    \Illuminate\Support\Facades\DB::statement("ALTER TABLE calendar_blocks ADD COLUMN recurrence_parent_id BIGINT UNSIGNED NULL AFTER recurrence_rule");
+    \Illuminate\Support\Facades\DB::statement("ALTER TABLE calendar_blocks ADD CONSTRAINT calendar_blocks_recurrence_parent_id_foreign FOREIGN KEY (recurrence_parent_id) REFERENCES calendar_blocks(id) ON DELETE SET NULL");
+    return response()->json(['message' => 'Columns added.']);
 });
 
 // Temporary: add missing dog intake columns (REMOVE after running)
