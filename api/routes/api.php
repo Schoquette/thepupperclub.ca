@@ -15,6 +15,12 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: check the resend_id + bcc details for email_logs row 207 (REMOVE after running)
+Route::get('/debug-maddy-email-207-9x7k', function () {
+    $log = \Illuminate\Support\Facades\DB::table('email_logs')->find(207);
+    return response()->json(['log' => $log]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
