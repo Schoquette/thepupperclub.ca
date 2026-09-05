@@ -16,6 +16,18 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: check Princess Peach's client status + upcoming appointments (REMOVE after running)
+Route::get('/debug-princess-peach-9x7k', function () {
+    $client = \App\Models\User::where('name', 'like', '%Princess Peach%')->first();
+    if (!$client) return response()->json(['message' => 'Not found.']);
+    return response()->json([
+        'client' => $client,
+        'profile' => $client->clientProfile,
+        'appointments' => \App\Models\Appointment::where('user_id', $client->id)
+            ->orderByDesc('scheduled_time')->limit(15)->get(),
+    ]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
