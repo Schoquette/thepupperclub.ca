@@ -16,17 +16,6 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: add recurrence columns to calendar_blocks (REMOVE after running)
-Route::get('/fix-calendar-blocks-recurrence-9x7k', function () {
-    if (\Illuminate\Support\Facades\Schema::hasColumn('calendar_blocks', 'recurrence_rule')) {
-        return response()->json(['message' => 'Already exists.']);
-    }
-    \Illuminate\Support\Facades\DB::statement("ALTER TABLE calendar_blocks ADD COLUMN recurrence_rule JSON NULL AFTER notes");
-    \Illuminate\Support\Facades\DB::statement("ALTER TABLE calendar_blocks ADD COLUMN recurrence_parent_id BIGINT UNSIGNED NULL AFTER recurrence_rule");
-    \Illuminate\Support\Facades\DB::statement("ALTER TABLE calendar_blocks ADD CONSTRAINT calendar_blocks_recurrence_parent_id_foreign FOREIGN KEY (recurrence_parent_id) REFERENCES calendar_blocks(id) ON DELETE SET NULL");
-    return response()->json(['message' => 'Columns added.']);
-});
-
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
