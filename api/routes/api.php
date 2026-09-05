@@ -90,7 +90,7 @@ Route::get('/debug-resend-maddy-report-9x7k', function () {
 // log (REMOVE after running)
 Route::get('/fix-log-tables-charset-9x7k', function () {
     $results = [];
-    foreach (['email_logs', 'error_logs'] as $table) {
+    foreach (['email_logs', 'error_logs', 'calendar_blocks'] as $table) {
         try {
             \Illuminate\Support\Facades\DB::statement("ALTER TABLE `{$table}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             $results[$table] = 'converted to utf8mb4';
