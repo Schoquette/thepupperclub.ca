@@ -151,7 +151,7 @@ class ReportCardService
             '{arrival_time}'     => $arrivalTime,
             '{departure_time}'   => $departureTime,
             '{checklist_html}'   => $checklistHtml,
-            '{notes}'            => e($report->notes ?? ''),
+            '{notes}'            => nl2br(e($report->notes ?? '')),
             '{visit_photo_html}' => $visitPhotoHtml,
             '{dog_photo_html}'   => $dogPhotoHtmlStr,
             '{portal_url}'       => $portalUrl,

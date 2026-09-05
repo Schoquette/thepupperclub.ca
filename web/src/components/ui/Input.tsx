@@ -36,19 +36,29 @@ export function Input({ label, error, hint, className, id, ...props }: InputProp
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
+  labelRight?: React.ReactNode;
 }
 
-export function Textarea({ label, error, className, id, ...props }: TextareaProps) {
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
+  { label, error, labelRight, className, id, ...props },
+  ref
+) {
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className="space-y-1">
-      {label && (
-        <label htmlFor={inputId} className="block text-sm font-semibold text-espresso">
-          {label}
-        </label>
+      {(label || labelRight) && (
+        <div className="flex items-center justify-between">
+          {label && (
+            <label htmlFor={inputId} className="block text-sm font-semibold text-espresso">
+              {label}
+            </label>
+          )}
+          {labelRight}
+        </div>
       )}
       <textarea
+        ref={ref}
         id={inputId}
         {...props}
         className={clsx(
@@ -61,7 +71,7 @@ export function Textarea({ label, error, className, id, ...props }: TextareaProp
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
-}
+});
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;

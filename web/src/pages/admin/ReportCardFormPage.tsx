@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Input';
+import { EmojiPickerButton } from '@/components/ui/EmojiPicker';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format, addMinutes } from 'date-fns';
@@ -284,6 +285,26 @@ export default function AdminReportCardFormPage() {
         notes: value,
       },
     }));
+  };
+
+  const notesRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+
+  const insertEmoji = (sectionKey: string, emoji: string) => {
+    const el = notesRefs.current[sectionKey];
+    const current = dogData[sectionKey]?.notes ?? '';
+    if (!el) {
+      setDogNotes(sectionKey, current + emoji);
+      return;
+    }
+    const start = el.selectionStart ?? current.length;
+    const end = el.selectionEnd ?? current.length;
+    const next = current.slice(0, start) + emoji + current.slice(end);
+    setDogNotes(sectionKey, next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+    });
   };
 
   const fdConfig = { headers: { 'Content-Type': 'multipart/form-data' } };
@@ -720,7 +741,9 @@ export default function AdminReportCardFormPage() {
 
               {/* Per-dog notes */}
               <Textarea
+                ref={(el) => { notesRefs.current[sectionKey] = el; }}
                 label={isMultiDog ? `Notes for ${dogName ?? 'this dog'}` : 'Notes'}
+                labelRight={!locked && <EmojiPickerButton onSelect={(emoji) => insertEmoji(sectionKey, emoji)} />}
                 value={section.notes}
                 onChange={(e) => setDogNotes(sectionKey, e.target.value)}
                 rows={3}

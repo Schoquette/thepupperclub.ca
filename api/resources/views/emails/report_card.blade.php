@@ -65,7 +65,7 @@
     @if(!empty($section['notes']))
     <div style="margin-bottom: 16px;">
       <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #C8BFB6; margin-bottom: 8px;">{{ $section['name'] ? 'Notes for ' . $section['name'] : 'Notes' }}</div>
-      <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #3B2F2A; background: #F6F3EE; border-radius: 12px; padding: 14px 16px;">{{ $section['notes'] }}</div>
+      <div style="font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #3B2F2A; background: #F6F3EE; border-radius: 12px; padding: 14px 16px;">{!! nl2br(e($section['notes'])) !!}</div>
     </div>
     @endif
   @endforeach
