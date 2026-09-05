@@ -85,6 +85,34 @@ Route::get('/debug-resend-maddy-report-9x7k', function () {
     return response()->json(['message' => 'Send triggered.', 'report' => $report->fresh()]);
 });
 
+// Temporary: convert email_logs/error_logs from utf8mb3 to utf8mb4 so
+// emoji in report card notes (and anywhere else) don't silently fail to
+// log (REMOVE after running)
+Route::get('/fix-log-tables-charset-9x7k', function () {
+    $results = [];
+    foreach (['email_logs', 'error_logs'] as $table) {
+        try {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `{$table}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $results[$table] = 'converted to utf8mb4';
+        } catch (\Throwable $e) {
+            $results[$table] = 'failed: ' . $e->getMessage();
+        }
+    }
+    return response()->json($results);
+});
+
+// Temporary: audit all tables for non-utf8mb4 charset (REMOVE after running)
+Route::get('/debug-table-charsets-9x7k', function () {
+    $rows = \Illuminate\Support\Facades\DB::select("
+        SELECT TABLE_NAME, TABLE_COLLATION
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+        ORDER BY TABLE_NAME
+    ");
+    $notUtf8mb4 = array_values(array_filter($rows, fn($r) => !str_starts_with($r->TABLE_COLLATION ?? '', 'utf8mb4')));
+    return response()->json(['not_utf8mb4' => $notUtf8mb4, 'total_tables' => count($rows)]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
