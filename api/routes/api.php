@@ -16,6 +16,12 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: find all dogs named Atka to identify the duplicate (REMOVE after running)
+Route::get('/debug-atka-9x7k', function () {
+    $dogs = \App\Models\Dog::where('name', 'like', '%Atka%')->with('user:id,name,email')->get();
+    return response()->json(['dogs' => $dogs]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
