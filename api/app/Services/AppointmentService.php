@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\Schema;
 
 class AppointmentService
 {
-    private const BUFFER_MINUTES = 15;
-    private const MAX_PER_BLOCK  = 3;
-
     /**
      * Parse a datetime string, always interpreting naive datetimes in Pacific time.
      */
@@ -35,12 +32,6 @@ class AppointmentService
         $nowPacific = Carbon::now('America/Vancouver');
         $scheduledCheck = Carbon::parse($scheduledTime->format('Y-m-d H:i:s'), 'America/Vancouver');
         abort_if($scheduledCheck->lt($nowPacific), 422, 'Cannot schedule appointments in the past.');
-
-        // Skip buffer/capacity checks if force flag is set (admin override)
-        if (empty($data['force'])) {
-            $this->validateBuffer($scheduledTime, null);
-            $this->validateBlockCapacity($data['client_time_block'], $scheduledTime->toDateString());
-        }
 
         if (!Schema::hasColumn('appointments', 'assigned_to')) {
             Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
@@ -112,29 +103,6 @@ class AppointmentService
         } else {
             $appointment->update(['status' => 'cancelled']);
         }
-    }
-
-    private function validateBuffer(Carbon $scheduledTime, ?int $excludeId): void
-    {
-        $bufferStart = $scheduledTime->copy()->subMinutes(self::BUFFER_MINUTES);
-        $bufferEnd   = $scheduledTime->copy()->addMinutes(self::BUFFER_MINUTES);
-
-        $conflict = Appointment::whereIn('status', ['scheduled', 'checked_in'])
-            ->whereBetween('scheduled_time', [$bufferStart, $bufferEnd])
-            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
-            ->exists();
-
-        abort_if($conflict, 422, "Appointment conflicts with 15-minute buffer window.");
-    }
-
-    private function validateBlockCapacity(string $timeBlock, string $date): void
-    {
-        $count = Appointment::whereDate('scheduled_time', $date)
-            ->where('client_time_block', $timeBlock)
-            ->whereIn('status', ['scheduled', 'checked_in'])
-            ->count();
-
-        abort_if($count >= self::MAX_PER_BLOCK, 422, "Time block '{$timeBlock}' is fully booked for {$date}.");
     }
 
     public function generateRecurring(Appointment $parent, ?string $upTo = null): void
