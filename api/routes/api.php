@@ -16,22 +16,6 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: check for linked records on duplicate Atka (id 62) before deleting (REMOVE after running)
-Route::get('/check-atka-refs-9x7k', function () {
-    $id = 62;
-    return response()->json([
-        'vaccination_records' => \Illuminate\Support\Facades\DB::table('vaccination_records')->where('dog_id', $id)->count(),
-        'appointment_dog'     => \Illuminate\Support\Facades\DB::table('appointment_dog')->where('dog_id', $id)->count(),
-        'service_request_dog' => \Illuminate\Support\Facades\DB::table('service_request_dog')->where('dog_id', $id)->count(),
-        'client_documents'    => \Illuminate\Support\Facades\DB::table('client_documents')->where('dog_id', $id)->count(),
-    ]);
-});
-
-// Temporary: delete duplicate Atka (id 62), keep id 61 (REMOVE after running)
-Route::get('/fix-delete-atka-dupe-9x7k', function () {
-    $deleted = \App\Models\Dog::where('id', 62)->where('user_id', 28)->where('name', 'Atka')->delete();
-    return response()->json(['message' => "Deleted {$deleted} row(s)."]);
-});
 
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
