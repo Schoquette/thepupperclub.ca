@@ -16,31 +16,6 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: convert dogs.interaction_dogs from a single string to a JSON
-// array so multiple interactions can be selected (REMOVE after running)
-Route::get('/fix-interaction-dogs-json-9x7k', function () {
-    $results = [];
-
-    $converted = 0;
-    \Illuminate\Support\Facades\DB::table('dogs')
-        ->whereNotNull('interaction_dogs')
-        ->where('interaction_dogs', '!=', '')
-        ->orderBy('id')
-        ->each(function ($dog) use (&$converted) {
-            $decoded = json_decode($dog->interaction_dogs, true);
-            if (is_array($decoded)) return; // already migrated
-            \Illuminate\Support\Facades\DB::table('dogs')->where('id', $dog->id)
-                ->update(['interaction_dogs' => json_encode([$dog->interaction_dogs])]);
-            $converted++;
-        });
-    $results[] = "Converted {$converted} existing values to JSON arrays.";
-
-    \Illuminate\Support\Facades\DB::statement('ALTER TABLE dogs MODIFY COLUMN interaction_dogs JSON NULL');
-    $results[] = 'Column type changed to JSON.';
-
-    return response()->json(['results' => $results]);
-});
-
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
