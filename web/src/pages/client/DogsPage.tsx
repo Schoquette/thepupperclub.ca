@@ -46,6 +46,7 @@ const DOG_INTERACTION_OPTIONS = [
   { value: 'selective', label: 'Selective' },
   { value: 'prefers_avoid', label: 'Prefers to Avoid' },
   { value: 'reactive', label: 'Reactive' },
+  { value: 'ignores', label: 'Ignores' },
 ];
 
 const STRANGER_OPTIONS = [
@@ -112,7 +113,7 @@ const EMPTY_FORM = {
   // Intake fields
   personality_description: '',
   energy_level: '',
-  interaction_dogs: '',
+  interaction_dogs: [] as string[],
   interaction_strangers: '',
   interaction_children: '',
   triggers: '',
@@ -157,7 +158,7 @@ function dogToForm(dog: any): DogForm {
     aggression_notes: dog.aggression_notes ?? '',
     personality_description: dog.personality_description ?? '',
     energy_level: dog.energy_level ?? '',
-    interaction_dogs: dog.interaction_dogs ?? '',
+    interaction_dogs: Array.isArray(dog.interaction_dogs) ? dog.interaction_dogs : (dog.interaction_dogs ? [dog.interaction_dogs] : []),
     interaction_strangers: dog.interaction_strangers ?? '',
     interaction_children: dog.interaction_children ?? '',
     triggers: dog.triggers ?? '',
@@ -188,10 +189,13 @@ function preparePayload(form: DogForm) {
 }
 
 /** Format stored values: replace underscores with spaces, sentence case */
-function fmt(val: string | null | undefined): string | null {
-  if (!val) return null;
-  const s = val.replace(/_/g, ' ');
-  return s.charAt(0).toUpperCase() + s.slice(1);
+function fmt(val: string | string[] | null | undefined): string | null {
+  if (!val || (Array.isArray(val) && val.length === 0)) return null;
+  const toSentence = (s: string) => {
+    const spaced = s.replace(/_/g, ' ');
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  };
+  return Array.isArray(val) ? val.map(toSentence).join(', ') : toSentence(val);
 }
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -437,7 +441,7 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
         <div className="space-y-4">
           <Textarea label="Personality Description" rows={3} value={form.personality_description} onChange={e => setForm(f => ({ ...f, personality_description: e.target.value }))} placeholder="Describe your dog's personality…" />
           <RadioPillGroup label="Energy Level" options={ENERGY_OPTIONS} value={form.energy_level} onChange={v => setForm(f => ({ ...f, energy_level: v }))} />
-          <RadioPillGroup label="Interaction with Other Dogs" options={DOG_INTERACTION_OPTIONS} value={form.interaction_dogs} onChange={v => setForm(f => ({ ...f, interaction_dogs: v }))} />
+          <CheckboxPillGroup label="Interaction with Other Dogs" options={DOG_INTERACTION_OPTIONS} selected={form.interaction_dogs} onChange={v => setForm(f => ({ ...f, interaction_dogs: v }))} />
           <RadioPillGroup label="Interaction with Strangers" options={STRANGER_OPTIONS} value={form.interaction_strangers} onChange={v => setForm(f => ({ ...f, interaction_strangers: v }))} />
           <RadioPillGroup label="Interaction with Children" options={CHILDREN_OPTIONS} value={form.interaction_children} onChange={v => setForm(f => ({ ...f, interaction_children: v }))} />
           <Textarea label="Triggers / Fears" rows={2} value={form.triggers} onChange={e => setForm(f => ({ ...f, triggers: e.target.value }))} placeholder="e.g. skateboards, loud noises…" />
@@ -615,7 +619,7 @@ export default function ClientDogsPage() {
             </Card>
 
             {/* Personality & Behaviour */}
-            {(dog.personality_description || dog.energy_level || dog.interaction_dogs || dog.interaction_strangers || dog.interaction_children || dog.triggers || dog.bite_history || dog.bite_history_notes || dog.aggression_notes) && (
+            {(dog.personality_description || dog.energy_level || dog.interaction_dogs?.length || dog.interaction_strangers || dog.interaction_children || dog.triggers || dog.bite_history || dog.bite_history_notes || dog.aggression_notes) && (
               <Card>
                 <h3 className="font-display text-espresso text-sm mb-3">Personality & Behaviour</h3>
                 <DetailRow label="Personality" value={dog.personality_description} />

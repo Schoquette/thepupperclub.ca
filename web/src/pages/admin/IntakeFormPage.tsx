@@ -21,6 +21,7 @@ interface DogData {
   breed: string;
   colour: string;
   date_of_birth: string;
+  age_estimate: string;
   adoptaversary: string;
   weight_kg: string;
   size: string;
@@ -29,7 +30,7 @@ interface DogData {
   spayed_neutered: boolean;
   personality_description: string;
   energy_level: string;
-  interaction_dogs: string;
+  interaction_dogs: string[];
   interaction_strangers: string;
   interaction_children: string;
   triggers: string;
@@ -94,6 +95,23 @@ interface FormData {
   dogs: DogData[];
 }
 
+// Age in years from a birthdate, or an approximate age carried forward
+// from whenever it was entered (so "3 years old" recorded a year ago
+// correctly reads as ~4 today).
+function computeDogAge(dog: { date_of_birth?: string | null; age_estimate?: number | null; age_estimate_date?: string | null }): number | null {
+  if (dog.date_of_birth) {
+    const dob = new Date(dog.date_of_birth + 'T00:00:00');
+    const years = (Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    return Math.round(years * 10) / 10;
+  }
+  if (dog.age_estimate != null && dog.age_estimate_date) {
+    const entry = new Date(dog.age_estimate_date + 'T00:00:00');
+    const elapsed = (Date.now() - entry.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    return Math.round((dog.age_estimate + elapsed) * 10) / 10;
+  }
+  return dog.age_estimate ?? null;
+}
+
 // ── Empty state builders ───────────────────────────────────────────────────────
 
 function emptyDog(partial?: Partial<DogData>): DogData {
@@ -102,6 +120,7 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     breed: '',
     colour: '',
     date_of_birth: '',
+    age_estimate: '',
     adoptaversary: '',
     weight_kg: '',
     size: '',
@@ -110,7 +129,7 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     spayed_neutered: false,
     personality_description: '',
     energy_level: '',
-    interaction_dogs: '',
+    interaction_dogs: [],
     interaction_strangers: '',
     interaction_children: '',
     triggers: '',
@@ -144,6 +163,7 @@ function buildForm(data: any): FormData {
     breed: d.breed ?? '',
     colour: d.colour ?? '',
     date_of_birth: d.date_of_birth?.split('T')[0] ?? '',
+    age_estimate: d.age_estimate != null ? String(d.age_estimate) : '',
     adoptaversary: d.adoptaversary?.split('T')[0] ?? '',
     weight_kg: d.weight_kg != null ? String(d.weight_kg) : '',
     size: d.size ?? '',
@@ -152,7 +172,7 @@ function buildForm(data: any): FormData {
     spayed_neutered: d.spayed_neutered ?? false,
     personality_description: d.personality_description ?? '',
     energy_level: d.energy_level ?? '',
-    interaction_dogs: d.interaction_dogs ?? '',
+    interaction_dogs: Array.isArray(d.interaction_dogs) ? d.interaction_dogs : (d.interaction_dogs ? [d.interaction_dogs] : []),
     interaction_strangers: d.interaction_strangers ?? '',
     interaction_children: d.interaction_children ?? '',
     triggers: d.triggers ?? '',
@@ -574,6 +594,7 @@ const DOG_OPTIONS = [
   { value: 'selective', label: 'Selective' },
   { value: 'prefers_avoid', label: 'Prefers to Avoid' },
   { value: 'reactive', label: 'Reactive' },
+  { value: 'ignores', label: 'Ignores' },
 ];
 
 const STRANGER_OPTIONS = [
@@ -683,8 +704,31 @@ function DogCard({
               <FieldRow label="Date of Birth (or est.)">
                 {readOnly
                   ? <ReadValue value={dog.date_of_birth} />
-                  : <input type="date" className={fieldCls} value={dog.date_of_birth} onChange={e => set({ date_of_birth: e.target.value })} />
+                  : <input type="date" className={fieldCls} value={dog.date_of_birth} onChange={e => set({ date_of_birth: e.target.value, age_estimate: '' })} />
                 }
+              </FieldRow>
+              <FieldRow label={`Age (years)${dog.date_of_birth ? ' — calculated' : ''}`}>
+                {readOnly ? (
+                  <ReadValue value={(() => {
+                    const age = computeDogAge({ date_of_birth: dog.date_of_birth || null, age_estimate: dog.age_estimate ? Number(dog.age_estimate) : null, age_estimate_date: null });
+                    return age != null ? String(age) : undefined;
+                  })()} />
+                ) : dog.date_of_birth ? (
+                  <input
+                    type="number"
+                    className={`${fieldCls} opacity-60`}
+                    value={computeDogAge({ date_of_birth: dog.date_of_birth }) ?? ''}
+                    disabled
+                  />
+                ) : (
+                  <input
+                    type="number" step="0.1" min="0" max="99"
+                    className={fieldCls}
+                    placeholder="e.g. 3.5"
+                    value={dog.age_estimate}
+                    onChange={e => set({ age_estimate: e.target.value })}
+                  />
+                )}
               </FieldRow>
               <FieldRow label="Adopt-aversary">
                 {readOnly
@@ -758,7 +802,7 @@ function DogCard({
                 }
               </FieldRow>
               <RadioGroup label="Energy Level" options={ENERGY_OPTIONS} value={dog.energy_level} onChange={v => set({ energy_level: v })} readOnly={readOnly} />
-              <RadioGroup label="Interaction with Other Dogs" options={DOG_OPTIONS} value={dog.interaction_dogs} onChange={v => set({ interaction_dogs: v })} readOnly={readOnly} />
+              <CheckboxGroup label="Interaction with Other Dogs" options={DOG_OPTIONS} values={dog.interaction_dogs} onChange={v => set({ interaction_dogs: v })} readOnly={readOnly} />
               <RadioGroup label="Interaction with Strangers" options={STRANGER_OPTIONS} value={dog.interaction_strangers} onChange={v => set({ interaction_strangers: v })} readOnly={readOnly} />
               <RadioGroup label="Interaction with Children" options={CHILDREN_OPTIONS} value={dog.interaction_children} onChange={v => set({ interaction_children: v })} readOnly={readOnly} />
               <FieldRow label="Triggers">

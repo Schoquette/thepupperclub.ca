@@ -139,6 +139,12 @@ class IntakeController extends Controller
                 if ($v === '') $dogData[$k] = null;
             }
 
+            // Approx age is entered as "N years old today" — stamp the date
+            // so future views can compute the dog's current age from it.
+            if (!empty($dogData['age_estimate']) && empty($dogData['age_estimate_date'])) {
+                $dogData['age_estimate_date'] = now()->toDateString();
+            }
+
             // Only keep fillable fields
             $fillable = (new Dog())->getFillable();
             $dogData = array_intersect_key($dogData, array_flip($fillable));

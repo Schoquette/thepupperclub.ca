@@ -1341,13 +1341,13 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
           )}
 
           {/* Personality & Walk Preferences (intake fields) */}
-          {(dog.personality_description || dog.energy_level || dog.interaction_dogs || dog.triggers) && (
+          {(dog.personality_description || dog.energy_level || dog.interaction_dogs?.length || dog.triggers) && (
             <div>
               <h4 className="text-xs font-semibold text-gold uppercase tracking-widest mb-2">Personality & Preferences</h4>
               <div className="text-sm space-y-1">
                 <ProfileRow label="Personality" value={dog.personality_description} />
                 <ProfileRow label="Energy Level" value={fmtVal(dog.energy_level)} />
-                <ProfileRow label="With Dogs" value={fmtVal(dog.interaction_dogs)} />
+                <ProfileRow label="With Dogs" value={Array.isArray(dog.interaction_dogs) ? dog.interaction_dogs.map((d: string) => fmtVal(d)).join(', ') : fmtVal(dog.interaction_dogs)} />
                 <ProfileRow label="With Strangers" value={fmtVal(dog.interaction_strangers)} />
                 <ProfileRow label="With Children" value={fmtVal(dog.interaction_children)} />
                 <ProfileRow label="Triggers" value={dog.triggers} />

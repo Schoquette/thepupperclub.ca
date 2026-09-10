@@ -191,7 +191,8 @@ class DogController extends Controller
             // rules so admin edits of the per-dog form save the same data.
             'personality_description'         => 'sometimes|nullable|string',
             'energy_level'                    => 'sometimes|nullable|string|max:50',
-            'interaction_dogs'                => 'sometimes|nullable|string|max:50',
+            'interaction_dogs'                => 'sometimes|nullable|array',
+            'interaction_dogs.*'              => 'string|max:50',
             'interaction_strangers'           => 'sometimes|nullable|string|max:50',
             'interaction_children'            => 'sometimes|nullable|string|max:50',
             'triggers'                        => 'sometimes|nullable|string',
