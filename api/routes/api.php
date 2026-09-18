@@ -19,23 +19,16 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 // Temporary: check Mila's most recent report card email for nl2br (REMOVE after running)
 Route::get('/debug-mila-report-9x7k', function () {
-    $dog = \App\Models\Dog::where('name', 'like', 'Mila%')->first();
-    if (!$dog) return response()->json(['message' => 'Dog not found.']);
+    $dogs = \App\Models\Dog::where('name', 'like', '%Mil%')->get(['id', 'name', 'user_id']);
 
-    $log = \Illuminate\Support\Facades\DB::table('email_logs')
+    $logs = \Illuminate\Support\Facades\DB::table('email_logs')
         ->where('subject', 'like', '%Visit Report Card%')
-        ->where('user_id', $dog->user_id)
-        ->orderByDesc('id')->first();
-
-    $hasBr = $log ? str_contains($log->body_html ?? '', '<br') : null;
+        ->orderByDesc('id')->limit(10)
+        ->get(['id', 'user_id', 'to_email', 'created_at']);
 
     return response()->json([
-        'dog_id' => $dog->id,
-        'user_id' => $dog->user_id,
-        'log_id' => $log->id ?? null,
-        'log_created_at' => $log->created_at ?? null,
-        'has_br_tag' => $hasBr,
-        'snippet' => $log ? substr($log->body_html ?? '', 0, 1500) : null,
+        'dogs' => $dogs,
+        'recent_report_card_logs' => $logs,
     ]);
 });
 
