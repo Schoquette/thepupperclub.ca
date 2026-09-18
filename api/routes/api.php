@@ -17,52 +17,6 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: render the report_card blade view in isolation (no send, no
-// side effects) to test whether the compiled view cache is stale (REMOVE after running)
-Route::get('/debug-view-cache-test-9x7k', function () {
-    $html = view('emails.report_card', [
-        'client' => new \App\Models\User(['name' => 'Test']),
-        'report' => new \App\Models\VisitReport(),
-        'dogNames' => 'Test Dog',
-        'dogSections' => [['name' => 'Test Dog', 'checklist' => [], 'notes' => "Line one.\n\nLine two."]],
-        'checklist' => [],
-        'specialTrip' => null,
-        'photoCids' => [],
-        'dogPhotoCid' => null,
-        'arrivalTime' => '',
-        'departureTime' => '',
-        'visitDate' => '',
-        'portalUrl' => '',
-    ])->render();
-
-    $pos = strpos($html, 'Line one');
-    return response()->json([
-        'has_br_tag' => str_contains($html, '<br'),
-        'snippet' => $pos !== false ? substr($html, $pos, 200) : 'NOT FOUND IN OUTPUT',
-    ]);
-});
-
-// Temporary: check Mila's most recent report card email for nl2br (REMOVE after running)
-Route::get('/debug-mila-report-9x7k', function () {
-    $dog = \App\Models\Dog::find(48);
-    $user = \App\Models\User::find($dog->user_id);
-
-    $log = \Illuminate\Support\Facades\DB::table('email_logs')
-        ->where('subject', 'like', '%Visit Report Card%')
-        ->where('to_email', 'like', '%' . $user->email . '%')
-        ->orderByDesc('id')->first();
-
-    $hasBr = $log ? str_contains($log->body_html ?? '', '<br') : null;
-
-    return response()->json([
-        'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email],
-        'log_id' => $log->id ?? null,
-        'log_created_at' => $log->created_at ?? null,
-        'has_br_tag' => $hasBr,
-        'snippet' => $log ? substr($log->body_html ?? '', strpos($log->body_html ?? '', 'Notes for') ?: 0, 1000) : null,
-    ]);
-});
-
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
@@ -269,6 +223,21 @@ Route::get('/clear-cache-9x7k', function () {
     \Illuminate\Support\Facades\Artisan::call('route:clear');
     \Illuminate\Support\Facades\Artisan::call('view:clear');
 
+    // Belt-and-suspenders: also manually delete compiled blade views.
+    // `view:clear` has been observed to silently no-op on GoDaddy's
+    // Windows/IIS filesystem (permission quirks), leaving a stale
+    // compiled template in place after a blade file changes — a report
+    // card email kept rendering pre-fix output for two weeks even
+    // though the source .blade.php and every deploy afterward were
+    // correct.
+    $viewsCleared = 0;
+    $viewsPath = storage_path('framework/views');
+    if (is_dir($viewsPath)) {
+        foreach (glob($viewsPath . '/*.php') as $file) {
+            if (@unlink($file)) $viewsCleared++;
+        }
+    }
+
     // Reset PHP OPcache so freshly-deployed PHP files (fallback.php,
     // controllers, etc.) take effect immediately instead of waiting for
     // OPcache's TTL.
@@ -277,6 +246,7 @@ Route::get('/clear-cache-9x7k', function () {
     return response()->json([
         'message' => 'All caches cleared.',
         'had_cached_config' => $hadCache,
+        'compiled_views_deleted' => $viewsCleared,
         'frontend_url_now' => config('services.frontend_url'),
         'env_frontend_url' => env('FRONTEND_URL'),
         'config_file_exists' => file_exists($cachedConfig),
