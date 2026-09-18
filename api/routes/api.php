@@ -17,10 +17,29 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
-// Temporary: find Mila's most recent report card id (REMOVE after running)
-Route::get('/debug-mila-report-id-9x7k', function () {
-    $report = \App\Models\VisitReport::where('user_id', 20)->orderByDesc('id')->first();
-    return response()->json(['report_id' => $report->id ?? null, 'sent_at' => $report->sent_at ?? null]);
+// Temporary: render the report_card blade view in isolation (no send, no
+// side effects) to test whether the compiled view cache is stale (REMOVE after running)
+Route::get('/debug-view-cache-test-9x7k', function () {
+    $html = view('emails.report_card', [
+        'client' => new \App\Models\User(['name' => 'Test']),
+        'report' => new \App\Models\VisitReport(),
+        'dogNames' => 'Test Dog',
+        'dogSections' => [['name' => 'Test Dog', 'checklist' => [], 'notes' => "Line one.\n\nLine two."]],
+        'checklist' => [],
+        'specialTrip' => null,
+        'photoCids' => [],
+        'dogPhotoCid' => null,
+        'arrivalTime' => '',
+        'departureTime' => '',
+        'visitDate' => '',
+        'portalUrl' => '',
+    ])->render();
+
+    $pos = strpos($html, 'Line one');
+    return response()->json([
+        'has_br_tag' => str_contains($html, '<br'),
+        'snippet' => $pos !== false ? substr($html, $pos, 200) : 'NOT FOUND IN OUTPUT',
+    ]);
 });
 
 // Temporary: check Mila's most recent report card email for nl2br (REMOVE after running)
