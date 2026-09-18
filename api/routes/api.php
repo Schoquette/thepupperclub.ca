@@ -17,6 +17,28 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: check Mila's most recent report card email for nl2br (REMOVE after running)
+Route::get('/debug-mila-report-9x7k', function () {
+    $dog = \App\Models\Dog::where('name', 'like', 'Mila%')->first();
+    if (!$dog) return response()->json(['message' => 'Dog not found.']);
+
+    $log = \Illuminate\Support\Facades\DB::table('email_logs')
+        ->where('subject', 'like', '%Visit Report Card%')
+        ->where('user_id', $dog->user_id)
+        ->orderByDesc('id')->first();
+
+    $hasBr = $log ? str_contains($log->body_html ?? '', '<br') : null;
+
+    return response()->json([
+        'dog_id' => $dog->id,
+        'user_id' => $dog->user_id,
+        'log_id' => $log->id ?? null,
+        'log_created_at' => $log->created_at ?? null,
+        'has_br_tag' => $hasBr,
+        'snippet' => $log ? substr($log->body_html ?? '', 0, 1500) : null,
+    ]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
