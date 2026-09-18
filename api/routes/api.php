@@ -17,6 +17,12 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: find Mila's most recent report card id (REMOVE after running)
+Route::get('/debug-mila-report-id-9x7k', function () {
+    $report = \App\Models\VisitReport::where('user_id', 20)->orderByDesc('id')->first();
+    return response()->json(['report_id' => $report->id ?? null, 'sent_at' => $report->sent_at ?? null]);
+});
+
 // Temporary: check Mila's most recent report card email for nl2br (REMOVE after running)
 Route::get('/debug-mila-report-9x7k', function () {
     $dog = \App\Models\Dog::find(48);
