@@ -55,6 +55,8 @@ class InvoiceController extends Controller
             'line_items.*.description'         => 'required|string',
             'line_items.*.quantity'            => 'required|numeric|min:0.01',
             'line_items.*.unit_price'          => 'required|numeric',
+            'line_items.*.discount_type'       => 'sometimes|nullable|in:none,percent,fixed',
+            'line_items.*.discount_value'      => 'sometimes|nullable|numeric|min:0',
             'line_items.*.gst_exempt'          => 'sometimes|boolean',
             'line_items.*.service_date'        => 'nullable|date',
             'line_items.*.appointment_id'      => 'nullable|exists:appointments,id',
@@ -111,6 +113,8 @@ class InvoiceController extends Controller
             'line_items.*.description'    => 'required_with:line_items|string',
             'line_items.*.quantity'       => 'required_with:line_items|numeric|min:0.01',
             'line_items.*.unit_price'     => 'required_with:line_items|numeric',
+            'line_items.*.discount_type'  => 'sometimes|nullable|in:none,percent,fixed',
+            'line_items.*.discount_value' => 'sometimes|nullable|numeric|min:0',
             'line_items.*.gst_exempt'     => 'sometimes|boolean',
             'line_items.*.service_date'   => 'nullable|date',
         ]);

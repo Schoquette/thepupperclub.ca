@@ -19,6 +19,8 @@ const fmtDate = (s: string | null | undefined, pattern: string, fallback = '—'
   return isNaN(d.getTime()) ? fallback : format(d, pattern);
 };
 
+type DiscountType = 'none' | 'percent' | 'fixed';
+
 interface LineItem {
   _id: number;
   id?: number;
@@ -28,6 +30,20 @@ interface LineItem {
   total?: number;
   gst_exempt?: boolean;
   service_date?: string;
+  discount_type?: DiscountType;
+  discount_value?: number;
+}
+
+/** Line total after discount (mirrors InvoiceLineItem::computeDiscountAmount server-side). */
+function lineTotal(l: { quantity: number; unit_price: number; discount_type?: DiscountType; discount_value?: number }): number {
+  const gross = (Number(l.quantity) || 0) * (Number(l.unit_price) || 0);
+  const dv = Number(l.discount_value) || 0;
+  const discount = l.discount_type === 'percent'
+    ? gross * Math.min(Math.max(dv, 0), 100) / 100
+    : l.discount_type === 'fixed'
+      ? Math.min(Math.max(dv, 0), gross)
+      : 0;
+  return Math.round((gross - discount) * 100) / 100;
 }
 
 let _liCounter = 0;
@@ -114,6 +130,8 @@ export default function AdminInvoiceDetailPage() {
       quantity: li.quantity,
       unit_price: Number(li.unit_price),
       gst_exempt: !!li.gst_exempt,
+      discount_type: (li.discount_type ?? 'none') as DiscountType,
+      discount_value: li.discount_value != null ? Number(li.discount_value) : 0,
       service_date: li.service_date ? li.service_date.substring(0, 10) : '',
     })));
     setEditing(true);
@@ -247,14 +265,14 @@ export default function AdminInvoiceDetailPage() {
     }
   };
 
-  const addLineItem = () => setLineItems(prev => [...prev, { _id: ++_liCounter, description: '', quantity: 1, unit_price: 0 }]);
+  const addLineItem = () => setLineItems(prev => [...prev, { _id: ++_liCounter, description: '', quantity: 1, unit_price: 0, discount_type: 'none' as DiscountType, discount_value: 0 }]);
   const removeLineItem = (i: number) => setLineItems(prev => prev.filter((_, idx) => idx !== i));
   const updateLineItem = (i: number, field: keyof LineItem, value: string | number | boolean) => {
     setLineItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
   };
 
-  const editSubtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0);
-  const editTaxable  = lineItems.filter(li => !li.gst_exempt).reduce((sum, li) => sum + li.quantity * li.unit_price, 0);
+  const editSubtotal = lineItems.reduce((sum, li) => sum + lineTotal(li), 0);
+  const editTaxable  = lineItems.filter(li => !li.gst_exempt).reduce((sum, li) => sum + lineTotal(li), 0);
   const editGst      = Math.round(editTaxable * 0.05 * 100) / 100;
 
   if (isLoading) return <PageLoader />;
@@ -545,7 +563,7 @@ export default function AdminInvoiceDetailPage() {
                           type="button"
                           onClick={() => {
                             const label = price.nickname ? `${product.name} — ${price.nickname}` : product.name;
-                            setLineItems(prev => [...prev, { _id: ++_liCounter, description: label, quantity: 1, unit_price: price.amount ?? 0 }]);
+                            setLineItems(prev => [...prev, { _id: ++_liCounter, description: label, quantity: 1, unit_price: price.amount ?? 0, discount_type: 'none' as DiscountType, discount_value: 0 }]);
                           }}
                           className="inline-flex items-center gap-1.5 bg-cream hover:bg-gold/10 border border-taupe/30 hover:border-gold/50 text-espresso text-xs px-3 py-1.5 rounded-full transition-colors"
                         >
@@ -630,15 +648,40 @@ export default function AdminInvoiceDetailPage() {
                     />
                     <button onClick={() => removeLineItem(i)} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
                   </div>
-                  <label className="flex items-center gap-1.5 cursor-pointer pl-0.5">
-                    <input
-                      type="checkbox"
-                      checked={!!item.gst_exempt}
-                      onChange={e => updateLineItem(i, 'gst_exempt', e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-taupe text-gold focus:ring-gold"
-                    />
-                    <span className="text-xs text-taupe">Exclude GST</span>
-                  </label>
+                  <div className="flex items-center gap-3 flex-wrap pl-0.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!item.gst_exempt}
+                        onChange={e => updateLineItem(i, 'gst_exempt', e.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-taupe text-gold focus:ring-gold"
+                      />
+                      <span className="text-xs text-taupe">Exclude GST</span>
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        className="text-xs border border-taupe rounded px-1.5 py-1 text-espresso bg-white"
+                        value={item.discount_type ?? 'none'}
+                        onChange={e => updateLineItem(i, 'discount_type', e.target.value)}
+                      >
+                        <option value="none">No discount</option>
+                        <option value="percent">% off</option>
+                        <option value="fixed">$ off</option>
+                      </select>
+                      {item.discount_type && item.discount_type !== 'none' && (
+                        <>
+                          <input
+                            type="number" step="0.01" min="0"
+                            className="text-xs border border-taupe rounded px-1.5 py-1 w-16 text-espresso"
+                            placeholder={item.discount_type === 'percent' ? '%' : '$'}
+                            value={item.discount_value ?? 0}
+                            onChange={e => updateLineItem(i, 'discount_value', Number(e.target.value))}
+                          />
+                          <span className="text-xs text-taupe">→ ${lineTotal(item).toFixed(2)}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
               <button onClick={addLineItem} className="text-sm text-gold hover:text-espresso font-medium">+ Add line item</button>
@@ -685,6 +728,11 @@ export default function AdminInvoiceDetailPage() {
                       <td className="py-2.5 px-3 text-espresso">
                         {item.description}
                         {item.gst_exempt && <span className="ml-2 text-xs text-taupe border border-taupe/40 rounded px-1 py-0.5">No GST</span>}
+                        {item.discount_type && item.discount_type !== 'none' && Number(item.discount_value) > 0 && (
+                          <span className="ml-2 text-xs text-gold border border-gold/40 rounded px-1 py-0.5">
+                            {item.discount_type === 'percent' ? `${Number(item.discount_value)}% off` : `$${Number(item.discount_value).toFixed(2)} off`}
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 text-taupe">{fmtDate(item.service_date, 'MMM d, yyyy')}</td>
                       <td className="py-2.5 px-3 text-center text-taupe">{Number(item.quantity)}</td>

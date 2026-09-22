@@ -23,6 +23,8 @@ interface StripeProduct {
   prices: StripePrice[];
 }
 
+type DiscountType = 'none' | 'percent' | 'fixed';
+
 interface LineItem {
   _id: number;
   description: string;
@@ -30,6 +32,8 @@ interface LineItem {
   unit_price: string;
   service_date: string;
   gst_exempt: boolean;
+  discount_type: DiscountType;
+  discount_value: string;
 }
 
 let _lineCounter = 0;
@@ -40,7 +44,23 @@ const emptyLine = (): LineItem => ({
   unit_price: '',
   service_date: '',
   gst_exempt: false,
+  discount_type: 'none',
+  discount_value: '',
 });
+
+/** Line total after discount (mirrors InvoiceLineItem::computeDiscountAmount server-side). */
+function lineTotal(l: { quantity: number; unit_price: string; discount_type: DiscountType; discount_value: string }): number {
+  const qty = Number(l.quantity) || 0;
+  const price = Number(l.unit_price) || 0;
+  const gross = qty * price;
+  const dv = Number(l.discount_value) || 0;
+  const discount = l.discount_type === 'percent'
+    ? gross * Math.min(Math.max(dv, 0), 100) / 100
+    : l.discount_type === 'fixed'
+      ? Math.min(Math.max(dv, 0), gross)
+      : 0;
+  return Math.round((gross - discount) * 100) / 100;
+}
 
 const GST_RATE = 0.05;
 const CC_SURCHARGE = 0.02;
@@ -109,6 +129,8 @@ export default function InvoiceCreatePage() {
       unit_price: price.amount?.toString() ?? '',
       service_date: '',
       gst_exempt: false,
+      discount_type: 'none',
+      discount_value: '',
     }]);
   };
 
@@ -125,17 +147,8 @@ export default function InvoiceCreatePage() {
   const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx));
 
   // Preview totals
-  const subtotal = lines.reduce((sum, l) => {
-    const qty = Number(l.quantity) || 0;
-    const price = Number(l.unit_price) || 0;
-    return sum + qty * price;
-  }, 0);
-  const taxable = lines.reduce((sum, l) => {
-    if (l.gst_exempt) return sum;
-    const qty = Number(l.quantity) || 0;
-    const price = Number(l.unit_price) || 0;
-    return sum + qty * price;
-  }, 0);
+  const subtotal = lines.reduce((sum, l) => sum + lineTotal(l), 0);
+  const taxable = lines.reduce((sum, l) => l.gst_exempt ? sum : sum + lineTotal(l), 0);
   const gst = taxable * GST_RATE;
   const surcharge = applyCcSurcharge && subtotal > 0 ? (subtotal + gst) * CC_SURCHARGE : 0;
   const total = subtotal + gst + surcharge;
@@ -154,11 +167,13 @@ export default function InvoiceCreatePage() {
       notes: notes || undefined,
       apply_cc_surcharge: applyCcSurcharge,
       line_items: validLines.map(l => ({
-        description:  l.description,
-        quantity:     Number(l.quantity),
-        unit_price:   Number(l.unit_price),
-        gst_exempt:   l.gst_exempt,
-        service_date: l.service_date || undefined,
+        description:    l.description,
+        quantity:       Number(l.quantity),
+        unit_price:     Number(l.unit_price),
+        gst_exempt:     l.gst_exempt,
+        discount_type:  l.discount_type,
+        discount_value: l.discount_type !== 'none' ? (Number(l.discount_value) || 0) : 0,
+        service_date:   l.service_date || undefined,
       })),
     });
   };
@@ -314,15 +329,40 @@ export default function InvoiceCreatePage() {
                   )}
                 </div>
               </div>
-              <label className="flex items-center gap-1.5 cursor-pointer pl-0.5">
-                <input
-                  type="checkbox"
-                  checked={!!line.gst_exempt}
-                  onChange={e => updateLine(idx, 'gst_exempt', e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-taupe text-gold focus:ring-gold"
-                />
-                <span className="text-xs text-taupe">Exclude GST</span>
-              </label>
+              <div className="flex items-center gap-3 flex-wrap pl-0.5">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!line.gst_exempt}
+                    onChange={e => updateLine(idx, 'gst_exempt', e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-taupe text-gold focus:ring-gold"
+                  />
+                  <span className="text-xs text-taupe">Exclude GST</span>
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="text-xs border border-taupe rounded px-1.5 py-1 text-espresso bg-white"
+                    value={line.discount_type}
+                    onChange={e => updateLine(idx, 'discount_type', e.target.value)}
+                  >
+                    <option value="none">No discount</option>
+                    <option value="percent">% off</option>
+                    <option value="fixed">$ off</option>
+                  </select>
+                  {line.discount_type !== 'none' && (
+                    <>
+                      <input
+                        type="number" step="0.01" min="0"
+                        className="text-xs border border-taupe rounded px-1.5 py-1 w-16 text-espresso"
+                        placeholder={line.discount_type === 'percent' ? '%' : '$'}
+                        value={line.discount_value}
+                        onChange={e => updateLine(idx, 'discount_value', e.target.value)}
+                      />
+                      <span className="text-xs text-taupe">→ ${lineTotal(line).toFixed(2)}</span>
+                    </>
+                  )}
+                </div>
+              </div>
               </div>
             ))}
             <div className="flex items-center gap-4 mt-1">

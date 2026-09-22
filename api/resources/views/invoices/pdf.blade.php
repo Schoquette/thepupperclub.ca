@@ -218,6 +218,9 @@
             @if($item->gst_exempt)
             <span class="no-gst">No GST</span>
             @endif
+            @if(($item->discount_type ?? 'none') !== 'none' && $item->discount_value > 0)
+            <span class="no-gst">{{ $item->discount_type === 'percent' ? number_format($item->discount_value, 0) . '% off' : '$' . number_format($item->discount_value, 2) . ' off' }}</span>
+            @endif
           </td>
           <td class="td-muted">{{ $item->service_date?->format('M j, Y') ?? '—' }}</td>
           <td class="td-muted" style="text-align:center">{{ rtrim(rtrim(number_format((float)$item->quantity, 2, '.', ''), '0'), '.') }}</td>

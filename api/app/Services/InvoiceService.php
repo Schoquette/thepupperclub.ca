@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Models\InvoiceLineItem;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use Stripe\PaymentIntent;
@@ -61,6 +62,14 @@ class InvoiceService
             });
         }
 
+        // Auto-add discount columns if missing
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('invoice_line_items', 'discount_type')) {
+            \Illuminate\Support\Facades\Schema::table('invoice_line_items', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('discount_type', 10)->default('none');
+                $table->decimal('discount_value', 10, 2)->default(0);
+            });
+        }
+
         // Auto-widen quantity from integer to decimal if needed (was originally unsignedSmallInteger)
         $colInfo = \Illuminate\Support\Facades\DB::selectOne(
             'SHOW COLUMNS FROM invoice_line_items WHERE Field = ?', ['quantity']
@@ -72,10 +81,16 @@ class InvoiceService
         }
 
         foreach ($lineItems as $item) {
-            $total = $item['quantity'] * $item['unit_price'];
+            $lineSubtotal = $item['quantity'] * $item['unit_price'];
+            $discountType = $item['discount_type'] ?? 'none';
+            $discountAmount = InvoiceLineItem::computeDiscountAmount($lineSubtotal, $discountType, $item['discount_value'] ?? 0);
+            $total = round($lineSubtotal - $discountAmount, 2);
+
             $invoice->lineItems()->create(array_merge($item, [
-                'total'      => $total,
-                'gst_exempt' => (bool) ($item['gst_exempt'] ?? false),
+                'discount_type'  => $discountType,
+                'discount_value' => $item['discount_value'] ?? 0,
+                'total'          => $total,
+                'gst_exempt'     => (bool) ($item['gst_exempt'] ?? false),
             ]));
         }
     }
