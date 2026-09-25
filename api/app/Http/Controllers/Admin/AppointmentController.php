@@ -144,7 +144,7 @@ class AppointmentController extends Controller
             'dog_ids.*'         => 'exists:dogs,id',
             'status'            => 'sometimes|in:scheduled,checked_in,completed,cancelled',
             'notes'             => 'sometimes|nullable|string',
-            'scope'             => 'sometimes|in:single,future_all',
+            'scope'             => 'sometimes|in:single,future_all,all',
             'notify_client'     => 'sometimes|boolean',
         ];
 
@@ -171,12 +171,10 @@ class AppointmentController extends Controller
             $changes[] = 'appointment cancelled';
         }
 
-        $this->service->update($appointment, $data, $scope);
-
-        // Sync dogs if provided
-        if ($dogIds !== null) {
-            $appointment->dogs()->sync($dogIds);
-        }
+        // Dog syncing is handled inside the service so it applies to every
+        // matched row under a "this and future" / "all" scope, not just
+        // the appointment that was directly edited.
+        $this->service->update($appointment, $data, $scope, $dogIds);
 
         $appointment = $appointment->fresh(['dogs', 'user.clientProfile']);
 

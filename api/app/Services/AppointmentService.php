@@ -69,37 +69,80 @@ class AppointmentService
         return $appointment;
     }
 
-    public function update(Appointment $appointment, array $data, string $scope = 'single'): void
+    /**
+     * Query matching every row in $appointment's recurring series (the
+     * parent plus all of its generated children), regardless of date.
+     * Works whether $appointment itself is the parent or a child.
+     */
+    private function seriesQuery(Appointment $appointment)
+    {
+        $parentId = $appointment->recurrence_parent_id ?? $appointment->id;
+
+        return Appointment::where(function ($q) use ($parentId) {
+            $q->where('id', $parentId)->orWhere('recurrence_parent_id', $parentId);
+        });
+    }
+
+    /**
+     * Update a single appointment, this-and-future occurrences, or every
+     * occurrence in the series ($scope: single|future_all|all).
+     *
+     * When scheduled_time changes under a multi-row scope, every matched
+     * row is shifted by the same delta (preserving each occurrence's own
+     * date) rather than overwritten to one absolute timestamp — otherwise
+     * a "this and future" or "all" time edit would collapse every
+     * occurrence onto the same instant.
+     */
+    public function update(Appointment $appointment, array $data, string $scope = 'single', ?array $dogIds = null): void
     {
         // Ensure scheduled_time is always parsed in Pacific timezone
         if (isset($data['scheduled_time'])) {
             $data['scheduled_time'] = $this->parseTime($data['scheduled_time']);
         }
 
-        if ($scope === 'future_all' && $appointment->recurrence_parent_id) {
-            // Update this and all future siblings
-            Appointment::where(function ($q) use ($appointment) {
-                $q->where('id', $appointment->id)
-                  ->orWhere(function ($q2) use ($appointment) {
-                      $q2->where('recurrence_parent_id', $appointment->recurrence_parent_id)
-                         ->where('scheduled_time', '>=', $appointment->scheduled_time);
-                  });
-            })->update($data);
-        } else {
+        if ($scope !== 'future_all' && $scope !== 'all') {
             $appointment->update($data);
+            if ($dogIds !== null) {
+                $appointment->dogs()->sync($dogIds);
+            }
+            return;
+        }
+
+        $query = $this->seriesQuery($appointment);
+        if ($scope === 'future_all') {
+            $query->where('scheduled_time', '>=', $appointment->scheduled_time);
+        }
+
+        if (array_key_exists('scheduled_time', $data)) {
+            $deltaSeconds = $data['scheduled_time']->getTimestamp() - $appointment->scheduled_time->getTimestamp();
+            $rows = $query->get();
+            foreach ($rows as $row) {
+                $rowData = $data;
+                $rowData['scheduled_time'] = $row->scheduled_time->copy()->addSeconds($deltaSeconds);
+                $row->update($rowData);
+                if ($dogIds !== null) {
+                    $row->dogs()->sync($dogIds);
+                }
+            }
+        } else {
+            $ids = (clone $query)->pluck('id');
+            $query->update($data);
+            if ($dogIds !== null) {
+                foreach ($ids as $id) {
+                    Appointment::find($id)?->dogs()->sync($dogIds);
+                }
+            }
         }
     }
 
     public function cancel(Appointment $appointment, string $scope = 'single'): void
     {
-        if ($scope === 'future_all') {
-            Appointment::where(function ($q) use ($appointment) {
-                $q->where('id', $appointment->id)
-                  ->orWhere(function ($q2) use ($appointment) {
-                      $q2->where('recurrence_parent_id', $appointment->recurrence_parent_id ?? $appointment->id)
-                         ->where('scheduled_time', '>=', $appointment->scheduled_time);
-                  });
-            })->each(fn ($a) => $a->delete());
+        if ($scope === 'future_all' || $scope === 'all') {
+            $query = $this->seriesQuery($appointment);
+            if ($scope === 'future_all') {
+                $query->where('scheduled_time', '>=', $appointment->scheduled_time);
+            }
+            $query->each(fn ($a) => $a->delete());
         } else {
             $appointment->update(['status' => 'cancelled']);
         }

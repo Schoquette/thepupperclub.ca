@@ -57,7 +57,7 @@ class CalendarBlockController extends Controller
             'duration_minutes'  => 'sometimes|integer|min:5|max:10080',
             'assigned_to'       => 'sometimes|nullable|exists:users,id',
             'notes'             => 'sometimes|nullable|string|max:2000',
-            'scope'             => 'sometimes|in:single,future_all',
+            'scope'             => 'sometimes|in:single,future_all,all',
         ]);
 
         $scope = $data['scope'] ?? 'single';

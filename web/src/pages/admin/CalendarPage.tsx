@@ -629,7 +629,7 @@ export default function AdminCalendarPage() {
     }
   };
 
-  const handleScopeDecision = (scope: 'single' | 'future_all') => {
+  const handleScopeDecision = (scope: 'single' | 'future_all' | 'all') => {
     if (!scopePrompt) return;
     const { appointmentId, payload } = scopePrompt;
     setScopePrompt(null);
@@ -720,7 +720,7 @@ export default function AdminCalendarPage() {
     updateBlock.mutate({ id: selectedBlock.id, ...payload });
   };
 
-  const handleBlockScopeDecision = (scope: 'single' | 'future_all') => {
+  const handleBlockScopeDecision = (scope: 'single' | 'future_all' | 'all') => {
     if (!blockScopePrompt) return;
     const { id, payload } = blockScopePrompt;
     setBlockScopePrompt(null);
@@ -1688,14 +1688,19 @@ export default function AdminCalendarPage() {
           <p className="text-sm text-espresso">
             This appointment is part of a recurring series. Apply your changes to:
           </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setScopePrompt(null)}>Cancel</Button>
+          <div className="flex flex-col gap-2">
             <Button size="sm" onClick={() => handleScopeDecision('single')}>
               Just This One
             </Button>
             <Button size="sm" onClick={() => handleScopeDecision('future_all')}>
-              All Future Events
+              This & Future Events
             </Button>
+            <Button size="sm" onClick={() => handleScopeDecision('all')}>
+              All Events in Series
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setScopePrompt(null)}>Cancel</Button>
           </div>
         </div>
       </Modal>
@@ -1711,26 +1716,36 @@ export default function AdminCalendarPage() {
           {deleteAppointment.isError && (
             <p className="text-sm text-red-600">{(deleteAppointment.error as any)?.response?.data?.message ?? 'Delete failed.'}</p>
           )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-            {deleteConfirm?.hasRecurrence ? (
-              <>
-                <button
-                  onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'single' })}
-                  disabled={deleteAppointment.isPending}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  Just This One
-                </button>
-                <button
-                  onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'future_all' })}
-                  disabled={deleteAppointment.isPending}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  All Future Events
-                </button>
-              </>
-            ) : (
+          {deleteConfirm?.hasRecurrence ? (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'single' })}
+                disabled={deleteAppointment.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                Just This One
+              </button>
+              <button
+                onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'future_all' })}
+                disabled={deleteAppointment.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                This & Future Events
+              </button>
+              <button
+                onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'all' })}
+                disabled={deleteAppointment.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                All Events in Series
+              </button>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
               <button
                 onClick={() => deleteConfirm && deleteAppointment.mutate({ id: deleteConfirm.id, scope: 'single' })}
                 disabled={deleteAppointment.isPending}
@@ -1738,8 +1753,8 @@ export default function AdminCalendarPage() {
               >
                 {deleteAppointment.isPending ? 'Deleting…' : 'Yes, Delete'}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -2083,26 +2098,36 @@ export default function AdminCalendarPage() {
               ? 'This block is part of a recurring series. What would you like to delete?'
               : 'Are you sure you want to delete this block?'}
           </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setDeleteBlockConfirm(null)}>Cancel</Button>
-            {deleteBlockConfirm?.hasRecurrence ? (
-              <>
-                <button
-                  onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'single' })}
-                  disabled={deleteBlock.isPending}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  Just This One
-                </button>
-                <button
-                  onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'future_all' })}
-                  disabled={deleteBlock.isPending}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  All Future Events
-                </button>
-              </>
-            ) : (
+          {deleteBlockConfirm?.hasRecurrence ? (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'single' })}
+                disabled={deleteBlock.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                Just This One
+              </button>
+              <button
+                onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'future_all' })}
+                disabled={deleteBlock.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                This & Future Events
+              </button>
+              <button
+                onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'all' })}
+                disabled={deleteBlock.isPending}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                All Events in Series
+              </button>
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setDeleteBlockConfirm(null)}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setDeleteBlockConfirm(null)}>Cancel</Button>
               <button
                 onClick={() => deleteBlockConfirm && deleteBlock.mutate({ id: deleteBlockConfirm.id, scope: 'single' })}
                 disabled={deleteBlock.isPending}
@@ -2110,8 +2135,8 @@ export default function AdminCalendarPage() {
               >
                 {deleteBlock.isPending ? 'Deleting…' : 'Yes, Delete'}
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -2119,15 +2144,21 @@ export default function AdminCalendarPage() {
       <Modal open={!!blockScopePrompt} onClose={() => setBlockScopePrompt(null)} title="Edit Recurring Block">
         <div className="space-y-4">
           <p className="text-sm text-espresso">
-            This block is part of a recurring series. Apply this change to just this one, or to it and all future occurrences?
+            This block is part of a recurring series. Apply this change to:
           </p>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => handleBlockScopeDecision('single')} loading={updateBlock.isPending}>
+          <div className="flex flex-col gap-2">
+            <Button size="sm" onClick={() => handleBlockScopeDecision('single')} loading={updateBlock.isPending}>
               Just This One
             </Button>
-            <Button onClick={() => handleBlockScopeDecision('future_all')} loading={updateBlock.isPending}>
-              This & Future
+            <Button size="sm" onClick={() => handleBlockScopeDecision('future_all')} loading={updateBlock.isPending}>
+              This & Future Events
             </Button>
+            <Button size="sm" onClick={() => handleBlockScopeDecision('all')} loading={updateBlock.isPending}>
+              All Events in Series
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setBlockScopePrompt(null)}>Cancel</Button>
           </div>
         </div>
       </Modal>

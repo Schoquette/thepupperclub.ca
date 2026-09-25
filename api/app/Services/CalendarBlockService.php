@@ -29,31 +29,65 @@ class CalendarBlockService
         return $block;
     }
 
+    /**
+     * Query matching every row in $block's recurring series (the parent
+     * plus all of its generated children), regardless of date. Works
+     * whether $block itself is the parent or a child.
+     */
+    private function seriesQuery(CalendarBlock $block)
+    {
+        $parentId = $block->recurrence_parent_id ?? $block->id;
+
+        return CalendarBlock::where(function ($q) use ($parentId) {
+            $q->where('id', $parentId)->orWhere('recurrence_parent_id', $parentId);
+        });
+    }
+
+    /**
+     * Update a single block, this-and-future occurrences, or every
+     * occurrence in the series ($scope: single|future_all|all).
+     *
+     * When scheduled_time changes under a multi-row scope, every matched
+     * row is shifted by the same delta (preserving each occurrence's own
+     * date) rather than overwritten to one absolute timestamp — otherwise
+     * a "this and future" or "all" time edit would collapse every
+     * occurrence onto the same instant.
+     */
     public function update(CalendarBlock $block, array $data, string $scope = 'single'): void
     {
-        if ($scope === 'future_all' && $block->recurrence_parent_id) {
-            CalendarBlock::where(function ($q) use ($block) {
-                $q->where('id', $block->id)
-                  ->orWhere(function ($q2) use ($block) {
-                      $q2->where('recurrence_parent_id', $block->recurrence_parent_id)
-                         ->where('scheduled_time', '>=', $block->scheduled_time);
-                  });
-            })->update($data);
-        } else {
+        if ($scope !== 'future_all' && $scope !== 'all') {
             $block->update($data);
+            return;
+        }
+
+        $query = $this->seriesQuery($block);
+        if ($scope === 'future_all') {
+            $query->where('scheduled_time', '>=', $block->scheduled_time);
+        }
+
+        if (array_key_exists('scheduled_time', $data)) {
+            $newTime = $data['scheduled_time'] instanceof \DateTimeInterface
+                ? $data['scheduled_time']
+                : Carbon::parse($data['scheduled_time']);
+            $deltaSeconds = $newTime->getTimestamp() - $block->scheduled_time->getTimestamp();
+            foreach ($query->get() as $row) {
+                $rowData = $data;
+                $rowData['scheduled_time'] = $row->scheduled_time->copy()->addSeconds($deltaSeconds);
+                $row->update($rowData);
+            }
+        } else {
+            $query->update($data);
         }
     }
 
     public function delete(CalendarBlock $block, string $scope = 'single'): void
     {
-        if ($scope === 'future_all') {
-            CalendarBlock::where(function ($q) use ($block) {
-                $q->where('id', $block->id)
-                  ->orWhere(function ($q2) use ($block) {
-                      $q2->where('recurrence_parent_id', $block->recurrence_parent_id ?? $block->id)
-                         ->where('scheduled_time', '>=', $block->scheduled_time);
-                  });
-            })->each(fn ($b) => $b->delete());
+        if ($scope === 'future_all' || $scope === 'all') {
+            $query = $this->seriesQuery($block);
+            if ($scope === 'future_all') {
+                $query->where('scheduled_time', '>=', $block->scheduled_time);
+            }
+            $query->each(fn ($b) => $b->delete());
         } else {
             $block->delete();
         }
