@@ -22,7 +22,7 @@ class AppointmentController extends Controller
     {
         $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
         $eagerLoads = ['user.clientProfile', 'dogs', 'visitReport'];
-        if ($hasAssignedTo) $eagerLoads[] = 'assignedAdmin:id,name';
+        if ($hasAssignedTo) $eagerLoads[] = 'assignedAdmin:id,name,color';
 
         $query = Appointment::with($eagerLoads)
             ->when($request->date, fn($q) => $q->whereDate('scheduled_time', $request->date))

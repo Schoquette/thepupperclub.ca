@@ -13,9 +13,10 @@ import AddressAutocomplete, { type AddressFields } from '@/components/ui/Address
 interface TeamMember {
   id: number;
   name: string;
-  email: string;
+  email: string | null;
   role: 'superadmin' | 'admin';
   status: 'active' | 'inactive';
+  color?: string | null;
   created_at: string;
   home_address?: string | null;
   home_street?: string | null;
@@ -23,6 +24,16 @@ interface TeamMember {
   home_province?: string | null;
   home_postal_code?: string | null;
 }
+
+// Preset swatches for calendar colour-coding by team member.
+const COLOR_PRESETS = [
+  { value: '#6492D8', label: 'Blue' },
+  { value: '#9B6BD6', label: 'Purple' },
+  { value: '#4FA37D', label: 'Green' },
+  { value: '#D97757', label: 'Orange' },
+  { value: '#D65C7A', label: 'Pink' },
+  { value: '#5CB8B2', label: 'Teal' },
+];
 
 const emptyAddress: AddressFields = { street: '', city: '', province: '', postal_code: '' };
 
@@ -50,8 +61,10 @@ export default function TeamPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newColor, setNewColor] = useState<string>(COLOR_PRESETS[0].value);
   const [newAddress, setNewAddress] = useState<AddressFields>(emptyAddress);
   const [tempPassword, setTempPassword] = useState('');
+  const [addSuccessMsg, setAddSuccessMsg] = useState('');
   const [error, setError] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editAddress, setEditAddress] = useState<AddressFields>(emptyAddress);
@@ -65,16 +78,19 @@ export default function TeamPage() {
   const addMember = useMutation({
     mutationFn: () => api.post('/admin/team', {
       name: newName,
-      email: newEmail,
+      email: newEmail || null,
+      color: newColor || null,
       home_street: newAddress.street || null,
       home_city: newAddress.city || null,
       home_province: newAddress.province || null,
       home_postal_code: newAddress.postal_code || null,
     }),
     onSuccess: (res) => {
-      setTempPassword(res.data.temp_password);
+      setTempPassword(res.data.temp_password || '');
+      setAddSuccessMsg(res.data.message || '');
       setNewName('');
       setNewEmail('');
+      setNewColor(COLOR_PRESETS[0].value);
       setNewAddress(emptyAddress);
       qc.invalidateQueries({ queryKey: ['admin-team'] });
     },
@@ -107,6 +123,18 @@ export default function TeamPage() {
     onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to update status.'),
   });
 
+  const [colorPickerId, setColorPickerId] = useState<number | null>(null);
+  const updateColor = useMutation({
+    mutationFn: ({ id, color }: { id: number; color: string }) =>
+      api.patch(`/admin/team/${id}`, { color }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-team'] });
+      setColorPickerId(null);
+      setTeamSuccess('Calendar colour updated!'); setTimeout(() => setTeamSuccess(''), 2500);
+    },
+    onError: (e: any) => setError(e.response?.data?.message ?? 'Failed to update colour.'),
+  });
+
   const resetPassword = useMutation({
     mutationFn: (id: number) => api.post(`/admin/team/${id}/reset-password`),
     onSuccess: (res) => {
@@ -128,7 +156,7 @@ export default function TeamPage() {
       <div className="flex items-center justify-between">
         <h1 className="page-title">Team</h1>
         {isSuperAdmin && (
-          <Button onClick={() => { setShowAdd(true); setError(''); setTempPassword(''); }}>
+          <Button onClick={() => { setShowAdd(true); setError(''); setTempPassword(''); setAddSuccessMsg(''); }}>
             Add Team Member
           </Button>
         )}
@@ -143,11 +171,17 @@ export default function TeamPage() {
             Share this with the team member. They should change it after first login.
           </p>
           <button
-            onClick={() => setTempPassword('')}
+            onClick={() => { setTempPassword(''); setAddSuccessMsg(''); }}
             className="text-xs text-taupe hover:text-espresso underline mt-2"
           >
             Dismiss
           </button>
+        </div>
+      )}
+      {!tempPassword && addSuccessMsg && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700 font-medium flex items-center justify-between">
+          {addSuccessMsg}
+          <button onClick={() => setAddSuccessMsg('')} className="text-green-600 hover:text-green-800 ml-3">&times;</button>
         </div>
       )}
 
@@ -165,7 +199,10 @@ export default function TeamPage() {
             <div key={member.id} className="py-4 px-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-full bg-gold flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                  <div
+                    className="h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                    style={{ backgroundColor: member.color || '#C9A24D' }}
+                  >
                     {member.name.charAt(0)}
                   </div>
                   <div>
@@ -175,7 +212,9 @@ export default function TeamPage() {
                         <span className="ml-2 text-xs font-normal text-gold">Super Admin</span>
                       )}
                     </div>
-                    <div className="text-sm text-taupe">{member.email}</div>
+                    <div className="text-sm text-taupe">
+                      {member.email || <span className="italic text-taupe/70">No login access yet</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -184,6 +223,12 @@ export default function TeamPage() {
                   </Badge>
                   {isSuperAdmin && member.role !== 'superadmin' && (
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => setColorPickerId(colorPickerId === member.id ? null : member.id)}
+                        className="text-xs text-taupe hover:text-espresso underline"
+                      >
+                        Colour
+                      </button>
                       <button
                         onClick={() => toggleStatus.mutate({ id: member.id, status: member.status })}
                         disabled={toggleStatus.isPending}
@@ -209,6 +254,29 @@ export default function TeamPage() {
                   )}
                 </div>
               </div>
+              {/* Calendar colour picker */}
+              {colorPickerId === member.id && (
+                <div className="ml-14 mt-2 flex items-center gap-2">
+                  {COLOR_PRESETS.map(preset => (
+                    <button
+                      key={preset.value}
+                      title={preset.label}
+                      onClick={() => updateColor.mutate({ id: member.id, color: preset.value })}
+                      disabled={updateColor.isPending}
+                      className={`h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 ${
+                        member.color === preset.value ? 'border-espresso' : 'border-transparent'
+                      }`}
+                      style={{ backgroundColor: preset.value }}
+                    />
+                  ))}
+                  <button
+                    onClick={() => setColorPickerId(null)}
+                    className="text-xs text-taupe hover:text-espresso ml-1"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
               {/* Home address */}
               <div className="ml-14 mt-2">
                 {editingId === member.id ? (
@@ -281,6 +349,26 @@ export default function TeamPage() {
             onChange={e => setNewEmail(e.target.value)}
             placeholder="email@example.com"
           />
+          <p className="text-xs text-taupe -mt-2">
+            Leave blank to add them without portal login access — they'll still appear in the assignment dropdown and calendar. You can add an email and send an invite later.
+          </p>
+          <div>
+            <label className="label mb-1.5 block">Calendar Colour</label>
+            <div className="flex items-center gap-2">
+              {COLOR_PRESETS.map(preset => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  title={preset.label}
+                  onClick={() => setNewColor(preset.value)}
+                  className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${
+                    newColor === preset.value ? 'border-espresso' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: preset.value }}
+                />
+              ))}
+            </div>
+          </div>
           <AddressAutocomplete
             label="Home Address"
             value={newAddress}
@@ -293,7 +381,7 @@ export default function TeamPage() {
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
             <Button
               loading={addMember.isPending}
-              disabled={!newName || !newEmail}
+              disabled={!newName}
               onClick={() => { setError(''); addMember.mutate(); }}
             >
               Add Member

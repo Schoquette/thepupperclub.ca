@@ -998,9 +998,10 @@ export default function AdminCalendarPage() {
                 };
               }
               if (e.resource?._isBlock) {
+                const blockAssigneeColor = e.resource.assigned_admin?.color;
                 return {
                   style: {
-                    backgroundColor: '#3B2F2A',
+                    backgroundColor: blockAssigneeColor || '#3B2F2A',
                     borderRadius: 6,
                     border: 'none',
                     color: '#F6F3EE',
@@ -1017,12 +1018,25 @@ export default function AdminCalendarPage() {
               } else if (e.resource.service_type === 'overnight') {
                 bg = '#F6F3EE'; // cream
                 textColor = '#3B2F2A';
+              } else if (e.resource.service_type === 'pack_hike') {
+                bg = '#C9A24D'; // gold
+                textColor = '#3B2F2A'; // espresso, for legibility on gold
+              }
+              // A team member's assigned colour (set on the Team page)
+              // takes priority over the service-type default so their
+              // appointments are recognizable at a glance regardless of
+              // visit type.
+              const assigneeColor = e.resource.assigned_admin?.color;
+              if (assigneeColor) {
+                bg = assigneeColor;
+                textColor = 'white';
               }
               // Past appointments that elapsed without a check-in/completion
-              // dim back to a grey so they read as history at a glance.
+              // read as history at a glance — dim to grey normally, or just
+              // fade a custom assignee colour so their identity still shows.
               const isElapsed =
                 e.resource.status === 'scheduled' && e.start < new Date();
-              if (isElapsed) {
+              if (isElapsed && !assigneeColor) {
                 bg = '#9CA3AF';
                 textColor = 'white';
               }
@@ -1030,7 +1044,7 @@ export default function AdminCalendarPage() {
                 style: {
                   backgroundColor: bg,
                   borderRadius: 6,
-                  border: e.resource.service_type === 'overnight' ? '1px solid #C8BFB6' : 'none',
+                  border: e.resource.service_type === 'overnight' && !assigneeColor ? '1px solid #C8BFB6' : 'none',
                   color: textColor,
                   fontSize: 12,
                   opacity: isElapsed ? 0.75 : 1,

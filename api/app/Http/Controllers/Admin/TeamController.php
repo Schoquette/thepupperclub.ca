@@ -28,8 +28,9 @@ class TeamController extends Controller
     public function index(): JsonResponse
     {
         $this->ensureHomeAddressColumns();
+        $this->ensureColorColumn();
 
-        $columns = ['id', 'name', 'email', 'role', 'status', 'created_at'];
+        $columns = ['id', 'name', 'email', 'role', 'status', 'color', 'created_at'];
         foreach (['home_address', 'home_street', 'home_city', 'home_province', 'home_postal_code'] as $col) {
             if (Schema::hasColumn('users', $col)) {
                 $columns[] = $col;
@@ -48,10 +49,16 @@ class TeamController extends Controller
     {
         $this->ensureCanManageTeam();
         $this->ensureHomeAddressColumns();
+        $this->ensureColorColumn();
+        $this->ensureNullableLoginColumns();
 
         $data = $request->validate([
             'name'             => 'required|string|max:255',
-            'email'            => 'required|email|unique:users,email',
+            // Email is optional: a team member can be added as a
+            // placeholder (shows up for assignment/calendar colour only)
+            // before they're given portal login access.
+            'email'            => 'nullable|email|unique:users,email',
+            'color'            => 'nullable|string|max:7',
             'role'             => 'sometimes|in:admin',
             'home_street'      => 'nullable|string|max:255',
             'home_city'        => 'nullable|string|max:100',
@@ -59,16 +66,18 @@ class TeamController extends Controller
             'home_postal_code' => 'nullable|string|max:10',
         ]);
 
-        $tempPassword = Str::random(12);
+        $hasEmail = !empty($data['email']);
+        $tempPassword = $hasEmail ? Str::random(12) : null;
 
         $addressFields = ['home_street', 'home_city', 'home_province', 'home_postal_code'];
 
         $fields = [
             'name'     => $data['name'],
-            'email'    => $data['email'],
-            'password' => Hash::make($tempPassword),
+            'email'    => $data['email'] ?? null,
+            'password' => $tempPassword ? Hash::make($tempPassword) : null,
             'role'     => 'admin',
             'status'   => 'active',
+            'color'    => $data['color'] ?? null,
         ];
 
         foreach ($addressFields as $col) {
@@ -90,14 +99,16 @@ class TeamController extends Controller
 
         $user = User::create($fields);
 
-        // Send invitation email with set-password link
-        $token = Password::createToken($user);
-        Mail::to($user->email)->send(new TeamInvitationMail($user, $token, $tempPassword));
+        // Only send an invite when an email was actually provided.
+        if ($hasEmail) {
+            $token = Password::createToken($user);
+            Mail::to($user->email)->send(new TeamInvitationMail($user, $token, $tempPassword));
+        }
 
         return response()->json([
-            'data' => $user->only('id', 'name', 'email', 'role', 'status'),
+            'data' => $user->only('id', 'name', 'email', 'role', 'status', 'color'),
             'temp_password' => $tempPassword,
-            'message' => "Invite sent to {$user->email}.",
+            'message' => $hasEmail ? "Invite sent to {$user->email}." : "{$user->name} added — no login access yet.",
         ], 201);
     }
 
@@ -108,10 +119,13 @@ class TeamController extends Controller
         abort_unless(in_array($user->role, ['admin', 'superadmin']), 404);
 
         $this->ensureHomeAddressColumns();
+        $this->ensureColorColumn();
+        $this->ensureNullableLoginColumns();
 
         $data = $request->validate([
             'name'             => 'sometimes|string|max:255',
-            'email'            => 'sometimes|email|unique:users,email,' . $user->id,
+            'email'            => 'sometimes|nullable|email|unique:users,email,' . $user->id,
+            'color'            => 'sometimes|nullable|string|max:7',
             'status'           => 'sometimes|in:active,inactive',
             'home_street'      => 'sometimes|nullable|string|max:255',
             'home_city'        => 'sometimes|nullable|string|max:100',
@@ -130,16 +144,33 @@ class TeamController extends Controller
             $data['home_address'] = trim(implode(', ', array_filter($parts))) ?: null;
         }
 
+        // If an email is being set for the first time (e.g. finally giving
+        // a placeholder team member login access), generate a password and
+        // send the same invite used when adding a new member.
+        $tempPassword = null;
+        if (!empty($data['email']) && empty($user->email)) {
+            $tempPassword = Str::random(12);
+            $data['password'] = Hash::make($tempPassword);
+        }
+
         $user->update($data);
 
-        $returnFields = ['id', 'name', 'email', 'role', 'status'];
+        if ($tempPassword) {
+            $token = Password::createToken($user);
+            Mail::to($user->email)->send(new TeamInvitationMail($user, $token, $tempPassword));
+        }
+
+        $returnFields = ['id', 'name', 'email', 'role', 'status', 'color'];
         foreach (['home_address', 'home_street', 'home_city', 'home_province', 'home_postal_code'] as $col) {
             if (Schema::hasColumn('users', $col)) {
                 $returnFields[] = $col;
             }
         }
 
-        return response()->json(['data' => $user->only($returnFields)]);
+        return response()->json([
+            'data' => $user->only($returnFields),
+            'temp_password' => $tempPassword,
+        ]);
     }
 
     public function destroy(User $user): JsonResponse
@@ -165,6 +196,36 @@ class TeamController extends Controller
                 $table->string('home_province', 2)->nullable();
                 $table->string('home_postal_code', 10)->nullable();
             });
+        }
+    }
+
+    private function ensureColorColumn(): void
+    {
+        if (!Schema::hasColumn('users', 'color')) {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE users ADD COLUMN color VARCHAR(7) NULL AFTER role");
+        }
+    }
+
+    /**
+     * Team members can be created without login access (no email/password)
+     * — used for staff who just need to appear in the assignment dropdown
+     * and calendar. Widens the columns if the migration hasn't landed yet.
+     */
+    private function ensureNullableLoginColumns(): void
+    {
+        foreach (['email', 'password'] as $column) {
+            $info = \Illuminate\Support\Facades\DB::selectOne(
+                'SHOW COLUMNS FROM users WHERE Field = ?', [$column]
+            );
+            if ($info && strtoupper($info->Null ?? '') === 'NO') {
+                try {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE users MODIFY COLUMN {$column} VARCHAR(255) NULL");
+                } catch (\Throwable $e) {
+                    // GoDaddy DDL restriction — proceed; if the column is
+                    // still NOT NULL, store()/update() will surface a
+                    // clear DB error for a login-less team member.
+                }
+            }
         }
     }
 

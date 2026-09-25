@@ -14,7 +14,7 @@ class CalendarBlockController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = CalendarBlock::with('assignedAdmin:id,name')
+        $query = CalendarBlock::with('assignedAdmin:id,name,color')
             ->when($request->start, fn($q) => $q->where('scheduled_time', '>=', $request->start))
             ->when($request->end, fn($q) => $q->where('scheduled_time', '<=', $request->end))
             ->when($request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
@@ -45,7 +45,7 @@ class CalendarBlockController extends Controller
 
         $block = $this->service->create($data);
 
-        return response()->json(['data' => $block->load('assignedAdmin:id,name')], 201);
+        return response()->json(['data' => $block->load('assignedAdmin:id,name,color')], 201);
     }
 
     public function update(Request $request, CalendarBlock $calendarBlock): JsonResponse
@@ -65,7 +65,7 @@ class CalendarBlockController extends Controller
 
         $this->service->update($calendarBlock, $data, $scope);
 
-        return response()->json(['data' => $calendarBlock->fresh()->load('assignedAdmin:id,name')]);
+        return response()->json(['data' => $calendarBlock->fresh()->load('assignedAdmin:id,name,color')]);
     }
 
     public function destroy(Request $request, CalendarBlock $calendarBlock): JsonResponse

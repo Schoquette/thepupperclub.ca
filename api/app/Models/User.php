@@ -20,6 +20,7 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'color',
         'expo_push_token',
         'home_address',
         'home_street',
