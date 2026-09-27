@@ -10,6 +10,10 @@ return [
     'resend' => [
         'key'             => env('RESEND_API_KEY', env('MAIL_PASSWORD')),
         'inbound_address' => env('RESEND_INBOUND_ADDRESS'), // e.g. reply@thepupperclub.ca
+        // Shared secret appended as ?key=... to the inbound webhook URL
+        // configured in the Resend dashboard, so InboundEmailController can
+        // reject POSTs that didn't come from Resend.
+        'inbound_secret'  => env('RESEND_INBOUND_WEBHOOK_SECRET'),
     ],
     'stripe' => [
         'key'                       => env('STRIPE_KEY'),

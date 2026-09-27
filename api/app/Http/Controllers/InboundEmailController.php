@@ -25,6 +25,21 @@ class InboundEmailController extends Controller
      */
     public function handle(Request $request): JsonResponse
     {
+        $secret = config('services.resend.inbound_secret');
+        if (!$secret || $request->query('key') !== $secret) {
+            Log::warning('InboundEmail: rejected request with missing/invalid key', ['ip' => $request->ip()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'InboundEmailWebhookAuthFailed',
+                    'message'    => $secret ? 'Invalid key' : 'RESEND_INBOUND_WEBHOOK_SECRET not configured',
+                    'context'    => ['ip' => $request->ip()],
+                    'ip_address' => $request->ip(),
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $from    = $this->extractEmail($request->input('from', ''));
         $subject = $request->input('subject', '');
         $text    = $request->input('text', '');
