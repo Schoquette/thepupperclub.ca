@@ -361,7 +361,7 @@ Migrations covering:
 - **`community_blocks`** — silent, two-way block edges; the blocked member never sees the blocker again, and vice versa
 - **`community_reports`** — private reporting flow with `reason` and `details`
 
-> **Note**: Many columns on the paid-service tables are auto-created by controllers on first use via `Schema::hasColumn()` checks, so the app works even without running all migrations. The Community migrations are stricter — run them all via `/api/migrate-community-9x7k` after any deploy that adds a Community migration.
+> **Note**: Many columns on the paid-service tables are auto-created by controllers on first use via `Schema::hasColumn()` checks, so the app works even without running all migrations. The Community migrations are stricter — after any deploy that adds a Community migration, add a one-off `Route::get('/some-fix-9x7k', ...)` endpoint to `api/routes/api.php`, hit it once in the browser to apply the schema change, then remove it (see "Database Migrations" above).
 
 ---
 
