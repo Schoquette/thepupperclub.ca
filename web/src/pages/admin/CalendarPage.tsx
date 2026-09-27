@@ -1349,11 +1349,14 @@ export default function AdminCalendarPage() {
                         client_time_block: 'all_day',
                       };
                     }
-                    // Switching to day boarding: full-day with no time block.
+                    // Switching to day boarding: default to 9:00am–5:00pm,
+                    // adjustable afterward via the Start/End time fields.
                     if (nextType === 'day_boarding') {
+                      const dateOnly = f.scheduled_time ? f.scheduled_time.split('T')[0] : '';
                       return {
                         ...f,
                         service_type: nextType,
+                        scheduled_time: dateOnly ? `${dateOnly}T09:00` : f.scheduled_time,
                         end_date: '',
                         duration_minutes: svc.defaultDuration,
                         client_time_block: 'all_day',
@@ -1376,14 +1379,28 @@ export default function AdminCalendarPage() {
               </select>
             </div>
 
-            {/* Duration (read-only label for overnight — the check-out
-                date drives the value; the dropdown only has [1440] in
-                SERVICE_TYPES so a multi-night duration would never
-                render correctly). */}
-            {newForm.service_type === 'overnight' ? (
+            {/* Duration — read-only "Length" for overnight (driven by
+                check-in/check-out dates) and day boarding (driven by the
+                Start/End time fields below); a free-form minutes input
+                for Custom Visit so any length can be entered; a preset
+                dropdown for the fixed-length service types. */}
+            {newForm.service_type === 'overnight' || newForm.service_type === 'day_boarding' ? (
               <div>
                 <label className="label">Length *</label>
                 <input className="input" value={formatDuration(newForm.duration_minutes)} disabled />
+              </div>
+            ) : newForm.service_type === 'custom' ? (
+              <div>
+                <label className="label">Duration (minutes) *</label>
+                <input
+                  type="number"
+                  min={15}
+                  step={1}
+                  className="input"
+                  placeholder="e.g. 50"
+                  value={newForm.duration_minutes || ''}
+                  onChange={e => setNewForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) || 0 }))}
+                />
               </div>
             ) : (
               <div>
@@ -1391,7 +1408,7 @@ export default function AdminCalendarPage() {
                 {(() => {
                   const svc = SERVICE_TYPES.find(s => s.value === newForm.service_type)!;
                   const durations = svc.durations;
-                  const isFixed = durations.length === 1 && svc.value !== 'custom';
+                  const isFixed = durations.length === 1;
                   return (
                     <select
                       className="input"
@@ -1399,9 +1416,6 @@ export default function AdminCalendarPage() {
                       disabled={isFixed}
                       onChange={e => setNewForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
                     >
-                      {svc.value === 'custom' && newForm.duration_minutes === 0 && (
-                        <option value={0} disabled>Select duration</option>
-                      )}
                       {durations.map(d => (
                         <option key={d} value={d}>{formatDuration(d)}</option>
                       ))}
@@ -1477,9 +1491,9 @@ export default function AdminCalendarPage() {
               </div>
             )}
 
-            {/* Time */}
+            {/* Time (start time for day boarding) */}
             <div>
-              <label className="label">Time *</label>
+              <label className="label">{newForm.service_type === 'day_boarding' ? 'Start Time *' : 'Time *'}</label>
               <select
                 className="input"
                 value={newForm.scheduled_time ? newForm.scheduled_time.split('T')[1]?.substring(0, 5) || '' : ''}
@@ -1499,6 +1513,40 @@ export default function AdminCalendarPage() {
                 ))}
               </select>
             </div>
+
+            {/* End Time — day boarding only. Start Time drives the lower
+                bound; picking an end recomputes duration_minutes so both
+                ends stay freely adjustable (defaults to 9am–5pm). */}
+            {newForm.service_type === 'day_boarding' && (() => {
+              const startTime = newForm.scheduled_time ? newForm.scheduled_time.split('T')[1]?.substring(0, 5) || '' : '';
+              return (
+                <div>
+                  <label className="label">End Time *</label>
+                  <select
+                    className="input"
+                    value={(() => {
+                      if (!startTime) return '';
+                      const [h, m] = startTime.split(':').map(Number);
+                      const endTotal = h * 60 + m + newForm.duration_minutes;
+                      const eh = Math.floor(endTotal / 60) % 24;
+                      const em = endTotal % 60;
+                      return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                    })()}
+                    onChange={e => {
+                      if (!startTime) return;
+                      const [sh, sm] = startTime.split(':').map(Number);
+                      const [eh, em] = e.target.value.split(':').map(Number);
+                      const duration = (eh * 60 + em) - (sh * 60 + sm);
+                      if (duration > 0) setNewForm(f => ({ ...f, duration_minutes: duration }));
+                    }}
+                  >
+                    {TIME_SLOTS.filter(t => !startTime || t > startTime).map(t => (
+                      <option key={t} value={t}>{formatTime12(t)}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
 
             {/* Time block — hidden for boarding (always all-day) */}
             {!isFullDayService(newForm.service_type) && (
@@ -1650,7 +1698,7 @@ export default function AdminCalendarPage() {
             </Button>
             <Button
               loading={createAppointment.isPending}
-              disabled={!newForm.user_id || newForm.dog_ids.length === 0 || !newForm.scheduled_time}
+              disabled={!newForm.user_id || newForm.dog_ids.length === 0 || !newForm.scheduled_time || !newForm.duration_minutes}
               onClick={handleCreate}
             >
               Create Appointment
@@ -2276,6 +2324,17 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
                   const dur = f.duration_minutes >= 1440 ? f.duration_minutes : 1440;
                   return { ...f, service_type: nextType, duration_minutes: dur };
                 }
+                if (nextType === 'day_boarding') {
+                  // Default to 9:00am–5:00pm, adjustable afterward via the
+                  // Start/End time fields.
+                  const dateOnly = f.scheduled_time ? f.scheduled_time.substring(0, 10) : '';
+                  return {
+                    ...f,
+                    service_type: nextType,
+                    scheduled_time: dateOnly ? `${dateOnly}T09:00` : f.scheduled_time,
+                    duration_minutes: svc.defaultDuration,
+                  };
+                }
                 return { ...f, service_type: nextType, duration_minutes: svc.defaultDuration || f.duration_minutes };
               });
             }}
@@ -2284,14 +2343,34 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
           </select>
         </div>
 
-        {/* Duration (hidden for overnight — derived from check-out date) */}
-        {editForm.service_type !== 'overnight' ? (
+        {/* Duration — read-only "Length" for overnight and day boarding
+            (both driven by other fields), free-form minutes for Custom
+            Visit, preset dropdown for fixed-length service types. */}
+        {editForm.service_type === 'overnight' || editForm.service_type === 'day_boarding' ? (
+          <div>
+            <label className="label">Length</label>
+            <input className="input" value={formatDuration(editForm.duration_minutes)} disabled />
+          </div>
+        ) : editForm.service_type === 'custom' ? (
+          <div>
+            <label className="label">Duration (minutes)</label>
+            <input
+              type="number"
+              min={15}
+              step={1}
+              className="input"
+              placeholder="e.g. 50"
+              value={editForm.duration_minutes || ''}
+              onChange={e => setEditForm((f: any) => ({ ...f, duration_minutes: parseInt(e.target.value) || 0 }))}
+            />
+          </div>
+        ) : (
           <div>
             <label className="label">Duration</label>
             {(() => {
               const svc = SERVICE_TYPES.find(s => s.value === editForm.service_type)!;
               const durations = svc.durations;
-              const isFixed = durations.length === 1 && svc.value !== 'custom';
+              const isFixed = durations.length === 1;
               return (
                 <select
                   className="input"
@@ -2305,11 +2384,6 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
                 </select>
               );
             })()}
-          </div>
-        ) : (
-          <div>
-            <label className="label">Length</label>
-            <input className="input" value={formatDuration(editForm.duration_minutes)} disabled />
           </div>
         )}
 
@@ -2381,9 +2455,9 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
           );
         })()}
 
-        {/* Time */}
+        {/* Time (start time for day boarding) */}
         <div>
-          <label className="label">Time</label>
+          <label className="label">{editForm.service_type === 'day_boarding' ? 'Start Time' : 'Time'}</label>
           <select
             className="input"
             value={timeStr}
@@ -2398,6 +2472,37 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
             ))}
           </select>
         </div>
+
+        {/* End Time — day boarding only. Start Time drives the lower
+            bound; picking an end recomputes duration_minutes so both
+            ends stay freely adjustable (defaults to 9am–5pm). */}
+        {editForm.service_type === 'day_boarding' && (
+          <div>
+            <label className="label">End Time</label>
+            <select
+              className="input"
+              value={(() => {
+                if (!timeStr) return '';
+                const [h, m] = timeStr.split(':').map(Number);
+                const endTotal = h * 60 + m + editForm.duration_minutes;
+                const eh = Math.floor(endTotal / 60) % 24;
+                const em = endTotal % 60;
+                return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+              })()}
+              onChange={e => {
+                if (!timeStr) return;
+                const [sh, sm] = timeStr.split(':').map(Number);
+                const [eh, em] = e.target.value.split(':').map(Number);
+                const duration = (eh * 60 + em) - (sh * 60 + sm);
+                if (duration > 0) setEditForm((f: any) => ({ ...f, duration_minutes: duration }));
+              }}
+            >
+              {TIME_SLOTS.filter(t => !timeStr || t > timeStr).map(t => (
+                <option key={t} value={t}>{formatTime12(t)}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Schedule overlap/buffer warnings */}
@@ -2423,7 +2528,7 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
         <Button
           loading={isPending}
-          disabled={editForm.dog_ids.length === 0 || !editForm.scheduled_time || isBefore(new Date(editForm.scheduled_time), new Date())}
+          disabled={editForm.dog_ids.length === 0 || !editForm.scheduled_time || !editForm.duration_minutes || isBefore(new Date(editForm.scheduled_time), new Date())}
           onClick={onSave}
         >
           Save Changes
