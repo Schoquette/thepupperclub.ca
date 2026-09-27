@@ -17,6 +17,17 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: check recent error_logs for the backup 500 + zip extension (REMOVE after running)
+Route::get('/debug-backup-error-9x7k', function () {
+    $logs = \Illuminate\Support\Facades\DB::table('error_logs')
+        ->orderByDesc('id')->limit(5)->get();
+    return response()->json([
+        'zip_extension_loaded' => extension_loaded('zip'),
+        'zip_class_exists' => class_exists('ZipArchive'),
+        'recent_error_logs' => $logs,
+    ]);
+});
+
 // Temporary: add missing dog intake columns (REMOVE after running)
 Route::get('/fix-dog-columns-9x7k', function () {
     $results = [];
