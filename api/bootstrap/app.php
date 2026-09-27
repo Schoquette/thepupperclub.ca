@@ -20,7 +20,16 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
-            if ($request->expectsJson()) {
+            // This app is API-only (apiPrefix: 'api', no web login view/
+            // named 'login' route exists at all). Laravel's default auth
+            // middleware falls back to redirecting to route('login') when
+            // the request doesn't look like it "expects JSON" (e.g. an
+            // Accept header of application/octet-stream, as used by the
+            // backup-download curl call) — with no such route registered,
+            // that redirect attempt itself throws RouteNotFoundException,
+            // masking every failed-auth request on /api/* as an opaque
+            // 500 instead of a clean 401.
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
         });
