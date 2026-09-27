@@ -39,7 +39,18 @@ class BackupController extends Controller
             try {
                 $rows = DB::table($table)->get();
             } catch (\Exception $e) {
-                // Skip tables that don't exist
+                // Skip tables that don't exist — but log so a genuine DB
+                // error (vs. a missing table) doesn't disappear unnoticed,
+                // which is exactly how the nightly backup silently produced
+                // empty files for months before this was caught.
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'BackupTableSkipped',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => $table],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
                 continue;
             }
 
@@ -50,6 +61,14 @@ class BackupController extends Controller
                     $csv = implode(',', $columns) . "\n";
                 } catch (\Exception $e) {
                     $csv = '';
+                    try {
+                        \App\Models\ErrorLog::create([
+                            'type'       => 'BackupTableSchemaLookupFailed',
+                            'message'    => $e->getMessage(),
+                            'context'    => ['table' => $table],
+                            'created_at' => now(),
+                        ]);
+                    } catch (\Throwable $logError) {}
                 }
                 $zip->addFromString("{$table}.csv", $csv);
                 continue;

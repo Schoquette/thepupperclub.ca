@@ -222,6 +222,15 @@ class TimeMileageController extends Controller
                 ]);
                 $data = json_decode((string) $res->getBody(), true);
             } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => auth()->id(),
+                        'type'       => 'MileageEstimateLegFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['from' => $addresses[$i], 'to' => $addresses[$i + 1]],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
                 continue;
             }
 

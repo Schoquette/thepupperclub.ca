@@ -140,6 +140,15 @@ class ProfileController extends Controller
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Profile update notification failed: ' . $e->getMessage());
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $user->id,
+                    'type'       => 'ProfileUpdateNotificationFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => [],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
 
         return response()->json(['data' => $user->fresh('clientProfile')]);

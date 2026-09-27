@@ -382,6 +382,15 @@ class ClientController extends Controller
                 $invoiceService->send($invoice);
             } catch (\Exception $e) {
                 \Log::warning("Failed to create proration invoice for client {$client->id}: {$e->getMessage()}");
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $client->id,
+                        'type'       => 'ProrationInvoiceCreationFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['client_id' => $client->id],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 
@@ -710,6 +719,15 @@ class ClientController extends Controller
 
             return response()->json(['message' => 'Client deleted.']);
         } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $client->id,
+                    'type'       => 'ClientHardDeleteFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['file' => $e->getFile() . ':' . $e->getLine(), 'client_id' => $client->id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response()->json(['message' => 'Delete failed: ' . $e->getMessage()], 500);
         }
     }

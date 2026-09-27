@@ -113,6 +113,7 @@ class SignedPdfBuilder
                     'document_id' => $document->id,
                     'error'       => $e->getMessage(),
                 ]);
+                $this->log('certificate-append-failed', $document, ['error' => $e->getMessage()]);
             }
         }
 
@@ -194,6 +195,14 @@ class SignedPdfBuilder
             Log::warning('SignedPdfBuilder: signature image failed to draw', [
                 'error' => $e->getMessage(),
             ]);
+            try {
+                ErrorLog::create([
+                    'type'       => 'signed_pdf_builder',
+                    'message'    => 'signature-draw-failed: ' . $e->getMessage(),
+                    'context'    => ['x' => $x, 'y' => $y, 'w' => $w, 'h' => $h],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         } finally {
             @unlink($tmp);
         }

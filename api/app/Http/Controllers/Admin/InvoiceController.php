@@ -176,8 +176,11 @@ class InvoiceController extends Controller
         $data = $request->validate([
             'line_items'                       => 'required|array|min:1',
             'line_items.*.description'         => 'required|string',
-            'line_items.*.quantity'            => 'required|integer|min:1',
+            'line_items.*.quantity'            => 'required|numeric|min:0.01',
             'line_items.*.unit_price'          => 'required|numeric',
+            'line_items.*.discount_type'       => 'sometimes|nullable|in:none,percent,fixed',
+            'line_items.*.discount_value'      => 'sometimes|nullable|numeric|min:0',
+            'line_items.*.gst_exempt'          => 'sometimes|boolean',
             'line_items.*.service_date'        => 'nullable|date',
             'line_items.*.service_request_id'  => 'nullable|integer',
         ]);
@@ -185,8 +188,12 @@ class InvoiceController extends Controller
         $this->invoiceService->attachLineItems($invoice, $data['line_items']);
         $this->invoiceService->recalculate($invoice);
 
-        // Link service requests to the newly created line items
-        $newLineItems = $invoice->lineItems()->latest('id')->limit(count($data['line_items']))->get();
+        // Link service requests to the newly created line items. Grab the
+        // newest N rows (in case the invoice already had line items), then
+        // reverse to ascending/insertion order so index i lines up with the
+        // submitted $data['line_items'][i] — attachLineItems() creates rows
+        // in submitted order via a plain foreach.
+        $newLineItems = $invoice->lineItems()->latest('id')->limit(count($data['line_items']))->get()->reverse()->values();
         $this->linkServiceRequests($data['line_items'], $newLineItems);
 
         return response()->json(['data' => $invoice->fresh('lineItems')]);

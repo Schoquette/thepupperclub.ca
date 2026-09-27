@@ -32,6 +32,15 @@ class StripeWebhookController extends Controller
                 config('services.stripe.webhook_secret')
             );
         } catch (\Exception $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'StripeWebhookSignatureFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['ip' => $request->ip()],
+                    'ip_address' => $request->ip(),
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response('Invalid signature.', 400);
         }
 

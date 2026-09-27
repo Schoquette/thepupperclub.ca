@@ -66,6 +66,14 @@ class ContactController extends Controller
                 'error' => $e->getMessage(),
                 'data'  => $validated,
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'ContactFormEmailFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['email' => $validated['email'] ?? null],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             // Don't tell the visitor everything's fine if the mail
             // bombed — they need to know to try us another way.
             return response()->json([

@@ -45,9 +45,25 @@ class SmsService
                 'status' => $response->status(),
                 'body'   => $response->json(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SmsSendFailed',
+                    'message'    => 'Twilio API error: status ' . $response->status(),
+                    'context'    => ['to' => $to, 'body' => $response->json()],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return false;
         } catch (\Throwable $e) {
             Log::error('SmsService: Failed to send SMS', ['error' => $e->getMessage()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SmsSendFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['to' => $to],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return false;
         }
     }

@@ -96,6 +96,14 @@ class CommunityMailer
                 'subject' => $subject,
                 'error'   => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'CommunityMailerSendFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['to' => $toEmail, 'subject' => $subject],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return false;
         }
     }

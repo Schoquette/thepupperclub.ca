@@ -76,7 +76,7 @@ class ConversationController extends Controller
             'body'          => 'nullable|string|max:5000',
             'reply_to_id'   => 'nullable|integer|exists:messages,id',
             'attachments'   => 'nullable|array|max:10',
-            'attachments.*' => 'file|max:10240', // 10MB per file
+            'attachments.*' => 'mimes:jpg,jpeg,png,gif,heic,heif,pdf,doc,docx|max:10240', // 10MB per file
         ]);
 
         $body        = trim((string) $request->input('body', ''));

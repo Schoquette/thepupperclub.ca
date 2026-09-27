@@ -64,12 +64,12 @@ Route::get('/clear-cache-9x7k', function () {
 });
 
 // ── Public ───────────────────────────────────────────────────────────────────
-Route::post('/auth/login',          [AuthController::class, 'login']);
-Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword']);
+Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
+Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 Route::post('/webhooks/stripe',     [StripeWebhookController::class, 'handle']);
 Route::post('/webhooks/email',      [\App\Http\Controllers\InboundEmailController::class, 'handle']);
-Route::post('/contact',             [ContactController::class, 'submit']);
+Route::post('/contact',             [ContactController::class, 'submit'])->middleware('throttle:5,1');
 Route::post('/rescue-trip-interest', [\App\Http\Controllers\RescueTripInterestController::class, 'store']);
 Route::post('/transport-quote',      [\App\Http\Controllers\TransportQuoteController::class, 'quote']);
 
@@ -361,8 +361,8 @@ Route::middleware('auth:sanctum')->group(function () {
 // ─────────────────────────────────────────────────────────────────────────────
 Route::prefix('community')->group(function () {
     // Public auth endpoints
-    Route::post('/auth/register', [\App\Http\Controllers\Community\AuthController::class, 'register']);
-    Route::post('/auth/login',    [\App\Http\Controllers\Community\AuthController::class, 'login']);
+    Route::post('/auth/register', [\App\Http\Controllers\Community\AuthController::class, 'register'])->middleware('throttle:6,1');
+    Route::post('/auth/login',    [\App\Http\Controllers\Community\AuthController::class, 'login'])->middleware('throttle:6,1');
 
     // Authenticated endpoints (token in Authorization: Bearer)
     Route::middleware(\App\Http\Middleware\AuthenticateCommunityMember::class)->group(function () {

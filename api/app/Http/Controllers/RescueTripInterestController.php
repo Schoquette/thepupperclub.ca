@@ -123,6 +123,14 @@ class RescueTripInterestController extends Controller
                 'row_id' => $row->id,
                 'error'  => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'RescueTripInterestEmailFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['row_id' => $row->id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
     }
 }

@@ -177,6 +177,15 @@ class NotificationDispatcher
                 'user_id' => $user->id,
                 'error'   => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $user->id,
+                    'type'       => 'NotificationDispatcherEmailFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['file' => $e->getFile() . ':' . $e->getLine()],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
     }
 }

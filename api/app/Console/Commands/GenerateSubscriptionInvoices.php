@@ -277,6 +277,15 @@ class GenerateSubscriptionInvoices extends Command
                 }
                 Log::warning("Auto-charge failed for client {$client->id}: {$e->getMessage()}");
                 $this->error("Auto-charge failed for {$client->name}: {$e->getMessage()}. Invoice sent.");
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $client->id,
+                        'type'       => 'SubscriptionAutoChargeFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
 
             // Advance next billing date (preserving original billing day)

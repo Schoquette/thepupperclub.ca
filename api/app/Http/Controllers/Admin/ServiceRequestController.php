@@ -140,35 +140,6 @@ class ServiceRequestController extends Controller
         $this->notifyClient($serviceRequest->user, $title, $body, $adminId);
     }
 
-    /**
-     * Add a line item charge to the client's next open invoice, or create a new draft.
-     */
-    private function addChargeToNextInvoice($client, string $description, float $amount, string $serviceDate): ?int
-    {
-        $lineData = [
-            'description'  => $description,
-            'quantity'     => 1,
-            'unit_price'   => $amount,
-            'service_date' => $serviceDate,
-        ];
-
-        // Find an existing draft/sent invoice for this client
-        $invoice = \App\Models\Invoice::where('user_id', $client->id)
-            ->whereIn('status', ['draft', 'sent'])
-            ->orderBy('created_at', 'desc')
-            ->first();
-
-        if ($invoice) {
-            $this->invoiceService->attachLineItems($invoice, [$lineData]);
-            $this->invoiceService->recalculate($invoice);
-        } else {
-            $invoice = $this->invoiceService->create($client, [$lineData]);
-        }
-
-        // Return the ID of the newly created line item
-        return $invoice->lineItems()->latest('id')->value('id');
-    }
-
     private function decline(ServiceRequest $serviceRequest, array $data, int $adminId): void
     {
         $serviceRequest->update(['status' => 'declined', 'admin_response' => $data['admin_response']]);

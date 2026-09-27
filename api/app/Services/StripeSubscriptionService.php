@@ -58,7 +58,17 @@ class StripeSubscriptionService
             if ($profile->stripe_subscription_id) {
                 try {
                     $this->stripe()->subscriptions->cancel($profile->stripe_subscription_id);
-                } catch (\Exception $e) {}
+                } catch (\Exception $e) {
+                    try {
+                        \App\Models\ErrorLog::create([
+                            'user_id'    => $client->id,
+                            'type'       => 'StripeSubscriptionCancelFailedBeforeSwitch',
+                            'message'    => $e->getMessage(),
+                            'context'    => ['stripe_subscription_id' => $profile->stripe_subscription_id],
+                            'created_at' => now(),
+                        ]);
+                    } catch (\Throwable $logError) {}
+                }
             }
 
             $isNewSubscription = !$profile->subscription_plan;
@@ -151,6 +161,15 @@ class StripeSubscriptionService
                 }
             } catch (\Exception $e) {
                 // Subscription doesn't exist in Stripe anymore, create new one
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $client->id,
+                        'type'       => 'StripeSubscriptionRetrieveFailedFallbackToCreate',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['stripe_subscription_id' => $profile->stripe_subscription_id],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 
@@ -198,7 +217,17 @@ class StripeSubscriptionService
         if ($profile?->stripe_subscription_id) {
             try {
                 $this->stripe()->subscriptions->cancel($profile->stripe_subscription_id);
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $client->id,
+                        'type'       => 'StripeSubscriptionCancelImmediatelyFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['stripe_subscription_id' => $profile->stripe_subscription_id],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
         }
 
         $profile?->update([

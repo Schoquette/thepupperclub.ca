@@ -176,12 +176,28 @@ class MileageService
                 'origin' => $origin,
                 'destination' => $destination,
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'MileageDistanceLookupFailed',
+                    'message'    => 'Unexpected Maps response: ' . ($data['status'] ?? 'unknown'),
+                    'context'    => ['origin' => $origin, 'destination' => $destination],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         } catch (\Throwable $e) {
             Log::warning('MileageService: Google Maps API error', [
                 'origin'      => $origin,
                 'destination' => $destination,
                 'error'       => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'MileageDistanceLookupFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['origin' => $origin, 'destination' => $destination],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
 
         return 0;

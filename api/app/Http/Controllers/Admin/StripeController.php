@@ -63,6 +63,15 @@ class StripeController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => auth()->id(),
+                    'type'       => 'StripeProductsFetchFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => [],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response()->json([
                 'data'    => [],
                 'message' => 'Stripe error: ' . $e->getMessage(),

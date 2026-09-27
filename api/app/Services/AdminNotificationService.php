@@ -80,6 +80,15 @@ class AdminNotificationService
                 app(NotificationDispatcher::class)->notify($admin, $title, $body);
             } catch (\Throwable $e) {
                 Log::warning("[AdminNotification] Email failed for {$admin->email}: {$e->getMessage()}");
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $admin->id,
+                        'type'       => 'AdminNotificationEmailFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['title' => $title],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 

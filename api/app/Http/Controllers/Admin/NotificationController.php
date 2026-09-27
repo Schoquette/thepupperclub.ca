@@ -33,7 +33,7 @@ class NotificationController extends Controller
             'recipients'  => 'required|array',    // ['all'] or array of user IDs
             'send_email'  => 'nullable',
             'attachments'   => 'nullable|array|max:10',
-            'attachments.*' => 'file|max:10240', // 10MB per file
+            'attachments.*' => 'mimes:jpg,jpeg,png,gif,heic,heif,pdf,doc,docx|max:10240', // 10MB per file
         ]);
 
         // Store uploaded attachments
@@ -187,6 +187,15 @@ class NotificationController extends Controller
                             'user_id' => $user->id,
                             'error'   => $e->getMessage(),
                         ]);
+                        try {
+                            \App\Models\ErrorLog::create([
+                                'user_id'    => $user->id,
+                                'type'       => 'BroadcastEmailFailed',
+                                'message'    => $e->getMessage(),
+                                'context'    => ['file' => $e->getFile() . ':' . $e->getLine()],
+                                'created_at' => now(),
+                            ]);
+                        } catch (\Throwable $logError) {}
                     }
                 }
             }
@@ -258,7 +267,7 @@ class NotificationController extends Controller
         // `application/octet-stream`, which fails Laravel's mimetypes rule.
         $file = $request->file('image');
         $ext = strtolower($file->getClientOriginalExtension());
-        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'heic', 'heif'];
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif'];
         abort_unless(in_array($ext, $allowed, true), 422, 'Unsupported image type.');
 
         $filename = $file->hashName();

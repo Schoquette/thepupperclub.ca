@@ -68,6 +68,14 @@ class DonationsController extends Controller
                 'cents'     => $data['amount_cents'],
                 'error'     => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'CommunityDonationCheckoutFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['community_member_id' => $member->id, 'amount_cents' => $data['amount_cents']],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response()->json(['message' => 'Unable to open the donation page. Please try again in a moment.'], 502);
         }
 

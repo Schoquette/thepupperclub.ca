@@ -328,6 +328,15 @@ class DocumentTemplateController extends Controller
                     });
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning('Signing email failed', ['error' => $e->getMessage()]);
+                    try {
+                        \App\Models\ErrorLog::create([
+                            'user_id'    => $client->id,
+                            'type'       => 'SigningRequestEmailFailed',
+                            'message'    => $e->getMessage(),
+                            'context'    => ['document_id' => $document->id],
+                            'created_at' => now(),
+                        ]);
+                    } catch (\Throwable $logError) {}
                 }
             }
         }

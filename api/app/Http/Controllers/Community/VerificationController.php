@@ -103,6 +103,14 @@ class VerificationController extends Controller
                 'member_id' => $member->id,
                 'error'     => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'CommunityVerificationCheckoutCreateFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['community_member_id' => $member->id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response()->json(['message' => 'Unable to open checkout. Please try again in a moment.'], 502);
         }
 
@@ -166,6 +174,14 @@ class VerificationController extends Controller
                 'member_id' => $member->id,
                 'error'     => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'CommunityIdentitySessionCreateFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['community_member_id' => $member->id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response()->json(['message' => 'Unable to start verification. Please try again in a moment.'], 502);
         }
 
@@ -198,6 +214,15 @@ class VerificationController extends Controller
                 $secret,
             );
         } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'CommunityIdentityWebhookSignatureFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['ip' => $request->ip()],
+                    'ip_address' => $request->ip(),
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response('Invalid signature.', 400);
         }
 
@@ -240,6 +265,15 @@ class VerificationController extends Controller
                 $secret,
             );
         } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'CommunityCheckoutWebhookSignatureFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['ip' => $request->ip()],
+                    'ip_address' => $request->ip(),
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response('Invalid signature.', 400);
         }
 

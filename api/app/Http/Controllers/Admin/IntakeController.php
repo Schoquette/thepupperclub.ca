@@ -170,6 +170,15 @@ class IntakeController extends Controller
                     'dog_name' => $dogData['name'] ?? 'unknown',
                     'error' => $e->getMessage(),
                 ]);
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $client->id,
+                        'type'       => 'IntakeDogSaveFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['dog_name' => $dogData['name'] ?? 'unknown'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
     }

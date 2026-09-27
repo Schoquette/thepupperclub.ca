@@ -93,6 +93,15 @@ class IntakeController extends Controller
             ]);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Intake PDF generation failed', ['error' => $e->getMessage()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $user->id,
+                    'type'       => 'IntakePdfGenerationFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['file' => $e->getFile() . ':' . $e->getLine()],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
 
         // Post intake summary in chat
@@ -210,6 +219,15 @@ class IntakeController extends Controller
                     'dog_name' => $dogData['name'] ?? 'unknown',
                     'error' => $e->getMessage(),
                 ]);
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $client->id,
+                        'type'       => 'IntakeDogSaveFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['dog_name' => $dogData['name'] ?? 'unknown'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
     }

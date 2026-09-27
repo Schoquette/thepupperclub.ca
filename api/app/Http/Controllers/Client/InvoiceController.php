@@ -199,6 +199,15 @@ class InvoiceController extends Controller
                 'exp_year'  => $pm->card?->exp_year,
             ]]);
         } catch (\Exception $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $request->user()->id,
+                    'type'       => 'PaymentMethodFetchFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['stripe_payment_method_id' => $profile->stripe_payment_method_id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return response()->json(['data' => null]);
         }
     }

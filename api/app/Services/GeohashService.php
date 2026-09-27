@@ -35,6 +35,14 @@ class GeohashService
             $body = json_decode((string) $res->getBody(), true);
         } catch (\Throwable $e) {
             Log::warning('GeohashService: geocoding request failed', ['error' => $e->getMessage()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'CommunityGeocodingFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['address' => $address],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return null;
         }
 
