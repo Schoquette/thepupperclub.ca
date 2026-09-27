@@ -87,17 +87,6 @@ class SignedPdfBuilder
             }
         }
 
-        $this->log('build-summary', $document, [
-            'pages'             => $pageCount,
-            'template_id'       => $document->template_id,
-            'template_fields'   => $fields->count(),
-            'client_values'     => is_array($clientValues) ? count($clientValues) : 0,
-            'company_values'    => is_array($companyValues) ? count($companyValues) : 0,
-            'has_client_sig'    => (bool) $signaturePng,
-            'has_company_sig'   => (bool) $countersignPng,
-            'fields_drawn'      => $totalDrawn,
-        ]);
-
         // Append the signing certificate
         if ($certificatePath && file_exists($certificatePath)) {
             try {
