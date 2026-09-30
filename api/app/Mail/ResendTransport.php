@@ -16,6 +16,11 @@ use Symfony\Component\Mime\Part\DataPart;
 
 class ResendTransport extends AbstractTransport
 {
+    /** Copied on every email sent to a client, regardless of which code
+     *  path composed it -- this transport is the single funnel all
+     *  outbound mail passes through. */
+    private const OWNER_EMAIL = 'sophie@thepupperclub.ca';
+
     public function __construct(
         private string $apiKey,
     ) {
@@ -50,8 +55,22 @@ class ResendTransport extends AbstractTransport
         }
 
         $bcc = $email->getBcc();
-        if (!empty($bcc)) {
-            $payload['bcc'] = array_map(fn(Address $a) => $this->formatAddress($a), $bcc);
+        $bccAddresses = !empty($bcc) ? array_map(fn(Address $a) => $this->formatAddress($a), $bcc) : [];
+
+        // Copy the business owner on every email sent to a client. Checked
+        // by looking up the primary recipient rather than trusting a flag
+        // from the caller, so this can never be missed by a new email type
+        // that forgets to opt in.
+        $firstTo = $email->getTo()[0] ?? null;
+        if ($firstTo) {
+            $recipient = User::where('email', $firstTo->getAddress())->first();
+            if ($recipient && $recipient->role === 'client' && !in_array(self::OWNER_EMAIL, $bccAddresses, true)) {
+                $bccAddresses[] = self::OWNER_EMAIL;
+            }
+        }
+
+        if (!empty($bccAddresses)) {
+            $payload['bcc'] = $bccAddresses;
         }
 
         // Handle attachments (inline + regular)
