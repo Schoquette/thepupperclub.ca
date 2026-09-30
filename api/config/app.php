@@ -2,21 +2,14 @@
 
 return [
 
-    // GoDaddy's env panel can inject invisible non-breaking-space characters
-    // around saved values (same class of issue as MAIL_MAILER in
-    // config/mail.php). Plain trim() does not strip those, so a corrupted
-    // value survives trim() unchanged, date_default_timezone_set() then
-    // fails silently, and PHP falls back to UTC -- confirmed live via
-    // error_logs timestamps recording raw UTC instead of Pacific, which
+    // Hardcoded rather than read from APP_TIMEZONE: GoDaddy's env panel
+    // value was found to be genuinely set to "UTC" in production (not
+    // corrupted whitespace as first suspected -- confirmed via a raw-byte
+    // dump of the env value), which silently ran the whole app on UTC and
     // surfaced as the admin Dashboard's "Today's Walks" showing tomorrow's
-    // appointment once UTC rolls over in the evening. Strip any
-    // whitespace-like character explicitly, then validate against PHP's
-    // real timezone list so this can never silently produce an invalid
-    // timezone again.
-    'timezone' => (function () {
-        $raw = env('APP_TIMEZONE', 'America/Vancouver');
-        $clean = preg_replace('/[\x{00A0}\x{200B}\s]+/u', '', (string) $raw);
-        return in_array($clean, timezone_identifiers_list(), true) ? $clean : 'America/Vancouver';
-    })(),
+    // appointment once UTC rolled over in the evening. This app only ever
+    // serves one business in one timezone, so stop depending on GoDaddy's
+    // env panel for this and hardcode it.
+    'timezone' => 'America/Vancouver',
 
 ];
