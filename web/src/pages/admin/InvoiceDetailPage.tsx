@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
-import { Download, Send, Bell, CheckCircle, GripVertical } from 'lucide-react';
+import { Download, Send, Bell, CheckCircle, GripVertical, Pencil } from 'lucide-react';
+import { todayPacific } from '@/lib/date';
 
 // Safe formatter for date-only fields (due_date, service_date, billing_period_*).
 // Slices to YYYY-MM-DD before parsing so timezone-qualified strings don't double-append.
@@ -99,6 +100,11 @@ export default function AdminInvoiceDetailPage() {
   // Mark Paid confirm modal state
   const [markPaidModal, setMarkPaidModal] = useState(false);
   const [notifyOnMarkPaid, setNotifyOnMarkPaid] = useState(true);
+  const [markPaidDate, setMarkPaidDate] = useState(todayPacific());
+
+  // Inline paid-date edit (correcting an already-paid invoice)
+  const [editingPaidDate, setEditingPaidDate] = useState(false);
+  const [paidDateDraft, setPaidDateDraft] = useState('');
 
   // Success toast
   const [toast, setToast] = useState<string | null>(null);
@@ -162,13 +168,24 @@ export default function AdminInvoiceDetailPage() {
   const [mutError, setMutError] = useState('');
 
   const markPaid = useMutation({
-    mutationFn: (notifyClient: boolean) => api.post(`/admin/invoices/${id}/mark-paid`, { notify_client: notifyClient }),
+    mutationFn: ({ notifyClient, paidAt }: { notifyClient: boolean; paidAt: string }) =>
+      api.post(`/admin/invoices/${id}/mark-paid`, { notify_client: notifyClient, paid_at: paidAt }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
       setMarkPaidModal(false);
       showToast('Invoice marked as paid.');
     },
     onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to mark as paid.'),
+  });
+
+  const updatePaidDate = useMutation({
+    mutationFn: (paidAt: string) => api.patch(`/admin/invoices/${id}/paid-date`, { paid_at: paidAt }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
+      setEditingPaidDate(false);
+      showToast('Payment date updated.');
+    },
+    onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to update payment date.'),
   });
 
   const sendInvoice = useMutation({
@@ -362,6 +379,15 @@ export default function AdminInvoiceDetailPage() {
           <p className="text-sm text-espresso">
             Mark {invoice.invoice_number} (${Number(invoice.total).toFixed(2)} CAD) as paid?
           </p>
+          <div>
+            <label className="text-xs font-semibold text-taupe uppercase tracking-wide mb-1 block">Date Paid</label>
+            <input
+              type="date"
+              className="input"
+              value={markPaidDate}
+              onChange={e => setMarkPaidDate(e.target.value)}
+            />
+          </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -373,7 +399,12 @@ export default function AdminInvoiceDetailPage() {
           </label>
           <div className="flex justify-end gap-2 pt-2 border-t border-cream">
             <Button variant="outline" size="sm" onClick={() => setMarkPaidModal(false)}>Cancel</Button>
-            <Button size="sm" loading={markPaid.isPending} onClick={() => markPaid.mutate(notifyOnMarkPaid)}>
+            <Button
+              size="sm"
+              loading={markPaid.isPending}
+              disabled={!markPaidDate}
+              onClick={() => markPaid.mutate({ notifyClient: notifyOnMarkPaid, paidAt: markPaidDate })}
+            >
               Mark Paid
             </Button>
           </div>
@@ -431,7 +462,7 @@ export default function AdminInvoiceDetailPage() {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => { setNotifyOnMarkPaid(true); setMarkPaidModal(true); }}
+              onClick={() => { setNotifyOnMarkPaid(true); setMarkPaidDate(todayPacific()); setMarkPaidModal(true); }}
               loading={markPaid.isPending}
             >
               Mark Paid
@@ -568,9 +599,31 @@ export default function AdminInvoiceDetailPage() {
                     </div>
                   )}
                   {invoice.paid_at && (
-                    <div className="text-green-600 text-sm font-semibold mt-1">
-                      Paid {format(new Date(invoice.paid_at), 'MMMM d, yyyy')}
-                    </div>
+                    editingPaidDate ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <input
+                          type="date"
+                          className="border border-taupe/30 rounded px-2 py-0.5 text-sm"
+                          value={paidDateDraft}
+                          onChange={e => setPaidDateDraft(e.target.value)}
+                        />
+                        <button
+                          className="text-xs text-gold hover:text-espresso font-medium"
+                          onClick={() => paidDateDraft && updatePaidDate.mutate(paidDateDraft)}
+                        >
+                          Save
+                        </button>
+                        <button className="text-xs text-taupe hover:text-espresso" onClick={() => setEditingPaidDate(false)}>cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="text-green-600 text-sm font-semibold mt-1 inline-flex items-center gap-1 hover:text-espresso transition-colors"
+                        onClick={() => { setPaidDateDraft(format(new Date(invoice.paid_at), 'yyyy-MM-dd')); setEditingPaidDate(true); }}
+                      >
+                        Paid {format(new Date(invoice.paid_at), 'MMMM d, yyyy')}
+                        <Pencil className="w-3 h-3 text-taupe" />
+                      </button>
+                    )
                   )}
                 </>
               )}

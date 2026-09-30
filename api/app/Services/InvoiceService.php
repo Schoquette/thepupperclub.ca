@@ -212,9 +212,9 @@ class InvoiceService
         app(NotificationDispatcher::class)->notify($client, $title, $plainBody, $htmlBody, type: 'invoices', bcc: 'sophie@thepupperclub.ca');
     }
 
-    public function markPaid(Invoice $invoice, bool $notifyClient = true): void
+    public function markPaid(Invoice $invoice, bool $notifyClient = true, ?string $paidAt = null): void
     {
-        $invoice->update(['status' => 'paid', 'paid_at' => now()]);
+        $invoice->update(['status' => 'paid', 'paid_at' => $paidAt ? \Carbon\Carbon::parse($paidAt) : now()]);
 
         // Credit a prepaid pack purchase now that it's actually paid for —
         // covers admin "Mark Paid", the synchronous chargeCard() success
@@ -248,6 +248,19 @@ class InvoiceService
         $conversation->update(['last_message_at' => now()]);
 
         $this->sendPaidNotification($invoice);
+    }
+
+    /**
+     * Correct the recorded payment date on an already-paid invoice, so
+     * monthly income reporting (dashboardSummary()'s collected_this_month,
+     * which filters on paid_at) reflects when the money actually came in
+     * rather than whenever the invoice happened to get marked paid.
+     * Deliberately separate from update() -- every other field on a paid
+     * invoice stays locked.
+     */
+    public function updatePaidDate(Invoice $invoice, string $paidAt): void
+    {
+        $invoice->update(['paid_at' => \Carbon\Carbon::parse($paidAt)]);
     }
 
     public function chargeCard(Invoice $invoice, string $paymentMethodId): array

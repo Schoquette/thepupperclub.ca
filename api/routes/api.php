@@ -209,6 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/invoices/{invoice}',         [Admin\InvoiceController::class, 'show']);
         Route::patch('/invoices/{invoice}',       [Admin\InvoiceController::class, 'update']);
         Route::post('/invoices/{invoice}/mark-paid',  [Admin\InvoiceController::class, 'markPaid']);
+        Route::patch('/invoices/{invoice}/paid-date', [Admin\InvoiceController::class, 'updatePaidDate']);
         Route::post('/invoices/{invoice}/void',      [Admin\InvoiceController::class, 'void']);
         Route::post('/invoices/{invoice}/add-items',  [Admin\InvoiceController::class, 'addLineItems']);
         Route::post('/invoices/{invoice}/discount',  [Admin\InvoiceController::class, 'applyDiscount']);
