@@ -63,38 +63,6 @@ Route::get('/clear-cache-9x7k', function () {
     ]);
 });
 
-// Temporary: add external (non-portal) signer columns to client_documents,
-// and make user_id nullable for standalone (client-less) documents.
-// (REMOVE after running)
-Route::get('/migrate-external-signer-9x7k', function () {
-    $added = [];
-
-    if (!\Illuminate\Support\Facades\Schema::hasColumn('client_documents', 'external_recipient_name')) {
-        // Raw SQL rather than Schema::change() — doctrine/dbal (required by
-        // Laravel's column ->change()) is not installed in this project.
-        // MODIFY COLUMN alone doesn't touch the existing FK constraint;
-        // MySQL simply exempts NULL values from FK validation.
-        \Illuminate\Support\Facades\DB::statement(
-            'ALTER TABLE client_documents MODIFY COLUMN user_id BIGINT UNSIGNED NULL'
-        );
-
-        \Illuminate\Support\Facades\Schema::table('client_documents', function (\Illuminate\Database\Schema\Blueprint $table) {
-            $table->string('external_recipient_name')->nullable()->after('countersign_field_values');
-            $table->string('external_recipient_email')->nullable()->after('external_recipient_name');
-            $table->timestamp('external_signature_requested_at')->nullable()->after('external_recipient_email');
-            $table->string('external_signature_token', 64)->nullable()->unique()->after('external_signature_requested_at');
-            $table->timestamp('external_signed_at')->nullable()->after('external_signature_token');
-            $table->string('external_signer_name')->nullable()->after('external_signed_at');
-            $table->string('external_signer_ip')->nullable()->after('external_signer_name');
-            $table->longText('external_signature_data')->nullable()->after('external_signer_ip');
-            $table->json('external_field_values')->nullable()->after('external_signature_data');
-        });
-        $added[] = 'external signer columns + user_id nullable';
-    }
-
-    return response()->json(['message' => $added ? 'Added: ' . implode(', ', $added) : 'Columns already exist.']);
-});
-
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
