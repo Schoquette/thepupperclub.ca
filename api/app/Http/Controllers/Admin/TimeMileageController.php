@@ -267,7 +267,7 @@ class TimeMileageController extends Controller
             return response()->json(['error' => 'Google Maps API key not configured.'], 422);
         }
 
-        $date = \Carbon\Carbon::parse($request->date)->startOfDay();
+        $date = Carbon::parse($request->date)->startOfDay();
         app(\App\Services\MileageService::class)->recalculateDay($date, null);
 
         return response()->json(['message' => 'Mileage recalculated for ' . $date->format('M j, Y') . '.']);
