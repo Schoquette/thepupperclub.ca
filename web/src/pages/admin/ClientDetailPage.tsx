@@ -34,8 +34,10 @@ interface ProfileForm {
   postal_code: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
+  emergency_contact_relationship: string;
   secondary_contact_name: string;
   secondary_contact_email: string;
+  secondary_contact_phone: string;
   secondary_notify_messages: boolean;
   secondary_notify_report_cards: boolean;
   secondary_notify_billing: boolean;
@@ -63,8 +65,10 @@ function buildProfileForm(client: any): ProfileForm {
     postal_code:             p.postal_code ?? '',
     emergency_contact_name:  p.emergency_contact_name ?? '',
     emergency_contact_phone: p.emergency_contact_phone ?? '',
+    emergency_contact_relationship: p.emergency_contact_relationship ?? '',
     secondary_contact_name:          p.secondary_contact_name ?? '',
     secondary_contact_email:         p.secondary_contact_email ?? '',
+    secondary_contact_phone:         p.secondary_contact_phone ?? '',
     secondary_notify_messages:       !!p.secondary_notify_messages,
     secondary_notify_report_cards:   !!p.secondary_notify_report_cards,
     secondary_notify_billing:        !!p.secondary_notify_billing,
@@ -111,6 +115,23 @@ interface DogForm {
   bite_history: boolean;
   bite_history_notes: string;
   aggression_notes: string;
+  personality_description: string;
+  energy_level: string;
+  interaction_dogs: string[];
+  interaction_strangers: string;
+  interaction_children: string;
+  triggers: string;
+  medical_conditions: string;
+  allergies: string;
+  administer_medication_on_visits: string;
+  mobility_limitations: string;
+  recent_surgeries: string;
+  preferred_walk_style: string[];
+  preferred_gear: string[];
+  treats_allowed: string;
+  treats_notes: string;
+  training_commands: string;
+  avoid_on_walks: string;
   vet_name: string;
   vet_phone: string;
   vet_address: string;
@@ -142,6 +163,23 @@ function buildDogForm(dog?: any): DogForm {
     bite_history:       dog?.bite_history ?? false,
     bite_history_notes: dog?.bite_history_notes ?? '',
     aggression_notes:   dog?.aggression_notes ?? '',
+    personality_description: dog?.personality_description ?? '',
+    energy_level:       dog?.energy_level ?? '',
+    interaction_dogs:   dog?.interaction_dogs ?? [],
+    interaction_strangers: dog?.interaction_strangers ?? '',
+    interaction_children:  dog?.interaction_children ?? '',
+    triggers:           dog?.triggers ?? '',
+    medical_conditions: dog?.medical_conditions ?? '',
+    allergies:          dog?.allergies ?? '',
+    administer_medication_on_visits: dog?.administer_medication_on_visits === true ? 'yes' : dog?.administer_medication_on_visits === false ? 'no' : '',
+    mobility_limitations: dog?.mobility_limitations === true ? 'yes' : dog?.mobility_limitations === false ? 'no' : '',
+    recent_surgeries:   dog?.recent_surgeries ?? '',
+    preferred_walk_style: dog?.preferred_walk_style ?? [],
+    preferred_gear:     dog?.preferred_gear ?? [],
+    treats_allowed:     dog?.treats_allowed ?? '',
+    treats_notes:       dog?.treats_notes ?? '',
+    training_commands:  dog?.training_commands ?? '',
+    avoid_on_walks:     dog?.avoid_on_walks ?? '',
     vet_name:           dog?.vet_name ?? '',
     vet_phone:          dog?.vet_phone ?? '',
     vet_address:        dog?.vet_address ?? '',
@@ -175,6 +213,23 @@ function dogPayload(f: DogForm, userId: number) {
     bite_history:       f.bite_history,
     bite_history_notes: f.bite_history_notes || null,
     aggression_notes:   f.aggression_notes || null,
+    personality_description: f.personality_description || null,
+    energy_level:       f.energy_level || null,
+    interaction_dogs:   f.interaction_dogs.length ? f.interaction_dogs : null,
+    interaction_strangers: f.interaction_strangers || null,
+    interaction_children:  f.interaction_children || null,
+    triggers:           f.triggers || null,
+    medical_conditions: f.medical_conditions || null,
+    allergies:          f.allergies || null,
+    administer_medication_on_visits: f.administer_medication_on_visits === 'yes' ? true : f.administer_medication_on_visits === 'no' ? false : null,
+    mobility_limitations: f.mobility_limitations === 'yes' ? true : f.mobility_limitations === 'no' ? false : null,
+    recent_surgeries:   f.recent_surgeries || null,
+    preferred_walk_style: f.preferred_walk_style.length ? f.preferred_walk_style : null,
+    preferred_gear:     f.preferred_gear.length ? f.preferred_gear : null,
+    treats_allowed:     f.treats_allowed || null,
+    treats_notes:       f.treats_notes || null,
+    training_commands:  f.training_commands || null,
+    avoid_on_walks:     f.avoid_on_walks || null,
     vet_name:           f.vet_name || null,
     vet_phone:          f.vet_phone || null,
     vet_address:        f.vet_address || null,
@@ -232,6 +287,76 @@ function Checkbox({ label, checked, onChange }: { label: string; checked: boolea
     </label>
   );
 }
+
+function CheckboxGroup({
+  label, options, selected, onChange,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {options.map(opt => (
+          <Checkbox
+            key={opt.value}
+            label={opt.label}
+            checked={selected.includes(opt.value)}
+            onChange={checked => onChange(checked ? [...selected, opt.value] : selected.filter(v => v !== opt.value))}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const ENERGY_OPTIONS = [
+  { value: 'very_calm', label: 'Very Calm' },
+  { value: 'moderate', label: 'Moderate' },
+  { value: 'high_energy', label: 'High Energy' },
+  { value: 'varies', label: 'Varies' },
+];
+const DOG_INTERACTION_OPTIONS = [
+  { value: 'loves', label: 'Loves Dogs' },
+  { value: 'selective', label: 'Selective' },
+  { value: 'prefers_avoid', label: 'Prefers to Avoid' },
+  { value: 'reactive', label: 'Reactive' },
+  { value: 'ignores', label: 'Ignores' },
+];
+const STRANGER_OPTIONS = [
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'shy', label: 'Shy' },
+  { value: 'protective', label: 'Protective' },
+  { value: 'nervous', label: 'Nervous' },
+];
+const CHILDREN_OPTIONS = [
+  { value: 'comfortable', label: 'Comfortable' },
+  { value: 'unsure', label: 'Unsure' },
+  { value: 'avoid', label: 'Avoid' },
+];
+const TREATS_OPTIONS = [
+  { value: 'yes', label: 'Yes' },
+  { value: 'only_specific', label: 'Only Specific' },
+  { value: 'no', label: 'No' },
+];
+const WALK_STYLE_OPTIONS = [
+  { value: 'sniff_focused', label: 'Sniff Focused' },
+  { value: 'structured_training', label: 'Structured Training' },
+  { value: 'social', label: 'Social' },
+  { value: 'indoor_play', label: 'Indoor Play' },
+  { value: 'low_stimulation', label: 'Low Stimulation' },
+  { value: 'high_activity', label: 'High Activity' },
+  { value: 'off_leash', label: 'Off Leash' },
+];
+const GEAR_OPTIONS = [
+  { value: 'collar', label: 'Collar' },
+  { value: 'harness', label: 'Harness' },
+  { value: 'slip_lead', label: 'Slip Lead' },
+  { value: 'gentle_leader', label: 'Gentle Leader' },
+];
 
 // ── Dog edit form (used for both editing and adding) ──────────────────────────
 
@@ -302,10 +427,12 @@ function DogEditForm({
           <label className="label">Size</label>
           <select className="input" value={form.size} onChange={e => onChange({ size: e.target.value })}>
             <option value="">Select…</option>
+            <option value="toy">Toy</option>
             <option value="small">Small</option>
             <option value="medium">Medium</option>
             <option value="large">Large</option>
             <option value="extra_large">Extra Large</option>
+            <option value="xl">XL</option>
           </select>
         </div>
         <div>
@@ -331,6 +458,48 @@ function DogEditForm({
         <Checkbox label="Off-Leash Approved" checked={form.off_leash_approved} onChange={v => onBoolChange('off_leash_approved', v)} />
         <Checkbox label="Buddy Walks OK" checked={form.buddy_walks_ok} onChange={v => onBoolChange('buddy_walks_ok', v)} />
         <Checkbox label="Media Consent" checked={form.media_consent} onChange={v => onBoolChange('media_consent', v)} />
+        <Checkbox label="Archived" checked={form.is_archived} onChange={v => onBoolChange('is_archived', v)} />
+      </div>
+
+      {/* Personality */}
+      <div className="space-y-3">
+        <div>
+          <label className="label">Personality Description</label>
+          <textarea className="input min-h-16 resize-y" value={form.personality_description}
+            onChange={e => onChange({ personality_description: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Energy Level</label>
+          <select className="input" value={form.energy_level} onChange={e => onChange({ energy_level: e.target.value })}>
+            <option value="">Select…</option>
+            {ENERGY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+        </div>
+        <CheckboxGroup
+          label="Interaction with Other Dogs"
+          options={DOG_INTERACTION_OPTIONS}
+          selected={form.interaction_dogs}
+          onChange={v => onChange({ interaction_dogs: v })}
+        />
+        <div>
+          <label className="label">Interaction with Strangers</label>
+          <select className="input" value={form.interaction_strangers} onChange={e => onChange({ interaction_strangers: e.target.value })}>
+            <option value="">Select…</option>
+            {STRANGER_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Interaction with Children</label>
+          <select className="input" value={form.interaction_children} onChange={e => onChange({ interaction_children: e.target.value })}>
+            <option value="">Select…</option>
+            {CHILDREN_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Triggers</label>
+          <textarea className="input min-h-16 resize-y" value={form.triggers}
+            onChange={e => onChange({ triggers: e.target.value })} />
+        </div>
       </div>
 
       {/* Behaviour */}
@@ -347,6 +516,43 @@ function DogEditForm({
           <label className="label">Aggression / Behaviour Notes</label>
           <textarea className="input min-h-16 resize-y" value={form.aggression_notes}
             onChange={e => onChange({ aggression_notes: e.target.value })} />
+        </div>
+      </div>
+
+      {/* Health */}
+      <div className="space-y-3">
+        <div>
+          <label className="label">Medical Conditions</label>
+          <textarea className="input min-h-16 resize-y" value={form.medical_conditions}
+            onChange={e => onChange({ medical_conditions: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Allergies</label>
+          <textarea className="input min-h-16 resize-y" value={form.allergies}
+            onChange={e => onChange({ allergies: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Administer Medication on Visits?</label>
+            <select className="input" value={form.administer_medication_on_visits} onChange={e => onChange({ administer_medication_on_visits: e.target.value })}>
+              <option value="">Not Set</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Mobility Limitations?</label>
+            <select className="input" value={form.mobility_limitations} onChange={e => onChange({ mobility_limitations: e.target.value })}>
+              <option value="">Not Set</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="label">Recent Surgeries / Injuries</label>
+          <textarea className="input min-h-16 resize-y" value={form.recent_surgeries}
+            onChange={e => onChange({ recent_surgeries: e.target.value })} />
         </div>
       </div>
 
@@ -398,6 +604,45 @@ function DogEditForm({
         {!form.medications.length && (
           <p className="text-sm text-taupe">No medications.</p>
         )}
+      </div>
+
+      {/* Visit preferences */}
+      <div className="space-y-3">
+        <CheckboxGroup
+          label="Preferred Walk Style"
+          options={WALK_STYLE_OPTIONS}
+          selected={form.preferred_walk_style}
+          onChange={v => onChange({ preferred_walk_style: v })}
+        />
+        <CheckboxGroup
+          label="Preferred Gear"
+          options={GEAR_OPTIONS}
+          selected={form.preferred_gear}
+          onChange={v => onChange({ preferred_gear: v })}
+        />
+        <div>
+          <label className="label">Treats Allowed?</label>
+          <select className="input" value={form.treats_allowed} onChange={e => onChange({ treats_allowed: e.target.value })}>
+            <option value="">Select…</option>
+            {TREATS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+          </select>
+        </div>
+        {form.treats_allowed === 'only_specific' && (
+          <div>
+            <label className="label">Specific Treats Allowed</label>
+            <Input value={form.treats_notes} onChange={e => onChange({ treats_notes: e.target.value })} />
+          </div>
+        )}
+        <div>
+          <label className="label">Known Training Commands</label>
+          <textarea className="input min-h-16 resize-y" value={form.training_commands}
+            onChange={e => onChange({ training_commands: e.target.value })} />
+        </div>
+        <div>
+          <label className="label">Avoid on Walks</label>
+          <textarea className="input min-h-16 resize-y" value={form.avoid_on_walks}
+            onChange={e => onChange({ avoid_on_walks: e.target.value })} />
+        </div>
       </div>
 
       {/* Special instructions */}
@@ -2516,8 +2761,10 @@ export default function AdminClientDetailPage() {
         postal_code:             f.postal_code || null,
         emergency_contact_name:  f.emergency_contact_name || null,
         emergency_contact_phone: f.emergency_contact_phone || null,
+        emergency_contact_relationship: f.emergency_contact_relationship || null,
         secondary_contact_name:        f.secondary_contact_name || null,
         secondary_contact_email:       f.secondary_contact_email || null,
+        secondary_contact_phone:      f.secondary_contact_phone || null,
         secondary_notify_messages:     f.secondary_notify_messages,
         secondary_notify_report_cards: f.secondary_notify_report_cards,
         secondary_notify_billing:      f.secondary_notify_billing,
@@ -2743,6 +2990,7 @@ export default function AdminClientDetailPage() {
                 <div className="space-y-4">
                   <FormField label="Name" name="emergency_contact_name" form={form} onChange={handleProfileChange} />
                   <FormField label="Phone" name="emergency_contact_phone" form={form} onChange={handleProfileChange} type="tel" />
+                  <FormField label="Relationship" name="emergency_contact_relationship" form={form} onChange={handleProfileChange} />
                 </div>
               </Card>
 
@@ -2751,6 +2999,7 @@ export default function AdminClientDetailPage() {
                 <div className="space-y-4">
                   <FormField label="Name" name="secondary_contact_name" form={form} onChange={handleProfileChange} />
                   <FormField label="Email" name="secondary_contact_email" form={form} onChange={handleProfileChange} type="email" />
+                  <FormField label="Phone" name="secondary_contact_phone" form={form} onChange={handleProfileChange} type="tel" />
                   {form.secondary_contact_email && (
                     <div>
                       <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">Also notify for</div>
@@ -2834,6 +3083,7 @@ export default function AdminClientDetailPage() {
                 <dl className="space-y-1 text-sm">
                   <Field label="Name" value={p.emergency_contact_name} />
                   <Field label="Phone" value={p.emergency_contact_phone} />
+                  <Field label="Relationship" value={p.emergency_contact_relationship} />
                 </dl>
               </Card>
 
@@ -2844,6 +3094,7 @@ export default function AdminClientDetailPage() {
                     <dl className="space-y-1 text-sm">
                       <Field label="Name" value={p.secondary_contact_name} />
                       <Field label="Email" value={p.secondary_contact_email} />
+                      <Field label="Phone" value={p.secondary_contact_phone} />
                     </dl>
                     {(p.secondary_notify_messages || p.secondary_notify_report_cards || p.secondary_notify_billing || p.secondary_notify_appointments) && (
                       <div className="mt-3 pt-3 border-t border-cream">

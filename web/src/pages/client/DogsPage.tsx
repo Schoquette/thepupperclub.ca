@@ -88,6 +88,8 @@ const GEAR_OPTIONS = [
 interface Medication {
   name: string;
   dosage: string;
+  frequency: string;
+  notes: string;
 }
 
 function computeDogAge(dog: { date_of_birth?: string | null; age_estimate?: number | null; age_estimate_date?: string | null }): number | null {
@@ -363,7 +365,7 @@ function BoolRadio({ label, value, onChange }: { label: string; value: boolean |
 
 // ── Medications editor ──
 function MedicationsEditor({ meds, onChange }: { meds: Medication[]; onChange: (m: Medication[]) => void }) {
-  const addMed = () => onChange([...meds, { name: '', dosage: '' }]);
+  const addMed = () => onChange([...meds, { name: '', dosage: '', frequency: '', notes: '' }]);
   const removeMed = (i: number) => onChange(meds.filter((_, idx) => idx !== i));
   const updateMed = (i: number, field: keyof Medication, val: string) => {
     const updated = [...meds];
@@ -374,10 +376,14 @@ function MedicationsEditor({ meds, onChange }: { meds: Medication[]; onChange: (
   return (
     <div className="space-y-2">
       {meds.map((med, i) => (
-        <div key={i} className="flex gap-2 items-start">
-          <Input placeholder="Medication name" value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} className="flex-1" />
-          <Input placeholder="Dosage / frequency" value={med.dosage} onChange={e => updateMed(i, 'dosage', e.target.value)} className="flex-1" />
-          <button onClick={() => removeMed(i)} className="text-red-400 hover:text-red-600 text-lg mt-2 px-1">&times;</button>
+        <div key={i} className="grid grid-cols-2 gap-2 items-start border border-taupe/20 rounded-lg p-2">
+          <Input placeholder="Medication name" value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} />
+          <Input placeholder="Dosage" value={med.dosage} onChange={e => updateMed(i, 'dosage', e.target.value)} />
+          <Input placeholder="Frequency" value={med.frequency} onChange={e => updateMed(i, 'frequency', e.target.value)} />
+          <div className="flex gap-2 items-start">
+            <Input placeholder="Notes" value={med.notes} onChange={e => updateMed(i, 'notes', e.target.value)} className="flex-1" />
+            <button onClick={() => removeMed(i)} className="text-red-400 hover:text-red-600 text-lg px-1">&times;</button>
+          </div>
         </div>
       ))}
       <button onClick={addMed} className="text-xs text-blue hover:underline font-medium">+ Add medication</button>
@@ -464,7 +470,7 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-espresso">Medications</label>
-              <button type="button" onClick={() => setForm(f => ({ ...f, medications: [...f.medications, { name: '', dosage: '' }] }))} className="text-sm text-blue hover:underline font-medium">+ Add Medication</button>
+              <button type="button" onClick={() => setForm(f => ({ ...f, medications: [...f.medications, { name: '', dosage: '', frequency: '', notes: '' }] }))} className="text-sm text-blue hover:underline font-medium">+ Add Medication</button>
             </div>
             <MedicationsEditor meds={form.medications} onChange={m => setForm(f => ({ ...f, medications: m }))} />
           </div>
@@ -648,6 +654,8 @@ export default function ClientDogsPage() {
                         <div key={i} className="text-sm text-espresso">
                           <span className="font-medium">{m.name}</span>
                           {m.dosage && <span className="text-taupe"> — {m.dosage}</span>}
+                          {m.frequency && <span className="text-taupe"> — {m.frequency}</span>}
+                          {m.notes && <span className="text-taupe"> ({m.notes})</span>}
                         </div>
                       ))}
                     </div>

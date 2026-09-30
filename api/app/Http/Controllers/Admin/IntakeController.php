@@ -99,6 +99,7 @@ class IntakeController extends Controller
         $profileFields = $request->only([
             'phone', 'address', 'city', 'province', 'postal_code',
             'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
+            'secondary_contact_name', 'secondary_contact_email', 'secondary_contact_phone',
             'vet_clinic_name', 'vet_phone', 'vet_address',
             'food_storage_location', 'customized_care_options', 'preferred_update_method',
             'report_detail_level', 'preferred_walk_days', 'preferred_walk_length', 'preferred_walk_times',

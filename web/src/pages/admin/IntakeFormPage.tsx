@@ -13,6 +13,8 @@ import SimpleAddressInput from '@/components/ui/SimpleAddressInput';
 interface Medication {
   name: string;
   dosage: string;
+  frequency: string;
+  notes: string;
 }
 
 interface DogData {
@@ -36,6 +38,7 @@ interface DogData {
   triggers: string;
   bite_history: boolean;
   bite_history_notes: string;
+  aggression_notes: string;
   medical_conditions: string;
   allergies: string;
   medications: Medication[];
@@ -48,9 +51,14 @@ interface DogData {
   treats_notes: string;
   training_commands: string;
   avoid_on_walks: string;
+  special_instructions: string;
   walking_notes: string;
   general_notes: string;
   petsitting_notes: string;
+  same_as_household_vet: boolean;
+  vet_name: string;
+  vet_phone: string;
+  vet_address: string;
 }
 
 interface FormData {
@@ -64,6 +72,9 @@ interface FormData {
   emergency_contact_name: string;
   emergency_contact_phone: string;
   emergency_contact_relationship: string;
+  secondary_contact_name: string;
+  secondary_contact_email: string;
+  secondary_contact_phone: string;
   vet_clinic_name: string;
   vet_phone: string;
   vet_address: string;
@@ -135,6 +146,7 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     triggers: '',
     bite_history: false,
     bite_history_notes: '',
+    aggression_notes: '',
     medical_conditions: '',
     allergies: '',
     medications: [],
@@ -147,9 +159,14 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     treats_notes: '',
     training_commands: '',
     avoid_on_walks: '',
+    special_instructions: '',
     walking_notes: '',
     general_notes: '',
     petsitting_notes: '',
+    same_as_household_vet: true,
+    vet_name: '',
+    vet_phone: '',
+    vet_address: '',
     ...partial,
   };
 }
@@ -178,6 +195,7 @@ function buildForm(data: any): FormData {
     triggers: d.triggers ?? '',
     bite_history: d.bite_history ?? false,
     bite_history_notes: d.bite_history_notes ?? '',
+    aggression_notes: d.aggression_notes ?? '',
     medical_conditions: d.medical_conditions ?? '',
     allergies: d.allergies ?? '',
     medications: d.medications ?? [],
@@ -190,9 +208,14 @@ function buildForm(data: any): FormData {
     treats_notes: d.treats_notes ?? '',
     training_commands: d.training_commands ?? '',
     avoid_on_walks: d.avoid_on_walks ?? '',
+    special_instructions: d.special_instructions ?? '',
     walking_notes: d.walking_notes ?? '',
     general_notes: d.general_notes ?? '',
     petsitting_notes: d.petsitting_notes ?? '',
+    same_as_household_vet: !d.vet_name && !d.vet_phone && !d.vet_address,
+    vet_name: d.vet_name ?? '',
+    vet_phone: d.vet_phone ?? '',
+    vet_address: d.vet_address ?? '',
   }));
 
   return {
@@ -206,6 +229,9 @@ function buildForm(data: any): FormData {
     emergency_contact_name: p.emergency_contact_name ?? '',
     emergency_contact_phone: p.emergency_contact_phone ?? '',
     emergency_contact_relationship: p.emergency_contact_relationship ?? '',
+    secondary_contact_name: p.secondary_contact_name ?? '',
+    secondary_contact_email: p.secondary_contact_email ?? '',
+    secondary_contact_phone: p.secondary_contact_phone ?? '',
     vet_clinic_name: p.vet_clinic_name ?? '',
     vet_phone: p.vet_phone ?? '',
     vet_address: p.vet_address ?? '',
@@ -641,7 +667,7 @@ function DogCard({
     set({ [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] });
   };
 
-  const addMed = () => set({ medications: [...dog.medications, { name: '', dosage: '' }] });
+  const addMed = () => set({ medications: [...dog.medications, { name: '', dosage: '', frequency: '', notes: '' }] });
   const removeMed = (i: number) => set({ medications: dog.medications.filter((_, idx) => idx !== i) });
   const updateMed = (i: number, k: keyof Medication, v: string) =>
     set({ medications: dog.medications.map((m, idx) => idx === i ? { ...m, [k]: v } : m) });
@@ -791,6 +817,54 @@ function DogCard({
             </div>
           </div>
 
+          {/* ── Veterinarian ───────────────────────────────────────────────── */}
+          <div>
+            <h3 className="text-sm font-semibold text-taupe uppercase tracking-wide mb-3">Veterinarian</h3>
+            <div className="space-y-4">
+              {readOnly ? (
+                <FieldRow label="Same as household vet?">
+                  <ReadBool value={dog.same_as_household_vet} />
+                </FieldRow>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={dog.same_as_household_vet}
+                    onChange={e => set(e.target.checked
+                      ? { same_as_household_vet: true, vet_name: '', vet_phone: '', vet_address: '' }
+                      : { same_as_household_vet: false })}
+                    className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                  />
+                  <span className="text-sm text-espresso">Same as household vet</span>
+                </label>
+              )}
+              {(!dog.same_as_household_vet || (readOnly && (dog.vet_name || dog.vet_phone || dog.vet_address))) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FieldRow label="Vet Name">
+                    {readOnly
+                      ? <ReadValue value={dog.vet_name} />
+                      : <input className={fieldCls} value={dog.vet_name} onChange={e => set({ vet_name: e.target.value })} />
+                    }
+                  </FieldRow>
+                  <FieldRow label="Vet Phone">
+                    {readOnly
+                      ? <ReadValue value={dog.vet_phone} />
+                      : <input type="tel" className={fieldCls} value={dog.vet_phone} onChange={e => set({ vet_phone: e.target.value })} />
+                    }
+                  </FieldRow>
+                  <div className="sm:col-span-2">
+                    <FieldRow label="Vet Address">
+                      {readOnly
+                        ? <ReadValue value={dog.vet_address} />
+                        : <input className={fieldCls} value={dog.vet_address} onChange={e => set({ vet_address: e.target.value })} />
+                      }
+                    </FieldRow>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* ── Personality ────────────────────────────────────────────────── */}
           <div>
             <h3 className="text-sm font-semibold text-taupe uppercase tracking-wide mb-3">Personality</h3>
@@ -834,6 +908,12 @@ function DogCard({
                   }
                 </FieldRow>
               )}
+              <FieldRow label="Aggression / Behaviour Notes">
+                {readOnly
+                  ? <ReadValue value={dog.aggression_notes} />
+                  : <textarea className={`${fieldCls} resize-none`} rows={2} value={dog.aggression_notes} onChange={e => set({ aggression_notes: e.target.value })} placeholder="Anything else about behaviour we should know…" />
+                }
+              </FieldRow>
             </div>
           </div>
 
@@ -868,25 +948,29 @@ function DogCard({
                   <p className="text-sm text-taupe/60">No medications listed.</p>
                 )}
                 {dog.medications.map((med, i) => (
-                  <div key={i} className="flex gap-2 mb-2 items-end">
-                    {i === 0 && !readOnly && (
-                      <div className="grid grid-cols-2 gap-2 flex-1">
-                        <div className="text-xs text-taupe mb-1">Medication Name</div>
-                        <div className="text-xs text-taupe mb-1">Dosage</div>
-                      </div>
-                    )}
-                    <div className="flex gap-2 flex-1 items-start">
-                      {readOnly ? (
-                        <p className="text-sm text-espresso">{med.name}{med.dosage ? ` — ${med.dosage}` : ''}</p>
-                      ) : (
-                        <>
+                  <div key={i} className="mb-2 p-2 border border-taupe/20 rounded-lg">
+                    {readOnly ? (
+                      <p className="text-sm text-espresso">
+                        {med.name}{med.dosage ? ` — ${med.dosage}` : ''}{med.frequency ? ` — ${med.frequency}` : ''}{med.notes ? ` (${med.notes})` : ''}
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 items-start">
+                        <div>
+                          {i === 0 && <div className="text-xs text-taupe mb-1">Medication Name</div>}
+                          <input className={fieldCls} placeholder="e.g. Apoquel" value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} />
+                        </div>
+                        <div>
+                          {i === 0 && <div className="text-xs text-taupe mb-1">Dosage</div>}
+                          <input className={fieldCls} placeholder="e.g. 16mg" value={med.dosage} onChange={e => updateMed(i, 'dosage', e.target.value)} />
+                        </div>
+                        <div>
+                          {i === 0 && <div className="text-xs text-taupe mb-1">Frequency</div>}
+                          <input className={fieldCls} placeholder="e.g. Twice daily" value={med.frequency} onChange={e => updateMed(i, 'frequency', e.target.value)} />
+                        </div>
+                        <div className="flex gap-2 items-start">
                           <div className="flex-1">
-                            {i === 0 && <div className="text-xs text-taupe mb-1">Medication Name</div>}
-                            <input className={fieldCls} placeholder="e.g. Apoquel" value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} />
-                          </div>
-                          <div className="flex-1">
-                            {i === 0 && <div className="text-xs text-taupe mb-1">Dosage</div>}
-                            <input className={fieldCls} placeholder="e.g. 16mg twice daily" value={med.dosage} onChange={e => updateMed(i, 'dosage', e.target.value)} />
+                            {i === 0 && <div className="text-xs text-taupe mb-1">Notes</div>}
+                            <input className={fieldCls} placeholder="e.g. With food" value={med.notes} onChange={e => updateMed(i, 'notes', e.target.value)} />
                           </div>
                           <button
                             type="button"
@@ -895,9 +979,9 @@ function DogCard({
                           >
                             ×
                           </button>
-                        </>
-                      )}
-                    </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -908,6 +992,12 @@ function DogCard({
                 {readOnly
                   ? <ReadValue value={dog.recent_surgeries} />
                   : <textarea className={`${fieldCls} resize-none`} rows={2} value={dog.recent_surgeries} onChange={e => set({ recent_surgeries: e.target.value })} placeholder="Include date and details…" />
+                }
+              </FieldRow>
+              <FieldRow label="Special Instructions">
+                {readOnly
+                  ? <ReadValue value={dog.special_instructions} />
+                  : <textarea className={`${fieldCls} resize-none`} rows={2} value={dog.special_instructions} onChange={e => set({ special_instructions: e.target.value })} placeholder="Anything else important for care…" />
                 }
               </FieldRow>
             </div>
@@ -1364,6 +1454,30 @@ export default function IntakeFormPage() {
                 {readOnly
                   ? <ReadValue value={form.emergency_contact_relationship} />
                   : <input className={fieldCls} value={form.emergency_contact_relationship} onChange={e => update({ emergency_contact_relationship: e.target.value })} placeholder="Spouse, Parent, Friend…" />
+                }
+              </FieldRow>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-cream">
+            <p className="text-sm font-semibold text-espresso mb-3">Secondary Contact <span className="font-normal text-taupe">(optional)</span></p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FieldRow label="Name">
+                {readOnly
+                  ? <ReadValue value={form.secondary_contact_name} />
+                  : <input className={fieldCls} value={form.secondary_contact_name} onChange={e => update({ secondary_contact_name: e.target.value })} />
+                }
+              </FieldRow>
+              <FieldRow label="Email">
+                {readOnly
+                  ? <ReadValue value={form.secondary_contact_email} />
+                  : <input type="email" className={fieldCls} value={form.secondary_contact_email} onChange={e => update({ secondary_contact_email: e.target.value })} />
+                }
+              </FieldRow>
+              <FieldRow label="Phone">
+                {readOnly
+                  ? <ReadValue value={form.secondary_contact_phone} />
+                  : <input type="tel" className={fieldCls} value={form.secondary_contact_phone} onChange={e => update({ secondary_contact_phone: e.target.value })} />
                 }
               </FieldRow>
             </div>
