@@ -17,6 +17,20 @@ use App\Http\Controllers\Client\ReportCardController as ClientReportCardControll
 
 
 
+// Temporary: diagnose why the APP_TIMEZONE hardening fix isn't taking
+// effect in production. (REMOVE after diagnosing)
+Route::get('/debug-timezone-9x7k', function () {
+    return response()->json([
+        'php_default_tz'      => date_default_timezone_get(),
+        'config_app_timezone' => config('app.timezone'),
+        'raw_env_bytes'       => bin2hex((string) env('APP_TIMEZONE', '')),
+        'raw_env_value'       => env('APP_TIMEZONE'),
+        'now'                 => now()->toIso8601String(),
+        'now_utc'             => now('UTC')->toIso8601String(),
+        'timezone_valid'      => in_array(config('app.timezone'), timezone_identifiers_list(), true),
+    ]);
+});
+
 // Cache-clearing utility hit automatically by the deploy pipeline after
 // every deploy (see .github/workflows/deploy.yml) — not a one-off temp
 // route despite the URL suffix; keep this one.
