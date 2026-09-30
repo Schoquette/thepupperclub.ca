@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
@@ -25,6 +25,8 @@ interface Row {
   scheduled_minutes: number | null;
   check_in: string | null;
   check_out: string | null;
+  check_in_time: string | null;
+  check_out_time: string | null;
   actual_minutes: number | null;
   duration_minutes: number | null;
   distance_km: number | null;
@@ -65,10 +67,78 @@ function formatDuration(minutes: number | null): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+// Extract the "HH:mm" wall-clock time directly from an ISO string's own
+// offset (e.g. "2026-09-29T19:00:00-07:00" -> "19:00") rather than via a
+// Date object, which would re-render in the *browser's* local timezone
+// instead of the visit's actual local time.
+function isoToLocalTime(iso: string | null): string {
+  if (!iso) return '';
+  return iso.slice(11, 16);
+}
+
 function formatServiceType(type: string): string {
   if (type === 'walk_30') return '30-Minute Visit';
   if (type === 'walk_60') return '60-Minute Visit';
   return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function EditableTimeCell({
+  row, field, isEditing, onStartEdit, onCancel, onSave, saving,
+}: {
+  row: Row;
+  field: 'check_in_time' | 'check_out_time';
+  isEditing: boolean;
+  onStartEdit: () => void;
+  onCancel: () => void;
+  onSave: (value: string | null) => void;
+  saving: boolean;
+}) {
+  const currentIso = row[field];
+  const [value, setValue] = useState(isoToLocalTime(currentIso));
+
+  // Re-sync from the row's current value each time this cell opens for
+  // editing, rather than only on first mount -- otherwise cancelling and
+  // re-opening the same cell would show a stale previously-typed value.
+  useEffect(() => {
+    if (isEditing) setValue(isoToLocalTime(currentIso));
+  }, [isEditing]); // eslint-disable-line
+
+  if (!isEditing) {
+    const display = field === 'check_in_time' ? row.check_in : row.check_out;
+    return (
+      <button
+        onClick={onStartEdit}
+        className="hover:underline hover:text-espresso decoration-dotted underline-offset-2"
+        title="Click to edit"
+      >
+        {display ?? '—'}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="time"
+        autoFocus
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') onSave(value ? `${row.date}T${value}:00` : null);
+          if (e.key === 'Escape') onCancel();
+        }}
+        className="text-xs border border-taupe/40 rounded px-1.5 py-1 w-24"
+      />
+      <button
+        disabled={saving}
+        onClick={() => onSave(value ? `${row.date}T${value}:00` : null)}
+        className="text-green-600 hover:text-green-700 text-xs font-semibold disabled:opacity-50"
+      >
+        ✓
+      </button>
+      <button onClick={onCancel} className="text-taupe hover:text-espresso text-xs">✕</button>
+    </div>
+  );
 }
 
 const PRESETS: { value: Preset; label: string }[] = [
@@ -99,6 +169,18 @@ export default function TimeMileagePage() {
       setTimeout(() => setRecalcMsg(''), 4000);
     },
     onError: (e: any) => setRecalcMsg(e.response?.data?.error ?? 'Recalculation failed.'),
+  });
+
+  const [editingCell, setEditingCell] = useState<{ id: number; field: 'check_in_time' | 'check_out_time' } | null>(null);
+  const [editingMsg, setEditingMsg] = useState('');
+  const updateTimes = useMutation({
+    mutationFn: ({ id, field, value }: { id: number; field: 'check_in_time' | 'check_out_time'; value: string | null }) =>
+      api.patch(`/admin/appointments/${id}/times`, { [field]: value }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['time-mileage'] });
+      setEditingCell(null);
+    },
+    onError: (e: any) => setEditingMsg(e.response?.data?.message ?? 'Failed to update time.'),
   });
 
   // Load team members for filter
@@ -166,6 +248,7 @@ export default function TimeMileagePage() {
             {recalculate.isPending ? 'Calculating…' : 'Recalculate Mileage'}
           </button>
           {recalcMsg && <span className="text-xs text-taupe">{recalcMsg}</span>}
+          {editingMsg && <span className="text-xs text-red-600">{editingMsg}</span>}
         </div>
       </div>
 
@@ -359,8 +442,32 @@ export default function TimeMileagePage() {
                             {row.status === 'checked_in' ? 'Checked In' : row.status === 'completed' ? 'Completed' : 'Scheduled'}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-taupe">{timeMode === 'actual' ? (row.check_in ?? '—') : (row.scheduled_time ?? '—')}</td>
-                        <td className="py-2.5 px-3 text-taupe">{timeMode === 'actual' ? (row.check_out ?? '—') : ''}</td>
+                        <td className="py-2.5 px-3 text-taupe">
+                          {timeMode === 'actual' ? (
+                            <EditableTimeCell
+                              row={row}
+                              field="check_in_time"
+                              isEditing={editingCell?.id === row.id && editingCell.field === 'check_in_time'}
+                              onStartEdit={() => { setEditingMsg(''); setEditingCell({ id: row.id, field: 'check_in_time' }); }}
+                              onCancel={() => setEditingCell(null)}
+                              onSave={(value) => updateTimes.mutate({ id: row.id, field: 'check_in_time', value })}
+                              saving={updateTimes.isPending}
+                            />
+                          ) : (row.scheduled_time ?? '—')}
+                        </td>
+                        <td className="py-2.5 px-3 text-taupe">
+                          {timeMode === 'actual' ? (
+                            <EditableTimeCell
+                              row={row}
+                              field="check_out_time"
+                              isEditing={editingCell?.id === row.id && editingCell.field === 'check_out_time'}
+                              onStartEdit={() => { setEditingMsg(''); setEditingCell({ id: row.id, field: 'check_out_time' }); }}
+                              onCancel={() => setEditingCell(null)}
+                              onSave={(value) => updateTimes.mutate({ id: row.id, field: 'check_out_time', value })}
+                              saving={updateTimes.isPending}
+                            />
+                          ) : ''}
+                        </td>
                         <td className="py-2.5 px-3 text-right font-medium text-espresso">{formatDuration(getDuration(row))}</td>
                         <td className="py-2.5 px-3 text-right font-medium text-espresso">
                           {row.distance_km != null ? `${row.distance_km} km` : '—'}

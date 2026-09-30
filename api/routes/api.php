@@ -209,6 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/appointments',                         [Admin\AppointmentController::class, 'store']);
         Route::get('/appointments/{appointment}',            [Admin\AppointmentController::class, 'show']);
         Route::patch('/appointments/{appointment}',          [Admin\AppointmentController::class, 'update']);
+        Route::patch('/appointments/{appointment}/times',    [Admin\AppointmentController::class, 'updateTimes']);
         Route::delete('/appointments/{appointment}',         [Admin\AppointmentController::class, 'destroy']);
         Route::post('/appointments/{appointment}/check-in',            [Admin\AppointmentController::class, 'checkIn']);
         Route::post('/appointments/{appointment}/complete',            [Admin\AppointmentController::class, 'complete']);

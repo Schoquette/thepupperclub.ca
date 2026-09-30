@@ -196,6 +196,24 @@ class AppointmentController extends Controller
         return response()->json(['data' => $appointment]);
     }
 
+    /**
+     * Correct the actual check-in/check-out timestamps recorded for a visit
+     * (e.g. a walker forgot to tap check-in/out at the right moment). This is
+     * deliberately separate from update() -- it edits this one appointment
+     * instance directly with no recurring-series scope handling.
+     */
+    public function updateTimes(Request $request, Appointment $appointment): JsonResponse
+    {
+        $data = $request->validate([
+            'check_in_time'  => 'sometimes|nullable|date',
+            'check_out_time' => 'sometimes|nullable|date',
+        ]);
+
+        $appointment->update($data);
+
+        return response()->json(['data' => $appointment->fresh()]);
+    }
+
     public function destroy(Request $request, Appointment $appointment): JsonResponse
     {
         $scope = $request->scope ?? 'single';

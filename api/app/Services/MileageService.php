@@ -173,13 +173,15 @@ class MileageService
 
             Log::warning('MileageService: unexpected Maps response', [
                 'status' => $data['status'] ?? 'unknown',
+                'error_message' => $data['error_message'] ?? null,
                 'origin' => $origin,
                 'destination' => $destination,
             ]);
             try {
                 \App\Models\ErrorLog::create([
                     'type'       => 'MileageDistanceLookupFailed',
-                    'message'    => 'Unexpected Maps response: ' . ($data['status'] ?? 'unknown'),
+                    'message'    => 'Unexpected Maps response: ' . ($data['status'] ?? 'unknown')
+                        . (isset($data['error_message']) ? ' — ' . $data['error_message'] : ''),
                     'context'    => ['origin' => $origin, 'destination' => $destination],
                     'created_at' => now(),
                 ]);

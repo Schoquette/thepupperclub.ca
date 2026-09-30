@@ -72,6 +72,8 @@ class TimeMileageController extends Controller
                 'scheduled_minutes'   => $scheduledMinutes,
                 'check_in'            => $checkIn?->format('g:i A'),
                 'check_out'           => $checkOut?->format('g:i A'),
+                'check_in_time'       => $checkIn?->toIso8601String(),
+                'check_out_time'      => $checkOut?->toIso8601String(),
                 'actual_minutes'      => $actualMinutes,
                 'duration_minutes'    => $actualMinutes ?? $scheduledMinutes,
                 'distance_km'         => $distanceKm,
