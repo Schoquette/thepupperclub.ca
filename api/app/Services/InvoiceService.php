@@ -116,6 +116,45 @@ class InvoiceService
         $invoice->update(['status' => 'sent']);
         $this->sendConversationMessage($invoice);
         $this->sendInvoiceEmail($invoice, 'invoice');
+        $this->maybeChargeOnSend($invoice);
+    }
+
+    /**
+     * Subscription/PAYG billing-cycle invoices (identified by having a
+     * billing period — ad-hoc invoices created via Invoice Create don't
+     * set one) auto-charge the client's card at send time, now that
+     * nothing charges automatically on a schedule. Sending is the
+     * deliberate manual-approval action that now also triggers the charge
+     * for credit-card clients with a saved card; anyone else (no card,
+     * e-transfer, cash, or an ad-hoc invoice) just gets the email as
+     * before, and pays via the portal or another channel.
+     */
+    private function maybeChargeOnSend(Invoice $invoice): void
+    {
+        if (!$invoice->billing_period_start) return;
+
+        $profile = $invoice->user->clientProfile;
+        if (!$profile || $profile->billing_method !== 'credit_card' || !$profile->stripe_payment_method_id) {
+            return;
+        }
+
+        try {
+            $result = $this->chargeCard($invoice, $profile->stripe_payment_method_id);
+            if ($result['status'] !== 'succeeded') {
+                \Illuminate\Support\Facades\Log::warning("Charge-on-send pending for invoice {$invoice->id}: status {$result['status']}");
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Charge-on-send failed for invoice {$invoice->id}: {$e->getMessage()}");
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $invoice->user_id,
+                    'type'       => 'InvoiceChargeOnSendFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+        }
     }
 
     public function resend(Invoice $invoice, ?string $customMessage = null): void

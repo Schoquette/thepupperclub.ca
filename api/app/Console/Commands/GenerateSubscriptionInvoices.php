@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 class GenerateSubscriptionInvoices extends Command
 {
     protected $signature = 'billing:generate-subscription-invoices';
-    protected $description = 'Generate subscription invoices 7 days before billing, auto-charge CC on due date, send reminders';
+    protected $description = 'Generate draft subscription invoices 7 days before billing and send reminders — actual sending/charging requires manual approval';
 
     public function handle(InvoiceService $invoiceService, NotificationDispatcher $dispatcher): void
     {
@@ -31,13 +31,10 @@ class GenerateSubscriptionInvoices extends Command
         // ── 3. Auto-send approved invoices on their due date ──────────────────
         $this->sendApprovedInvoices($invoiceService);
 
-        // ── 4. Auto-charge CC clients on billing date ────────────────────────
-        $this->autoChargeOnDueDate($invoiceService);
-
-        // ── 5. Advance billing date for non-CC clients on billing date ───────
+        // ── 4. Advance billing date once it passes (all billing methods) ─────
         $this->advanceManualBillingDates();
 
-        // ── 6. Pay-As-You-Go: bill the running tab on the billing date ───────
+        // ── 5. Pay-As-You-Go: bill the running tab on the billing date ───────
         $this->generatePaygInvoices($invoiceService);
 
         $this->info('Done.');
@@ -84,8 +81,11 @@ class GenerateSubscriptionInvoices extends Command
     }
 
     /**
-     * Generate & send invoices for ALL clients 7 days before their billing date.
-     * Invoice due date = billing date (first day of service).
+     * Generate (but do not send) invoices for ALL clients 7 days before
+     * their billing date. Left as a draft — billing now requires manual
+     * approval/send, which is also what triggers the actual card charge
+     * for credit-card clients (see InvoiceService::send()). Invoice due
+     * date = billing date (first day of service).
      */
     private function generateUpcomingInvoices(InvoiceService $invoiceService): void
     {
@@ -136,8 +136,7 @@ class GenerateSubscriptionInvoices extends Command
                 $periodEnd->toDateString(),
             );
 
-            $invoiceService->send($invoice);
-            $this->info("Invoice #{$invoice->invoice_number} sent to {$client->name} (due {$billingDate}).");
+            $this->info("Draft invoice #{$invoice->invoice_number} generated for {$client->name} (due {$billingDate}) — awaiting manual approval/send.");
         }
     }
 
@@ -167,18 +166,12 @@ class GenerateSubscriptionInvoices extends Command
                 default       => $profile->billing_method,
             };
 
+            // Nothing charges automatically on a schedule anymore — an
+            // invoice only gets sent (and, for credit-card clients,
+            // charged) once it's been manually reviewed, so this is a
+            // heads-up rather than a promise of a specific processing date.
             $title = "Upcoming Payment — The Pupper Club";
-            $body = "Your {$plan} payment of \${$amount} CAD will be processed on {$billingDate}.";
-
-            $willAutoCharge = $profile->billing_method === 'credit_card' && !empty($profile->stripe_payment_method_id);
-            if ($willAutoCharge) {
-                $body .= " It will be charged to your {$methodLabel} on file automatically.";
-            } elseif ($profile->billing_method === 'credit_card') {
-                // Credit card selected but no card actually on file --
-                // autoChargeOnDueDate() will skip this client entirely, so
-                // claiming an automatic charge here would be false.
-                $body .= " Secure payment can be made in the portal.";
-            }
+            $body = "Your {$plan} invoice of \${$amount} CAD for {$billingDate} will be ready for payment soon. Secure payment can be made in the portal.";
 
             $htmlBody = view('emails.invoice', [
                 'title'         => $title,
@@ -198,7 +191,11 @@ class GenerateSubscriptionInvoices extends Command
     }
 
     /**
-     * Auto-send approved invoices whose due date has arrived.
+     * Auto-send approved invoices whose due date has arrived. Excludes
+     * subscription/PAYG billing-cycle invoices (billing_period_start set)
+     * — those need an explicit manual send, since send() is what triggers
+     * the card charge for them now; this stage remains for ad-hoc
+     * invoices an admin approved but might forget to send by the due date.
      */
     private function sendApprovedInvoices(InvoiceService $invoiceService): void
     {
@@ -206,6 +203,7 @@ class GenerateSubscriptionInvoices extends Command
 
         $approvedInvoices = Invoice::where('status', 'approved')
             ->where('due_date', '<=', $today)
+            ->whereNull('billing_period_start')
             ->get();
 
         foreach ($approvedInvoices as $invoice) {
@@ -215,126 +213,25 @@ class GenerateSubscriptionInvoices extends Command
     }
 
     /**
-     * Auto-charge CC clients on their billing date.
-     * Finds the existing invoice (generated 7 days ago) and charges it.
-     * If no invoice exists (edge case), creates one on the spot.
-     */
-    private function autoChargeOnDueDate(InvoiceService $invoiceService): void
-    {
-        $today = now()->toDateString();
-
-        $autoChargeClients = ClientProfile::whereNotNull('subscription_amount')
-            ->where('subscription_amount', '>', 0)
-            ->where('next_billing_date', '<=', $today)
-            ->whereIn('billing_method', ['credit_card'])
-            ->whereNotNull('stripe_payment_method_id')
-            ->whereNull('stripe_subscription_id')
-            ->whereNull('subscription_paused_from')
-            ->with('user')
-            ->get();
-
-        foreach ($autoChargeClients as $profile) {
-            $client = $profile->user;
-            if (!$client || $client->status !== 'active') continue;
-
-            $billingDate = Carbon::parse($profile->next_billing_date)->toDateString();
-            $plan = $profile->subscription_plan ?? 'Monthly Subscription';
-            $amount = (float) $profile->subscription_amount;
-
-            // Look for the invoice that was pre-generated
-            $invoice = Invoice::where('user_id', $client->id)
-                ->where('billing_period_start', $billingDate)
-                ->whereIn('status', ['sent', 'overdue'])
-                ->first();
-
-            // If no invoice exists (missed generation window), create one now
-            if (!$invoice) {
-                $periodStart = Carbon::parse($billingDate);
-                $periodEnd = $periodStart->copy()->addMonth()->subDay();
-
-                $invoice = $invoiceService->create(
-                    $client,
-                    [[
-                        'description'  => "Monthly subscription — {$plan}",
-                        'quantity'     => 1,
-                        'unit_price'   => $amount,
-                        'service_date' => $billingDate,
-                    ]],
-                    $billingDate,
-                    null,
-                    null,
-                    $periodStart->toDateString(),
-                    $periodEnd->toDateString(),
-                );
-            }
-
-            // Attempt to auto-charge
-            try {
-                $result = $invoiceService->chargeCard($invoice, $profile->stripe_payment_method_id);
-
-                if ($result['status'] === 'succeeded') {
-                    $this->info("Auto-charged {$client->name} for \${$amount} (Invoice #{$invoice->invoice_number}).");
-                } else {
-                    if ($invoice->status === 'draft') {
-                        $invoiceService->send($invoice);
-                    }
-                    $this->warn("Auto-charge pending for {$client->name}, invoice sent as unpaid.");
-                }
-            } catch (\Exception $e) {
-                if ($invoice->status === 'draft') {
-                    $invoiceService->send($invoice);
-                }
-                Log::warning("Auto-charge failed for client {$client->id}: {$e->getMessage()}");
-                $this->error("Auto-charge failed for {$client->name}: {$e->getMessage()}. Invoice sent.");
-                try {
-                    \App\Models\ErrorLog::create([
-                        'user_id'    => $client->id,
-                        'type'       => 'SubscriptionAutoChargeFailed',
-                        'message'    => $e->getMessage(),
-                        'context'    => ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number],
-                        'created_at' => now(),
-                    ]);
-                } catch (\Throwable $logError) {}
-            }
-
-            // Advance next billing date (preserving original billing day)
-            $profile->update(['next_billing_date' => $this->nextBillingDate($profile)]);
-        }
-    }
-
-    /**
-     * Advance billing date for non-CC clients (e-transfer, cash) once the billing date passes.
-     * Also handles CC clients without a payment method on file.
+     * Advance every subscription client's billing date once it passes,
+     * regardless of billing method — nothing auto-charges from this
+     * command anymore (see InvoiceService::send()), so there's no longer
+     * a distinction between "auto-charge CC" and "just advance the date"
+     * cases here. The admin approving/sending the draft invoice generated
+     * by generateUpcomingInvoices() is what actually collects payment.
      */
     private function advanceManualBillingDates(): void
     {
         $today = now()->toDateString();
 
-        // Non-CC clients whose billing date has passed
-        $manualClients = ClientProfile::whereNotNull('subscription_amount')
+        $clients = ClientProfile::whereNotNull('subscription_amount')
             ->where('subscription_amount', '>', 0)
             ->where('next_billing_date', '<=', $today)
-            ->where(function ($q) {
-                $q->whereIn('billing_method', ['e_transfer', 'cash'])
-                  ->orWhereNull('billing_method');
-            })
             ->whereNull('stripe_subscription_id')
             ->whereNull('subscription_paused_from')
             ->get();
 
-        // CC/PAD clients without a payment method (can't auto-charge, just advance)
-        $noPaymentMethod = ClientProfile::whereNotNull('subscription_amount')
-            ->where('subscription_amount', '>', 0)
-            ->where('next_billing_date', '<=', $today)
-            ->whereIn('billing_method', ['credit_card'])
-            ->whereNull('stripe_payment_method_id')
-            ->whereNull('stripe_subscription_id')
-            ->whereNull('subscription_paused_from')
-            ->get();
-
-        $allClients = $manualClients->merge($noPaymentMethod);
-
-        foreach ($allClients as $profile) {
+        foreach ($clients as $profile) {
             $nextBilling = $this->nextBillingDate($profile);
             $profile->update(['next_billing_date' => $nextBilling]);
             $this->info("Advanced billing date for user {$profile->user_id} to {$nextBilling}.");

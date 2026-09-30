@@ -29,9 +29,12 @@ class StripeSubscriptionService
     }
 
     /**
-     * Create or update a subscription for a client.
-     * For CC billing: creates a real Stripe Subscription (auto-charges).
-     * For e-transfer/cash: stores plan locally (invoiced via GenerateSubscriptionInvoices).
+     * Create or update a subscription for a client. Always stores the plan
+     * locally and bills through the monthly GenerateSubscriptionInvoices
+     * job (draft invoice, requires manual approval/send) rather than
+     * creating a real Stripe Subscription object -- a Stripe Subscription
+     * auto-generates and auto-charges its own invoice the moment it's
+     * created or updated, which bypassed manual review entirely.
      *
      * @param string|null $effectiveDate  When the new plan takes effect (for mid-cycle changes).
      *                                     null = immediate for new, or next billing date for changes.
@@ -52,119 +55,23 @@ class StripeSubscriptionService
 
         $billingMethod = $profile->billing_method ?? 'credit_card';
 
-        // For non-CC/non-PAD billing, just store locally — no Stripe subscription
-        if (!in_array($billingMethod, ['credit_card'])) {
-            // Cancel any existing Stripe subscription first
-            if ($profile->stripe_subscription_id) {
-                try {
-                    $this->stripe()->subscriptions->cancel($profile->stripe_subscription_id);
-                } catch (\Exception $e) {
-                    try {
-                        \App\Models\ErrorLog::create([
-                            'user_id'    => $client->id,
-                            'type'       => 'StripeSubscriptionCancelFailedBeforeSwitch',
-                            'message'    => $e->getMessage(),
-                            'context'    => ['stripe_subscription_id' => $profile->stripe_subscription_id],
-                            'created_at' => now(),
-                        ]);
-                    } catch (\Throwable $logError) {}
-                }
-            }
-
-            $isNewSubscription = !$profile->subscription_plan;
-            $oldAmount = (float) ($profile->subscription_amount ?? 0);
-            $oldPlan = $profile->subscription_plan;
-            $prorationCredit = null;
-
-            // Calculate proration if changing plan mid-cycle
-            if (!$isNewSubscription && $effectiveDate && $profile->next_billing_date) {
-                $effective = Carbon::parse($effectiveDate);
-                $nextBilling = Carbon::parse($profile->next_billing_date);
-                $prevBilling = $nextBilling->copy()->subMonth();
-
-                // Days remaining in current cycle from effective date
-                $totalDays = $prevBilling->diffInDays($nextBilling);
-                $remainingDays = $effective->diffInDays($nextBilling);
-
-                if ($remainingDays > 0 && $totalDays > 0) {
-                    // Credit for unused days on old plan, charge for remaining days on new plan
-                    $dailyOld = $oldAmount / $totalDays;
-                    $dailyNew = $amount / $totalDays;
-                    $prorationCredit = round(($dailyNew - $dailyOld) * $remainingDays, 2);
-                }
-            }
-
-            $startDate = $isNewSubscription
-                ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()->startOfDay())
-                : null;
-
-            $updateData = [
-                'stripe_subscription_id'  => null,
-                'stripe_price_id'         => $stripePriceId,
-                'subscription_plan'       => $productName,
-                'subscription_amount'     => (string) $amount,
-                'subscription_tier'       => $price->nickname ?? strtolower($productName),
-                'subscription_start_date' => $isNewSubscription ? $startDate : $profile->subscription_start_date,
-                'next_billing_date'       => $isNewSubscription ? $startDate : $profile->next_billing_date,
-                'subscription_end_date'   => null,
-            ];
-
-            // Store the billing day so we can preserve it across months of different lengths
-            if ($isNewSubscription && $startDate) {
-                $updateData['billing_day'] = $startDate->day;
-            }
-
-            // Auto-set walks_per_week from plan name if not already customized
-            if (Schema::hasColumn('client_profiles', 'walks_per_week')) {
-                $walksDefault = $this->walksFromPlanName($productName);
-                if ($walksDefault && !$profile->walks_per_week) {
-                    $updateData['walks_per_week'] = $walksDefault;
-                }
-            }
-
-            $profile->update($updateData);
-
-            return [
-                'action'     => $isNewSubscription ? 'created' : 'updated',
-                'type'       => 'local',
-                'proration'  => $prorationCredit,
-                'old_plan'   => $oldPlan,
-                'old_amount' => $oldAmount,
-            ];
+        // Ensure a card is on file before setting up CC billing — nothing
+        // charges it automatically anymore, but there needs to be one on
+        // file for when the invoice is eventually sent.
+        if ($billingMethod === 'credit_card') {
+            abort_unless($profile->stripe_payment_method_id, 422, 'Client must have a card on file before subscribing with credit card.');
         }
 
-        // CC billing — create Stripe subscription for auto-charge
-        // Ensure Stripe customer exists
-        if (!$profile->stripe_customer_id) {
-            $customer = $this->stripe()->customers->create([
-                'email'    => $client->email,
-                'name'     => $client->name,
-                'metadata' => ['user_id' => $client->id],
-            ]);
-            $profile->update(['stripe_customer_id' => $customer->id]);
-        }
-
-        // If client already has an active subscription, update it
+        // Cancel any existing real Stripe subscription first (e.g. left
+        // over from before this method stopped creating them)
         if ($profile->stripe_subscription_id) {
             try {
-                $sub = $this->stripe()->subscriptions->retrieve($profile->stripe_subscription_id);
-                if (in_array($sub->status, ['active', 'trialing', 'past_due'])) {
-                    $sub = $this->stripe()->subscriptions->update($profile->stripe_subscription_id, [
-                        'items' => [
-                            ['id' => $sub->items->data[0]->id, 'price' => $stripePriceId],
-                        ],
-                        'proration_behavior' => 'create_prorations',
-                    ]);
-
-                    $this->syncProfileFromSubscription($profile, $sub, $price);
-                    return ['action' => 'updated', 'type' => 'stripe', 'proration' => null];
-                }
+                $this->stripe()->subscriptions->cancel($profile->stripe_subscription_id);
             } catch (\Exception $e) {
-                // Subscription doesn't exist in Stripe anymore, create new one
                 try {
                     \App\Models\ErrorLog::create([
                         'user_id'    => $client->id,
-                        'type'       => 'StripeSubscriptionRetrieveFailedFallbackToCreate',
+                        'type'       => 'StripeSubscriptionCancelFailedBeforeSwitch',
                         'message'    => $e->getMessage(),
                         'context'    => ['stripe_subscription_id' => $profile->stripe_subscription_id],
                         'created_at' => now(),
@@ -173,21 +80,66 @@ class StripeSubscriptionService
             }
         }
 
-        // Ensure client has a payment method for CC billing
-        if ($billingMethod === 'credit_card') {
-            abort_unless($profile->stripe_payment_method_id, 422, 'Client must have a card on file before subscribing with credit card.');
+        $isNewSubscription = !$profile->subscription_plan;
+        $oldAmount = (float) ($profile->subscription_amount ?? 0);
+        $oldPlan = $profile->subscription_plan;
+        $prorationCredit = null;
+
+        // Calculate proration if changing plan mid-cycle
+        if (!$isNewSubscription && $effectiveDate && $profile->next_billing_date) {
+            $effective = Carbon::parse($effectiveDate);
+            $nextBilling = Carbon::parse($profile->next_billing_date);
+            $prevBilling = $nextBilling->copy()->subMonth();
+
+            // Days remaining in current cycle from effective date
+            $totalDays = $prevBilling->diffInDays($nextBilling);
+            $remainingDays = $effective->diffInDays($nextBilling);
+
+            if ($remainingDays > 0 && $totalDays > 0) {
+                // Credit for unused days on old plan, charge for remaining days on new plan
+                $dailyOld = $oldAmount / $totalDays;
+                $dailyNew = $amount / $totalDays;
+                $prorationCredit = round(($dailyNew - $dailyOld) * $remainingDays, 2);
+            }
         }
 
-        $sub = $this->stripe()->subscriptions->create([
-            'customer'               => $profile->stripe_customer_id,
-            'default_payment_method' => $profile->stripe_payment_method_id,
-            'items'                  => [['price' => $stripePriceId]],
-            'currency'               => 'cad',
-            'metadata'               => ['user_id' => $client->id],
-        ]);
+        $startDate = $isNewSubscription
+            ? ($effectiveDate ? Carbon::parse($effectiveDate) : now()->startOfDay())
+            : null;
 
-        $this->syncProfileFromSubscription($profile, $sub, $price);
-        return ['action' => 'created', 'type' => 'stripe', 'proration' => null];
+        $updateData = [
+            'stripe_subscription_id'  => null,
+            'stripe_price_id'         => $stripePriceId,
+            'subscription_plan'       => $productName,
+            'subscription_amount'     => (string) $amount,
+            'subscription_tier'       => $price->nickname ?? strtolower($productName),
+            'subscription_start_date' => $isNewSubscription ? $startDate : $profile->subscription_start_date,
+            'next_billing_date'       => $isNewSubscription ? $startDate : $profile->next_billing_date,
+            'subscription_end_date'   => null,
+        ];
+
+        // Store the billing day so we can preserve it across months of different lengths
+        if ($isNewSubscription && $startDate) {
+            $updateData['billing_day'] = $startDate->day;
+        }
+
+        // Auto-set walks_per_week from plan name if not already customized
+        if (Schema::hasColumn('client_profiles', 'walks_per_week')) {
+            $walksDefault = $this->walksFromPlanName($productName);
+            if ($walksDefault && !$profile->walks_per_week) {
+                $updateData['walks_per_week'] = $walksDefault;
+            }
+        }
+
+        $profile->update($updateData);
+
+        return [
+            'action'     => $isNewSubscription ? 'created' : 'updated',
+            'type'       => 'local',
+            'proration'  => $prorationCredit,
+            'old_plan'   => $oldPlan,
+            'old_amount' => $oldAmount,
+        ];
     }
 
     /**
@@ -251,6 +203,8 @@ class StripeSubscriptionService
 
     /**
      * Sync local profile fields from the Stripe subscription object.
+     * Retained for any legacy real Stripe Subscription objects still being
+     * driven by webhooks -- subscribe() no longer creates new ones.
      */
     public function syncProfileFromSubscription($profile, $sub, $price = null): void
     {
