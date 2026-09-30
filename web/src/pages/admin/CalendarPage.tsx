@@ -1487,14 +1487,15 @@ export default function AdminCalendarPage() {
             {/* Duration — read-only "Length" for overnight (driven by
                 check-in/check-out dates) and day boarding (driven by the
                 Start/End time fields below); a free-form minutes input
-                for Custom Visit so any length can be entered; a preset
-                dropdown for the fixed-length service types. */}
+                for Custom Visit and Group Hike so any length can be
+                entered; a preset dropdown for the fixed-length service
+                types. */}
             {newForm.service_type === 'overnight' || newForm.service_type === 'day_boarding' ? (
               <div>
                 <label className="label">Length *</label>
                 <input className="input" value={formatDuration(newForm.duration_minutes)} disabled />
               </div>
-            ) : newForm.service_type === 'drop_in' ? (
+            ) : newForm.service_type === 'drop_in' || newForm.service_type === 'pack_hike' ? (
               <div>
                 <label className="label">Duration (minutes) *</label>
                 <input
@@ -1503,6 +1504,7 @@ export default function AdminCalendarPage() {
                   step={1}
                   className="input"
                   placeholder="e.g. 50"
+                  disabled={!!newForm.group_hike_id}
                   value={newForm.duration_minutes || ''}
                   onChange={e => setNewForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) || 0 }))}
                 />
@@ -2529,7 +2531,7 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
             <label className="label">Length</label>
             <input className="input" value={formatDuration(editForm.duration_minutes)} disabled />
           </div>
-        ) : editForm.service_type === 'drop_in' ? (
+        ) : editForm.service_type === 'drop_in' || editForm.service_type === 'pack_hike' ? (
           <div>
             <label className="label">Duration (minutes)</label>
             <input
