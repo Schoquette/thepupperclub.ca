@@ -239,6 +239,23 @@ class AppointmentController extends Controller
             'check_out_time' => now(),
         ]);
 
+        // Let the client know their dog is home before the full report card
+        // (built and sent separately, often later the same day) goes out.
+        try {
+            app(\App\Services\VisitNotificationService::class)->sendCheckoutComplete($appointment->fresh('dogs'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Checkout-complete notification failed', ['error' => $e->getMessage()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $appointment->user_id,
+                    'type'       => 'CheckoutCompleteNotificationFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['appointment_id' => $appointment->id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+        }
+
         $photoPaths = $request->hasFile('photos')
             ? collect($request->file('photos'))
                 ->map(fn($photo) => $photo->store('private/photos', 'local'))

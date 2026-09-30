@@ -39,6 +39,36 @@ class VisitNotificationService
         );
     }
 
+    public function sendCheckoutComplete(Appointment $appointment): void
+    {
+        $user         = $appointment->user;
+        $conversation = $user->conversation()->firstOrCreate(['user_id' => $user->id]);
+        $adminUser    = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
+
+        $dogNames = $appointment->dogs->pluck('name')->join(' & ') ?: 'Your pup';
+        $verb     = $appointment->dogs->count() > 1 ? 'are' : 'is';
+        $body     = "{$dogNames} {$verb} home. Safe, sound, and probably already napping! Your report will be sent by the end of the day. Thanks for a great walkies!";
+
+        $conversation->messages()->create([
+            'sender_id' => $adminUser?->id,
+            'type'      => 'text',
+            'body'      => $body,
+            'metadata'  => [
+                'appointment_id' => $appointment->id,
+                'check_out_time' => $appointment->check_out_time?->toIso8601String(),
+            ],
+        ]);
+        $conversation->increment('unread_count_client');
+        $conversation->update(['last_message_at' => now()]);
+
+        $this->dispatcher->notify(
+            $user,
+            "{$dogNames} — walk complete! 🐾",
+            $body,
+            type: 'visit_checkin'
+        );
+    }
+
     public function sendVisitComplete(Appointment $appointment, VisitReport $report): void
     {
         $user         = $appointment->user;
