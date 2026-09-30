@@ -345,7 +345,7 @@ export default function ClientInvoiceDetailPage() {
                   Payment Terms &mdash; {METHOD_LABELS[method] ?? method}
                 </div>
                 {method === 'credit_card' && (
-                  <p className="text-taupe text-xs">Charged automatically to card on file. A 2% credit card surcharge is applied.</p>
+                  <p className="text-taupe text-xs">Charged to card on file when the invoice is sent. A 2% credit card surcharge is applied.</p>
                 )}
                 {method === 'e_transfer' && (
                   <p className="text-taupe text-xs">Please send your e-Transfer to sophie@thepupperclub.ca before the due date.</p>

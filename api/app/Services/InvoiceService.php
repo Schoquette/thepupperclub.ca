@@ -113,10 +113,22 @@ class InvoiceService
 
     public function send(Invoice $invoice): void
     {
+        $this->markSentAndNotify($invoice);
+        $this->maybeChargeOnSend($invoice);
+    }
+
+    /**
+     * Marks sent + notifies, without attempting a charge. Split out of
+     * send() for callers that already attempted (and failed) a charge for
+     * this exact invoice and just need to notify the client it's unpaid --
+     * calling send() there would trigger a second, independent charge
+     * attempt via maybeChargeOnSend().
+     */
+    public function markSentAndNotify(Invoice $invoice): void
+    {
         $invoice->update(['status' => 'sent']);
         $this->sendConversationMessage($invoice);
         $this->sendInvoiceEmail($invoice, 'invoice');
-        $this->maybeChargeOnSend($invoice);
     }
 
     /**

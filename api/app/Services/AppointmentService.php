@@ -224,10 +224,25 @@ class AppointmentService
         $rule = $parent->recurrence_rule;
         if (!$rule) return;
 
-        $upTo      = $upTo ? Carbon::parse($upTo) : Carbon::now()->addMonths(6);
-        $current   = Carbon::parse($parent->scheduled_time);
+        $upTo = $upTo ? Carbon::parse($upTo) : Carbon::now()->addMonths(6);
+
+        // Resume from the last already-generated occurrence rather than
+        // always restarting from the parent's own scheduled_time. This
+        // method is re-run monthly by GenerateRecurringAppointments for
+        // every active recurring series (not just newly-created ones) to
+        // keep extending the 6-month window as time passes -- restarting
+        // from scratch every run would regenerate (duplicate) every
+        // occurrence a prior run already created. withTrashed() so a
+        // cancelled/deleted occurrence's slot doesn't get regenerated.
+        $latestChild = Appointment::withTrashed()
+            ->where('recurrence_parent_id', $parent->id)
+            ->orderByDesc('scheduled_time')
+            ->first();
+        $alreadyGenerated = Appointment::withTrashed()->where('recurrence_parent_id', $parent->id)->count();
+
+        $current   = Carbon::parse($latestChild->scheduled_time ?? $parent->scheduled_time);
         $dogIds    = $parent->dogs->pluck('id')->all();
-        $generated = 0;
+        $generated = $alreadyGenerated;
         $maxOccurrences = $rule['end_after_count'] ?? $rule['occurrences'] ?? 999;
         $endDate   = isset($rule['end_date']) ? Carbon::parse($rule['end_date'])->endOfDay() : $upTo;
         $interval  = max(1, (int) ($rule['interval'] ?? 1));

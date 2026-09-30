@@ -106,14 +106,16 @@ export default function ClientBillingPage() {
   });
 
   const [buyPackMsg, setBuyPackMsg] = useState('');
+  const [buyPackError, setBuyPackError] = useState(false);
   const buyPack = useMutation({
     mutationFn: (serviceType: string) => api.post('/client/billing/buy-pack', { service_type: serviceType }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client-payg-status'] });
+      setBuyPackError(false);
       setBuyPackMsg('Pack purchased!');
       setTimeout(() => setBuyPackMsg(''), 2500);
     },
-    onError: (err: any) => setBuyPackMsg(err.response?.data?.message ?? 'Failed to buy pack.'),
+    onError: (err: any) => { setBuyPackError(true); setBuyPackMsg(err.response?.data?.message ?? 'Failed to buy pack.'); },
   });
 
   if (profileLoading || pmLoading) return <PageLoader />;
@@ -158,7 +160,7 @@ export default function ClientBillingPage() {
                 </span>
               </div>
             )}
-            {buyPackMsg && <p className="text-sm text-green-600 font-medium">{buyPackMsg}</p>}
+            {buyPackMsg && <p className={`text-sm font-medium ${buyPackError ? 'text-red-600' : 'text-green-600'}`}>{buyPackMsg}</p>}
           </div>
         </Card>
       )}

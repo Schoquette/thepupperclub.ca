@@ -70,11 +70,12 @@ export default function AdminSettingsPage() {
     });
   });
   const [paygMsg, setPaygMsg] = useState('');
+  const [paygMsgError, setPaygMsgError] = useState(false);
   const savePaygPrice = useMutation({
     mutationFn: ({ service_type, stripe_price_id }: { service_type: string; stripe_price_id: string }) =>
       api.post('/admin/payg-pricing', { service_type, stripe_price_id }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payg-pricing'] }); setPaygMsg('Saved!'); setTimeout(() => setPaygMsg(''), 2500); },
-    onError: (err: any) => setPaygMsg(err.response?.data?.message ?? 'Failed to save.'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payg-pricing'] }); setPaygMsgError(false); setPaygMsg('Saved!'); setTimeout(() => setPaygMsg(''), 2500); },
+    onError: (err: any) => { setPaygMsgError(true); setPaygMsg(err.response?.data?.message ?? 'Failed to save.'); },
   });
 
   // Notification preferences
@@ -301,7 +302,7 @@ export default function AdminSettingsPage() {
               </div>
             );
           })}
-          {paygMsg && <p className="text-sm text-green-600 font-medium">{paygMsg}</p>}
+          {paygMsg && <p className={`text-sm font-medium ${paygMsgError ? 'text-red-600' : 'text-green-600'}`}>{paygMsg}</p>}
         </div>
       </Card>
 

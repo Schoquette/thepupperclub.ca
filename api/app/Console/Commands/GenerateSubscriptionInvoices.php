@@ -302,11 +302,15 @@ class GenerateSubscriptionInvoices extends Command
                     if ($result['status'] === 'succeeded') {
                         $this->info("PAYG auto-charged {$client->name} \${$invoice->total} (Invoice #{$invoice->invoice_number}, {$unbilled->count()} visits).");
                     } else {
-                        if ($invoice->status === 'draft') $invoiceService->send($invoice);
+                        // Notify only — do NOT call send(), which would
+                        // re-attempt the charge via maybeChargeOnSend()
+                        // and risk a second, independent charge for the
+                        // same invoice.
+                        if ($invoice->status === 'draft') $invoiceService->markSentAndNotify($invoice);
                         $this->warn("PAYG auto-charge pending for {$client->name}, invoice sent as unpaid.");
                     }
                 } catch (\Exception $e) {
-                    if ($invoice->status === 'draft') $invoiceService->send($invoice);
+                    if ($invoice->status === 'draft') $invoiceService->markSentAndNotify($invoice);
                     Log::warning("PAYG auto-charge failed for client {$client->id}: {$e->getMessage()}");
                     try {
                         \App\Models\ErrorLog::create([
