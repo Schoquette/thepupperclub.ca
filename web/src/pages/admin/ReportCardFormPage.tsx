@@ -203,9 +203,15 @@ export default function AdminReportCardFormPage() {
         const serverSection = report?.dog_data?.[key];
         const prevSection   = prev[key];
 
-        // Priority: existing in-state section > server data > _general seed > defaults
+        // Priority: existing in-state section > per-dog server data > flat
+        // server data (e.g. reports created from mobile, which only ever
+        // sends the flat checklist/notes fields, never dog_data) > _general
+        // seed > defaults. The flat fallback applies regardless of section
+        // key -- not just _general -- since a report with no dog_data at
+        // all still has a real dog id as its section key once dogIds is
+        // populated, and that section still needs somewhere to read from.
         const baseChecklist = prevSection?.checklist ?? serverSection?.checklist
-          ?? (key === GENERAL_KEY && report?.checklist ? report.checklist : null)
+          ?? (report?.checklist ? report.checklist : null)
           ?? generalSeed?.checklist ?? {};
 
         const checklist: Record<string, boolean> = {};
@@ -215,7 +221,7 @@ export default function AdminReportCardFormPage() {
           checklist,
           notes: prevSection?.notes
             ?? serverSection?.notes
-            ?? (key === GENERAL_KEY ? (report?.notes ?? '') : '')
+            ?? report?.notes
             ?? generalSeed?.notes
             ?? '',
         };
