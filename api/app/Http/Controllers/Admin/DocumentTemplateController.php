@@ -48,6 +48,15 @@ class DocumentTemplateController extends Controller
             $pageCount = max(1, preg_match_all('/\/Type\s*\/Page[^s]/', $content));
         } catch (\Throwable $e) {
             // Default to 1 if we can't count
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $request->user()?->id,
+                    'type'       => 'DocumentTemplatePageCountFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['path' => $path],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
 
         $template = DocumentTemplate::create([

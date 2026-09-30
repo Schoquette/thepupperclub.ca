@@ -223,7 +223,17 @@ class TeamController extends Controller
                 } catch (\Throwable $e) {
                     // GoDaddy DDL restriction — proceed; if the column is
                     // still NOT NULL, store()/update() will surface a
-                    // clear DB error for a login-less team member.
+                    // clear DB error for a login-less team member. Still
+                    // worth a record here so the root cause isn't just a
+                    // generic DB error later with no context.
+                    try {
+                        \App\Models\ErrorLog::create([
+                            'type'       => 'SchemaHealFailed',
+                            'message'    => $e->getMessage(),
+                            'context'    => ['table' => 'users', 'column' => $column],
+                            'created_at' => now(),
+                        ]);
+                    } catch (\Throwable $logError) {}
                 }
             }
         }

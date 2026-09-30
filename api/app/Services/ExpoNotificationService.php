@@ -59,9 +59,25 @@ class ExpoNotificationService
                     'status' => $response->status(),
                     'body'   => $response->body(),
                 ]);
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'ExpoPushSendFailed',
+                        'message'    => "HTTP {$response->status()}",
+                        'context'    => ['recipient_count' => count($messages), 'body' => substr($response->body(), 0, 1000)],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         } catch (\Exception $e) {
             Log::error('Expo push notification error: ' . $e->getMessage());
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'ExpoPushSendFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['recipient_count' => count($messages)],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
     }
 }

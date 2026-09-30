@@ -40,6 +40,14 @@ class InvoiceController extends Controller
                 });
             } catch (\Throwable $e) {
                 // GoDaddy DDL restriction — proceed without the column
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'invoices', 'column' => 'invoice_date'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 
@@ -100,6 +108,14 @@ class InvoiceController extends Controller
                 });
             } catch (\Throwable $e) {
                 // GoDaddy DDL restriction — proceed without the column
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'invoices', 'column' => 'invoice_date'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 

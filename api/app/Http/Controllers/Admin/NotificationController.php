@@ -697,6 +697,14 @@ class NotificationController extends Controller
                 }
             } catch (\Throwable $e) {
                 // If we can't load the image, leave the original tag
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'BroadcastImageEmbedFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['src' => $src],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
 
             if (!$imageData) {

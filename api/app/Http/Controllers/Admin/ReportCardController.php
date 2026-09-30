@@ -44,6 +44,14 @@ class ReportCardController extends Controller
                 });
             } catch (\Throwable $e) {
                 // GoDaddy DDL restriction — proceed without the column
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'appointments', 'column' => 'report_card_dismissed'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 
@@ -135,6 +143,14 @@ class ReportCardController extends Controller
             if ($hasData) $fields['dog_data'] = $dogData;
         } catch (\Throwable $e) {
             // Columns unavailable — report still saves without them
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SchemaHealFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['table' => 'visit_reports', 'column' => 'dog_ids/dog_data'],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
 
         try {
@@ -185,6 +201,14 @@ class ReportCardController extends Controller
                     $dogDataColumnOk = true;
                 } catch (\Throwable $e) {
                     // Migration failed — skip dog_data so the rest of the update succeeds
+                    try {
+                        \App\Models\ErrorLog::create([
+                            'type'       => 'SchemaHealFailed',
+                            'message'    => $e->getMessage(),
+                            'context'    => ['table' => 'visit_reports', 'column' => 'dog_data'],
+                            'created_at' => now(),
+                        ]);
+                    } catch (\Throwable $logError) {}
                 }
             }
             if ($dogDataColumnOk) {

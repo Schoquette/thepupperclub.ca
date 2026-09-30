@@ -92,7 +92,17 @@ class AuditLog extends Model
                 DB::statement("ALTER TABLE audit_logs MODIFY COLUMN `action` VARCHAR(50) NOT NULL");
             }
         } catch (\Throwable $e) {
-            // Silently continue — column may already be varchar
+            // Continue either way — column may already be varchar — but
+            // leave a record in case this is a real DDL failure (GoDaddy
+            // permissions/disk) rather than the expected already-converted case.
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SchemaHealFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['table' => 'audit_logs', 'column' => 'action'],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
     }
 }

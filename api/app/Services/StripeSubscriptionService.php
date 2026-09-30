@@ -217,6 +217,15 @@ class StripeSubscriptionService
                 $productName = $product->name;
             } catch (\Exception $e) {
                 $productName = $priceObj->nickname ?? 'Subscription';
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $profile->user_id ?? null,
+                        'type'       => 'StripeProductLookupFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['stripe_product_id' => $priceObj->product],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 

@@ -116,6 +116,14 @@ class TransportQuoteController extends Controller
             Log::warning('TransportQuote: distance lookup failed', [
                 'origin' => $origin, 'destination' => $destination, 'error' => $e->getMessage(),
             ]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'TransportQuoteDistanceLookupFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['origin' => $origin, 'destination' => $destination],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
             return null;
         }
     }

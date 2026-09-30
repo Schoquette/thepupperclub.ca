@@ -389,6 +389,14 @@ class ConversationController extends Controller
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('ensureReplyColumn failed: ' . $e->getMessage());
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'ConversationSchemaHealFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['column' => 'reply_to_id'],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
     }
 

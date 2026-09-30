@@ -307,6 +307,15 @@ class AppointmentController extends Controller
         } catch (\Throwable $e) {
             // Don't fail completion if mileage calc fails
             \Illuminate\Support\Facades\Log::warning('Auto-mileage calculation failed', ['error' => $e->getMessage()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $appointment->user_id,
+                    'type'       => 'AutoMileageCalculationFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['appointment_id' => $appointment->id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
         }
 
         return response()->json(['data' => $report]);

@@ -309,6 +309,7 @@ class ReportCardService
         try {
             $src = @imagecreatefromstring($content);
             if (!$src) {
+                $this->logResizeFailure('GD could not decode image content', strlen($content), $mime);
                 return [$content, $mime, $ext];
             }
 
@@ -334,7 +335,17 @@ class ReportCardService
                         $src = $rotated;
                     }
                 } catch (\Throwable $e) {
-                    // Leave $src as-is if EXIF can't be read
+                    // Leave $src as-is if EXIF can't be read — cosmetic
+                    // (orientation), not worth failing the send over, but
+                    // still worth a record in case it points to a pattern.
+                    try {
+                        \App\Models\ErrorLog::create([
+                            'type'       => 'ReportCardEmailExifReadFailed',
+                            'message'    => $e->getMessage(),
+                            'context'    => [],
+                            'created_at' => now(),
+                        ]);
+                    } catch (\Throwable $logError) {}
                 }
             }
 
@@ -355,8 +366,27 @@ class ReportCardService
             imagedestroy($src);
             return [$data, 'image/jpeg', 'jpg'];
         } catch (\Throwable $e) {
+            $this->logResizeFailure($e->getMessage(), strlen($content), $mime);
             return [$content, $mime, $ext];
         }
+    }
+
+    /**
+     * Falling back to the un-resized original here is exactly the failure
+     * mode this method exists to prevent — an oversized email that bounces
+     * silently (Resend still reports "sent"; the recipient never sees it).
+     * Always leave a record so a pattern of failures doesn't go unnoticed.
+     */
+    private function logResizeFailure(string $message, int $contentLength, string $mime): void
+    {
+        try {
+            \App\Models\ErrorLog::create([
+                'type'       => 'ReportCardEmailResizeFailed',
+                'message'    => $message,
+                'context'    => ['content_length' => $contentLength, 'mime' => $mime],
+                'created_at' => now(),
+            ]);
+        } catch (\Throwable $logError) {}
     }
 
     private function embedDogPhoto(SymfonyEmail $message, $firstDog, ?string $dogPhotoCid): void
