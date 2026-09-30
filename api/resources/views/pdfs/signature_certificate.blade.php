@@ -104,7 +104,12 @@
       <div class="section-title">Document Details</div>
       <table class="fields">
         <tr><td class="lbl">Document</td><td class="val">{{ $document->filename }}</td></tr>
+        @if($document->user_id)
         <tr><td class="lbl">Client</td><td class="val">{{ $document->user?->name ?? '—' }}</td></tr>
+        @endif
+        @if($document->external_recipient_name)
+        <tr><td class="lbl">External Recipient</td><td class="val">{{ $document->external_recipient_name }}</td></tr>
+        @endif
         <tr><td class="lbl">Signature Requested</td><td class="val">{{ $document->signature_requested_at?->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') ?? '—' }}</td></tr>
       </table>
     </div>
@@ -137,6 +142,21 @@
     </div>
     @endif
 
+    @if(($external_fields ?? collect())->isNotEmpty())
+    <div class="section">
+      <div class="section-title">External Form Inputs</div>
+      <table class="fields">
+        @foreach($external_fields as $row)
+          <tr>
+            <td class="lbl">{{ $row['label'] }}</td>
+            <td class="val">{{ $row['value'] }}</td>
+          </tr>
+        @endforeach
+      </table>
+    </div>
+    @endif
+
+    @if($document->user_id && isset($signed_at) && $signed_at)
     <div class="section">
       <div class="section-title">Client Signature</div>
       <table class="fields">
@@ -154,6 +174,27 @@
         @endif
       </div>
     </div>
+    @endif
+
+    @if(isset($external_signed_at) && $external_signed_at)
+    <div class="section">
+      <div class="section-title">External Signature</div>
+      <table class="fields">
+        <tr><td class="lbl">Signed By</td><td class="val">{{ $external_signer_name }}</td></tr>
+        <tr><td class="lbl">Date &amp; Time</td><td class="val">{{ $external_signed_at->setTimezone('America/Vancouver')->format('F j, Y \a\t g:i A T') }}</td></tr>
+        <tr><td class="lbl">IP Address</td><td class="val">{{ $external_signer_ip }}</td></tr>
+      </table>
+
+      <div class="signature-box">
+        <div class="label">External Signature</div>
+        @if($external_signature_png)
+          <img class="signature-img" src="data:image/png;base64,{{ $external_signature_png }}" alt="External Signature" />
+        @else
+          <p style="color: #C8BFB6; font-style: italic;">No signature image available.</p>
+        @endif
+      </div>
+    </div>
+    @endif
 
     @if(isset($countersigned_at) && $countersigned_at)
     <div class="section">

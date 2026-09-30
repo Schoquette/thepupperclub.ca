@@ -81,29 +81,95 @@ class SigningController extends Controller
     }
 
     /**
+     * Admin adds/sends a non-portal external co-signer on a client's document.
+     * Must be called before the client signs — once the client has signed,
+     * maybeAdvance() may already have completed the document.
+     * POST /admin/clients/{client}/documents/{document}/add-external-signer
+     */
+    public function addExternalSigner(Request $request, int $clientId, ClientDocument $document): JsonResponse
+    {
+        abort_unless((int) $document->user_id === $clientId, 404);
+        abort_if($document->signed_at, 422, 'The client has already signed this document — an external co-signer must be added before the client signs.');
+        abort_if($document->external_signed_at, 422, 'This external co-signer has already signed.');
+
+        $data = $request->validate([
+            'name'  => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+        ]);
+
+        $token = Str::random(64);
+        $document->update([
+            'external_recipient_name'         => $data['name'],
+            'external_recipient_email'        => $data['email'],
+            'external_signature_token'        => $token,
+            'external_signature_requested_at' => now(),
+        ]);
+
+        $frontendUrl = rtrim(env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
+        $signingUrl  = "{$frontendUrl}/sign/{$token}";
+
+        try {
+            $logoPath  = public_path('images/logo-cream-stacked.png');
+            $replyAddr = config('services.resend.inbound_address') ?: config('mail.from.address');
+            $title     = "Document for Signature — The Pupper Club";
+            $recipientName = $data['name'];
+            $recipientEmail = $data['email'];
+            \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($recipientName, $recipientEmail, $title, $signingUrl, $document, $logoPath, $replyAddr) {
+                $message->to($recipientEmail)
+                    ->subject($title)
+                    ->replyTo($replyAddr)
+                    ->html(view('emails.signature_request', [
+                        'userName'     => $recipientName,
+                        'documentName' => $document->filename,
+                        'signingUrl'   => $signingUrl,
+                    ])->render());
+                if (file_exists($logoPath)) {
+                    $logoPart = new \Symfony\Component\Mime\Part\DataPart(
+                        file_get_contents($logoPath), 'logo.png', 'image/png'
+                    );
+                    $logoPart->asInline();
+                    $logoPart->setContentId('logo@thepupperclub.ca');
+                    $message->getSymfonyMessage()->addPart($logoPart);
+                }
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('External co-signer email failed', ['error' => $e->getMessage()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $clientId,
+                    'type'       => 'ExternalSigningRequestEmailFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['document_id' => $document->id],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+        }
+
+        return response()->json([
+            'external_signing_url' => $signingUrl,
+            'token'                => $token,
+        ]);
+    }
+
+    /**
      * Public: return document metadata for the signing page.
      * GET /signing/{token}
      */
     public function show(string $token): JsonResponse
     {
-        // Check if it's a countersign token
-        $document = ClientDocument::where('countersign_token', $token)
-            ->with('template.fields')
-            ->first();
+        [$document, $targetRole] = $this->resolveByToken($token);
+        $isCountersign = $targetRole === 'company';
 
-        $isCountersign = false;
-        if ($document) {
-            $isCountersign = true;
+        if ($targetRole === 'company') {
             abort_if($document->countersigned_at, 410, 'This document has already been counter-signed.');
-        } else {
-            $document = ClientDocument::where('signature_token', $token)
-                ->with('template.fields')
-                ->firstOrFail();
+        } elseif ($targetRole === 'client') {
             abort_if($document->signed_at, 410, 'This document has already been signed.');
+        } else {
+            abort_if($document->external_signed_at, 410, 'This document has already been signed.');
         }
 
         // Track first view and notify admin (client signing only)
-        if (!$isCountersign && !$document->first_viewed_at) {
+        if ($targetRole === 'client' && !$document->first_viewed_at) {
             $document->update(['first_viewed_at' => now()]);
 
             // Notify admin that client opened the document
@@ -117,17 +183,17 @@ class SigningController extends Controller
         }
 
         $fields = [];
-        $targetRole = $isCountersign ? 'company' : 'client';
+        $values = match ($targetRole) {
+            'company'  => $document->countersign_field_values ?? [],
+            'external' => $document->external_field_values ?? [],
+            default    => $document->field_values ?? [],
+        };
 
         if ($document->template) {
             foreach ($document->template->fields as $field) {
                 // Only show fields assigned to the current signer
                 $fieldRole = $field->assigned_to ?? 'client';
                 if ($fieldRole !== $targetRole) continue;
-
-                $values = $isCountersign
-                    ? ($document->countersign_field_values ?? [])
-                    : ($document->field_values ?? []);
 
                 $fields[] = [
                     'id'            => $field->id,
@@ -149,20 +215,41 @@ class SigningController extends Controller
 
         return response()->json([
             'data' => [
-                'id'             => $document->id,
-                'filename'       => $document->filename,
-                'client'         => $document->user?->name,
-                'requested'      => $document->signature_requested_at,
-                'signed'         => $document->signed_at,
-                'is_countersign' => $isCountersign,
-                'signer_role'    => $targetRole,
-                'has_fields'     => count($fields) > 0,
-                'fields'         => $fields,
-                'field_values'   => $isCountersign
-                    ? ($document->countersign_field_values ?? [])
-                    : ($document->field_values ?? []),
+                'id'                       => $document->id,
+                'filename'                 => $document->filename,
+                'client'                   => $document->user?->name,
+                'external_recipient_name'  => $document->external_recipient_name,
+                'requested'                => $document->signature_requested_at,
+                'signed'                   => $document->signed_at,
+                'is_countersign'           => $isCountersign,
+                'signer_role'              => $targetRole,
+                'has_fields'               => count($fields) > 0,
+                'fields'                   => $fields,
+                'field_values'             => $values,
             ],
         ]);
+    }
+
+    /**
+     * Look up a document by any of its three signer tokens (countersign,
+     * client, external), in that order, and return it with the matching role.
+     *
+     * @return array{0: ClientDocument, 1: string} [$document, $role]
+     */
+    private function resolveByToken(string $token): array
+    {
+        $document = ClientDocument::where('countersign_token', $token)->with('template.fields')->first();
+        if ($document) {
+            return [$document, 'company'];
+        }
+
+        $document = ClientDocument::where('signature_token', $token)->with('template.fields')->first();
+        if ($document) {
+            return [$document, 'client'];
+        }
+
+        $document = ClientDocument::where('external_signature_token', $token)->with('template.fields')->firstOrFail();
+        return [$document, 'external'];
     }
 
     /**
@@ -171,9 +258,10 @@ class SigningController extends Controller
      */
     public function serveDocument(string $token): StreamedResponse
     {
-        // Support both client and countersign tokens
+        // Support all three signer tokens
         $document = ClientDocument::where('signature_token', $token)->first()
-            ?? ClientDocument::where('countersign_token', $token)->firstOrFail();
+            ?? ClientDocument::where('countersign_token', $token)->first()
+            ?? ClientDocument::where('external_signature_token', $token)->firstOrFail();
 
         abort_unless(Storage::disk('local')->exists($document->storage_path), 404);
 
@@ -190,20 +278,23 @@ class SigningController extends Controller
      */
     public function sign(Request $request, string $token): JsonResponse
     {
-        // Check countersign first
-        $document = ClientDocument::where('countersign_token', $token)
-            ->with(['user', 'template.fields'])
-            ->first();
+        $document = ClientDocument::where('countersign_token', $token)->with(['user', 'template.fields'])->first();
+        $targetRole = 'company';
+        if (!$document) {
+            $document = ClientDocument::where('signature_token', $token)->with(['user', 'template.fields'])->first();
+            $targetRole = 'client';
+        }
+        if (!$document) {
+            $document = ClientDocument::where('external_signature_token', $token)->with(['user', 'template.fields'])->firstOrFail();
+            $targetRole = 'external';
+        }
 
-        $isCountersign = false;
-        if ($document) {
-            $isCountersign = true;
+        if ($targetRole === 'company') {
             abort_if($document->countersigned_at, 410, 'This document has already been counter-signed.');
-        } else {
-            $document = ClientDocument::where('signature_token', $token)
-                ->with(['user', 'template.fields'])
-                ->firstOrFail();
+        } elseif ($targetRole === 'client') {
             abort_if($document->signed_at, 410, 'This document has already been signed.');
+        } else {
+            abort_if($document->external_signed_at, 410, 'This document has already been signed.');
         }
 
         $data = $request->validate([
@@ -217,7 +308,7 @@ class SigningController extends Controller
             $base64 = explode(',', $base64, 2)[1];
         }
 
-        if ($isCountersign) {
+        if ($targetRole === 'company') {
             // Counter-sign by admin/company
             $document->update([
                 'countersigned_at'          => now(),
@@ -228,10 +319,27 @@ class SigningController extends Controller
                 'status'                    => 'completed',
             ]);
 
-            // Re-generate certificate with both signatures
+            // Re-generate certificate with all signatures
             $this->generateCertificate($document->fresh('user'));
 
             return response()->json(['message' => 'Document counter-signed successfully.']);
+        }
+
+        if ($targetRole === 'external') {
+            $updateData = [
+                'external_signed_at'      => now(),
+                'external_signer_name'    => $data['signer_name'],
+                'external_signer_ip'      => $request->ip(),
+                'external_signature_data' => $base64,
+            ];
+            if (!empty($data['field_values'])) {
+                $updateData['external_field_values'] = $data['field_values'];
+            }
+            $document->update($updateData);
+
+            $this->maybeAdvance($document->fresh(['user', 'template.fields']), $data['signer_name']);
+
+            return response()->json(['message' => 'Document signed successfully.']);
         }
 
         // Client sign
@@ -249,13 +357,31 @@ class SigningController extends Controller
 
         $document->update($updateData);
 
-        // Check if template has company fields that need counter-signing
-        $hasCompanyFields = false;
-        if ($document->template) {
-            $hasCompanyFields = $document->template->fields
-                ->where('assigned_to', 'company')
-                ->isNotEmpty();
+        $this->maybeAdvance($document->fresh(['user', 'template.fields']), $data['signer_name']);
+
+        return response()->json(['message' => 'Document signed successfully.']);
+    }
+
+    /**
+     * Called after the client and/or external signer signs. Only proceeds
+     * once every primary role actually configured on this document (client,
+     * if user_id is set; external, if external_recipient_email is set) has
+     * signed — so counter-signing (or immediate certificate generation, if
+     * there are no company fields) always reflects the complete document,
+     * not a partially-signed one.
+     */
+    private function maybeAdvance(ClientDocument $document, string $lastSignerName): void
+    {
+        $needsClient   = $document->user_id !== null;
+        $needsExternal = $document->external_recipient_email !== null;
+        $clientDone    = !$needsClient || $document->signed_at !== null;
+        $externalDone  = !$needsExternal || $document->external_signed_at !== null;
+
+        if (!$clientDone || !$externalDone) {
+            return; // still waiting on the other primary signer
         }
+
+        $hasCompanyFields = $document->template?->fields->where('assigned_to', 'company')->isNotEmpty() ?? false;
 
         if ($hasCompanyFields) {
             // Generate counter-sign token and notify admin
@@ -268,11 +394,10 @@ class SigningController extends Controller
             $frontendUrl    = rtrim(env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
             $countersignUrl = "{$frontendUrl}/sign/{$countersignToken}";
 
-            // Notify admin
             $admin = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
             if ($admin) {
                 $title = "Counter-signature needed — {$document->filename}";
-                $body  = "{$data['signer_name']} has signed \"{$document->filename}\". Please review and counter-sign.";
+                $body  = "{$lastSignerName} has signed \"{$document->filename}\". Please review and counter-sign.";
                 $htmlBody = '<p>' . e($body) . '</p>'
                     . '<div style="text-align:center;margin:28px 0;">'
                     . '<a href="' . $countersignUrl . '" style="'
@@ -283,42 +408,43 @@ class SigningController extends Controller
 
                 app(NotificationDispatcher::class)->notify($admin, $title, $body, $htmlBody);
 
-                // Also add to conversation
-                $conversation = Conversation::firstOrCreate(['user_id' => $document->user_id]);
-                $conversation->messages()->create([
-                    'sender_id' => $document->user_id,
-                    'type'      => 'text',
-                    'body'      => "I've signed the document \"{$document->filename}\". Awaiting your counter-signature.",
-                    'metadata'  => ['system' => true, 'document_id' => $document->id],
-                ]);
-                $conversation->increment('unread_count_admin');
-                $conversation->update(['last_message_at' => now()]);
+                if ($document->user_id) {
+                    $conversation = Conversation::firstOrCreate(['user_id' => $document->user_id]);
+                    $conversation->messages()->create([
+                        'sender_id' => $document->user_id,
+                        'type'      => 'text',
+                        'body'      => "I've signed the document \"{$document->filename}\". Awaiting your counter-signature.",
+                        'metadata'  => ['system' => true, 'document_id' => $document->id],
+                    ]);
+                    $conversation->increment('unread_count_admin');
+                    $conversation->update(['last_message_at' => now()]);
+                }
             }
         } else {
             // No company fields — generate certificate immediately
-            $this->generateCertificate($document->fresh('user'));
+            $document->update(['status' => 'completed']);
+            $this->generateCertificate($document);
 
-            // Notify admin via conversation + push/email
             $admin = \App\Models\User::whereIn('role', ['admin', 'superadmin'])->first();
             if ($admin) {
-                $conversation = Conversation::firstOrCreate(['user_id' => $document->user_id]);
-                $conversation->messages()->create([
-                    'sender_id' => $document->user_id,
-                    'type'      => 'text',
-                    'body'      => "I've signed the document \"{$document->filename}\".",
-                    'metadata'  => ['system' => true, 'document_id' => $document->id],
-                ]);
-                $conversation->increment('unread_count_admin');
-                $conversation->update(['last_message_at' => now()]);
+                if ($document->user_id) {
+                    $conversation = Conversation::firstOrCreate(['user_id' => $document->user_id]);
+                    $conversation->messages()->create([
+                        'sender_id' => $document->user_id,
+                        'type'      => 'text',
+                        'body'      => "I've signed the document \"{$document->filename}\".",
+                        'metadata'  => ['system' => true, 'document_id' => $document->id],
+                    ]);
+                    $conversation->increment('unread_count_admin');
+                    $conversation->update(['last_message_at' => now()]);
+                }
 
-                $clientName = $document->user?->name ?? $data['signer_name'];
+                $signerName = $document->user?->name ?? $document->external_recipient_name ?? $lastSignerName;
                 $title = "Document signed — {$document->filename}";
-                $body  = "{$clientName} has signed \"{$document->filename}\".";
+                $body  = "{$signerName} has signed \"{$document->filename}\".";
                 app(NotificationDispatcher::class)->notify($admin, $title, $body);
             }
         }
-
-        return response()->json(['message' => 'Document signed successfully.']);
     }
 
     /**
@@ -352,15 +478,40 @@ class SigningController extends Controller
             ->filter(fn ($row) => $row['value'] !== null && $row['value'] !== '')
             ->values();
 
+        $externalFields = $templateFields
+            ->where('assigned_to', 'external')
+            ->map(fn ($f) => [
+                'label' => $f->label,
+                'type'  => $f->field_type,
+                'value' => $this->formatFieldValue($f, ($document->external_field_values ?? [])[$f->id] ?? null),
+            ])
+            ->filter(fn ($row) => $row['value'] !== null && $row['value'] !== '')
+            ->values();
+
         $viewData = [
-            'document'       => $document,
-            'signer_name'    => $document->signer_name,
-            'signer_ip'      => $document->signer_ip,
-            'signed_at'      => $document->signed_at,
-            'signature_png'  => $document->signature_data,
-            'client_fields'  => $clientFields,
-            'company_fields' => $companyFields,
+            'document'        => $document,
+            'client_fields'   => $clientFields,
+            'company_fields'  => $companyFields,
+            'external_fields' => $externalFields,
         ];
+
+        // Client slot — only populated if a client actually signed. A
+        // standalone external-only document never sets these, and the
+        // certificate blade guards its "Client Signature" section on
+        // $document->user_id being present.
+        if ($document->signed_at) {
+            $viewData['signer_name']   = $document->signer_name;
+            $viewData['signer_ip']     = $document->signer_ip;
+            $viewData['signed_at']     = $document->signed_at;
+            $viewData['signature_png'] = $document->signature_data;
+        }
+
+        if ($document->external_signed_at) {
+            $viewData['external_signer_name']   = $document->external_signer_name;
+            $viewData['external_signer_ip']     = $document->external_signer_ip;
+            $viewData['external_signed_at']     = $document->external_signed_at;
+            $viewData['external_signature_png'] = $document->external_signature_data;
+        }
 
         if ($document->countersigned_at) {
             $viewData['countersigner_name'] = $document->countersigner_name;
@@ -463,6 +614,33 @@ class SigningController extends Controller
         return Storage::disk('local')->download(
             $document->signed_pdf_path,
             $certName,
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    /**
+     * Admin: download the signature certificate PDF for any document,
+     * client-assigned or standalone external. Unlike certificate() above
+     * (kept for backward compatibility), this isn't scoped by client ID.
+     * GET /admin/documents/{document}/certificate
+     */
+    public function certificateByDocument(ClientDocument $document): StreamedResponse
+    {
+        abort_unless($document->signed_pdf_path, 404, 'No certificate available yet.');
+
+        $needsRegen = str_starts_with((string) $document->signed_pdf_path, 'private/documents/cert_')
+            || !Storage::disk('local')->exists($document->signed_pdf_path);
+
+        if ($needsRegen) {
+            $this->generateCertificate($document);
+            $document->refresh();
+        }
+
+        abort_unless(Storage::disk('local')->exists($document->signed_pdf_path), 404);
+
+        return Storage::disk('local')->download(
+            $document->signed_pdf_path,
+            'signed_' . $document->filename,
             ['Content-Type' => 'application/pdf']
         );
     }

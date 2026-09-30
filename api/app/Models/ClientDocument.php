@@ -36,6 +36,15 @@ class ClientDocument extends Model
         'countersign_signature_data',
         'countersign_field_values',
         'first_viewed_at',
+        'external_recipient_name',
+        'external_recipient_email',
+        'external_signature_requested_at',
+        'external_signature_token',
+        'external_signed_at',
+        'external_signer_name',
+        'external_signer_ip',
+        'external_signature_data',
+        'external_field_values',
     ];
 
     protected function casts(): array
@@ -49,6 +58,9 @@ class ClientDocument extends Model
             'countersigned_at'       => 'datetime',
             'countersign_field_values' => 'array',
             'first_viewed_at'          => 'datetime',
+            'external_signature_requested_at' => 'datetime',
+            'external_signed_at'              => 'datetime',
+            'external_field_values'           => 'array',
         ];
     }
 

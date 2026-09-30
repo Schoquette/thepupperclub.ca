@@ -1951,6 +1951,7 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
   const [dogId, setDogId] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [signingUrl, setSigningUrl] = useState<string | null>(null);
+  const [signingUrlKind, setSigningUrlKind] = useState<'client' | 'external'>('client');
   const [docSearch, setDocSearch] = useState('');
   const [docSort, setDocSort] = useState<DocSortKey>('date');
   const [docSortDir, setDocSortDir] = useState<DocSortDir>('desc');
@@ -2021,9 +2022,30 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
       api.post(`/admin/clients/${clientId}/documents/${docId}/request-signature`).then(r => r.data),
     onSuccess: (data) => {
       setSigningUrl(data.signing_url);
+      setSigningUrlKind('client');
       onChanged();
     },
     onError: (e: any) => { setDocActionMsg(''); setUploadError(e.response?.data?.message || 'Failed to request signature.'); },
+  });
+
+  // External (non-portal) co-signer
+  const [coSignerDoc, setCoSignerDoc] = useState<any>(null);
+  const [coSignerName, setCoSignerName] = useState('');
+  const [coSignerEmail, setCoSignerEmail] = useState('');
+  const [coSignerError, setCoSignerError] = useState('');
+  const addExternalSigner = useMutation({
+    mutationFn: ({ docId, name, email }: { docId: number; name: string; email: string }) =>
+      api.post(`/admin/clients/${clientId}/documents/${docId}/add-external-signer`, { name, email }).then(r => r.data),
+    onSuccess: (data) => {
+      setSigningUrl(data.external_signing_url);
+      setSigningUrlKind('external');
+      setCoSignerDoc(null);
+      setCoSignerName('');
+      setCoSignerEmail('');
+      setCoSignerError('');
+      onChanged();
+    },
+    onError: (e: any) => setCoSignerError(e.response?.data?.message || 'Failed to add co-signer.'),
   });
 
   const handleCopyLink = (url: string) => {
@@ -2142,9 +2164,47 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
               </button>
               <button onClick={() => setSigningUrl(null)} className="text-green-600 hover:text-green-800 text-lg leading-none">×</button>
             </div>
-            <p className="text-xs text-green-600 mt-1">This link has also been sent to the client in their conversation thread.</p>
+            <p className="text-xs text-green-600 mt-1">
+              {signingUrlKind === 'external'
+                ? 'This link has also been emailed to the co-signer.'
+                : 'This link has also been sent to the client in their conversation thread.'}
+            </p>
           </div>
         )}
+
+        {/* Add external co-signer modal */}
+        <Modal open={!!coSignerDoc} onClose={() => setCoSignerDoc(null)} title="Add External Co-Signer">
+          <div className="space-y-4">
+            <p className="text-sm text-taupe">
+              Add someone without a portal account as an extra signer on <strong className="text-espresso">{coSignerDoc?.filename}</strong>.
+              They'll get an emailed link to sign — no login required. This must be done before {client.name} signs.
+            </p>
+            <Input
+              label="Full Name"
+              value={coSignerName}
+              onChange={e => setCoSignerName(e.target.value)}
+              placeholder="Jane Smith"
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={coSignerEmail}
+              onChange={e => setCoSignerEmail(e.target.value)}
+              placeholder="jane@example.com"
+            />
+            {coSignerError && <p className="text-sm text-red-600">{coSignerError}</p>}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setCoSignerDoc(null)}>Cancel</Button>
+              <Button
+                loading={addExternalSigner.isPending}
+                disabled={!coSignerName.trim() || !coSignerEmail.trim()}
+                onClick={() => coSignerDoc && addExternalSigner.mutate({ docId: coSignerDoc.id, name: coSignerName.trim(), email: coSignerEmail.trim() })}
+              >
+                Send
+              </Button>
+            </div>
+          </div>
+        </Modal>
 
         {/* Search / filter controls */}
         {(client.documents?.length ?? 0) > 0 && (
@@ -2231,6 +2291,21 @@ function DocumentsTab({ clientId, client, onChanged }: { clientId: number; clien
                             >
                               {doc.signature_requested_at ? 'Resend' : 'Request Signature'}
                             </button>
+                          )}
+                          {doc.mime_type === 'application/pdf' && !doc.signed_at && (
+                            doc.external_recipient_email ? (
+                              <span className="text-xs text-taupe">
+                                Co-signer: {doc.external_recipient_name}{doc.external_signed_at ? ' (signed)' : ''}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => { setCoSignerDoc(doc); setCoSignerName(''); setCoSignerEmail(''); setCoSignerError(''); }}
+                                className="text-xs text-taupe hover:underline"
+                                title="Add someone without a portal account as an extra signer on this document — must be done before the client signs"
+                              >
+                                + Add Co-Signer
+                              </button>
+                            )
                           )}
                           <button onClick={() => handleView(doc)} className="text-blue text-sm hover:underline">View</button>
                           <button onClick={() => handleDownload(doc)} className="text-blue text-sm hover:underline">Download</button>

@@ -291,7 +291,10 @@ export default function SigningPage() {
 
     const serverValues: Record<string, string> = data.field_values ?? {};
     const today = todayPacific();
-    const defaultName = data.is_countersign ? 'Sophie Choquette' : (data.client ?? '');
+    const defaultName =
+      data.signer_role === 'company'  ? 'Sophie Choquette' :
+      data.signer_role === 'external' ? (data.external_recipient_name ?? '') :
+      (data.client ?? '');
     const initial: Record<string, string> = {};
 
     fields.forEach(f => {

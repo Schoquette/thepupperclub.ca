@@ -103,6 +103,8 @@ export default function AdminDocumentsPage() {
   // Use template modal
   const [useModal, setUseModal] = useState<any>(null);
   const [useClientId, setUseClientId] = useState('');
+  const [useExternalName, setUseExternalName] = useState('');
+  const [useExternalEmail, setUseExternalEmail] = useState('');
   const [useError, setUseError] = useState('');
 
   // Preview modal
@@ -110,10 +112,10 @@ export default function AdminDocumentsPage() {
 
   // Download the merged signed PDF (stamped original + appended certificate).
   const downloadSigned = async (doc: any) => {
-    if (!doc.signed_pdf_path || !doc.user_id) return;
+    if (!doc.signed_pdf_path) return;
     try {
       const res = await api.get(
-        `/admin/clients/${doc.user_id}/documents/${doc.id}/certificate`,
+        `/admin/documents/${doc.id}/certificate`,
         { responseType: 'blob' },
       );
       const url = URL.createObjectURL(res.data);
@@ -210,10 +212,14 @@ export default function AdminDocumentsPage() {
   // Use template
   const createFromTemplate = useMutation({
     mutationFn: (templateId: number) =>
-      api.post(`/admin/document-templates/${templateId}/use`, { client_id: Number(useClientId) }),
+      api.post(`/admin/document-templates/${templateId}/use`, useClientId
+        ? { client_id: Number(useClientId) }
+        : { external_recipient_name: useExternalName, external_recipient_email: useExternalEmail }),
     onSuccess: (res) => {
       setUseModal(null);
       setUseClientId('');
+      setUseExternalName('');
+      setUseExternalEmail('');
       qc.invalidateQueries({ queryKey: ['admin-documents'] });
       // Open the newly created document in preview so admin can review & send
       setPreviewDoc(res.data.data);
@@ -505,7 +511,16 @@ export default function AdminDocumentsPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-taupe break-words">{doc.user?.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-taupe break-words">
+                        {doc.user?.name ?? (
+                          doc.external_recipient_name ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              {doc.external_recipient_name}
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-taupe/20 text-espresso font-medium">External</span>
+                            </span>
+                          ) : '—'
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <Badge variant={statusBadge(st)}>{st}</Badge>
                       </td>
@@ -632,13 +647,13 @@ export default function AdminDocumentsPage() {
       <Modal open={!!useModal} onClose={() => setUseModal(null)} title={`Use Template: ${useModal?.name ?? ''}`}>
         <div className="space-y-4">
           <p className="text-sm text-taupe">
-            Select a client to create a copy of this template. The document will be linked to the client as a draft.
+            Select a client, or send to an external recipient with no portal account, to create a copy of this template as a draft.
           </p>
           <div>
             <label className="block text-sm font-medium text-espresso mb-1">Client</label>
             <select
               value={useClientId}
-              onChange={e => setUseClientId(e.target.value)}
+              onChange={e => { setUseClientId(e.target.value); if (e.target.value) { setUseExternalName(''); setUseExternalEmail(''); } }}
               className="w-full border border-taupe/30 rounded-lg px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-gold/40"
             >
               <option value="">Select a client...</option>
@@ -646,6 +661,25 @@ export default function AdminDocumentsPage() {
                 <option key={c.id} value={c.id}>{c.name} — {c.email}</option>
               ))}
             </select>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-taupe">
+            <div className="flex-1 h-px bg-taupe/20" />
+            or
+            <div className="flex-1 h-px bg-taupe/20" />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-espresso mb-1">External recipient (no portal account)</label>
+            <Input
+              placeholder="Full name"
+              value={useExternalName}
+              onChange={e => { setUseExternalName(e.target.value); if (e.target.value) setUseClientId(''); }}
+            />
+            <Input
+              placeholder="Email address"
+              type="email"
+              value={useExternalEmail}
+              onChange={e => { setUseExternalEmail(e.target.value); if (e.target.value) setUseClientId(''); }}
+            />
           </div>
           {useModal?.fields_count > 0 ? (
             <div className="text-xs text-taupe bg-cream/50 rounded-lg px-3 py-2">
@@ -666,10 +700,10 @@ export default function AdminDocumentsPage() {
             <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{useError}</div>
           )}
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => setUseModal(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setUseModal(null); setUseClientId(''); setUseExternalName(''); setUseExternalEmail(''); }}>Cancel</Button>
             <Button
               loading={createFromTemplate.isPending}
-              disabled={!useClientId}
+              disabled={!useClientId && !(useExternalName && useExternalEmail)}
               onClick={() => useModal && createFromTemplate.mutate(useModal.id)}
             >
               Create & Preview
@@ -749,6 +783,9 @@ export default function AdminDocumentsPage() {
                 {previewDoc.user?.name && (
                   <span className="text-taupe">Client: <strong className="text-espresso">{previewDoc.user.name}</strong></span>
                 )}
+                {!previewDoc.user?.name && previewDoc.external_recipient_name && (
+                  <span className="text-taupe">External recipient: <strong className="text-espresso">{previewDoc.external_recipient_name}</strong></span>
+                )}
                 {previewDoc.template && (
                   <span className="text-taupe">Template: <strong className="text-espresso">{previewDoc.template.name}</strong></span>
                 )}
@@ -799,12 +836,14 @@ export default function AdminDocumentsPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => { setPreviewDoc(null); navigate(`/admin/clients/${previewDoc.user_id}`); }}
-                    className="text-sm text-blue hover:underline"
-                  >
-                    Go to Client
-                  </button>
+                  {previewDoc.user_id && (
+                    <button
+                      onClick={() => { setPreviewDoc(null); navigate(`/admin/clients/${previewDoc.user_id}`); }}
+                      className="text-sm text-blue hover:underline"
+                    >
+                      Go to Client
+                    </button>
+                  )}
                   <Button variant="outline" onClick={() => setPreviewDoc(null)}>Close</Button>
                 </div>
               </div>

@@ -113,7 +113,7 @@ class DocumentTemplateController extends Controller
             'fields'                => 'present|array',
             'fields.*.label'        => 'required|string|max:255',
             'fields.*.field_type'   => 'required|string|in:name,checkbox,date,signature,dog_name,open_text',
-            'fields.*.assigned_to'  => 'sometimes|string|in:client,company',
+            'fields.*.assigned_to'  => 'sometimes|string|in:client,company,external',
             'fields.*.page'         => 'required|integer|min:1',
             'fields.*.x'            => 'required|numeric|min:0|max:100',
             'fields.*.y'            => 'required|numeric|min:0|max:100',
@@ -146,8 +146,16 @@ class DocumentTemplateController extends Controller
     public function useTemplate(Request $request, DocumentTemplate $template): JsonResponse
     {
         $data = $request->validate([
-            'client_id' => 'required|exists:users,id',
+            'client_id'                => 'nullable|exists:users,id',
+            'external_recipient_name'  => 'nullable|required_without:client_id|string|max:255',
+            'external_recipient_email' => 'nullable|required_without:client_id|email|max:255',
         ]);
+
+        abort_if(
+            empty($data['client_id']) && empty($data['external_recipient_name']),
+            422,
+            'Select a client or provide an external recipient.'
+        );
 
         $template->load('fields');
 
@@ -156,7 +164,7 @@ class DocumentTemplateController extends Controller
         Storage::disk('local')->copy($template->pdf_storage_path, $newPath);
 
         // Pre-fill field values from client data
-        $client = \App\Models\User::with('dogs')->find($data['client_id']);
+        $client = !empty($data['client_id']) ? \App\Models\User::with('dogs')->find($data['client_id']) : null;
         $fieldValues = [];
         foreach ($template->fields as $field) {
             $value = $field->default_value ?? '';
@@ -171,7 +179,9 @@ class DocumentTemplateController extends Controller
         }
 
         $document = ClientDocument::create([
-            'user_id'      => $data['client_id'],
+            'user_id'                  => $data['client_id'] ?? null,
+            'external_recipient_name'  => $data['external_recipient_name'] ?? null,
+            'external_recipient_email' => $data['external_recipient_email'] ?? null,
             'type'         => 'document',
             'filename'     => $template->pdf_filename,
             'mime_type'    => 'application/pdf',
@@ -264,7 +274,11 @@ class DocumentTemplateController extends Controller
 
     public function sendForSigning(Request $request, ClientDocument $document): JsonResponse
     {
-        abort_unless($document->user_id, 422, 'Document must be assigned to a client.');
+        abort_if(
+            !$document->user_id && !$document->external_recipient_email,
+            422,
+            'Document must be assigned to a client or an external recipient.'
+        );
         abort_if($document->signed_at, 422, 'Document is already signed.');
 
         // Require fields to be defined before sending template-based documents
@@ -273,17 +287,28 @@ class DocumentTemplateController extends Controller
             abort_if($fieldCount === 0, 422, 'Please define signing fields on this template before sending. Go to Templates > Edit to add fields.');
         }
 
-        $token = Str::random(64);
-
-        $document->update([
-            'status'                => 'sent',
-            'sent_at'               => now(),
-            'signature_requested_at'=> now(),
-            'signature_token'       => $token,
-        ]);
-
         $frontendUrl = rtrim(env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
-        $signingUrl  = "{$frontendUrl}/sign/{$token}";
+        $updates     = ['status' => 'sent', 'sent_at' => now()];
+
+        $signingUrl = null;
+        $token      = null;
+        if ($document->user_id) {
+            $token      = Str::random(64);
+            $signingUrl = "{$frontendUrl}/sign/{$token}";
+            $updates['signature_requested_at'] = now();
+            $updates['signature_token']        = $token;
+        }
+
+        $externalSigningUrl = null;
+        $externalToken       = null;
+        if ($document->external_recipient_email) {
+            $externalToken       = Str::random(64);
+            $externalSigningUrl  = "{$frontendUrl}/sign/{$externalToken}";
+            $updates['external_signature_requested_at'] = now();
+            $updates['external_signature_token']        = $externalToken;
+        }
+
+        $document->update($updates);
 
         // Send notification to client
         $client = $document->user;
@@ -341,10 +366,51 @@ class DocumentTemplateController extends Controller
             }
         }
 
+        // Send notification to the external recipient (no portal account — email only)
+        if ($document->external_recipient_email && $externalSigningUrl) {
+            try {
+                $logoPath  = public_path('images/logo-cream-stacked.png');
+                $replyAddr = config('services.resend.inbound_address') ?: config('mail.from.address');
+                $title     = "Document for Signature — The Pupper Club";
+                $recipientName = $document->external_recipient_name;
+                $recipientEmail = $document->external_recipient_email;
+                \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($recipientName, $recipientEmail, $title, $externalSigningUrl, $document, $logoPath, $replyAddr) {
+                    $message->to($recipientEmail)
+                        ->subject($title)
+                        ->replyTo($replyAddr)
+                        ->html(view('emails.signature_request', [
+                            'userName'     => $recipientName,
+                            'documentName' => $document->filename,
+                            'signingUrl'   => $externalSigningUrl,
+                        ])->render());
+                    if (file_exists($logoPath)) {
+                        $logoPart = new \Symfony\Component\Mime\Part\DataPart(
+                            file_get_contents($logoPath), 'logo.png', 'image/png'
+                        );
+                        $logoPart->asInline();
+                        $logoPart->setContentId('logo@thepupperclub.ca');
+                        $message->getSymfonyMessage()->addPart($logoPart);
+                    }
+                });
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('External signing email failed', ['error' => $e->getMessage()]);
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'ExternalSigningRequestEmailFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['document_id' => $document->id],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
+
         return response()->json([
-            'signing_url' => $signingUrl,
-            'token'       => $token,
-            'message'     => 'Document sent for signing.',
+            'signing_url'          => $signingUrl,
+            'token'                => $token,
+            'external_signing_url' => $externalSigningUrl,
+            'external_token'       => $externalToken,
+            'message'              => 'Document sent for signing.',
         ]);
     }
 }

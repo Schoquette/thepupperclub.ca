@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/Card';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-type AssignedTo = 'client' | 'company';
+type AssignedTo = 'client' | 'company' | 'external';
 
 interface Field {
   id?: number;
@@ -36,8 +36,9 @@ const FIELD_TYPES = [
 ];
 
 const ROLES: { value: AssignedTo; label: string; color: string; bg: string }[] = [
-  { value: 'client',  label: 'Client',           color: '#6492D8', bg: 'bg-blue/10' },
-  { value: 'company', label: 'The Pupper Club',  color: '#C9A24D', bg: 'bg-gold/10' },
+  { value: 'client',   label: 'Client',           color: '#6492D8', bg: 'bg-blue/10' },
+  { value: 'company',  label: 'The Pupper Club',  color: '#C9A24D', bg: 'bg-gold/10' },
+  { value: 'external', label: 'External Signer',  color: '#B08968', bg: 'bg-taupe/20' },
 ];
 
 const roleColor = (role: AssignedTo) => ROLES.find(r => r.value === role)?.color ?? '#999';
@@ -311,6 +312,7 @@ export default function TemplateEditorPage() {
 
   const clientFieldCount = fields.filter(f => f.assigned_to === 'client').length;
   const companyFieldCount = fields.filter(f => f.assigned_to === 'company').length;
+  const externalFieldCount = fields.filter(f => f.assigned_to === 'external').length;
 
   if (isLoading) {
     return (
@@ -656,7 +658,7 @@ export default function TemplateEditorPage() {
 
             {/* Company fields */}
             {companyFieldCount > 0 && (
-              <div>
+              <div className="mb-3">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: roleColor('company') }} />
                   <span className="text-xs font-semibold text-espresso uppercase tracking-wide">The Pupper Club ({companyFieldCount})</span>
@@ -670,6 +672,34 @@ export default function TemplateEditorPage() {
                         onClick={() => { setSelectedIdx(idx); setCurrentPage(field.page); }}
                         className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
                           selectedIdx === idx ? 'bg-gold/10' : 'hover:bg-cream/50'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: fieldColor(field.field_type) }} />
+                        <span className="flex-1 truncate text-espresso">{field.label}</span>
+                        <span className="text-taupe">p{field.page}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* External signer fields */}
+            {externalFieldCount > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: roleColor('external') }} />
+                  <span className="text-xs font-semibold text-espresso uppercase tracking-wide">External Signer ({externalFieldCount})</span>
+                </div>
+                <div className="space-y-0.5">
+                  {fields.filter(f => f.assigned_to === 'external').map(field => {
+                    const idx = fields.indexOf(field);
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => { setSelectedIdx(idx); setCurrentPage(field.page); }}
+                        className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                          selectedIdx === idx ? 'bg-taupe/20' : 'hover:bg-cream/50'
                         }`}
                       >
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: fieldColor(field.field_type) }} />
@@ -791,7 +821,7 @@ export default function TemplateEditorPage() {
                 <div key={r.value} className="flex items-center gap-2 text-xs">
                   <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: r.color }} />
                   <span className="text-espresso font-medium">{r.label}</span>
-                  <span className="text-taupe">— fills {r.value === 'client' ? 'first' : 'after client signs'}</span>
+                  <span className="text-taupe">— fills {r.value === 'company' ? 'after client & external sign' : 'independently, before company'}</span>
                 </div>
               ))}
             </div>
