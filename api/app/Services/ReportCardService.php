@@ -311,6 +311,33 @@ class ReportCardService
             if (!$src) {
                 return [$content, $mime, $ext];
             }
+
+            // GD reads raw sensor pixel data and ignores the EXIF
+            // Orientation tag phone cameras embed -- without correcting
+            // for it here, the resize below bakes in a sideways/upside-
+            // down image permanently (imagejpeg() doesn't carry EXIF
+            // through to the output). The stored original is untouched
+            // by this method, so the portal/PDF views are unaffected --
+            // browsers already respect EXIF orientation on the raw file.
+            if (function_exists('exif_read_data')) {
+                try {
+                    $exif = @exif_read_data('data://image/jpeg;base64,' . base64_encode($content));
+                    $orientation = (int) ($exif['Orientation'] ?? 1);
+                    $rotated = match ($orientation) {
+                        3       => imagerotate($src, 180, 0),
+                        6       => imagerotate($src, -90, 0),
+                        8       => imagerotate($src, 90, 0),
+                        default => null,
+                    };
+                    if ($rotated !== false && $rotated !== null) {
+                        imagedestroy($src);
+                        $src = $rotated;
+                    }
+                } catch (\Throwable $e) {
+                    // Leave $src as-is if EXIF can't be read
+                }
+            }
+
             $width = imagesx($src);
             $height = imagesy($src);
             if (max($width, $height) > $maxDimension) {
