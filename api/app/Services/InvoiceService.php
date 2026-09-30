@@ -334,4 +334,47 @@ class InvoiceService
             'filtered_count'       => $buildFilteredQuery()->count(),
         ];
     }
+
+    /**
+     * Month-by-month revenue projection assuming every currently-active
+     * subscription continues unchanged. A subscription paused through a
+     * given month is excluded from that month's total, then reappears
+     * once its pause window (subscription_paused_until) has passed —
+     * an indefinite pause (no end date) is excluded from every month.
+     */
+    public function subscriptionProjections(int $months = 6): array
+    {
+        $profiles = \App\Models\ClientProfile::whereNotNull('subscription_amount')
+            ->where('subscription_amount', '>', 0)
+            ->whereHas('user', fn ($q) => $q->where('status', 'active'))
+            ->get(['user_id', 'subscription_amount', 'subscription_plan', 'subscription_paused_from', 'subscription_paused_until']);
+
+        $start = now()->startOfMonth();
+        $result = [];
+
+        for ($i = 0; $i < $months; $i++) {
+            $monthStart = $start->copy()->addMonths($i);
+
+            $total = 0.0;
+            $count = 0;
+            foreach ($profiles as $profile) {
+                if ($profile->subscription_paused_from) {
+                    $pausedUntil = $profile->subscription_paused_until;
+                    $stillPaused = !$pausedUntil || $monthStart->lte($pausedUntil);
+                    if ($stillPaused) continue;
+                }
+                $total += (float) $profile->subscription_amount;
+                $count++;
+            }
+
+            $result[] = [
+                'month'              => $monthStart->format('Y-m'),
+                'label'              => $monthStart->format('F Y'),
+                'projected_total'    => round($total, 2),
+                'active_subscribers' => $count,
+            ];
+        }
+
+        return $result;
+    }
 }

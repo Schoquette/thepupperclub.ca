@@ -269,6 +269,12 @@ class InvoiceController extends Controller
         )]);
     }
 
+    public function projections(Request $request): JsonResponse
+    {
+        $months = max(1, min((int) ($request->months ?? 6), 24));
+        return response()->json(['data' => $this->invoiceService->subscriptionProjections($months)]);
+    }
+
     /**
      * Link service requests to their corresponding invoice line items.
      */

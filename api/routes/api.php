@@ -201,6 +201,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/stripe/products',            [Admin\StripeController::class, 'products']);
 
         Route::get('/invoices/dashboard',         [Admin\InvoiceController::class, 'dashboard']);
+        Route::get('/invoices/projections',       [Admin\InvoiceController::class, 'projections']);
         Route::get('/invoices',                   [Admin\InvoiceController::class, 'index']);
         Route::post('/invoices',                  [Admin\InvoiceController::class, 'store']);
         Route::get('/invoices/{invoice}',         [Admin\InvoiceController::class, 'show']);

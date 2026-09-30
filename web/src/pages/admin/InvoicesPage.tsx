@@ -31,6 +31,13 @@ export default function AdminInvoicesPage() {
     queryFn: () => api.get('/admin/clients').then(r => r.data.data),
   });
 
+  const [showProjections, setShowProjections] = useState(false);
+  const { data: projections } = useQuery({
+    queryKey: ['invoice-projections'],
+    queryFn: () => api.get('/admin/invoices/projections', { params: { months: 12 } }).then(r => r.data.data),
+    enabled: showProjections,
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ['admin-invoices', filter, clientFilter, monthFilter],
     queryFn: () => api.get('/admin/invoices', {
@@ -71,6 +78,47 @@ export default function AdminInvoicesPage() {
           ))}
         </div>
       )}
+
+      {/* Subscription revenue projections — month-by-month, assuming
+          every currently-active subscription continues unchanged */}
+      <Card padding="sm">
+        <button
+          className="flex items-center justify-between w-full text-left"
+          onClick={() => setShowProjections(s => !s)}
+        >
+          <span className="font-semibold text-espresso text-sm">Subscription Revenue Projections</span>
+          <span className="text-taupe text-sm">{showProjections ? '▲ Hide' : '▼ Show'}</span>
+        </button>
+        {showProjections && (
+          <div className="mt-3 overflow-x-auto">
+            {!projections ? (
+              <div className="text-sm text-taupe py-2">Loading…</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-taupe border-b border-taupe/20">
+                    <th className="py-2 font-medium">Month</th>
+                    <th className="py-2 font-medium">Active Subscribers</th>
+                    <th className="py-2 font-medium">Projected Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projections.map((row: any) => (
+                    <tr key={row.month} className="border-b border-taupe/10">
+                      <td className="py-2">{row.label}</td>
+                      <td className="py-2">{row.active_subscribers}</td>
+                      <td className="py-2 font-medium">${Number(row.projected_total).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="text-xs text-taupe mt-2">
+              Assumes every currently-active subscription continues unchanged. Paused subscriptions are excluded until their pause window ends.
+            </p>
+          </div>
+        )}
+      </Card>
 
       {/* Filters row */}
       <div className="flex flex-wrap items-center gap-3">
