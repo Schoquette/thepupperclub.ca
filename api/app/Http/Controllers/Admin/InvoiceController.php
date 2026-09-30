@@ -148,9 +148,10 @@ class InvoiceController extends Controller
         return response()->json(['data' => $invoice->fresh('lineItems')]);
     }
 
-    public function markPaid(Invoice $invoice): JsonResponse
+    public function markPaid(Request $request, Invoice $invoice): JsonResponse
     {
-        $this->invoiceService->markPaid($invoice);
+        $notifyClient = filter_var($request->input('notify_client', true), FILTER_VALIDATE_BOOLEAN);
+        $this->invoiceService->markPaid($invoice, $notifyClient);
         return response()->json(['data' => $invoice->fresh()]);
     }
 

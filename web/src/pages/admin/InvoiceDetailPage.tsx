@@ -96,6 +96,10 @@ export default function AdminInvoiceDetailPage() {
   const [messageModal, setMessageModal] = useState<'resend' | 'reminder' | null>(null);
   const [messageText, setMessageText] = useState('');
 
+  // Mark Paid confirm modal state
+  const [markPaidModal, setMarkPaidModal] = useState(false);
+  const [notifyOnMarkPaid, setNotifyOnMarkPaid] = useState(true);
+
   // Success toast
   const [toast, setToast] = useState<string | null>(null);
   const showToast = (msg: string) => {
@@ -158,9 +162,10 @@ export default function AdminInvoiceDetailPage() {
   const [mutError, setMutError] = useState('');
 
   const markPaid = useMutation({
-    mutationFn: () => api.post(`/admin/invoices/${id}/mark-paid`),
+    mutationFn: (notifyClient: boolean) => api.post(`/admin/invoices/${id}/mark-paid`, { notify_client: notifyClient }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
+      setMarkPaidModal(false);
       showToast('Invoice marked as paid.');
     },
     onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to mark as paid.'),
@@ -351,6 +356,30 @@ export default function AdminInvoiceDetailPage() {
         </div>
       </Modal>
 
+      {/* Mark Paid confirm modal */}
+      <Modal open={markPaidModal} onClose={() => setMarkPaidModal(false)} title="Mark Invoice as Paid">
+        <div className="space-y-4">
+          <p className="text-sm text-espresso">
+            Mark {invoice.invoice_number} (${Number(invoice.total).toFixed(2)} CAD) as paid?
+          </p>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyOnMarkPaid}
+              onChange={e => setNotifyOnMarkPaid(e.target.checked)}
+              className="accent-espresso"
+            />
+            <span className="text-sm">Notify client (chat message + email receipt)</span>
+          </label>
+          <div className="flex justify-end gap-2 pt-2 border-t border-cream">
+            <Button variant="outline" size="sm" onClick={() => setMarkPaidModal(false)}>Cancel</Button>
+            <Button size="sm" loading={markPaid.isPending} onClick={() => markPaid.mutate(notifyOnMarkPaid)}>
+              Mark Paid
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Header bar — invoice number, badge, and action buttons all on one row */}
       <div className="flex items-center gap-3 flex-wrap">
         <button onClick={() => navigate(-1)} className="text-taupe hover:text-espresso text-lg">&larr;</button>
@@ -402,7 +431,7 @@ export default function AdminInvoiceDetailPage() {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => { if (confirm('Mark this invoice as paid?')) markPaid.mutate(); }}
+              onClick={() => { setNotifyOnMarkPaid(true); setMarkPaidModal(true); }}
               loading={markPaid.isPending}
             >
               Mark Paid

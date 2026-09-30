@@ -212,7 +212,7 @@ class InvoiceService
         app(NotificationDispatcher::class)->notify($client, $title, $plainBody, $htmlBody, type: 'invoices', bcc: 'sophie@thepupperclub.ca');
     }
 
-    public function markPaid(Invoice $invoice): void
+    public function markPaid(Invoice $invoice, bool $notifyClient = true): void
     {
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
 
@@ -230,6 +230,10 @@ class InvoiceService
             }
             \App\Models\ClientProfile::where('user_id', $invoice->user_id)
                 ->increment($column, $invoice->payg_pack_quantity ?? 10);
+        }
+
+        if (!$notifyClient) {
+            return;
         }
 
         // Send thank-you message in conversation
