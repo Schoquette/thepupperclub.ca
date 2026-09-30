@@ -170,9 +170,14 @@ class GenerateSubscriptionInvoices extends Command
             $title = "Upcoming Payment — The Pupper Club";
             $body = "Your {$plan} payment of \${$amount} CAD will be processed on {$billingDate}.";
 
-            $autoCharge = $profile->billing_method === 'credit_card';
-            if ($autoCharge) {
+            $willAutoCharge = $profile->billing_method === 'credit_card' && !empty($profile->stripe_payment_method_id);
+            if ($willAutoCharge) {
                 $body .= " It will be charged to your {$methodLabel} on file automatically.";
+            } elseif ($profile->billing_method === 'credit_card') {
+                // Credit card selected but no card actually on file --
+                // autoChargeOnDueDate() will skip this client entirely, so
+                // claiming an automatic charge here would be false.
+                $body .= " Secure payment can be made in the portal.";
             }
 
             $htmlBody = view('emails.invoice', [
