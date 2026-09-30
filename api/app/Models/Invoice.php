@@ -27,6 +27,8 @@ class Invoice extends Model
         'billing_method',
         'billing_period_start',
         'billing_period_end',
+        'payg_pack_service_type',
+        'payg_pack_quantity',
     ];
 
     protected function casts(): array

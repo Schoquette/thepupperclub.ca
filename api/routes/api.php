@@ -199,6 +199,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // Invoices
         // Stripe
         Route::get('/stripe/products',            [Admin\StripeController::class, 'products']);
+        Route::get('/payg-pricing',                [Admin\PaygPricingController::class, 'index']);
+        Route::post('/payg-pricing',               [Admin\PaygPricingController::class, 'update']);
 
         Route::get('/invoices/dashboard',         [Admin\InvoiceController::class, 'dashboard']);
         Route::get('/invoices/projections',       [Admin\InvoiceController::class, 'projections']);
@@ -215,6 +217,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/invoices/{invoice}/resend',   [Admin\InvoiceController::class, 'resend']);
         Route::post('/invoices/{invoice}/reminder', [Admin\InvoiceController::class, 'sendReminder']);
         Route::get('/invoices/{invoice}/pdf',       [Admin\InvoiceController::class, 'pdf']);
+        Route::post('/clients/{client}/payg/buy-pack', [Admin\InvoiceController::class, 'buyPack']);
+        Route::get('/clients/{client}/payg/status',    [Admin\PaygPricingController::class, 'status']);
 
         // Report cards
         Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
@@ -338,6 +342,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/billing/setup-intent',         [Client\InvoiceController::class, 'setupIntent']);
         Route::post('/billing/payment-method',       [Client\InvoiceController::class, 'savePaymentMethod']);
         Route::get('/billing/payment-method',        [Client\InvoiceController::class, 'paymentMethod']);
+        Route::post('/billing/buy-pack',             [Client\InvoiceController::class, 'buyPack']);
+        Route::get('/billing/payg-status',           [Client\InvoiceController::class, 'paygStatus']);
     });
 
     // ── Shared: Document download (admin or document owner) ──────────────────

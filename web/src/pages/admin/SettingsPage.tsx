@@ -7,6 +7,12 @@ import { Input } from '@/components/ui/Input';
 import { Lock, Bell, Settings, Mail, MessageSquare, Smartphone, Download, Database } from 'lucide-react';
 import { todayPacific } from '@/lib/date';
 
+const PAYG_TYPES = [
+  { value: 'walk_30', label: '30-Minute Visit' },
+  { value: 'walk_60', label: '60-Minute Visit' },
+  { value: 'pack_hike', label: 'Group Hike' },
+];
+
 export default function AdminSettingsPage() {
   const qc = useQueryClient();
 
@@ -42,6 +48,34 @@ export default function AdminSettingsPage() {
   // Password
   const [pwForm, setPwForm] = useState({ current_password: '', password: '', password_confirmation: '' });
   const [pwMsg, setPwMsg] = useState('');
+
+  // Pay As You Go pricing
+  const { data: paygRates } = useQuery({
+    queryKey: ['payg-pricing'],
+    queryFn: () => api.get('/admin/payg-pricing').then(r => r.data.data),
+  });
+  const { data: stripeRes } = useQuery({
+    queryKey: ['stripe-products'],
+    queryFn: () => api.get('/admin/stripe/products').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const oneTimePrices: { priceId: string; label: string }[] = [];
+  stripeRes?.data?.forEach((product: any) => {
+    product.prices?.forEach((price: any) => {
+      if (price.interval) return; // skip recurring prices
+      oneTimePrices.push({
+        priceId: price.id,
+        label: `${product.name}${price.nickname ? ` — ${price.nickname}` : ''} ($${price.amount})`,
+      });
+    });
+  });
+  const [paygMsg, setPaygMsg] = useState('');
+  const savePaygPrice = useMutation({
+    mutationFn: ({ service_type, stripe_price_id }: { service_type: string; stripe_price_id: string }) =>
+      api.post('/admin/payg-pricing', { service_type, stripe_price_id }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payg-pricing'] }); setPaygMsg('Saved!'); setTimeout(() => setPaygMsg(''), 2500); },
+    onError: (err: any) => setPaygMsg(err.response?.data?.message ?? 'Failed to save.'),
+  });
 
   // Notification preferences
   const [notifForm, setNotifForm] = useState<Record<string, boolean> | null>(null);
@@ -235,6 +269,39 @@ export default function AdminSettingsPage() {
               Update Password
             </Button>
           </div>
+        </div>
+      </Card>
+
+      {/* Pay As You Go Pricing */}
+      <Card>
+        <CardHeader title="Pay As You Go Pricing" />
+        <div className="space-y-3">
+          <p className="text-sm text-taupe">
+            Each visit type's 10-pack price, sourced from a one-time Stripe Price. The per-visit rate (pack price ÷ 10) is the default charged to Pay-As-You-Go clients, unless a client has a custom override.
+          </p>
+          {oneTimePrices.length === 0 && (
+            <p className="text-xs text-red-500">No one-time Stripe prices found. Create a Product with a one-time Price for each 10-pack in Stripe first.</p>
+          )}
+          {PAYG_TYPES.map(t => {
+            const row = paygRates?.find((r: any) => r.service_type === t.value);
+            return (
+              <div key={t.value} className="flex items-center gap-3">
+                <span className="text-sm text-espresso font-medium w-32 shrink-0">{t.label}</span>
+                <select
+                  className="input flex-1"
+                  defaultValue={row?.stripe_price_id ?? ''}
+                  onChange={e => e.target.value && savePaygPrice.mutate({ service_type: t.value, stripe_price_id: e.target.value })}
+                >
+                  <option value="">— Select 10-pack price —</option>
+                  {oneTimePrices.map(p => <option key={p.priceId} value={p.priceId}>{p.label}</option>)}
+                </select>
+                <span className="text-xs text-taupe w-28 text-right shrink-0">
+                  {row?.per_visit_rate ? `$${row.per_visit_rate}/visit` : '—'}
+                </span>
+              </div>
+            );
+          })}
+          {paygMsg && <p className="text-sm text-green-600 font-medium">{paygMsg}</p>}
         </div>
       </Card>
 

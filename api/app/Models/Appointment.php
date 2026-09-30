@@ -34,6 +34,9 @@ class Appointment extends Model
         'recurrence_parent_id',
         'group_hike_id',
         'group_hike_name',
+        'payg_charge_mode',
+        'payg_rate',
+        'payg_billed_at',
         'check_in_time',
         'check_out_time',
         'pre_visit_notification_sent',
@@ -50,6 +53,8 @@ class Appointment extends Model
             'recurrence_rule'              => 'array',
             'pre_visit_notification_sent'  => 'boolean',
             'report_card_dismissed'        => 'boolean',
+            'payg_rate'                    => 'decimal:2',
+            'payg_billed_at'               => 'datetime',
         ];
     }
 

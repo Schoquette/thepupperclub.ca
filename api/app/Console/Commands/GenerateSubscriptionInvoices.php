@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Appointment;
 use App\Models\ClientProfile;
 use App\Models\Invoice;
 use App\Models\User;
@@ -35,6 +36,9 @@ class GenerateSubscriptionInvoices extends Command
 
         // ── 5. Advance billing date for non-CC clients on billing date ───────
         $this->advanceManualBillingDates();
+
+        // ── 6. Pay-As-You-Go: bill the running tab on the billing date ───────
+        $this->generatePaygInvoices($invoiceService);
 
         $this->info('Done.');
     }
@@ -329,6 +333,95 @@ class GenerateSubscriptionInvoices extends Command
             $nextBilling = $this->nextBillingDate($profile);
             $profile->update(['next_billing_date' => $nextBilling]);
             $this->info("Advanced billing date for user {$profile->user_id} to {$nextBilling}.");
+        }
+    }
+
+    /**
+     * Bill Pay-As-You-Go clients (running-tab mode, and any prepaid-pack
+     * overage) on their normal billing date — reusing the same
+     * next_billing_date/billing_day fields subscriptions use, just with a
+     * variable amount instead of a fixed one. Only visits scheduled on or
+     * before the billing date are included; a recurring series can have
+     * occurrences already stamped months into the future (pack/running-tab
+     * mode is decided at scheduling time, not check-in), and those simply
+     * stay unbilled until a later run's billing date reaches them.
+     */
+    private function generatePaygInvoices(InvoiceService $invoiceService): void
+    {
+        $today = now()->toDateString();
+        $serviceLabels = ['walk_30' => '30-Minute Visit', 'walk_60' => '60-Minute Visit', 'pack_hike' => 'Group Hike'];
+
+        $clients = ClientProfile::whereNotNull('payg_mode')
+            ->where('next_billing_date', '<=', $today)
+            ->with('user')
+            ->get();
+
+        foreach ($clients as $profile) {
+            $client = $profile->user;
+            if (!$client || $client->status !== 'active') continue;
+
+            $billingDate = Carbon::parse($profile->next_billing_date)->toDateString();
+
+            $unbilled = Appointment::where('user_id', $client->id)
+                ->where('payg_charge_mode', 'running_tab')
+                ->whereNull('payg_billed_at')
+                ->where('status', '!=', 'cancelled')
+                ->where('scheduled_time', '<=', $billingDate . ' 23:59:59')
+                ->orderBy('scheduled_time')
+                ->get();
+
+            if ($unbilled->isEmpty()) {
+                $profile->update(['next_billing_date' => $this->nextBillingDate($profile)]);
+                continue;
+            }
+
+            $lineItems = $unbilled->map(fn ($a) => [
+                'description'  => ($serviceLabels[$a->service_type] ?? $a->service_type) . ' — ' . $a->scheduled_time->format('M j, Y'),
+                'quantity'     => 1,
+                'unit_price'   => (float) $a->payg_rate,
+                'service_date' => $a->scheduled_time->toDateString(),
+            ])->values()->all();
+
+            $invoice = $invoiceService->create(
+                $client,
+                $lineItems,
+                $billingDate,
+                null,
+                null,
+                $unbilled->first()->scheduled_time->toDateString(),
+                $billingDate,
+            );
+
+            Appointment::whereIn('id', $unbilled->pluck('id'))->update(['payg_billed_at' => now()]);
+
+            if ($profile->billing_method === 'credit_card' && $profile->stripe_payment_method_id) {
+                try {
+                    $result = $invoiceService->chargeCard($invoice, $profile->stripe_payment_method_id);
+                    if ($result['status'] === 'succeeded') {
+                        $this->info("PAYG auto-charged {$client->name} \${$invoice->total} (Invoice #{$invoice->invoice_number}, {$unbilled->count()} visits).");
+                    } else {
+                        if ($invoice->status === 'draft') $invoiceService->send($invoice);
+                        $this->warn("PAYG auto-charge pending for {$client->name}, invoice sent as unpaid.");
+                    }
+                } catch (\Exception $e) {
+                    if ($invoice->status === 'draft') $invoiceService->send($invoice);
+                    Log::warning("PAYG auto-charge failed for client {$client->id}: {$e->getMessage()}");
+                    try {
+                        \App\Models\ErrorLog::create([
+                            'user_id'    => $client->id,
+                            'type'       => 'PaygAutoChargeFailed',
+                            'message'    => $e->getMessage(),
+                            'context'    => ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number],
+                            'created_at' => now(),
+                        ]);
+                    } catch (\Throwable $logError) {}
+                }
+            } else {
+                $invoiceService->send($invoice);
+                $this->info("PAYG invoice #{$invoice->invoice_number} sent to {$client->name} ({$unbilled->count()} visits, \${$invoice->total}).");
+            }
+
+            $profile->update(['next_billing_date' => $this->nextBillingDate($profile)]);
         }
     }
 

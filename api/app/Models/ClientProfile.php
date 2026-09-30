@@ -64,6 +64,13 @@ class ClientProfile extends Model
         'notify_email',
         'notify_sms',
         'notification_preferences',
+        'payg_mode',
+        'custom_price_walk_30',
+        'custom_price_walk_60',
+        'custom_price_pack_hike',
+        'pack_purchased_walk_30',
+        'pack_purchased_walk_60',
+        'pack_purchased_pack_hike',
     ];
 
     protected function casts(): array
@@ -92,6 +99,12 @@ class ClientProfile extends Model
             'notify_email'                  => 'boolean',
             'notify_sms'                    => 'boolean',
             'notification_preferences'      => 'array',
+            'custom_price_walk_30'          => 'decimal:2',
+            'custom_price_walk_60'          => 'decimal:2',
+            'custom_price_pack_hike'        => 'decimal:2',
+            'pack_purchased_walk_30'        => 'integer',
+            'pack_purchased_walk_60'        => 'integer',
+            'pack_purchased_pack_hike'      => 'integer',
         ];
     }
 

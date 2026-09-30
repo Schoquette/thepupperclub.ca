@@ -165,4 +165,34 @@ class InvoiceController extends Controller
             return response()->json(['data' => null]);
         }
     }
+
+    /**
+     * Client self-serve prepaid pack purchase — requires a saved card
+     * (same as the rest of the self-serve billing flow) and charges it
+     * immediately.
+     */
+    public function paygStatus(Request $request, \App\Services\PaygPricingService $pricing): JsonResponse
+    {
+        return response()->json(['data' => $pricing->statusFor($request->user())]);
+    }
+
+    public function buyPack(Request $request, \App\Services\PaygPricingService $pricing): JsonResponse
+    {
+        $client = $request->user();
+        $profile = $client->clientProfile;
+
+        abort_unless($profile?->stripe_payment_method_id, 422, 'Add a payment method before buying a pack.');
+
+        $data = $request->validate([
+            'service_type' => 'required|in:' . implode(',', \App\Services\PaygPricingService::VISIT_TYPES),
+        ]);
+
+        $cents = $pricing->packPriceCents($data['service_type']);
+        abort_if($cents === null, 422, 'Pay-As-You-Go pricing for this visit type has not been configured yet.');
+
+        $invoice = $this->invoiceService->createPackPurchaseInvoice($client, $data['service_type'], 10, $cents);
+        $result = $this->invoiceService->chargeCard($invoice, $profile->stripe_payment_method_id);
+
+        return response()->json(['data' => $invoice->fresh(['lineItems']), 'charge' => $result], 201);
+    }
 }

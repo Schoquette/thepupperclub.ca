@@ -216,6 +216,22 @@ class InvoiceService
     {
         $invoice->update(['status' => 'paid', 'paid_at' => now()]);
 
+        // Credit a prepaid pack purchase now that it's actually paid for —
+        // covers admin "Mark Paid", the synchronous chargeCard() success
+        // path, and the Stripe webhook, since all three funnel through here.
+        if (\Illuminate\Support\Facades\Schema::hasColumn('invoices', 'payg_pack_service_type') && $invoice->payg_pack_service_type) {
+            $column = "pack_purchased_{$invoice->payg_pack_service_type}";
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('client_profiles', $column)) {
+                \Illuminate\Support\Facades\Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->unsignedInteger('pack_purchased_walk_30')->default(0);
+                    $table->unsignedInteger('pack_purchased_walk_60')->default(0);
+                    $table->unsignedInteger('pack_purchased_pack_hike')->default(0);
+                });
+            }
+            \App\Models\ClientProfile::where('user_id', $invoice->user_id)
+                ->increment($column, $invoice->payg_pack_quantity ?? 10);
+        }
+
         // Send thank-you message in conversation
         $adminId = \App\Models\User::where('role', 'admin')->value('id') ?? 1;
         $conversation = $invoice->user->conversation()->firstOrCreate(['user_id' => $invoice->user_id]);
@@ -273,6 +289,44 @@ class InvoiceService
         }
 
         return ['client_secret' => $intent->client_secret, 'status' => $intent->status];
+    }
+
+    private const VISIT_TYPE_LABELS = [
+        'walk_30'   => '30-Minute Visits',
+        'walk_60'   => '60-Minute Visits',
+        'pack_hike' => 'Group Hikes',
+    ];
+
+    /**
+     * Creates a one-line invoice for a prepaid 10-pack purchase, tagged so
+     * markPaid() knows to credit the client's pack balance once it's
+     * actually paid — the balance is never credited at creation time.
+     */
+    public function createPackPurchaseInvoice(User $client, string $serviceType, int $quantity, int $packPriceCents): Invoice
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('invoices', 'payg_pack_service_type')) {
+            \Illuminate\Support\Facades\Schema::table('invoices', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('payg_pack_service_type')->nullable();
+                $table->unsignedInteger('payg_pack_quantity')->nullable();
+            });
+        }
+
+        $label = self::VISIT_TYPE_LABELS[$serviceType] ?? $serviceType;
+
+        $invoice = $this->create(
+            $client,
+            [[
+                'description'  => "10-Pack — {$label}",
+                'quantity'     => 1,
+                'unit_price'   => round($packPriceCents / 100, 2),
+                'service_date' => now()->toDateString(),
+            ]],
+            now()->toDateString(),
+        );
+
+        $invoice->update(['payg_pack_service_type' => $serviceType, 'payg_pack_quantity' => $quantity]);
+
+        return $invoice;
     }
 
     public function addTip(Invoice $invoice, float $amount): Invoice

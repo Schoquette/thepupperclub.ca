@@ -120,6 +120,37 @@ export default function InvoiceCreatePage() {
     staleTime: 5 * 60 * 1000, // cache 5 min
   });
 
+  // Pay-As-You-Go per-visit rates — a client's custom_price_* override,
+  // falling back to the global rate configured in Settings.
+  const { data: paygRates } = useQuery({
+    queryKey: ['payg-pricing'],
+    queryFn: () => api.get('/admin/payg-pricing').then(r => r.data.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const VISIT_TYPE_LABELS: Record<string, string> = { walk_30: '30-Minute Visit', walk_60: '60-Minute Visit', pack_hike: 'Group Hike' };
+  const resolvedVisitRates = Object.keys(VISIT_TYPE_LABELS)
+    .map(type => {
+      const custom = selectedClient?.client_profile?.[`custom_price_${type}`];
+      const rate = custom !== null && custom !== undefined
+        ? Number(custom)
+        : paygRates?.find((r: any) => r.service_type === type)?.per_visit_rate;
+      return rate ? { type, label: VISIT_TYPE_LABELS[type], rate: Number(rate), isCustom: custom !== null && custom !== undefined } : null;
+    })
+    .filter((r): r is { type: string; label: string; rate: number; isCustom: boolean } => r !== null);
+
+  const addVisitLine = (type: string, label: string, rate: number) => {
+    setLines(prev => [...prev.filter(l => l.description || l.unit_price), {
+      _id: ++_lineCounter,
+      description: label,
+      quantity: 1,
+      unit_price: rate.toString(),
+      service_date: '',
+      gst_exempt: false,
+      discount_type: 'none',
+      discount_value: '',
+    }]);
+  };
+
   const addFromStripe = (product: StripeProduct, price: StripePrice) => {
     const label = price.nickname ? `${product.name} — ${price.nickname}` : product.name;
     setLines(prev => [...prev.filter(l => l.description || l.unit_price), {
@@ -234,6 +265,30 @@ export default function InvoiceCreatePage() {
         {/* Line items */}
         <Card>
           <CardHeader title="Line Items" />
+
+          {/* Per-visit rate quick-add — uses this client's custom price
+              override if set, else the global Pay-As-You-Go rate */}
+          {resolvedVisitRates.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2">
+                Quick add visit
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {resolvedVisitRates.map(r => (
+                  <button
+                    key={r.type}
+                    type="button"
+                    onClick={() => addVisitLine(r.type, r.label, r.rate)}
+                    className="inline-flex items-center gap-1.5 bg-cream hover:bg-gold/10 border border-taupe/30 hover:border-gold/50 text-espresso text-xs px-3 py-1.5 rounded-full transition-colors"
+                  >
+                    <span className="font-medium">{r.label}</span>
+                    <span className="text-gold font-semibold">${r.rate.toFixed(2)}</span>
+                    {r.isCustom && <span className="text-taupe">(custom)</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Stripe quick-add */}
           {stripeProducts && stripeProducts.length > 0 && (

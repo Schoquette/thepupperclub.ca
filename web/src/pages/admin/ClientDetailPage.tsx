@@ -1401,6 +1401,153 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
   );
 }
 
+const PAYG_VISIT_TYPES: { value: string; label: string }[] = [
+  { value: 'walk_30', label: '30-Minute Visit' },
+  { value: 'walk_60', label: '60-Minute Visit' },
+  { value: 'pack_hike', label: 'Group Hike' },
+];
+
+function PaygCard({ clientId, clientProfile, onChanged }: { clientId: number; clientProfile: any; onChanged: () => void }) {
+  const qc = useQueryClient();
+  const cp = clientProfile ?? {};
+  const paygMode: string | null = cp.payg_mode ?? null;
+
+  const [newMode, setNewMode] = useState<'prepaid_pack' | 'per_visit'>('prepaid_pack');
+  const [billingDate, setBillingDate] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const { data: status } = useQuery({
+    queryKey: ['payg-status', clientId],
+    queryFn: () => api.get(`/admin/clients/${clientId}/payg/status`).then(r => r.data.data),
+    enabled: !!paygMode,
+  });
+
+  const flash = (msg: string) => { setSuccess(msg); setTimeout(() => setSuccess(''), 2500); };
+
+  const updateProfile = useMutation({
+    mutationFn: (profile: Record<string, any>) => api.patch(`/admin/clients/${clientId}`, { profile }),
+    onSuccess: () => { onChanged(); setError(''); qc.invalidateQueries({ queryKey: ['payg-status', clientId] }); flash('Updated!'); },
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to update.'); },
+  });
+
+  const buyPack = useMutation({
+    mutationFn: (serviceType: string) => api.post(`/admin/clients/${clientId}/payg/buy-pack`, { service_type: serviceType }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payg-status', clientId] }); setError(''); flash('Pack purchase invoice created!'); },
+    onError: (err: any) => { setError(err.response?.data?.message ?? 'Failed to buy pack.'); },
+  });
+
+  return (
+    <Card>
+      <CardHeader title="Pay As You Go" />
+      {!paygMode ? (
+        <div className="space-y-3">
+          <p className="text-sm text-taupe">Not on Pay-As-You-Go.</p>
+          <div>
+            <label className="label">Mode</label>
+            <select className="input" value={newMode} onChange={e => setNewMode(e.target.value as any)}>
+              <option value="prepaid_pack">Prepaid Pack (buy 10-packs upfront)</option>
+              <option value="per_visit">Running Tab (billed monthly per visit)</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">First Billing Date</label>
+            <input type="date" className="input" value={billingDate} onChange={e => setBillingDate(e.target.value)} />
+          </div>
+          <Button
+            size="sm"
+            disabled={!billingDate}
+            loading={updateProfile.isPending}
+            onClick={() => updateProfile.mutate({ payg_mode: newMode, next_billing_date: billingDate })}
+          >
+            Enable Pay As You Go
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-taupe text-sm">Mode</span>
+            <select
+              className="border border-taupe/30 rounded px-2 py-0.5 text-sm"
+              defaultValue={paygMode}
+              onChange={e => updateProfile.mutate({ payg_mode: e.target.value })}
+            >
+              <option value="prepaid_pack">Prepaid Pack</option>
+              <option value="per_visit">Running Tab</option>
+            </select>
+          </div>
+
+          {paygMode === 'prepaid_pack' && status?.pack_balances && (
+            <div className="space-y-2">
+              {PAYG_VISIT_TYPES.map(t => {
+                const bal = status.pack_balances[t.value];
+                return (
+                  <div key={t.value} className="flex justify-between items-center text-sm">
+                    <span className="text-taupe">{t.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-espresso">{bal?.remaining ?? 0} of {bal?.purchased ?? 0} remaining</span>
+                      <Button size="sm" variant="outline" loading={buyPack.isPending} onClick={() => buyPack.mutate(t.value)}>
+                        Buy 10-Pack
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {status?.running_tab && (status.running_tab.count > 0 || paygMode === 'per_visit') && (
+            <div className="text-sm flex justify-between items-center pt-2 border-t border-cream">
+              <span className="text-taupe">Unbilled tab</span>
+              <span className="font-semibold text-espresso">
+                ${status.running_tab.total.toFixed(2)} ({status.running_tab.count} visit{status.running_tab.count === 1 ? '' : 's'})
+              </span>
+            </div>
+          )}
+
+          <div className="pt-2 border-t border-cream">
+            <button
+              className="text-xs text-taupe hover:text-red-500"
+              onClick={() => { if (confirm('Turn off Pay As You Go for this client?')) updateProfile.mutate({ payg_mode: null }); }}
+            >
+              Turn off Pay As You Go
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Custom per-visit pricing — grandfathers old rates regardless of
+          billing plan, visible even for subscription/manual clients. */}
+      <div className="mt-4 pt-4 border-t border-cream space-y-2">
+        <p className="text-xs font-semibold text-taupe uppercase tracking-wide">Custom Pricing (overrides standard rate)</p>
+        {PAYG_VISIT_TYPES.map(t => (
+          <div key={t.value} className="flex justify-between items-center text-sm">
+            <span className="text-taupe">{t.label}</span>
+            <div className="flex items-center gap-1">
+              <span className="text-taupe">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="border border-taupe/30 rounded px-2 py-0.5 text-sm w-20 text-right"
+                placeholder="standard"
+                defaultValue={cp[`custom_price_${t.value}`] ?? ''}
+                onBlur={e => {
+                  const val = e.target.value;
+                  updateProfile.mutate({ [`custom_price_${t.value}`]: val === '' ? null : val });
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+      {success && <p className="text-sm text-green-600 font-medium mt-2">{success}</p>}
+    </Card>
+  );
+}
+
 const SIZE_LABELS: Record<string, string> = {
   toy: 'Toy (under 10 lbs)', small: 'Small (under 20 lbs)', medium: 'Medium (20–55 lbs)', large: 'Large (55–90 lbs)', extra_large: 'Extra Large (90+ lbs)', xl: 'Extra Large (90+ lbs)',
 };
@@ -3054,6 +3201,8 @@ export default function AdminClientDetailPage() {
 
               <SubscriptionCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
 
+              <PaygCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
+
               <Card className="md:col-span-2">
                 <CardHeader title="Admin Notes" />
                 <textarea
@@ -3129,6 +3278,8 @@ export default function AdminClientDetailPage() {
               </Card>
 
               <SubscriptionCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
+
+              <PaygCard clientId={Number(id)} clientProfile={client?.client_profile} onChanged={refreshClient} />
 
               {p.notes && (
                 <Card>

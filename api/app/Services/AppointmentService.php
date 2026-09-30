@@ -3,12 +3,15 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\ClientProfile;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 class AppointmentService
 {
+    public function __construct(private PaygPricingService $paygPricing) {}
+
     /**
      * Parse a datetime string, always interpreting naive datetimes in Pacific time.
      */
@@ -77,6 +80,7 @@ class AppointmentService
         }
 
         $appointment = Appointment::create($fields);
+        $this->applyPaygCharge($appointment);
 
         $appointment->dogs()->attach($data['dog_ids']);
 
@@ -86,6 +90,52 @@ class AppointmentService
         }
 
         return $appointment;
+    }
+
+    /**
+     * Pay-As-You-Go accounting, stamped once at scheduling time (not at
+     * check-in/completion) per the business rule: a prepaid pack depletes
+     * as visits land on the calendar, including future recurring
+     * occurrences that haven't happened yet. Balances are never
+     * hand-incremented/decremented elsewhere — they're derived live from
+     * these stamps, so cancelling a visit (soft-delete or status update)
+     * automatically frees it up with no reversal code needed.
+     */
+    private function applyPaygCharge(Appointment $appointment): void
+    {
+        if (!in_array($appointment->service_type, PaygPricingService::VISIT_TYPES, true)) return;
+
+        if (!Schema::hasColumn('appointments', 'payg_charge_mode')) {
+            Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('payg_charge_mode')->nullable();
+                $table->decimal('payg_rate', 8, 2)->nullable();
+                $table->timestamp('payg_billed_at')->nullable();
+            });
+        }
+
+        $profile = ClientProfile::where('user_id', $appointment->user_id)->first();
+        if (!$profile || empty($profile->payg_mode)) return;
+
+        if ($profile->payg_mode === 'prepaid_pack') {
+            $purchasedColumn = "pack_purchased_{$appointment->service_type}";
+            $purchased = Schema::hasColumn('client_profiles', $purchasedColumn) ? (int) $profile->{$purchasedColumn} : 0;
+            $used = Appointment::where('user_id', $appointment->user_id)
+                ->where('service_type', $appointment->service_type)
+                ->where('payg_charge_mode', 'pack')
+                ->where('status', '!=', 'cancelled')
+                ->where('id', '!=', $appointment->id)
+                ->count();
+
+            if ($purchased - $used > 0) {
+                $appointment->update(['payg_charge_mode' => 'pack']);
+                return;
+            }
+        }
+
+        // per_visit mode, or a prepaid pack that's run dry — falls back
+        // to running-tab billing at this client's resolved rate.
+        $rate = $this->paygPricing->resolveRate($profile, $appointment->service_type);
+        $appointment->update(['payg_charge_mode' => 'running_tab', 'payg_rate' => $rate]);
     }
 
     /**
@@ -212,6 +262,7 @@ class AppointmentService
             }
 
             $child = Appointment::create($childFields);
+            $this->applyPaygCharge($child);
 
             $child->dogs()->attach($dogIds);
             $generated++;

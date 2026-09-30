@@ -276,6 +276,36 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Admin-initiated prepaid pack purchase. Works for any billing_method —
+     * card clients with a saved payment method get auto-charged; everyone
+     * else gets the invoice sent for the admin to mark paid once the
+     * e-transfer/cash payment comes in. Either way, the pack balance is
+     * only credited once the invoice is actually paid (see markPaid()).
+     */
+    public function buyPack(Request $request, User $client, \App\Services\PaygPricingService $pricing): JsonResponse
+    {
+        abort_unless($client->role === 'client', 404);
+
+        $data = $request->validate([
+            'service_type' => 'required|in:' . implode(',', \App\Services\PaygPricingService::VISIT_TYPES),
+        ]);
+
+        $cents = $pricing->packPriceCents($data['service_type']);
+        abort_if($cents === null, 422, 'Pay-As-You-Go pricing for this visit type has not been configured yet.');
+
+        $invoice = $this->invoiceService->createPackPurchaseInvoice($client, $data['service_type'], 10, $cents);
+
+        $profile = $client->clientProfile;
+        if ($profile?->billing_method === 'credit_card' && $profile->stripe_payment_method_id) {
+            $this->invoiceService->chargeCard($invoice, $profile->stripe_payment_method_id);
+        } else {
+            $this->invoiceService->send($invoice);
+        }
+
+        return response()->json(['data' => $invoice->fresh(['lineItems'])], 201);
+    }
+
+    /**
      * Link service requests to their corresponding invoice line items.
      */
     private function linkServiceRequests(array $inputItems, $lineItems): void

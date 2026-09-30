@@ -119,6 +119,12 @@ class ClientController extends Controller
             'profile.preferred_update_method'   => 'sometimes|nullable|string|max:50',
             'profile.report_detail_level'       => 'sometimes|nullable|string|max:50',
             'profile.additional_notes'          => 'sometimes|nullable|string|max:8000',
+
+            // Pay-As-You-Go
+            'profile.payg_mode'                 => 'sometimes|nullable|in:prepaid_pack,per_visit',
+            'profile.custom_price_walk_30'      => 'sometimes|nullable|numeric|min:0',
+            'profile.custom_price_walk_60'      => 'sometimes|nullable|numeric|min:0',
+            'profile.custom_price_pack_hike'    => 'sometimes|nullable|numeric|min:0',
         ]);
 
         $client->update(array_filter([
@@ -146,6 +152,19 @@ class ClientController extends Controller
                     $table->boolean('notify_app')->default(true);
                     $table->boolean('notify_email')->default(false);
                     $table->boolean('notify_sms')->default(false);
+                });
+            }
+
+            // Auto-add Pay-As-You-Go columns if they don't exist yet
+            if (!Schema::hasColumn('client_profiles', 'payg_mode')) {
+                Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('payg_mode')->nullable();
+                    $table->decimal('custom_price_walk_30', 8, 2)->nullable();
+                    $table->decimal('custom_price_walk_60', 8, 2)->nullable();
+                    $table->decimal('custom_price_pack_hike', 8, 2)->nullable();
+                    $table->unsignedInteger('pack_purchased_walk_30')->default(0);
+                    $table->unsignedInteger('pack_purchased_walk_60')->default(0);
+                    $table->unsignedInteger('pack_purchased_pack_hike')->default(0);
                 });
             }
 

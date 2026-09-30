@@ -100,14 +100,68 @@ export default function ClientBillingPage() {
     },
   });
 
+  const { data: paygStatus } = useQuery({
+    queryKey: ['client-payg-status'],
+    queryFn: () => api.get('/client/billing/payg-status').then(r => r.data.data),
+  });
+
+  const [buyPackMsg, setBuyPackMsg] = useState('');
+  const buyPack = useMutation({
+    mutationFn: (serviceType: string) => api.post('/client/billing/buy-pack', { service_type: serviceType }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client-payg-status'] });
+      setBuyPackMsg('Pack purchased!');
+      setTimeout(() => setBuyPackMsg(''), 2500);
+    },
+    onError: (err: any) => setBuyPackMsg(err.response?.data?.message ?? 'Failed to buy pack.'),
+  });
+
   if (profileLoading || pmLoading) return <PageLoader />;
 
   const cp = profile?.client_profile;
   const currentMethod = cp?.billing_method ?? 'credit_card';
+  const PAYG_LABELS: Record<string, string> = { walk_30: '30-Minute Visit', walk_60: '60-Minute Visit', pack_hike: 'Group Hike' };
 
   return (
     <div className="space-y-6 max-w-lg">
       <h1 className="font-display text-xl text-espresso">Billing</h1>
+
+      {/* Pay-As-You-Go summary */}
+      {cp?.payg_mode && paygStatus?.payg_mode && (
+        <Card>
+          <CardHeader title="Pay As You Go" />
+          <div className="space-y-3 text-sm">
+            {cp.payg_mode === 'prepaid_pack' && paygStatus.pack_balances && (
+              <div className="space-y-2">
+                {Object.entries(PAYG_LABELS).map(([type, label]) => {
+                  const bal = paygStatus.pack_balances[type];
+                  return (
+                    <div key={type} className="flex justify-between items-center">
+                      <span className="text-taupe">{label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-espresso">{bal?.remaining ?? 0} of {bal?.purchased ?? 0} remaining</span>
+                        <Button size="sm" variant="outline" loading={buyPack.isPending} disabled={!pm} onClick={() => buyPack.mutate(type)}>
+                          Buy 10-Pack
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!pm && <p className="text-xs text-taupe">Add a card below to buy a pack.</p>}
+              </div>
+            )}
+            {paygStatus.running_tab && (paygStatus.running_tab.count > 0 || cp.payg_mode === 'per_visit') && (
+              <div className="flex justify-between items-center pt-2 border-t border-cream">
+                <span className="text-taupe">Unbilled tab</span>
+                <span className="font-semibold text-espresso">
+                  ${paygStatus.running_tab.total.toFixed(2)} ({paygStatus.running_tab.count} visit{paygStatus.running_tab.count === 1 ? '' : 's'})
+                </span>
+              </div>
+            )}
+            {buyPackMsg && <p className="text-sm text-green-600 font-medium">{buyPackMsg}</p>}
+          </div>
+        </Card>
+      )}
 
       {/* Subscription summary */}
       {cp?.subscription_plan && (
