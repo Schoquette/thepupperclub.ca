@@ -125,6 +125,9 @@ class ClientController extends Controller
             'profile.custom_price_walk_30'      => 'sometimes|nullable|numeric|min:0',
             'profile.custom_price_walk_60'      => 'sometimes|nullable|numeric|min:0',
             'profile.custom_price_pack_hike'    => 'sometimes|nullable|numeric|min:0',
+            'profile.custom_price_walk_30_weekend'   => 'sometimes|nullable|numeric|min:0',
+            'profile.custom_price_walk_60_weekend'   => 'sometimes|nullable|numeric|min:0',
+            'profile.custom_price_pack_hike_weekend' => 'sometimes|nullable|numeric|min:0',
         ]);
 
         $client->update(array_filter([
@@ -165,6 +168,15 @@ class ClientController extends Controller
                     $table->unsignedInteger('pack_purchased_walk_30')->default(0);
                     $table->unsignedInteger('pack_purchased_walk_60')->default(0);
                     $table->unsignedInteger('pack_purchased_pack_hike')->default(0);
+                });
+            }
+
+            // Auto-add weekend custom pricing columns if they don't exist yet
+            if (!Schema::hasColumn('client_profiles', 'custom_price_walk_30_weekend')) {
+                Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->decimal('custom_price_walk_30_weekend', 8, 2)->nullable();
+                    $table->decimal('custom_price_walk_60_weekend', 8, 2)->nullable();
+                    $table->decimal('custom_price_pack_hike_weekend', 8, 2)->nullable();
                 });
             }
 

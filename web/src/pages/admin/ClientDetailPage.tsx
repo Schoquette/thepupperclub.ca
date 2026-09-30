@@ -1517,29 +1517,51 @@ function PaygCard({ clientId, clientProfile, onChanged }: { clientId: number; cl
       )}
 
       {/* Custom per-visit pricing — grandfathers old rates regardless of
-          billing plan, visible even for subscription/manual clients. */}
+          billing plan, visible even for subscription/manual clients.
+          Weekend column overrides the weekday rate for Saturday/Sunday
+          visits specifically; blank means "use the weekday rate". */}
       <div className="mt-4 pt-4 border-t border-cream space-y-2">
         <p className="text-xs font-semibold text-taupe uppercase tracking-wide">Custom Pricing (overrides standard rate)</p>
-        {PAYG_VISIT_TYPES.map(t => (
-          <div key={t.value} className="flex justify-between items-center text-sm">
-            <span className="text-taupe">{t.label}</span>
-            <div className="flex items-center gap-1">
-              <span className="text-taupe">$</span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className="border border-taupe/30 rounded px-2 py-0.5 text-sm w-20 text-right"
-                placeholder="standard"
-                defaultValue={cp[`custom_price_${t.value}`] ?? ''}
-                onBlur={e => {
-                  const val = e.target.value;
-                  updateProfile.mutate({ [`custom_price_${t.value}`]: val === '' ? null : val });
-                }}
-              />
-            </div>
-          </div>
-        ))}
+        <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-2 items-center">
+          <span></span>
+          <span className="text-xs text-taupe text-center">Weekday</span>
+          <span className="text-xs text-taupe text-center">Weekend</span>
+          {PAYG_VISIT_TYPES.map(t => (
+            <React.Fragment key={t.value}>
+              <span className="text-sm text-taupe">{t.label}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-taupe text-sm">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="border border-taupe/30 rounded px-2 py-0.5 text-sm w-20 text-right"
+                  placeholder="standard"
+                  defaultValue={cp[`custom_price_${t.value}`] ?? ''}
+                  onBlur={e => {
+                    const val = e.target.value;
+                    updateProfile.mutate({ [`custom_price_${t.value}`]: val === '' ? null : val });
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-taupe text-sm">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="border border-taupe/30 rounded px-2 py-0.5 text-sm w-20 text-right"
+                  placeholder="weekday"
+                  defaultValue={cp[`custom_price_${t.value}_weekend`] ?? ''}
+                  onBlur={e => {
+                    const val = e.target.value;
+                    updateProfile.mutate({ [`custom_price_${t.value}_weekend`]: val === '' ? null : val });
+                  }}
+                />
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}

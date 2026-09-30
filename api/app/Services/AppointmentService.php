@@ -133,8 +133,10 @@ class AppointmentService
         }
 
         // per_visit mode, or a prepaid pack that's run dry — falls back
-        // to running-tab billing at this client's resolved rate.
-        $rate = $this->paygPricing->resolveRate($profile, $appointment->service_type);
+        // to running-tab billing at this client's resolved rate. Weekend
+        // custom pricing (if set) applies to Saturday/Sunday visits.
+        $isWeekend = $appointment->scheduled_time->isWeekend();
+        $rate = $this->paygPricing->resolveRate($profile, $appointment->service_type, $isWeekend);
         $appointment->update(['payg_charge_mode' => 'running_tab', 'payg_rate' => $rate]);
     }
 

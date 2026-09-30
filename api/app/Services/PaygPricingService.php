@@ -68,8 +68,15 @@ class PaygPricingService
 
     /** custom_price_{type} if the client has one, else the global rate
      *  from the 10-pack price, else null (not configured yet). */
-    public function resolveRate(ClientProfile $profile, string $serviceType): ?float
+    public function resolveRate(ClientProfile $profile, string $serviceType, bool $isWeekend = false): ?float
     {
+        if ($isWeekend) {
+            $weekendColumn = "custom_price_{$serviceType}_weekend";
+            if (Schema::hasColumn('client_profiles', $weekendColumn) && $profile->{$weekendColumn} !== null) {
+                return (float) $profile->{$weekendColumn};
+            }
+        }
+
         $customColumn = "custom_price_{$serviceType}";
         if (Schema::hasColumn('client_profiles', $customColumn) && $profile->{$customColumn} !== null) {
             return (float) $profile->{$customColumn};
