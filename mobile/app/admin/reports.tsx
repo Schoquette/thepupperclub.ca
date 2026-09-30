@@ -70,7 +70,13 @@ export default function AdminReportsScreen() {
     if (!result.canceled) {
       const asset = result.assets[0];
       try {
-        // Convert to JPEG so browsers can display HEIC photos
+        // iPhones save camera photos as HEIC, which browsers/email clients
+        // can't render -- always convert to JPEG. Never fall back to the
+        // original file on failure: the upload code below labels every
+        // photo as .jpg/image/jpeg regardless of its real bytes, so a
+        // silent fallback would upload an undecoded HEIC disguised as a
+        // JPEG that then shows as a broken image everywhere downstream
+        // (report card email, admin view, client view).
         const compressed = await ImageManipulator.manipulateAsync(
           asset.uri,
           [],
@@ -78,8 +84,8 @@ export default function AdminReportsScreen() {
         );
         setPhotoUri(compressed.uri);
       } catch {
-        // Manipulator not available yet — use original URI, server accepts any image format
-        setPhotoUri(asset.uri);
+        setPhotoUri(null);
+        Alert.alert('Photo not attached', "This photo couldn't be processed. Try a different photo, or take a new one with the camera.");
       }
     }
   };
