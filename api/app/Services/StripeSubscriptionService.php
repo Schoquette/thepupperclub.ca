@@ -230,10 +230,22 @@ class StripeSubscriptionService
             }
         }
 
+        // Fully reset the local display fields rather than just clearing
+        // the Stripe IDs -- an immediate cancellation means the
+        // subscription is truly over right now, so the client detail page
+        // should fall back to its "no active subscription" empty state
+        // instead of continuing to show the cancelled plan/amount/walks.
         $profile?->update([
-            'stripe_subscription_id' => null,
-            'stripe_price_id'        => null,
-            'subscription_end_date'  => now(),
+            'stripe_subscription_id'  => null,
+            'stripe_price_id'         => null,
+            'subscription_plan'       => null,
+            'subscription_amount'     => null,
+            'subscription_tier'       => null,
+            'subscription_start_date' => null,
+            'next_billing_date'       => null,
+            'billing_day'             => null,
+            'walks_per_week'          => null,
+            'subscription_end_date'   => null,
         ]);
     }
 

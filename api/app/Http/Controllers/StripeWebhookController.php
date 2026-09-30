@@ -191,10 +191,21 @@ class StripeWebhookController extends Controller
         $user = $this->findUserByCustomer($subscription->customer);
         if (!$user || !$user->clientProfile) return;
 
+        // Full reset, not just the Stripe IDs -- matches
+        // StripeSubscriptionService::cancelImmediately(). This fires once
+        // a "cancel at period end" subscription actually finishes out its
+        // period on Stripe's side, so by now it's truly over.
         $user->clientProfile->update([
-            'stripe_subscription_id' => null,
-            'stripe_price_id'        => null,
-            'subscription_end_date'  => now(),
+            'stripe_subscription_id'  => null,
+            'stripe_price_id'         => null,
+            'subscription_plan'       => null,
+            'subscription_amount'     => null,
+            'subscription_tier'       => null,
+            'subscription_start_date' => null,
+            'next_billing_date'       => null,
+            'billing_day'             => null,
+            'walks_per_week'          => null,
+            'subscription_end_date'   => null,
         ]);
     }
 
