@@ -292,16 +292,46 @@ class InvoiceService
         return $invoice->fresh();
     }
 
-    public function dashboardSummary(): array
+    /**
+     * @param array{status?: ?string, user_id?: ?string, month?: ?string} $filters
+     *   Same shape as the filters accepted by index() — applied on top of
+     *   each metric's own built-in status/date constraint, so e.g. filtering
+     *   to "Draft" correctly zeroes out Collected/Outstanding rather than
+     *   ignoring the filter.
+     */
+    public function dashboardSummary(array $filters = []): array
     {
-        $monthStart = now()->startOfMonth();
-        $monthEnd   = now()->endOfMonth();
+        if (!empty($filters['month'])) {
+            $monthStart = \Carbon\Carbon::parse($filters['month'] . '-01')->startOfMonth();
+            $monthEnd   = $monthStart->copy()->endOfMonth();
+        } else {
+            $monthStart = now()->startOfMonth();
+            $monthEnd   = now()->endOfMonth();
+        }
+
+        $applyFilters = function ($query) use ($filters) {
+            return $query
+                ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+                ->when($filters['user_id'] ?? null, fn ($q, $userId) => $q->where('user_id', $userId));
+        };
+
+        $billedQuery = $applyFilters(Invoice::whereBetween('created_at', [$monthStart, $monthEnd]));
+        $collectedQuery = $applyFilters(
+            Invoice::where('status', 'paid')->whereBetween('paid_at', [$monthStart, $monthEnd])
+        );
+        $outstandingQuery = $applyFilters(Invoice::whereIn('status', ['sent', 'overdue']));
+        $overdueQuery = $applyFilters(Invoice::where('status', 'overdue'));
+
+        $buildFilteredQuery = fn () => $applyFilters(Invoice::query())
+            ->when(!empty($filters['month']), fn ($q) => $q->whereBetween('created_at', [$monthStart, $monthEnd]));
 
         return [
-            'billed_this_month'    => Invoice::whereBetween('created_at', [$monthStart, $monthEnd])->sum('total'),
-            'collected_this_month' => Invoice::where('status', 'paid')->whereBetween('paid_at', [$monthStart, $monthEnd])->sum('total'),
-            'outstanding'          => Invoice::whereIn('status', ['sent', 'overdue'])->sum('total'),
-            'overdue_count'        => Invoice::where('status', 'overdue')->count(),
+            'billed_this_month'    => $billedQuery->sum('total'),
+            'collected_this_month' => $collectedQuery->sum('total'),
+            'outstanding'          => $outstandingQuery->sum('total'),
+            'overdue_count'        => $overdueQuery->count(),
+            'filtered_total'       => $buildFilteredQuery()->sum('total'),
+            'filtered_count'       => $buildFilteredQuery()->count(),
         ];
     }
 }

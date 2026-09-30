@@ -262,9 +262,11 @@ class InvoiceController extends Controller
         return $pdf->download("invoice-{$invoice->invoice_number}.pdf");
     }
 
-    public function dashboard(): JsonResponse
+    public function dashboard(Request $request): JsonResponse
     {
-        return response()->json(['data' => $this->invoiceService->dashboardSummary()]);
+        return response()->json(['data' => $this->invoiceService->dashboardSummary(
+            $request->only(['status', 'user_id', 'month'])
+        )]);
     }
 
     /**
