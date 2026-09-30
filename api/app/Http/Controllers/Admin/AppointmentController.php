@@ -31,6 +31,7 @@ class AppointmentController extends Controller
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->when($hasAssignedTo && $request->assigned_to, fn($q) => $q->where('assigned_to', $request->assigned_to))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->group_hike_id, fn($q) => $q->where('group_hike_id', $request->group_hike_id))
             ->when($request->without_report_card, fn($q) => $q->doesntHave('visitReport'))
             ->orderBy('scheduled_time', $request->sort === 'desc' ? 'desc' : 'asc');
 
@@ -112,6 +113,8 @@ class AppointmentController extends Controller
             'notes'            => 'nullable|string',
             'recurrence_rule'  => 'nullable|array',
             'recurrence'       => 'nullable|array',
+            'group_hike_id'    => 'nullable|string',
+            'group_hike_name'  => 'nullable|string',
         ];
 
         if (Schema::hasColumn('appointments', 'assigned_to')) {

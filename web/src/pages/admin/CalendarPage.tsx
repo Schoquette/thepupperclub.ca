@@ -238,6 +238,13 @@ type NewApptForm = {
   duration_minutes: number;
   notes: string;
   recurrence: RecurrencePattern;
+  /** Set when creating the first participant of a new Group Hike.
+   *  Ignored for every other service type. */
+  group_hike_name: string;
+  /** Set when adding a participant to an existing Group Hike occurrence
+   *  (via the roster modal's "Add Dog" button) — joins that hike instead
+   *  of minting a new group_hike_id. */
+  group_hike_id: string;
 };
 
 function blankForm(): NewApptForm {
@@ -252,6 +259,8 @@ function blankForm(): NewApptForm {
     duration_minutes: 60,
     notes: '',
     recurrence: blankRecurrence(),
+    group_hike_name: '',
+    group_hike_id: '',
   };
 }
 
@@ -303,6 +312,10 @@ export default function AdminCalendarPage() {
   const [creatingAppt, setCreatingAppt] = useState(false);
   const [newForm, setNewForm] = useState<NewApptForm>(blankForm());
   const [createError, setCreateError] = useState('');
+
+  // Group Hike roster (shows all participants sharing a group_hike_id
+  // for one occurrence, clicked from the collapsed calendar tile)
+  const [hikeRoster, setHikeRoster] = useState<any>(null);
 
   // Non-client calendar blocks
   const [creatingBlock, setCreatingBlock] = useState(false);
@@ -438,6 +451,7 @@ export default function AdminCalendarPage() {
       setCreatingAppt(false);
       setNewForm(blankForm());
       setCreateError('');
+      setHikeRoster(null);
     },
     onError: (err: any) => {
       setCreateError(err.response?.data?.message ?? 'Failed to create appointment.');
@@ -464,6 +478,7 @@ export default function AdminCalendarPage() {
       qc.invalidateQueries({ queryKey: ['admin-appointments'] });
       setSelected(null);
       setDeleteConfirm(null);
+      setHikeRoster(null);
       setCalSuccess('Appointment deleted.'); setTimeout(() => setCalSuccess(''), 2500);
     },
   });
@@ -659,6 +674,13 @@ export default function AdminCalendarPage() {
       duration_minutes:  newForm.duration_minutes,
       notes:             newForm.notes || undefined,
     };
+    if (newForm.service_type === 'pack_hike') {
+      if (newForm.group_hike_id) {
+        payload.group_hike_id = newForm.group_hike_id;
+      } else if (newForm.group_hike_name) {
+        payload.group_hike_name = newForm.group_hike_name;
+      }
+    }
     if (newForm.recurrence.enabled) {
       payload.recurrence = {
         frequency:       newForm.recurrence.frequency,
@@ -793,7 +815,25 @@ export default function AdminCalendarPage() {
     [cancelledThisWeek, dismissedIds],
   );
 
-  const appointmentEvents = (data ?? []).filter((appt: any) => appt.status !== 'cancelled').map((appt: any) => {
+  const activeAppointments = (data ?? []).filter((appt: any) => appt.status !== 'cancelled');
+
+  // Group hike participants (each their own Appointment row) collapse into
+  // a single calendar tile per occurrence, keyed by hike + exact time —
+  // a recurring hike's group_hike_id is shared across every week, so the
+  // time has to be part of the key too or every occurrence would merge.
+  const soloAppointments: any[] = [];
+  const hikeGroups = new Map<string, any[]>();
+  for (const appt of activeAppointments) {
+    if (appt.service_type === 'pack_hike' && appt.group_hike_id) {
+      const key = `${appt.group_hike_id}__${appt.scheduled_time}`;
+      if (!hikeGroups.has(key)) hikeGroups.set(key, []);
+      hikeGroups.get(key)!.push(appt);
+    } else {
+      soloAppointments.push(appt);
+    }
+  }
+
+  const appointmentEvents = soloAppointments.map((appt: any) => {
     // Parse as local time — strip trailing Z/offset so JS doesn't convert from UTC
     const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
     const start = new Date(localStr);
@@ -808,6 +848,33 @@ export default function AdminCalendarPage() {
       end,
       allDay: fullDay,
       resource: appt,
+    };
+  });
+
+  const hikeEvents = Array.from(hikeGroups.entries()).map(([key, participants]) => {
+    const first = participants[0];
+    const localStr = first.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const start = new Date(localStr);
+    const end = new Date(start.getTime() + first.duration_minutes * 60_000);
+    const dogCount = participants.reduce((sum: number, a: any) => sum + (a.dogs?.length ?? 0), 0);
+    const name = first.group_hike_name || 'Group Hike';
+    return {
+      id: `hike-${key}`,
+      title: `${name} — ${dogCount} dog${dogCount === 1 ? '' : 's'}`,
+      start,
+      end,
+      allDay: false,
+      resource: {
+        _isGroupHike: true,
+        group_hike_id: first.group_hike_id,
+        group_hike_name: first.group_hike_name,
+        scheduled_time: first.scheduled_time,
+        duration_minutes: first.duration_minutes,
+        assigned_to: first.assigned_to,
+        assigned_admin: first.assigned_admin,
+        client_time_block: first.client_time_block,
+        participants,
+      },
     };
   });
 
@@ -839,7 +906,7 @@ export default function AdminCalendarPage() {
     };
   });
 
-  const events = [...appointmentEvents, ...birthdayEvents, ...blockEvents];
+  const events = [...appointmentEvents, ...hikeEvents, ...birthdayEvents, ...blockEvents];
 
   const today = startOfDay(new Date());
 
@@ -981,12 +1048,16 @@ export default function AdminCalendarPage() {
                 setSelectedBlock(e.resource);
                 return;
               }
+              if (e.resource?._isGroupHike) {
+                setHikeRoster(e.resource);
+                return;
+              }
               setSelected(e.resource);
             }}
             onEventDrop={handleDragDrop}
             onEventResize={handleDragDrop}
             resizable
-            draggableAccessor={(event: any) => !event.resource?._isBirthday && !isBefore(event.start, today)}
+            draggableAccessor={(event: any) => !event.resource?._isBirthday && !event.resource?._isGroupHike && !isBefore(event.start, today)}
             dayPropGetter={dayPropGetter}
             eventPropGetter={(e: any) => {
               if (e.resource?._isBirthday) {
@@ -1011,6 +1082,18 @@ export default function AdminCalendarPage() {
                     color: '#F6F3EE',
                     fontSize: 12,
                     backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 6px, transparent 6px, transparent 12px)',
+                  },
+                };
+              }
+              if (e.resource?._isGroupHike) {
+                return {
+                  style: {
+                    backgroundColor: e.resource.assigned_admin?.color || '#C9A24D',
+                    borderRadius: 6,
+                    border: '1px solid #3B2F2A',
+                    color: e.resource.assigned_admin?.color ? 'white' : '#3B2F2A',
+                    fontSize: 12,
+                    fontWeight: 600,
                   },
                 };
               }
@@ -1258,7 +1341,7 @@ export default function AdminCalendarPage() {
       <Modal
         open={creatingAppt}
         onClose={() => { setCreatingAppt(false); setNewForm(blankForm()); setCreateError(''); }}
-        title="New Appointment"
+        title={newForm.group_hike_id ? `Add Dog — ${newForm.group_hike_name || 'Group Hike'}` : 'New Appointment'}
         size="lg"
       >
         <div className="space-y-4">
@@ -1320,6 +1403,7 @@ export default function AdminCalendarPage() {
             <select
               className="input"
               value={newForm.assigned_to}
+              disabled={!!newForm.group_hike_id}
               onChange={e => setNewForm(f => ({ ...f, assigned_to: e.target.value }))}
             >
               <option value="">— Unassigned —</option>
@@ -1329,12 +1413,29 @@ export default function AdminCalendarPage() {
             </select>
           </div>
 
+          {/* Group Hike name — only when creating the first participant of
+              a brand-new hike. Joining an existing occurrence (via the
+              roster's Add Dog button) locks the name/time/duration fields
+              instead, since every participant has to share the exact same
+              slot for the calendar to collapse them into one tile. */}
+          {newForm.service_type === 'pack_hike' && !newForm.group_hike_id && (
+            <div>
+              <label className="label">Group Hike Name (optional)</label>
+              <Input
+                value={newForm.group_hike_name}
+                onChange={(e: any) => setNewForm(f => ({ ...f, group_hike_name: e.target.value }))}
+                placeholder="e.g. Tuesday Trail Crew"
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             {/* Service type */}
             <div>
               <label className="label">Service *</label>
               <select
                 className="input"
+                disabled={!!newForm.group_hike_id}
                 value={newForm.service_type}
                 onChange={e => {
                   const nextType = e.target.value;
@@ -1417,7 +1518,7 @@ export default function AdminCalendarPage() {
                     <select
                       className="input"
                       value={newForm.duration_minutes}
-                      disabled={isFixed}
+                      disabled={isFixed || !!newForm.group_hike_id}
                       onChange={e => setNewForm(f => ({ ...f, duration_minutes: parseInt(e.target.value) }))}
                     >
                       {durations.map(d => (
@@ -1437,6 +1538,7 @@ export default function AdminCalendarPage() {
               <input
                 type="date"
                 className="input"
+                disabled={!!newForm.group_hike_id}
                 value={newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : ''}
                 onChange={e => {
                   const newDate = e.target.value;
@@ -1500,6 +1602,7 @@ export default function AdminCalendarPage() {
               <label className="label">{newForm.service_type === 'day_boarding' ? 'Start Time *' : 'Time *'}</label>
               <select
                 className="input"
+                disabled={!!newForm.group_hike_id}
                 value={newForm.scheduled_time ? newForm.scheduled_time.split('T')[1]?.substring(0, 5) || '' : ''}
                 onChange={e => {
                   const date = newForm.scheduled_time ? newForm.scheduled_time.split('T')[0] : '';
@@ -1709,6 +1812,77 @@ export default function AdminCalendarPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Group Hike roster modal */}
+      <Modal
+        open={!!hikeRoster}
+        onClose={() => setHikeRoster(null)}
+        title={hikeRoster?.group_hike_name || 'Group Hike'}
+        size="lg"
+      >
+        {hikeRoster && (() => {
+          const localStr = hikeRoster.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+          const start = localStr ? new Date(localStr) : null;
+          return (
+            <div className="space-y-4">
+              <div className="text-sm text-taupe">
+                {start && format(start, 'EEEE, MMM d — h:mm a')} · {formatDuration(hikeRoster.duration_minutes)}
+                {hikeRoster.assigned_admin?.name && <> · {hikeRoster.assigned_admin.name}</>}
+              </div>
+
+              <div className="space-y-2">
+                {hikeRoster.participants.map((p: any) => {
+                  const profile = p.user?.client_profile;
+                  const address = [profile?.address, profile?.city].filter(Boolean).join(', ');
+                  const dogNames = (p.dogs ?? []).map((d: any) => d.name).join(', ');
+                  const isRecurring = !!(p.recurrence_rule || p.recurrence_parent_id);
+                  return (
+                    <div key={p.id} className="flex items-center justify-between border border-taupe/30 rounded-lg px-3 py-2">
+                      <div>
+                        <div className="font-medium text-sm">{p.user?.name}{isRecurring && <span className="text-xs text-taupe ml-1">(recurring)</span>}</div>
+                        <div className="text-xs text-taupe">{dogNames}{address && ` — ${address}`}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={statusBadge(p.status)}>{p.status.replace('_', ' ')}</Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirm({ id: p.id, hasRecurrence: isRecurring })}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-taupe/20">
+                <Button variant="outline" onClick={() => setHikeRoster(null)}>Close</Button>
+                <Button
+                  onClick={() => {
+                    setNewForm({
+                      ...blankForm(),
+                      service_type: 'pack_hike',
+                      group_hike_id: hikeRoster.group_hike_id,
+                      group_hike_name: hikeRoster.group_hike_name,
+                      scheduled_time: hikeRoster.scheduled_time,
+                      duration_minutes: hikeRoster.duration_minutes,
+                      client_time_block: hikeRoster.client_time_block || 'morning',
+                      assigned_to: hikeRoster.assigned_to ? String(hikeRoster.assigned_to) : '',
+                    });
+                    setCreateError('');
+                    setHikeRoster(null);
+                    setCreatingAppt(true);
+                  }}
+                >
+                  Add Dog
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* Edit appointment modal */}

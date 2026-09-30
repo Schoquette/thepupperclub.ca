@@ -40,8 +40,25 @@ class AppointmentService
         }
         $hasAssignedTo = true;
 
+        if (!Schema::hasColumn('appointments', 'group_hike_id')) {
+            Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('group_hike_id', 36)->nullable();
+                $table->string('group_hike_name')->nullable();
+            });
+        }
+
         // Accept both 'recurrence_rule' and 'recurrence' from frontend
         $recurrenceRule = $data['recurrence_rule'] ?? $data['recurrence'] ?? null;
+
+        // Group hikes: every participant is its own Appointment row, tied
+        // together by a shared group_hike_id so the calendar can collapse
+        // them into one tile and the admin can see the full roster. A
+        // fresh id is minted the first time a pack_hike is created; joining
+        // an existing hike passes the id through instead of generating one.
+        $groupHikeId = $data['group_hike_id'] ?? null;
+        if ($data['service_type'] === 'pack_hike' && !$groupHikeId) {
+            $groupHikeId = (string) \Illuminate\Support\Str::uuid();
+        }
 
         $fields = [
             'user_id'           => $data['user_id'],
@@ -51,6 +68,8 @@ class AppointmentService
             'duration_minutes'  => $data['duration_minutes'] ?? 30,
             'notes'             => $data['notes'] ?? null,
             'recurrence_rule'   => $recurrenceRule,
+            'group_hike_id'     => $groupHikeId,
+            'group_hike_name'   => $groupHikeId ? ($data['group_hike_name'] ?? null) : null,
         ];
 
         if ($hasAssignedTo) {
@@ -182,6 +201,11 @@ class AppointmentService
                 'recurrence_rule'      => null,
                 'recurrence_parent_id' => $parent->id,
             ];
+
+            if (Schema::hasColumn('appointments', 'group_hike_id')) {
+                $childFields['group_hike_id']   = $parent->group_hike_id;
+                $childFields['group_hike_name'] = $parent->group_hike_name;
+            }
 
             if (Schema::hasColumn('appointments', 'assigned_to')) {
                 $childFields['assigned_to'] = $parent->assigned_to;

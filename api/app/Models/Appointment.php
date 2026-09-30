@@ -32,6 +32,8 @@ class Appointment extends Model
         'notes',
         'recurrence_rule',
         'recurrence_parent_id',
+        'group_hike_id',
+        'group_hike_name',
         'check_in_time',
         'check_out_time',
         'pre_visit_notification_sent',
