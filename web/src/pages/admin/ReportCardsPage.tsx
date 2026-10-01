@@ -2,12 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 
 export default function AdminReportCardsPage() {
+  const { user } = useAuth();
+  const isTeamMember = user?.role === 'team_member';
   const [statusFilter, setStatusFilter] = useState<'all' | 'sent' | 'draft'>('all');
   const [clientFilter, setClientFilter] = useState('');
   const qc = useQueryClient();
@@ -31,11 +34,12 @@ export default function AdminReportCardsPage() {
   const { data: dueData } = useQuery({
     queryKey: ['admin-report-cards-due'],
     queryFn: () => api.get('/admin/report-cards/due').then((r) => r.data),
+    enabled: !isTeamMember,
   });
 
   const { data: clientsData } = useQuery({
-    queryKey: ['admin-clients-list'],
-    queryFn: () => api.get('/admin/clients').then((r) => r.data.data),
+    queryKey: ['admin-clients-list', isTeamMember],
+    queryFn: () => api.get(isTeamMember ? '/admin/my/clients' : '/admin/clients').then((r) => r.data.data),
   });
 
   const dueAppointments: any[] = dueData?.data ?? [];

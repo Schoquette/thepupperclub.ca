@@ -41,9 +41,11 @@ export default function AdminReportsScreen() {
         .then((r) => r.data),
   });
 
+  const isTeamMember = user?.role === 'team_member';
+
   const { data: clientsData } = useQuery({
-    queryKey: ['mobile-admin-clients-list'],
-    queryFn: () => api.get('/admin/clients').then((r) => r.data.data ?? []),
+    queryKey: ['mobile-admin-clients-list', isTeamMember],
+    queryFn: () => api.get(isTeamMember ? '/admin/my/clients' : '/admin/clients').then((r) => r.data.data ?? []),
   });
 
   const { data: templateData } = useQuery({

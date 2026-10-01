@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Appointment;
 use App\Models\ReportCardTemplate;
 use App\Models\User;
 use App\Models\VisitReport;
@@ -26,6 +27,10 @@ class ReportCardController extends Controller
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->status === 'sent',  fn($q) => $q->whereNotNull('sent_at'))
             ->when($request->status === 'draft', fn($q) => $q->whereNull('sent_at'))
+            ->when($request->user()->role === 'team_member', fn($q) => $q->whereIn(
+                'user_id',
+                Appointment::where('assigned_to', $request->user()->id)->pluck('user_id')->unique()
+            ))
             ->orderByDesc('created_at');
 
         return response()->json($query->paginate(20));
@@ -84,8 +89,12 @@ class ReportCardController extends Controller
         return response()->json(['message' => 'Dismissed.']);
     }
 
-    public function show(VisitReport $reportCard): JsonResponse
+    public function show(Request $request, VisitReport $reportCard): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $reportCard->user_id);
+        }
+
         return response()->json(['data' => $reportCard->load(['user:id,name,email', 'appointment.dogs', 'appointment.user:id,name,email'])]);
     }
 
@@ -303,8 +312,12 @@ class ReportCardController extends Controller
 
     // ── Photos ────────────────────────────────────────────────────────────────
 
-    public function servePhoto(VisitReport $reportCard, int $index = 0): StreamedResponse
+    public function servePhoto(Request $request, VisitReport $reportCard, int $index = 0): StreamedResponse
     {
+        if ($request->user()->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $reportCard->user_id);
+        }
+
         $paths = $reportCard->photo_paths ?? [];
 
         // Backward compat: fall back to legacy single-photo field
@@ -320,6 +333,10 @@ class ReportCardController extends Controller
 
     public function deletePhoto(Request $request, VisitReport $reportCard): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $reportCard->user_id);
+        }
+
         $index = (int) $request->query('index', 0);
         $paths = $reportCard->photo_paths ?? [];
 

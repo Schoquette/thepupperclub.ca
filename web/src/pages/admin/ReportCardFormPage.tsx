@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import heic2any from 'heic2any';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -73,6 +74,8 @@ export default function AdminReportCardFormPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const isTeamMember = user?.role === 'team_member';
   const isNew = !id;
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -118,20 +121,20 @@ export default function AdminReportCardFormPage() {
   }, [qsAppointment?.id]); // eslint-disable-line
 
   const { data: clientsData } = useQuery({
-    queryKey: ['admin-clients-list'],
-    queryFn: () => api.get('/admin/clients').then((r) => r.data.data ?? []),
+    queryKey: ['admin-clients-list', isTeamMember],
+    queryFn: () => api.get(isTeamMember ? '/admin/my/clients' : '/admin/clients').then((r) => r.data.data ?? []),
   });
 
   const { data: appointmentsData } = useQuery({
     queryKey: ['admin-appointments-for-client', clientId],
     queryFn: () =>
       api.get('/admin/appointments', { params: { user_id: clientId, without_report_card: 1 } }).then((r) => r.data.data ?? []),
-    enabled: !!clientId,
+    enabled: !!clientId && !isTeamMember,
   });
 
   const { data: clientDetail } = useQuery({
-    queryKey: ['admin-client-detail', clientId],
-    queryFn: () => api.get(`/admin/clients/${clientId}`).then(r => r.data.data),
+    queryKey: ['admin-client-detail', clientId, isTeamMember],
+    queryFn: () => api.get(isTeamMember ? `/admin/my/clients/${clientId}` : `/admin/clients/${clientId}`).then(r => r.data.data),
     enabled: !!clientId,
   });
   const clientDogs: { id: number; name: string }[] = clientDetail?.dogs ?? [];
@@ -449,7 +452,7 @@ export default function AdminReportCardFormPage() {
             {isNew ? 'New Report Card' : isSent && !editing ? 'Report Card' : 'Edit Report Card'}
           </h1>
         </div>
-        {!isNew && !isSent && (
+        {!isNew && !isSent && !isTeamMember && (
           <button
             onClick={() => deleteReport.mutate()}
             className="text-xs text-red-400 hover:text-red-600 underline"
@@ -527,7 +530,7 @@ export default function AdminReportCardFormPage() {
         )}
 
         {/* Appointment picker */}
-        {isNew && clientId && (
+        {isNew && clientId && !isTeamMember && (
           <div className="mb-5">
             <Select
               label="Visit / Appointment"
@@ -581,8 +584,8 @@ export default function AdminReportCardFormPage() {
           </div>
         )}
 
-        {/* Template customization */}
-        {clientId && !locked && (
+        {/* Template customization — editing the template itself is an admin-only capability */}
+        {clientId && !locked && !isTeamMember && (
           <div className="mb-4 flex justify-end">
             <button
               onClick={() => {

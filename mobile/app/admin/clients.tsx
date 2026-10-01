@@ -5,15 +5,18 @@ import {
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 
 export default function AdminClientsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isTeamMember = user?.role === 'team_member';
   const [search, setSearch] = useState('');
 
   const { data: clients, isLoading } = useQuery({
-    queryKey: ['mobile-admin-clients'],
-    queryFn: () => api.get('/admin/clients').then(r => r.data.data ?? []),
+    queryKey: ['mobile-admin-clients', isTeamMember],
+    queryFn: () => api.get(isTeamMember ? '/admin/my/clients' : '/admin/clients').then(r => r.data.data ?? []),
   });
 
   const filtered = (clients ?? []).filter((c: any) =>

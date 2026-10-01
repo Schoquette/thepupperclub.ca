@@ -4,9 +4,8 @@ import {
   RefreshControl, Alert, ActivityIndicator, Modal, TextInput,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
-import { format } from 'date-fns';
+import { format, addDays, subDays } from 'date-fns';
 
 const MOOD_EMOJI: Record<string, string> = {
   great: '🐾', good: '😊', okay: '😐', anxious: '😟', unwell: '🤒',
@@ -79,10 +78,9 @@ function WalkCard({
   );
 }
 
-export default function AdminDashboardScreen() {
-  const { user, logout } = useAuth();
+export default function MyCalendarScreen() {
   const qc = useQueryClient();
-  const isTeamMember = user?.role === 'team_member';
+  const [day, setDay] = useState(new Date());
   const [completing, setCompleting] = useState<any>(null);
   const [mood, setMood] = useState('good');
   const [eliminated, setEliminated] = useState(false);
@@ -91,27 +89,17 @@ export default function AdminDashboardScreen() {
   const [energy, setEnergy] = useState('normal');
   const [notes, setNotes] = useState('');
 
-  const { data: dashboard, isLoading: dashboardLoading, refetch: refetchDashboard } = useQuery({
-    queryKey: ['mobile-admin-dashboard'],
-    queryFn: () => api.get('/admin/dashboard').then(r => r.data.data),
-    refetchInterval: 30_000,
-    enabled: !isTeamMember,
-  });
+  const dateStr = format(day, 'yyyy-MM-dd');
 
-  const { data: myAppointments, isLoading: myLoading, refetch: refetchMine } = useQuery({
-    queryKey: ['mobile-my-appointments-today'],
-    queryFn: () => api.get('/admin/my/appointments', { params: { date: format(new Date(), 'yyyy-MM-dd') } }).then(r => r.data.data ?? []),
+  const { data: appointments, isLoading, refetch } = useQuery({
+    queryKey: ['mobile-my-appointments', dateStr],
+    queryFn: () => api.get('/admin/my/appointments', { params: { date: dateStr } }).then(r => r.data.data ?? []),
     refetchInterval: 30_000,
-    enabled: isTeamMember,
   });
-
-  const isLoading = isTeamMember ? myLoading : dashboardLoading;
-  const refetch = isTeamMember ? refetchMine : refetchDashboard;
-  const invalidateKey = isTeamMember ? 'mobile-my-appointments-today' : 'mobile-admin-dashboard';
 
   const checkIn = useMutation({
     mutationFn: (id: number) => api.post(`/admin/appointments/${id}/check-in`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: [invalidateKey] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mobile-my-appointments'] }),
     onError: () => Alert.alert('Error', 'Could not check in. Please try again.'),
   });
 
@@ -123,7 +111,7 @@ export default function AdminDashboardScreen() {
     onSuccess: () => {
       setCompleting(null);
       resetReport();
-      qc.invalidateQueries({ queryKey: [invalidateKey] });
+      qc.invalidateQueries({ queryKey: ['mobile-my-appointments'] });
       Alert.alert('Visit Complete!', 'Report saved and client notified.');
     },
     onError: () => Alert.alert('Error', 'Could not complete visit. Make sure you have uploaded at least one photo.'),
@@ -134,83 +122,36 @@ export default function AdminDashboardScreen() {
     setDrankWater(false); setEnergy('normal'); setNotes('');
   };
 
-  const today = isTeamMember ? (myAppointments ?? []) : (dashboard?.today_appointments ?? []);
-  const pending = dashboard?.pending_requests ?? 0;
-  const unreadMsgs = dashboard?.unread_messages ?? 0;
-  const outstandingInvoices = dashboard?.outstanding_invoices ?? 0;
+  const list = appointments ?? [];
+  const isToday = format(new Date(), 'yyyy-MM-dd') === dateStr;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F6F3EE' }}>
       <View style={s.header}>
-        <View>
-          <Text style={s.headerGreeting}>Hey, {user?.name?.split(' ')[0] ?? 'there'}! 🐾</Text>
-          <Text style={s.headerDate}>{format(new Date(), 'EEEE, MMMM d')}</Text>
+        <Text style={s.headerTitle}>My Calendar</Text>
+        <View style={s.dayNav}>
+          <TouchableOpacity style={s.navBtn} onPress={() => setDay(d => subDays(d, 1))}>
+            <Text style={s.navArrow}>‹</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setDay(new Date())}>
+            <Text style={s.navDate}>{isToday ? 'Today' : format(day, 'EEE, MMM d')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.navBtn} onPress={() => setDay(d => addDays(d, 1))}>
+            <Text style={s.navArrow}>›</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => Alert.alert('Sign Out', 'Sign out?', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Sign Out', style: 'destructive', onPress: logout },
-        ])}>
-          <Text style={s.signOut}>Sign Out</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
         contentContainerStyle={s.content}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
       >
-        {!isTeamMember && (
-          <>
-            {/* Stats Row */}
-            <View style={s.statsRow}>
-              <View style={s.statCard}>
-                <Text style={s.statNum}>{today.length}</Text>
-                <Text style={s.statLabel}>Today's Walks</Text>
-              </View>
-              <View style={s.statCard}>
-                <Text style={[s.statNum, pending > 0 && { color: '#C9A24D' }]}>{pending}</Text>
-                <Text style={s.statLabel}>Requests</Text>
-              </View>
-              <View style={s.statCard}>
-                <Text style={[s.statNum, unreadMsgs > 0 && { color: '#6492D8' }]}>{unreadMsgs}</Text>
-                <Text style={s.statLabel}>Unread</Text>
-              </View>
-              <View style={s.statCard}>
-                <Text style={[s.statNum, outstandingInvoices > 0 && { color: '#dc2626' }]}>{outstandingInvoices}</Text>
-                <Text style={s.statLabel}>Unpaid</Text>
-              </View>
-            </View>
-
-            {/* Revenue */}
-            {dashboard?.revenue && (
-              <View style={s.revenueCard}>
-                <Text style={s.revenueTitle}>This Month</Text>
-                <View style={s.revenueRow}>
-                  <View style={s.revItem}>
-                    <Text style={s.revAmt}>${Number(dashboard.revenue.billed ?? 0).toFixed(0)}</Text>
-                    <Text style={s.revLabel}>Billed</Text>
-                  </View>
-                  <View style={s.revItem}>
-                    <Text style={[s.revAmt, { color: '#22c55e' }]}>${Number(dashboard.revenue.collected ?? 0).toFixed(0)}</Text>
-                    <Text style={s.revLabel}>Collected</Text>
-                  </View>
-                  <View style={s.revItem}>
-                    <Text style={[s.revAmt, { color: '#dc2626' }]}>${Number(dashboard.revenue.outstanding ?? 0).toFixed(0)}</Text>
-                    <Text style={s.revLabel}>Outstanding</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-          </>
-        )}
-
-        {/* Today's Walks */}
-        <Text style={s.sectionTitle}>Today's Walks</Text>
-        {today.length === 0 ? (
+        {list.length === 0 ? (
           <View style={s.empty}>
-            <Text style={s.emptyText}>No walks scheduled today. Enjoy your rest! 🐾</Text>
+            <Text style={s.emptyText}>No visits scheduled for this day. 🐾</Text>
           </View>
         ) : (
-          today.map((appt: any) => (
+          list.map((appt: any) => (
             <WalkCard
               key={appt.id}
               appt={appt}
@@ -304,22 +245,13 @@ export default function AdminDashboardScreen() {
 }
 
 const s = StyleSheet.create({
-  header:        { backgroundColor: '#3B2F2A', paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  headerGreeting:{ color: '#F6F3EE', fontSize: 20, fontWeight: '700' },
-  headerDate:    { color: '#C8BFB6', fontSize: 13, marginTop: 2 },
-  signOut:       { color: '#C8BFB6', fontSize: 13 },
+  header:        { backgroundColor: '#3B2F2A', paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20 },
+  headerTitle:   { color: '#F6F3EE', fontSize: 18, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
+  dayNav:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navBtn:        { paddingHorizontal: 16, paddingVertical: 4 },
+  navArrow:      { color: '#C9A24D', fontSize: 26, fontWeight: '700' },
+  navDate:       { color: '#F6F3EE', fontSize: 15, fontWeight: '600' },
   content:       { padding: 20, paddingBottom: 60 },
-  statsRow:      { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  statCard:      { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 12, alignItems: 'center', shadowColor: '#3B2F2A', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  statNum:       { fontSize: 24, fontWeight: '700', color: '#3B2F2A' },
-  statLabel:     { fontSize: 10, color: '#C8BFB6', marginTop: 2, textAlign: 'center' },
-  revenueCard:   { backgroundColor: '#3B2F2A', borderRadius: 16, padding: 16, marginBottom: 20 },
-  revenueTitle:  { color: '#C8BFB6', fontSize: 12, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-  revenueRow:    { flexDirection: 'row' },
-  revItem:       { flex: 1, alignItems: 'center' },
-  revAmt:        { color: '#F6F3EE', fontSize: 20, fontWeight: '700' },
-  revLabel:      { color: '#C8BFB6', fontSize: 11, marginTop: 2 },
-  sectionTitle:  { fontSize: 16, fontWeight: '700', color: '#3B2F2A', marginBottom: 12 },
   empty:         { backgroundColor: '#fff', borderRadius: 14, padding: 20, alignItems: 'center' },
   emptyText:     { color: '#C8BFB6', fontSize: 14, textAlign: 'center' },
 });

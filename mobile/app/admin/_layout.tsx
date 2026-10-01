@@ -34,6 +34,12 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="calendar"
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📅" label="Calendar" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="clients"
         options={{
           tabBarIcon: ({ focused }) => <TabIcon emoji="👥" label="Clients" focused={focused} />,

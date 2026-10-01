@@ -10,6 +10,9 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 
 // Admin pages
 import AdminLayout from './components/admin/AdminLayout';
+import TeamMemberLayout from './components/admin/TeamMemberLayout';
+import MyCalendarPage from './pages/admin/MyCalendarPage';
+import MyClientsPage from './pages/admin/MyClientsPage';
 import AdminDashboardPage from './pages/admin/DashboardPage';
 import AdminClientsPage from './pages/admin/ClientsPage';
 import AdminDogsPage from './pages/admin/DogsPage';
@@ -88,34 +91,46 @@ export default function App() {
         }
       />
 
-      {/* Admin */}
-      <Route path="/admin" element={<RequireAuth role="admin"><AdminLayout /></RequireAuth>}>
-        <Route index element={<AdminDashboardPage />} />
-        <Route path="clients" element={<AdminClientsPage />} />
-        <Route path="clients/:id" element={<AdminClientDetailPage />} />
-        <Route path="dogs" element={<AdminDogsPage />} />
-        <Route path="clients/:id/intake" element={<AdminIntakeFormPage />} />
-        <Route path="calendar" element={<AdminCalendarPage />} />
-        <Route path="service-requests" element={<AdminServiceRequestsPage />} />
-        <Route path="inbox" element={<AdminInboxPage />} />
-        <Route path="inbox/:clientId" element={<AdminInboxPage />} />
-        <Route path="invoices" element={<AdminInvoicesPage />} />
-        <Route path="invoices/new" element={<AdminInvoiceCreatePage />} />
-        <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
-        <Route path="report-cards" element={<AdminReportCardsPage />} />
-        <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
-        <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
-        <Route path="time-mileage" element={<AdminTimeMileagePage />} />
-        <Route path="reports" element={<AdminReportsPage />} />
-        <Route path="team" element={<AdminTeamPage />} />
-        <Route path="documents" element={<AdminDocumentsPage />} />
-        <Route path="documents/templates/:id/edit" element={<AdminTemplateEditorPage />} />
-        <Route path="broadcast" element={<AdminBroadcastPage />} />
-        <Route path="email-logs" element={<AdminEmailLogsPage />} />
-        <Route path="error-logs" element={<AdminErrorLogsPage />} />
-        <Route path="audit-logs" element={<AdminAuditLogsPage />} />
-        <Route path="settings" element={<AdminSettingsPage />} />
-      </Route>
+      {/* Admin — team_member gets a much narrower route tree under the same shell */}
+      {user?.role === 'team_member' ? (
+        <Route path="/admin" element={<RequireAuth role="admin"><TeamMemberLayout /></RequireAuth>}>
+          <Route index element={<Navigate to="/admin/calendar" replace />} />
+          <Route path="calendar" element={<MyCalendarPage />} />
+          <Route path="clients" element={<MyClientsPage />} />
+          <Route path="report-cards" element={<AdminReportCardsPage />} />
+          <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
+          <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
+          <Route path="*" element={<Navigate to="/admin/calendar" replace />} />
+        </Route>
+      ) : (
+        <Route path="/admin" element={<RequireAuth role="admin"><AdminLayout /></RequireAuth>}>
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="clients" element={<AdminClientsPage />} />
+          <Route path="clients/:id" element={<AdminClientDetailPage />} />
+          <Route path="dogs" element={<AdminDogsPage />} />
+          <Route path="clients/:id/intake" element={<AdminIntakeFormPage />} />
+          <Route path="calendar" element={<AdminCalendarPage />} />
+          <Route path="service-requests" element={<AdminServiceRequestsPage />} />
+          <Route path="inbox" element={<AdminInboxPage />} />
+          <Route path="inbox/:clientId" element={<AdminInboxPage />} />
+          <Route path="invoices" element={<AdminInvoicesPage />} />
+          <Route path="invoices/new" element={<AdminInvoiceCreatePage />} />
+          <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
+          <Route path="report-cards" element={<AdminReportCardsPage />} />
+          <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
+          <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
+          <Route path="time-mileage" element={<AdminTimeMileagePage />} />
+          <Route path="reports" element={<AdminReportsPage />} />
+          <Route path="team" element={<AdminTeamPage />} />
+          <Route path="documents" element={<AdminDocumentsPage />} />
+          <Route path="documents/templates/:id/edit" element={<AdminTemplateEditorPage />} />
+          <Route path="broadcast" element={<AdminBroadcastPage />} />
+          <Route path="email-logs" element={<AdminEmailLogsPage />} />
+          <Route path="error-logs" element={<AdminErrorLogsPage />} />
+          <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
+        </Route>
+      )}
 
       {/* Client */}
       <Route path="/client" element={<RequireAuth role="client"><ClientLayout /></RequireAuth>}>
