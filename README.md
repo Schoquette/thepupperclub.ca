@@ -54,7 +54,9 @@ thepupperclub.ca/
 - **Client Management**: Profiles, onboarding steps, home access codes (encrypted), secondary contacts with notification preferences, intake forms
 - **Dog Management**: CRUD with full intake fields (personality, behaviour, medical, visit preferences, medications, training commands), vaccination records, documents, profile photos, size options (toy/small/medium/large/extra large)
 - **Appointments**: Scheduling, check-in/complete, recurring generation, team member assignment
-- **Invoicing**: Create, send, pay via Stripe, PDF export, subscription billing with pause/resume
+- **Group Hikes**: `pack_hike` appointments support a multi-client/multi-dog roster sharing one calendar slot (`group_hike_id`/`group_hike_name`). Each participant is an independent appointment row (own recurrence chain, own check-in/report card) — the admin calendar collapses same-slot rows into one tile; clicking it opens a roster (dogs + addresses) with Add Dog / Remove actions. Duration is free-form (not locked to a preset).
+- **Pay-As-You-Go billing**: a third billing plan alongside subscriptions and manual invoicing. **Prepaid packs** — buy a 10-visit pack (priced from a Stripe one-time Price per visit type, configured in Settings); balance depletes as visits land on the calendar (including pre-generated recurring occurrences), falling back to running-tab billing once exhausted. **Running tab** — visits accrue at the resolved rate and invoice automatically on the client's normal monthly billing date. **Custom per-client pricing** (plus a separate weekend-rate override for Sat/Sun visits) overrides the global rate everywhere a per-visit price is used, for grandfathering old pricing. Pack purchases reuse the invoice/charge pipeline (admin-initiated or client self-serve); balance only credits once the invoice is actually paid.
+- **Invoicing**: Create, send, pay via Stripe, PDF export. Sending is the deliberate manual-approval action — subscriptions no longer create a real Stripe Subscription object (which auto-charges on its own schedule); every billing method stores the plan locally and bills through the monthly job, which generates a **draft** invoice that an admin must approve/send, with the credit-card charge happening at send time. Other invoicing features: monthly revenue projections panel, editable paid-date (for accurate income-by-month reporting), "Mark Paid" without notifying the client (for reconciling payments already communicated elsewhere), and every email to a client is BCC'd to the business owner.
 - **Messaging**: Conversations with photo attachments, emoji reactions, reply threading, date separators
 - **Report Cards**: Post-visit reports with multi-photo support, per-dog checklists/notes, customizable templates per client, branded email with dog photo
 - **Document Management**: Upload PDF, Word (.doc/.docx), and images; self-hosted digital signatures (DocuSign-style full-screen signing experience) with encrypted tokens; template system with visual field editor (drag-to-position, corner resize handles, client/company recipient roles); counter-signing workflow (client signs -> admin counter-signs -> fully executed certificate); authenticated preview via blob URL
@@ -75,8 +77,8 @@ thepupperclub.ca/
 | Command | Purpose |
 |---------|---------|
 | `SendPreVisitPrompts` | Sends reminders 2 hours before appointments |
-| `GenerateRecurringAppointments` | Creates recurring appointment instances |
-| `GenerateSubscriptionInvoices` | Monthly billing with 3-day email reminders |
+| `GenerateRecurringAppointments` | Extends recurring appointment series another month ahead (resumes from the last-generated occurrence — does not restart from scratch) |
+| `GenerateSubscriptionInvoices` | Generates draft subscription invoices 7 days before billing (requires manual approve/send — does not auto-charge), 3-day reminders, and bills Pay-As-You-Go running tabs |
 | `RegenerateIntakePdfs` | One-time: regenerate all intake form PDFs with latest branded template |
 
 #### API Routes
@@ -100,9 +102,9 @@ thepupperclub.ca/
 
 #### Web Portal Pages (38+ pages)
 
-**Admin Pages** (23): Dashboard (with check-in, revenue stats, email/error logs), Clients list, Client detail (with tabs: Overview, Dogs, Appointments, Billing, Documents — billing tab shows subscription info, open/overdue invoices, unbilled add-ons with checkboxes for batch invoicing, invoice history), Dogs list (with search, status tabs, client/breed filters), Intake form, Calendar, Service requests (clickable rows with detail/review modals), Inbox, Conversation, Invoices (with client, month, and status filters), Invoice create (pre-selects client from query param), Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Template editor (react-pdf per-page rendering, drag-to-position fields, corner resize handles, client/company recipient roles, role-based color coding), Broadcast messages, Email logs, Error logs, Audit logs, Settings (notification preferences for app/email/SMS, desktop notifications, password)
+**Admin Pages** (23): Dashboard (with check-in, revenue stats, email/error logs), Clients list, Client detail (with tabs: Overview, Dogs, Appointments, Billing, Documents — billing tab shows subscription info, Pay-As-You-Go card (mode, pack balances/running tab, buy-pack, custom + weekend pricing), open/overdue invoices, unbilled add-ons with checkboxes for batch invoicing, invoice history), Dogs list (with search, status tabs, client/breed filters), Intake form, Calendar (Group Hike tiles collapse same-slot participants into one roster), Service requests (clickable rows with detail/review modals), Inbox, Conversation, Invoices (with client, month, and status filters, revenue projections panel, editable paid date), Invoice create (pre-selects client from query param, quick-add visit buttons using resolved PAYG rate), Invoice detail, Report cards, Report card form, Time & Mileage, Reports (export), Team, Documents (with upload), Template editor (react-pdf per-page rendering, drag-to-position fields, corner resize handles, client/company/external recipient roles, role-based color coding), Broadcast messages, Email logs, Error logs, Audit logs, Settings (notification preferences for app/email/SMS, desktop notifications, password, Pay-As-You-Go pricing)
 
-**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions for Safari, Chrome iOS, and Android), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, desktop notifications, notification preferences, account deletion)
+**Client Pages** (12): Dashboard (with "Add to Home Screen" instructions for Safari, Chrome iOS, and Android), Onboarding, Profile (with quick links to Dogs/Billing/Settings), Dogs (full intake-matching form with radio pills, checkbox pills, medications editor), Appointments, Messages, Invoices (with PDF preview/download), Billing (Stripe card management, Pay-As-You-Go pack balance/running tab + self-serve buy-pack), Report cards, Documents (with upload), Intake form (with address autocomplete), Settings (password change, desktop notifications, notification preferences, account deletion)
 
 **Shared**: Login, Set password, Forgot/reset password, Document signing (DocuSign-style full-screen, counter-sign support)
 
@@ -331,14 +333,15 @@ Shows diagnostics (storage permissions, PHP version, DB connection) and data cou
 Migrations covering:
 
 - **Users & Auth** — users table with roles (admin, client, superadmin), Sanctum tokens, home address fields for team members
-- **Client Profiles** — extended client info, subscription fields (with pause/resume), secondary contact (name, email, notification preferences), billing method (interac_pad enum), notification preferences (app/email/SMS)
+- **Client Profiles** — extended client info, subscription fields (with pause/resume), secondary contact (name, email, notification preferences), billing method enum (`credit_card`/`e_transfer`/`cash`), notification preferences (app/email/SMS), Pay-As-You-Go fields (`payg_mode`, per-type custom pricing incl. weekend overrides, prepaid pack balances)
 - **Home Access** — encrypted access codes for client homes
 - **Dogs** — breed, age, size (toy/small/medium/large/extra_large/xl), colour, microchip, spayed/neutered, personality (energy level, interactions with dogs/strangers/children, triggers), medical (conditions, allergies, medications as JSON, mobility limitations, recent surgeries), visit preferences (walk style, gear, treats, training commands, avoid list), profile photos, vaccination records, bite history, admin tags (off-leash approved, media consent, buddy walks OK)
-- **Appointments** — scheduling with check-in/complete timestamps, recurring support, team member assignment
+- **Appointments** — scheduling with check-in/complete timestamps, recurring support, team member assignment, Group Hike roster linking (`group_hike_id`/`group_hike_name`), Pay-As-You-Go per-visit charge stamping (`payg_charge_mode`, `payg_rate`, `payg_billed_at`)
 - **Service Requests** — client-submitted requests for schedule changes, time extensions, and special services (editable/cancellable while pending); billing tracking via `billing_type`, `billing_amount`, `billing_description`, `invoice_line_item_id` columns
 - **Visit Reports** — post-visit report cards with multi-photo support, per-dog data (checklists/notes as JSON)
 - **Report Card Templates** — customizable checklist templates per client
-- **Invoices** — line items, Stripe payment intents, PDF generation, invoice numbers (`PC-YYYY-NNNN`)
+- **Invoices** — line items, Stripe payment intents, PDF generation, invoice numbers (`TPC-YYYY-MM-NNNN`), editable paid date, Pay-As-You-Go pack-purchase tagging (`payg_pack_service_type`/`payg_pack_quantity`)
+- **`payg_service_pricing`** — one row per visit type (`walk_30`/`walk_60`/`pack_hike`), stores the Stripe one-time Price for that type's 10-pack (`stripe_price_id`, cached `pack_price_cents`) — the global default per-visit rate before any client-specific override
 - **Conversations & Messages** — threaded messaging with photo attachments, emoji reactions, reply threading (`reply_to_id`), notification type messages
 - **Documents** — client documents with digital signature support, templates with visual field editor
 - **Document Templates** — PDF templates with positioned form fields (name, checkbox, date, signature, dog_name, open_text), `assigned_to` role per field (client/company), counter-sign fields (`countersign_token`, `countersigned_at`, `countersigner_name`, `countersigner_ip`, `countersign_signature_data`, `countersign_field_values`)
@@ -442,12 +445,13 @@ npx expo start
 | `MAIL_FROM_ADDRESS` | `hello@thepupperclub.ca` (requires domain verification in Resend) |
 | `RESEND_INBOUND_ADDRESS` | Reply-to address for inbound email routing (e.g. `reply@thepupperclub.ca`) |
 | `COMMUNITY_SUPPORT_ADDRESS` | Where Community Contact Us form submissions land. Defaults to `sophie@thepupperclub.ca`. |
-| `APP_TIMEZONE` | `America/Vancouver` |
 | `SANCTUM_STATEFUL_DOMAINS` | Allowed frontend domains |
 | `FRONTEND_URL` | Web portal URL (e.g., `https://thepupperclub.ca`) — used as the fallback origin for Stripe redirects when the request Origin/Referer header can't be trusted |
 | `TWILIO_SID` | Twilio account SID (for SMS) |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | Twilio phone number |
+
+> **Timezone is not an env var.** `config/app.php` hardcodes `'timezone' => 'America/Vancouver'` rather than reading `APP_TIMEZONE` — GoDaddy's env panel was found to have it genuinely set to `UTC` (not the whitespace-corruption issue affecting `MAIL_MAILER`), which silently ran the whole app on UTC. Since this app only ever serves one business in one timezone, the fix was to stop depending on the env panel for it entirely.
 
 **Web (`web/.env`):**
 
