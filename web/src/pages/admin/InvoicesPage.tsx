@@ -178,7 +178,7 @@ export default function AdminInvoicesPage() {
                 <th className="px-6 py-4 font-semibold text-espresso">Client</th>
                 <th className="px-6 py-4 font-semibold text-espresso">Total</th>
                 <th className="px-6 py-4 font-semibold text-espresso">Status</th>
-                <th className="px-6 py-4 font-semibold text-espresso">Due</th>
+                <th className="px-6 py-4 font-semibold text-espresso">Date</th>
                 <th className="px-6 py-4"></th>
               </tr>
             </thead>
@@ -189,8 +189,12 @@ export default function AdminInvoicesPage() {
                   <td className="px-6 py-4">{inv.user?.name}</td>
                   <td className="px-6 py-4 font-semibold">${Number(inv.total).toFixed(2)}</td>
                   <td className="px-6 py-4"><Badge variant={statusBadge(inv.status)}>{inv.status}</Badge></td>
-                  <td className="px-6 py-4 text-taupe text-xs">
-                    {inv.due_date ? format(new Date(String(inv.due_date).slice(0, 10) + 'T00:00:00'), 'MMM d') : '—'}
+                  <td className="px-6 py-4 text-xs">
+                    {inv.status === 'paid' && inv.paid_at ? (
+                      <span className="text-green-600">Paid {format(new Date(inv.paid_at), 'MMM d')}</span>
+                    ) : inv.due_date ? (
+                      <span className="text-taupe">Due {format(new Date(String(inv.due_date).slice(0, 10) + 'T00:00:00'), 'MMM d')}</span>
+                    ) : '—'}
                   </td>
                   <td className="px-6 py-4">
                     <button
