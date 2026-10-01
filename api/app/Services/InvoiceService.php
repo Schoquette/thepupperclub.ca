@@ -437,7 +437,12 @@ class InvoiceService
                 ->when($filters['user_id'] ?? null, fn ($q, $userId) => $q->where('user_id', $userId));
         };
 
-        $billedQuery = $applyFilters(Invoice::whereBetween('created_at', [$monthStart, $monthEnd]));
+        // "Billed" is attributed to the invoice's own date (falling back to
+        // created_at for older invoices from before that field existed),
+        // not when the row happened to be created.
+        $billedQuery = $applyFilters(
+            Invoice::whereRaw('COALESCE(invoice_date, created_at) BETWEEN ? AND ?', [$monthStart->toDateTimeString(), $monthEnd->toDateTimeString()])
+        );
         $collectedQuery = $applyFilters(
             Invoice::where('status', 'paid')->whereBetween('paid_at', [$monthStart, $monthEnd])
         );

@@ -50,7 +50,7 @@ class DashboardController extends Controller
         $monthStart = now()->startOfMonth();
         $monthEnd   = now()->endOfMonth();
 
-        $billed = Invoice::whereBetween('created_at', [$monthStart, $monthEnd])->sum('total');
+        $billed = Invoice::whereRaw('COALESCE(invoice_date, created_at) BETWEEN ? AND ?', [$monthStart->toDateTimeString(), $monthEnd->toDateTimeString()])->sum('total');
         $collected = Invoice::where('status', 'paid')
             ->whereBetween('paid_at', [$monthStart, $monthEnd])
             ->sum('total');
