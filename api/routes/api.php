@@ -63,27 +63,6 @@ Route::get('/clear-cache-9x7k', function () {
     ]);
 });
 
-// Temporary: downgrade every existing admin-role user except Sophie's own
-// account to the new restricted team_member role. One-time data fix for
-// the new access-control system -- only Sophie's account (superadmin)
-// should retain full admin access. (REMOVE after running once)
-Route::get('/migrate-team-roles-9x7k', function () {
-    $col = \Illuminate\Support\Facades\DB::selectOne("SHOW COLUMNS FROM users WHERE Field = 'role'");
-    if ($col && !str_contains((string) ($col->Type ?? ''), 'team_member')) {
-        \Illuminate\Support\Facades\DB::statement(
-            "ALTER TABLE users MODIFY COLUMN role ENUM('superadmin','admin','team_member','client') NULL DEFAULT 'client'"
-        );
-    }
-
-    $affected = \App\Models\User::where('role', 'admin')->get(['id', 'name', 'email']);
-    \App\Models\User::where('role', 'admin')->update(['role' => 'team_member']);
-
-    return response()->json([
-        'message'  => 'Downgraded ' . $affected->count() . ' user(s) to team_member.',
-        'affected' => $affected->map(fn ($u) => "{$u->id}:{$u->name}<{$u->email}>")->values(),
-    ]);
-});
-
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
