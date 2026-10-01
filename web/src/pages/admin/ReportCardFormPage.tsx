@@ -42,9 +42,16 @@ function buildFormData(fields: {
     fields.dogIds.forEach(id => fd.append('dog_ids[]', String(id)));
   }
   if (fields.appointmentId) fd.append('appointment_id', fields.appointmentId);
-  // Convert datetime-local (local time) to UTC ISO so the backend stores true UTC
-  if (fields.arrivalTime) fd.append('arrival_time', new Date(fields.arrivalTime).toISOString());
-  if (fields.departureTime) fd.append('departure_time', new Date(fields.departureTime).toISOString());
+  // Send the datetime-local value as-is (naive local time, no timezone marker).
+  // The backend's app timezone (America/Vancouver) is what interprets naive
+  // strings on both write and read, same as every other now()-originated
+  // timestamp in this app -- converting to a UTC-marked ISO string here first
+  // caused a double-shift: Carbon would write the UTC wall-clock numbers
+  // verbatim into the (timezone-naive) datetime column, then re-read them as
+  // if they were already Pacific wall-clock numbers, shifting the displayed
+  // time by the UTC offset a second time (e.g. 12:08 PM saved, 7:08 PM shown).
+  if (fields.arrivalTime) fd.append('arrival_time', fields.arrivalTime);
+  if (fields.departureTime) fd.append('departure_time', fields.departureTime);
   if (fields.specialTripDetails) fd.append('special_trip_details', fields.specialTripDetails);
   if (fields.dogData) {
     // Send per-dog data as JSON string
