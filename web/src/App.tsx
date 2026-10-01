@@ -13,6 +13,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import TeamMemberLayout from './components/admin/TeamMemberLayout';
 import MyCalendarPage from './pages/admin/MyCalendarPage';
 import MyClientsPage from './pages/admin/MyClientsPage';
+import MySettingsPage from './pages/admin/MySettingsPage';
 import AdminDashboardPage from './pages/admin/DashboardPage';
 import AdminClientsPage from './pages/admin/ClientsPage';
 import AdminDogsPage from './pages/admin/DogsPage';
@@ -100,6 +101,7 @@ export default function App() {
           <Route path="report-cards" element={<AdminReportCardsPage />} />
           <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
           <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
+          <Route path="settings" element={<MySettingsPage />} />
           <Route path="*" element={<Navigate to="/admin/calendar" replace />} />
         </Route>
       ) : (

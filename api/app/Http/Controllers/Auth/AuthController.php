@@ -62,8 +62,8 @@ class AuthController extends Controller
     {
         $user = $request->user()->load('clientProfile');
 
-        // Include notification prefs for admins from users table
-        if ($user->isAdmin() && \Illuminate\Support\Facades\Schema::hasColumn('users', 'notify_app')) {
+        // Include notification prefs for staff (admin/superadmin/team_member) from the users table
+        if (in_array($user->role, ['admin', 'superadmin', 'team_member']) && \Illuminate\Support\Facades\Schema::hasColumn('users', 'notify_app')) {
             $user->makeVisible(['notify_app', 'notify_email', 'notify_sms']);
         }
 
@@ -217,13 +217,13 @@ class AuthController extends Controller
         $request->validate([
             'notify_app'   => 'required|boolean',
             'notify_email' => 'required|boolean',
-            'notify_sms'   => 'required|boolean',
+            'notify_sms'   => 'sometimes|boolean',
         ]);
 
         $user = $request->user();
 
-        // For admins, store on users table; for clients, store on client_profiles
-        if ($user->isAdmin()) {
+        // For staff (admin/superadmin/team_member), store on users table; for clients, store on client_profiles
+        if (in_array($user->role, ['admin', 'superadmin', 'team_member'])) {
             User::ensureNotifyColumns();
             $user->update($request->only('notify_app', 'notify_email', 'notify_sms'));
         } else {

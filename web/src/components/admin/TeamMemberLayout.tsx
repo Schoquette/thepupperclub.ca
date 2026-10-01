@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
-import { Calendar, Users, FileText, Menu, X } from 'lucide-react';
+import { Calendar, Users, FileText, Settings, Menu, X } from 'lucide-react';
 
 const NAV = [
   { to: '/admin/calendar',     label: 'My Calendar', icon: Calendar },
   { to: '/admin/clients',      label: 'My Clients',  icon: Users },
   { to: '/admin/report-cards', label: 'Report Cards', icon: FileText },
+  { to: '/admin/settings',     label: 'Settings',    icon: Settings },
 ];
 
 export default function TeamMemberLayout() {
