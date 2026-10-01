@@ -355,6 +355,7 @@ class ConversationController extends Controller
         if ($user->isClient()) {
             abort_unless($user->id === $clientId, 403);
         }
+        abort_unless((int) $message->conversation->user_id === $clientId, 403);
 
         $message->update(['read_at' => now()]);
 

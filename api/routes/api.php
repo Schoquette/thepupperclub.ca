@@ -63,6 +63,28 @@ Route::get('/clear-cache-9x7k', function () {
     ]);
 });
 
+// Temporary: hash existing plaintext signing tokens in place so they keep
+// working with the new hash-based lookup (SigningController now hashes
+// whatever token it's given before comparing) -- transparent to any
+// already-emailed signing link, since the recipient's URL still contains
+// the original raw token. Run exactly once, then remove. (REMOVE after running)
+Route::get('/migrate-hash-signing-tokens-9x7k', function () {
+    $updated = [];
+    foreach (['signature_token', 'countersign_token', 'external_signature_token'] as $column) {
+        $rows = \App\Models\ClientDocument::whereNotNull($column)->get(['id', $column]);
+        foreach ($rows as $row) {
+            $raw = $row->{$column};
+            // Already hashed if it's exactly 64 lowercase hex chars -- a
+            // real Str::random(64) value uses mixed-case alphanumerics and
+            // would essentially never coincidentally match that pattern.
+            if (preg_match('/^[0-9a-f]{64}$/', $raw)) continue;
+            $row->update([$column => \App\Models\ClientDocument::hashToken($raw)]);
+            $updated[] = "{$column}#{$row->id}";
+        }
+    }
+    return response()->json(['message' => 'Hashed: ' . (empty($updated) ? 'nothing (already hashed or none found)' : implode(', ', $updated))]);
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');

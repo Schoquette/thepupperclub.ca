@@ -305,7 +305,7 @@ class DocumentTemplateController extends Controller
             $token      = Str::random(64);
             $signingUrl = "{$frontendUrl}/sign/{$token}";
             $updates['signature_requested_at'] = now();
-            $updates['signature_token']        = $token;
+            $updates['signature_token']        = ClientDocument::hashToken($token);
         }
 
         $externalSigningUrl = null;
@@ -314,7 +314,7 @@ class DocumentTemplateController extends Controller
             $externalToken       = Str::random(64);
             $externalSigningUrl  = "{$frontendUrl}/sign/{$externalToken}";
             $updates['external_signature_requested_at'] = now();
-            $updates['external_signature_token']        = $externalToken;
+            $updates['external_signature_token']        = ClientDocument::hashToken($externalToken);
         }
 
         $document->update($updates);

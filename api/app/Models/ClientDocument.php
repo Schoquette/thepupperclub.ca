@@ -69,6 +69,20 @@ class ClientDocument extends Model
         return route('documents.serve', $this->id);
     }
 
+    /**
+     * signature_token/countersign_token/external_signature_token are
+     * stored hashed (same pattern as CommunityMember::api_token) rather
+     * than as plaintext bearer values -- a document's signing token grants
+     * the ability to legally sign it and view its contents, so a DB/backup
+     * exposure shouldn't make every outstanding signing link immediately
+     * usable. The raw value is still what's embedded in the emailed URL;
+     * only the stored copy changes.
+     */
+    public static function hashToken(string $plain): string
+    {
+        return hash('sha256', $plain);
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

@@ -87,8 +87,9 @@ class DogController extends Controller
         return response()->json(['data' => $dog->fresh(), 'message' => 'Photo uploaded.']);
     }
 
-    public function servePhoto(Dog $dog): StreamedResponse
+    public function servePhoto(Request $request, Dog $dog): StreamedResponse
     {
+        abort_unless($dog->user_id === $request->user()->id, 403);
         abort_unless($dog->photo_path && Storage::disk('local')->exists($dog->photo_path), 404);
         return Storage::disk('local')->response($dog->photo_path);
     }

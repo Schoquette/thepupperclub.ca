@@ -29,7 +29,7 @@ class SigningController extends Controller
 
         $document->update([
             'signature_requested_at' => now(),
-            'signature_token'        => $token,
+            'signature_token'        => ClientDocument::hashToken($token),
         ]);
 
         $frontendUrl = rtrim(env('FRONTEND_URL', 'https://thepupperclub.ca'), '/');
@@ -101,7 +101,7 @@ class SigningController extends Controller
         $document->update([
             'external_recipient_name'         => $data['name'],
             'external_recipient_email'        => $data['email'],
-            'external_signature_token'        => $token,
+            'external_signature_token'        => ClientDocument::hashToken($token),
             'external_signature_requested_at' => now(),
         ]);
 
@@ -238,17 +238,19 @@ class SigningController extends Controller
      */
     private function resolveByToken(string $token): array
     {
-        $document = ClientDocument::where('countersign_token', $token)->with('template.fields')->first();
+        $hashed = ClientDocument::hashToken($token);
+
+        $document = ClientDocument::where('countersign_token', $hashed)->with('template.fields')->first();
         if ($document) {
             return [$document, 'company'];
         }
 
-        $document = ClientDocument::where('signature_token', $token)->with('template.fields')->first();
+        $document = ClientDocument::where('signature_token', $hashed)->with('template.fields')->first();
         if ($document) {
             return [$document, 'client'];
         }
 
-        $document = ClientDocument::where('external_signature_token', $token)->with('template.fields')->firstOrFail();
+        $document = ClientDocument::where('external_signature_token', $hashed)->with('template.fields')->firstOrFail();
         return [$document, 'external'];
     }
 
@@ -259,9 +261,10 @@ class SigningController extends Controller
     public function serveDocument(string $token): StreamedResponse
     {
         // Support all three signer tokens
-        $document = ClientDocument::where('signature_token', $token)->first()
-            ?? ClientDocument::where('countersign_token', $token)->first()
-            ?? ClientDocument::where('external_signature_token', $token)->firstOrFail();
+        $hashed = ClientDocument::hashToken($token);
+        $document = ClientDocument::where('signature_token', $hashed)->first()
+            ?? ClientDocument::where('countersign_token', $hashed)->first()
+            ?? ClientDocument::where('external_signature_token', $hashed)->firstOrFail();
 
         abort_unless(Storage::disk('local')->exists($document->storage_path), 404);
 
@@ -278,14 +281,15 @@ class SigningController extends Controller
      */
     public function sign(Request $request, string $token): JsonResponse
     {
-        $document = ClientDocument::where('countersign_token', $token)->with(['user', 'template.fields'])->first();
+        $hashed = ClientDocument::hashToken($token);
+        $document = ClientDocument::where('countersign_token', $hashed)->with(['user', 'template.fields'])->first();
         $targetRole = 'company';
         if (!$document) {
-            $document = ClientDocument::where('signature_token', $token)->with(['user', 'template.fields'])->first();
+            $document = ClientDocument::where('signature_token', $hashed)->with(['user', 'template.fields'])->first();
             $targetRole = 'client';
         }
         if (!$document) {
-            $document = ClientDocument::where('external_signature_token', $token)->with(['user', 'template.fields'])->firstOrFail();
+            $document = ClientDocument::where('external_signature_token', $hashed)->with(['user', 'template.fields'])->firstOrFail();
             $targetRole = 'external';
         }
 
@@ -387,7 +391,7 @@ class SigningController extends Controller
             // Generate counter-sign token and notify admin
             $countersignToken = Str::random(64);
             $document->update([
-                'countersign_token' => $countersignToken,
+                'countersign_token' => ClientDocument::hashToken($countersignToken),
                 'status'            => 'awaiting_countersign',
             ]);
 

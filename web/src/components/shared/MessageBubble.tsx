@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { Message } from '@pupper/shared';
 import { format } from 'date-fns';
+import DOMPurify from 'dompurify';
 import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -622,7 +623,7 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
           {hasHtml ? (
             <div
               className="text-sm text-espresso leading-relaxed [&_a]:text-blue [&_a]:underline [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:pl-5 [&_ol]:mb-2 [&_li]:mb-0.5 [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2"
-              dangerouslySetInnerHTML={{ __html: meta.html_body }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(meta.html_body) }}
             />
           ) : (
             <p className="text-sm text-espresso leading-relaxed">{message.body}</p>

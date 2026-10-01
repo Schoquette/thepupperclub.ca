@@ -23,7 +23,16 @@ class DocumentController extends Controller
         }
 
         if (!Storage::disk('local')->exists($document->storage_path)) {
-            abort(404, "File not found at: {$document->storage_path}");
+            try {
+                \App\Models\ErrorLog::create([
+                    'user_id'    => $user->id,
+                    'type'       => 'DocumentFileMissing',
+                    'message'    => 'Document row exists but file is missing from storage',
+                    'context'    => ['document_id' => $document->id, 'storage_path' => $document->storage_path],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+            abort(404, 'File not found.');
         }
 
         if ($request->boolean('inline')) {

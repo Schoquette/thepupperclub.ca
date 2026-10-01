@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import DOMPurify from 'dompurify';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -807,7 +808,7 @@ export default function AdminBroadcastPage() {
                     <div className="text-xs text-taupe mt-0.5">Subject: {t.subject}</div>
                     <div
                       className="text-xs text-taupe mt-1 line-clamp-2"
-                      dangerouslySetInnerHTML={{ __html: t.body }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(t.body) }}
                     />
                   </div>
                   <div className="flex gap-2 flex-wrap border-t border-cream pt-2">
@@ -1036,7 +1037,7 @@ export default function AdminBroadcastPage() {
                     <div className="bg-white p-4">
                       <div
                         className="text-sm text-espresso leading-relaxed [&_a]:text-blue [&_a]:underline [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:pl-5 [&_ol]:mb-2 [&_li]:mb-0.5 [&_img]:max-w-full [&_img]:rounded-lg [&_img]:my-2"
-                        dangerouslySetInnerHTML={{ __html: previewData.html_body }}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewData.html_body) }}
                       />
                       <div className="text-xs text-taupe mt-3">just now</div>
                     </div>
