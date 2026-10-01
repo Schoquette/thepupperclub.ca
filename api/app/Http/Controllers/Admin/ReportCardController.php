@@ -112,6 +112,10 @@ class ReportCardController extends Controller
             throw $e; // let Laravel return the standard 422 with field errors
         }
 
+        if ($request->user()->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, (int) $data['user_id']);
+        }
+
         $checklist = isset($data['checklist'])
             ? array_map('boolval', $data['checklist'])
             : null;
@@ -173,8 +177,28 @@ class ReportCardController extends Controller
         return response()->json(['data' => $report->fresh(['user', 'appointment'])], 201);
     }
 
+    /**
+     * A team_member may only touch report cards for clients they're
+     * actually assigned to -- checked against Appointment.assigned_to,
+     * never trusted from the request.
+     */
+    private function ensureTeamMemberOwnsClient(Request $request, int $clientUserId): void
+    {
+        abort_unless(
+            \App\Models\Appointment::where('user_id', $clientUserId)
+                ->where('assigned_to', $request->user()->id)
+                ->exists(),
+            403,
+            'You can only manage report cards for your own assigned clients.'
+        );
+    }
+
     public function update(Request $request, VisitReport $reportCard): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $reportCard->user_id);
+        }
+
         $data = $request->validate([
             'arrival_time'         => 'sometimes|nullable|date',
             'departure_time'       => 'sometimes|nullable|date',
@@ -262,8 +286,12 @@ class ReportCardController extends Controller
 
     // ── Send ──────────────────────────────────────────────────────────────────
 
-    public function send(VisitReport $reportCard): JsonResponse
+    public function send(Request $request, VisitReport $reportCard): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $reportCard->user_id);
+        }
+
         try {
             $this->service->send($reportCard);
         } catch (\Throwable $e) {
@@ -306,8 +334,11 @@ class ReportCardController extends Controller
 
     // ── Templates ─────────────────────────────────────────────────────────────
 
-    public function getTemplate(User $client): JsonResponse
+    public function getTemplate(Request $request, User $client): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $client->id);
+        }
         return response()->json(['data' => ReportCardTemplate::forClient($client->id)]);
     }
 

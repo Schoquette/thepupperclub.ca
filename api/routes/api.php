@@ -63,6 +63,27 @@ Route::get('/clear-cache-9x7k', function () {
     ]);
 });
 
+// Temporary: downgrade every existing admin-role user except Sophie's own
+// account to the new restricted team_member role. One-time data fix for
+// the new access-control system -- only Sophie's account (superadmin)
+// should retain full admin access. (REMOVE after running once)
+Route::get('/migrate-team-roles-9x7k', function () {
+    $col = \Illuminate\Support\Facades\DB::selectOne("SHOW COLUMNS FROM users WHERE Field = 'role'");
+    if ($col && !str_contains((string) ($col->Type ?? ''), 'team_member')) {
+        \Illuminate\Support\Facades\DB::statement(
+            "ALTER TABLE users MODIFY COLUMN role ENUM('superadmin','admin','team_member','client') NULL DEFAULT 'client'"
+        );
+    }
+
+    $affected = \App\Models\User::where('role', 'admin')->get(['id', 'name', 'email']);
+    \App\Models\User::where('role', 'admin')->update(['role' => 'team_member']);
+
+    return response()->json([
+        'message'  => 'Downgraded ' . $affected->count() . ' user(s) to team_member.',
+        'affected' => $affected->map(fn ($u) => "{$u->id}:{$u->name}<{$u->email}>")->values(),
+    ]);
+});
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
@@ -179,8 +200,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/appointments/{appointment}',          [Admin\AppointmentController::class, 'update']);
         Route::patch('/appointments/{appointment}/times',    [Admin\AppointmentController::class, 'updateTimes']);
         Route::delete('/appointments/{appointment}',         [Admin\AppointmentController::class, 'destroy']);
-        Route::post('/appointments/{appointment}/check-in',            [Admin\AppointmentController::class, 'checkIn']);
-        Route::post('/appointments/{appointment}/complete',            [Admin\AppointmentController::class, 'complete']);
         Route::post('/appointments/{appointment}/dismiss-report-card', [Admin\ReportCardController::class, 'dismissDue']);
         Route::get('/appointments/{appointment}/report',     [Admin\AppointmentController::class, 'report']);
         Route::patch('/appointments/{appointment}/report',   [Admin\AppointmentController::class, 'updateReport']);
@@ -222,17 +241,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/clients/{client}/payg/status',    [Admin\PaygPricingController::class, 'status']);
 
         // Report cards
-        Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
         Route::get('/report-cards/due',                            [AdminReportCardController::class, 'due']);
-        Route::post('/report-cards',                               [AdminReportCardController::class, 'store']);
-        Route::get('/report-cards/{reportCard}',                   [AdminReportCardController::class, 'show']);
-        Route::post('/report-cards/{reportCard}',                  [AdminReportCardController::class, 'update']); // POST for multipart
         Route::delete('/report-cards/{reportCard}',                [AdminReportCardController::class, 'destroy']);
-        Route::post('/report-cards/{reportCard}/send',             [AdminReportCardController::class, 'send']);
-        Route::get('/report-cards/{reportCard}/photos/{index}',      [AdminReportCardController::class, 'servePhoto']);
-        Route::delete('/report-cards/{reportCard}/photos',                  [AdminReportCardController::class, 'deletePhoto']);
         Route::delete('/report-cards/{reportCard}/comments/{comment}',     [AdminReportCardController::class, 'deleteComment']);
-        Route::get('/clients/{client}/report-template',            [AdminReportCardController::class, 'getTemplate']);
         Route::put('/clients/{client}/report-template',            [AdminReportCardController::class, 'saveTemplate']);
         Route::delete('/clients/{client}/report-template',         [AdminReportCardController::class, 'resetTemplate']);
 
@@ -283,6 +294,29 @@ Route::middleware('auth:sanctum')->group(function () {
         // Conversations (admin inbox)
         Route::get('/conversations',                                    [ConversationController::class, 'inbox']);
         Route::patch('/conversations/{conversation}/status',            [ConversationController::class, 'updateStatus']);
+    });
+
+    // ── Team member (restricted) ─────────────────────────────────────────────
+    // Whitelist, not subtraction: only exactly what a team_member may do.
+    // Also reachable by admin/superadmin (role:admin,team_member), so
+    // nothing is lost for Sophie -- these routes are just reorganized out
+    // of the role:admin-only group above, not duplicated.
+    Route::middleware('role:admin,team_member')->prefix('admin')->group(function () {
+        Route::get('/my/appointments',                             [Admin\AppointmentController::class, 'myAppointments']);
+        Route::post('/appointments/{appointment}/check-in',        [Admin\AppointmentController::class, 'checkIn']);
+        Route::post('/appointments/{appointment}/complete',        [Admin\AppointmentController::class, 'complete']);
+
+        Route::get('/my/clients',                                  [Admin\ClientController::class, 'myIndex']);
+        Route::get('/my/clients/{client}',                         [Admin\ClientController::class, 'myShow']);
+
+        Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
+        Route::post('/report-cards',                               [AdminReportCardController::class, 'store']);
+        Route::get('/report-cards/{reportCard}',                   [AdminReportCardController::class, 'show']);
+        Route::post('/report-cards/{reportCard}',                  [AdminReportCardController::class, 'update']);
+        Route::post('/report-cards/{reportCard}/send',             [AdminReportCardController::class, 'send']);
+        Route::get('/report-cards/{reportCard}/photos/{index}',    [AdminReportCardController::class, 'servePhoto']);
+        Route::delete('/report-cards/{reportCard}/photos',         [AdminReportCardController::class, 'deletePhoto']);
+        Route::get('/clients/{client}/report-template',            [AdminReportCardController::class, 'getTemplate']);
     });
 
     // ── Client ────────────────────────────────────────────────────────────────

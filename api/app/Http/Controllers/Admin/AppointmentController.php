@@ -39,6 +39,26 @@ class AppointmentController extends Controller
         return response()->json($query->paginate($perPage));
     }
 
+    /**
+     * Scoped version of index() for the restricted team_member role --
+     * hard-codes assigned_to to the caller's own id regardless of any
+     * assigned_to/user_id param on the request, so a team member can never
+     * see another team member's schedule by tampering with query params.
+     */
+    public function myAppointments(Request $request): JsonResponse
+    {
+        $query = Appointment::with(['user.clientProfile', 'dogs', 'visitReport'])
+            ->where('assigned_to', $request->user()->id)
+            ->when($request->date, fn($q) => $q->whereDate('scheduled_time', $request->date))
+            ->when($request->start, fn($q) => $q->where('scheduled_time', '>=', $request->start))
+            ->when($request->end, fn($q) => $q->where('scheduled_time', '<=', $request->end))
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->orderBy('scheduled_time', $request->sort === 'desc' ? 'desc' : 'asc');
+
+        $perPage = max(1, min((int) ($request->per_page ?? 50), 500));
+        return response()->json($query->paginate($perPage));
+    }
+
     public function schedulingStatus(Request $request): JsonResponse
     {
         // Use the exact date sent by frontend (Sunday-based weeks)
@@ -224,8 +244,11 @@ class AppointmentController extends Controller
         return response()->json(['message' => 'Appointment cancelled.']);
     }
 
-    public function checkIn(Appointment $appointment): JsonResponse
+    public function checkIn(Request $request, Appointment $appointment): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            abort_unless($appointment->assigned_to === $request->user()->id, 403);
+        }
         abort_unless($appointment->status === 'scheduled', 422, 'Appointment is not in scheduled state.');
 
         $appointment->update([
@@ -241,6 +264,9 @@ class AppointmentController extends Controller
 
     public function complete(Request $request, Appointment $appointment): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            abort_unless($appointment->assigned_to === $request->user()->id, 403);
+        }
         abort_unless($appointment->status === 'checked_in', 422, 'Appointment is not checked in.');
 
         $data = $request->validate([

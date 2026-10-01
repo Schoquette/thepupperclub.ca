@@ -155,8 +155,8 @@ class AuthController extends Controller
 
         $user = $request->user();
 
-        if ($user->role === 'superadmin' || $user->role === 'admin') {
-            return response()->json(['message' => 'Admin accounts cannot be self-deleted.'], 403);
+        if (in_array($user->role, ['superadmin', 'admin', 'team_member'])) {
+            return response()->json(['message' => 'Staff accounts cannot be self-deleted.'], 403);
         }
 
         if (!Hash::check($request->password, $user->password)) {

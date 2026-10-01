@@ -37,7 +37,7 @@ class TeamController extends Controller
             }
         }
 
-        $team = User::whereIn('role', ['admin', 'superadmin'])
+        $team = User::whereIn('role', ['admin', 'superadmin', 'team_member'])
             ->select($columns)
             ->orderBy('name')
             ->get();
@@ -51,6 +51,7 @@ class TeamController extends Controller
         $this->ensureHomeAddressColumns();
         $this->ensureColorColumn();
         $this->ensureNullableLoginColumns();
+        $this->ensureTeamMemberRoleEnum();
 
         $data = $request->validate([
             'name'             => 'required|string|max:255',
@@ -59,7 +60,6 @@ class TeamController extends Controller
             // before they're given portal login access.
             'email'            => 'nullable|email|unique:users,email',
             'color'            => 'nullable|string|max:7',
-            'role'             => 'sometimes|in:admin',
             'home_street'      => 'nullable|string|max:255',
             'home_city'        => 'nullable|string|max:100',
             'home_province'    => 'nullable|string|max:2',
@@ -75,7 +75,9 @@ class TeamController extends Controller
             'name'     => $data['name'],
             'email'    => $data['email'] ?? null,
             'password' => $tempPassword ? Hash::make($tempPassword) : null,
-            'role'     => 'admin',
+            // Restricted role -- only Sophie's account should have full
+            // admin access. See ensureTeamMemberRoleEnum().
+            'role'     => 'team_member',
             'status'   => 'active',
             'color'    => $data['color'] ?? null,
         ];
@@ -116,7 +118,7 @@ class TeamController extends Controller
     {
         $this->ensureCanManageTeam();
         abort_if($user->role === 'superadmin' && auth()->id() !== $user->id, 422, 'Cannot modify a superadmin account.');
-        abort_unless(in_array($user->role, ['admin', 'superadmin']), 404);
+        abort_unless(in_array($user->role, ['admin', 'superadmin', 'team_member']), 404);
 
         $this->ensureHomeAddressColumns();
         $this->ensureColorColumn();
@@ -177,7 +179,7 @@ class TeamController extends Controller
     {
         $this->ensureCanManageTeam();
         abort_if($user->role === 'superadmin', 422, 'Cannot delete a superadmin account.');
-        abort_unless($user->role === 'admin', 404);
+        abort_unless(in_array($user->role, ['admin', 'team_member']), 404);
 
         $user->update(['status' => 'inactive']);
 
@@ -203,6 +205,21 @@ class TeamController extends Controller
     {
         if (!Schema::hasColumn('users', 'color')) {
             \Illuminate\Support\Facades\DB::statement("ALTER TABLE users ADD COLUMN color VARCHAR(7) NULL AFTER role");
+        }
+    }
+
+    /**
+     * Team members get the restricted 'team_member' role, not 'admin' --
+     * only Sophie's account should ever have full admin access. Widens
+     * the enum if the migration hasn't landed yet (GoDaddy has no CLI).
+     */
+    private function ensureTeamMemberRoleEnum(): void
+    {
+        $col = \Illuminate\Support\Facades\DB::selectOne("SHOW COLUMNS FROM users WHERE Field = 'role'");
+        if ($col && !str_contains((string) ($col->Type ?? ''), 'team_member')) {
+            \Illuminate\Support\Facades\DB::statement(
+                "ALTER TABLE users MODIFY COLUMN role ENUM('superadmin','admin','team_member','client') NULL DEFAULT 'client'"
+            );
         }
     }
 
@@ -243,7 +260,7 @@ class TeamController extends Controller
     {
         $this->ensureCanManageTeam();
         abort_if($user->role === 'superadmin', 422, 'Cannot reset superadmin password here.');
-        abort_unless(in_array($user->role, ['admin', 'superadmin']), 404);
+        abort_unless(in_array($user->role, ['admin', 'superadmin', 'team_member']), 404);
 
         $tempPassword = Str::random(12);
         $user->update(['password' => Hash::make($tempPassword)]);

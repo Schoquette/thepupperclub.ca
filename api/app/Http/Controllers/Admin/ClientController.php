@@ -64,6 +64,34 @@ class ClientController extends Controller
         ]);
     }
 
+    /**
+     * Restricted team_member view: only clients the caller has an assigned
+     * appointment with, and no billing/documents/PAYG data -- just enough
+     * to do the visit (contact info, address, dog profiles/medical/care notes).
+     */
+    public function myIndex(Request $request): JsonResponse
+    {
+        $query = User::where('role', 'client')
+            ->whereHas('appointments', fn ($q) => $q->where('assigned_to', $request->user()->id))
+            ->with(['clientProfile:id,user_id,phone,address,city,province,postal_code', 'dogs:id,user_id,name'])
+            ->orderBy('name', 'asc');
+
+        return response()->json($query->paginate(20));
+    }
+
+    public function myShow(Request $request, User $client): JsonResponse
+    {
+        $this->ensureIsClient($client);
+        abort_unless(
+            $client->appointments()->where('assigned_to', $request->user()->id)->exists(),
+            403
+        );
+
+        return response()->json([
+            'data' => $client->load(['clientProfile', 'dogs']),
+        ]);
+    }
+
     public function update(Request $request, User $client): JsonResponse
     {
         $this->ensureIsClient($client);

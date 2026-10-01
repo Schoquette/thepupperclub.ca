@@ -19,7 +19,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const user = await login(email.trim(), password);
-      router.replace(user.role === 'admin' ? '/admin/' : '/client/');
+      router.replace(['admin', 'superadmin', 'team_member'].includes(user.role) ? '/admin/' : '/client/');
     } catch (e: any) {
       setError(e.response?.data?.message ?? 'Invalid email or password.');
     } finally {

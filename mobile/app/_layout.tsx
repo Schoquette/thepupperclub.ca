@@ -23,7 +23,7 @@ function AuthGuard() {
     if (!user && !inAuth) {
       router.replace('/auth/login');
     } else if (user && inAuth) {
-      router.replace(user.role === 'admin' ? '/admin/' : '/client/');
+      router.replace(['admin', 'superadmin', 'team_member'].includes(user.role) ? '/admin/' : '/client/');
     }
   }, [user, loading, segments]);
 

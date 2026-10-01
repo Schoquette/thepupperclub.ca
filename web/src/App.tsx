@@ -54,7 +54,10 @@ import ClientSettingsPage from './pages/client/SettingsPage';
 function RequireAuth({ children, role }: { children: React.ReactNode; role?: 'admin' | 'client' }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (role === 'admin' && !['admin', 'superadmin'].includes(user.role)) return <Navigate to="/" replace />;
+  // 'admin' here means "the /admin shell" -- team_member is a restricted
+  // role that also lives under /admin, just with a much narrower route
+  // tree (see the role branch in App()). It is NOT full admin access.
+  if (role === 'admin' && !['admin', 'superadmin', 'team_member'].includes(user.role)) return <Navigate to="/" replace />;
   if (role === 'client' && user.role !== 'client') return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -77,7 +80,7 @@ export default function App() {
       <Route
         path="/"
         element={
-          (user?.role === 'admin' || user?.role === 'superadmin')
+          ['admin', 'superadmin', 'team_member'].includes(user?.role ?? '')
             ? <Navigate to="/admin" replace />
             : user?.role === 'client'
             ? <Navigate to="/client" replace />
