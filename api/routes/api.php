@@ -118,7 +118,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/clients/{client}',             [Admin\ClientController::class, 'destroy']);
         Route::post('/clients/{client}/resend-invite',  [Admin\ClientController::class, 'resendInvite']);
         Route::post('/clients/{client}/reset-password', [Admin\ClientController::class, 'resetPassword']);
-        Route::get('/clients/{client}/home-access',     [Admin\ClientController::class, 'homeAccess']);
         Route::patch('/clients/{client}/home-access',   [Admin\ClientController::class, 'updateHomeAccess']);
         Route::get('/clients/{client}/documents',       [Admin\ClientController::class, 'documents']);
         Route::post('/clients/{client}/documents',      [Admin\ClientController::class, 'uploadDocument']);
@@ -257,7 +256,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/time-mileage',              [Admin\TimeMileageController::class, 'report']);
         Route::post('/time-mileage/estimate',    [Admin\TimeMileageController::class, 'mileageEstimate']);
         Route::post('/time-mileage/recalculate', [Admin\TimeMileageController::class, 'recalculateDay']);
-        Route::get('/time-mileage/appointment/{appointment}', [Admin\TimeMileageController::class, 'appointmentMileage']);
 
         // Report exports
         Route::get('/reports/export',        [Admin\ReportExportController::class, 'export']);
@@ -287,6 +285,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/my/clients',                                  [Admin\ClientController::class, 'myIndex']);
         Route::get('/my/clients/{client}',                         [Admin\ClientController::class, 'myShow']);
+        Route::get('/clients/{client}/home-access',                [Admin\ClientController::class, 'homeAccess']);
 
         Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
         Route::post('/report-cards',                               [AdminReportCardController::class, 'store']);
@@ -296,6 +295,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/report-cards/{reportCard}/photos/{index}',    [AdminReportCardController::class, 'servePhoto']);
         Route::delete('/report-cards/{reportCard}/photos',         [AdminReportCardController::class, 'deletePhoto']);
         Route::get('/clients/{client}/report-template',            [AdminReportCardController::class, 'getTemplate']);
+        Route::get('/time-mileage/appointment/{appointment}',      [Admin\TimeMileageController::class, 'appointmentMileage']);
     });
 
     // ── Client ────────────────────────────────────────────────────────────────

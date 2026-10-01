@@ -108,8 +108,12 @@ class TimeMileageController extends Controller
      * Estimate mileage for a single appointment.
      * Uses the previous appointment's client address as origin, or the team member's home address.
      */
-    public function appointmentMileage(Appointment $appointment): JsonResponse
+    public function appointmentMileage(Request $request, Appointment $appointment): JsonResponse
     {
+        if ($request->user()->role === 'team_member') {
+            abort_unless($appointment->assigned_to === $request->user()->id, 403);
+        }
+
         $apiKey = config('services.google.maps_api_key');
         if (!$apiKey) {
             return response()->json(['error' => 'Google Maps API key not configured.'], 422);

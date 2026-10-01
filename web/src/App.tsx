@@ -98,6 +98,7 @@ export default function App() {
           <Route index element={<Navigate to="/admin/calendar" replace />} />
           <Route path="calendar" element={<MyCalendarPage />} />
           <Route path="clients" element={<MyClientsPage />} />
+          <Route path="clients/:id" element={<MyClientsPage />} />
           <Route path="report-cards" element={<AdminReportCardsPage />} />
           <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
           <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />

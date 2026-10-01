@@ -79,6 +79,24 @@ class ClientController extends Controller
         return response()->json($query->paginate(20));
     }
 
+    /**
+     * Non-billing client_profile columns a team member may see -- everything
+     * useful to actually do a visit (contact info, property/access details,
+     * vet info, care preferences), excluding billing_method, subscription/
+     * Stripe fields, and PAYG pricing.
+     */
+    private const TEAM_MEMBER_PROFILE_FIELDS = [
+        'id', 'user_id',
+        'phone', 'address', 'city', 'province', 'postal_code',
+        'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
+        'secondary_contact_name', 'secondary_contact_email', 'secondary_contact_phone',
+        'vet_clinic_name', 'vet_phone', 'vet_address',
+        'food_storage_location', 'customized_care_options',
+        'preferred_walk_days', 'preferred_walk_length', 'preferred_walk_times',
+        'what_great_care_looks_like', 'biggest_concern', 'comfort_factors',
+        'additional_notes',
+    ];
+
     public function myShow(Request $request, User $client): JsonResponse
     {
         $this->ensureIsClient($client);
@@ -88,7 +106,10 @@ class ClientController extends Controller
         );
 
         return response()->json([
-            'data' => $client->load(['clientProfile', 'dogs']),
+            'data' => $client->load([
+                'clientProfile' => fn ($q) => $q->select(self::TEAM_MEMBER_PROFILE_FIELDS),
+                'dogs',
+            ]),
         ]);
     }
 
@@ -293,9 +314,15 @@ class ClientController extends Controller
 
     // ── Home Access ───────────────────────────────────────────────────────────
 
-    public function homeAccess(User $client): JsonResponse
+    public function homeAccess(Request $request, User $client): JsonResponse
     {
         $this->ensureIsClient($client);
+        if ($request->user()->role === 'team_member') {
+            abort_unless(
+                $client->appointments()->where('assigned_to', $request->user()->id)->exists(),
+                403
+            );
+        }
         return response()->json(['data' => $client->homeAccess]);
     }
 

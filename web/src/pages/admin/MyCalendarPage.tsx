@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, endOfWeek, addDays } from 'date-fns';
 import { enCA } from 'date-fns/locale';
@@ -8,6 +9,7 @@ import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { Badge, statusBadge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 
 const locales = { 'en-CA': enCA };
@@ -19,18 +21,9 @@ const STATUS_COLORS: Record<string, string> = {
   completed:  '#22c55e',
 };
 
-const MOOD_OPTIONS = [
-  { key: 'great', label: 'Great', emoji: '🐾' },
-  { key: 'good', label: 'Good', emoji: '😊' },
-  { key: 'okay', label: 'Okay', emoji: '😐' },
-  { key: 'anxious', label: 'Anxious', emoji: '😟' },
-  { key: 'unwell', label: 'Unwell', emoji: '🤒' },
-];
-
-const ENERGY_OPTIONS = ['low', 'normal', 'high', 'hyper'];
-
 export default function MyCalendarPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [range, setRange] = useState(() => ({
     start: startOfWeek(new Date(), { locale: enCA }),
@@ -38,13 +31,10 @@ export default function MyCalendarPage() {
   }));
   const [selected, setSelected] = useState<any>(null);
   const [completing, setCompleting] = useState(false);
-  const [mood, setMood] = useState('good');
-  const [energy, setEnergy] = useState('normal');
-  const [eliminated, setEliminated] = useState(false);
-  const [ateWell, setAteWell] = useState(false);
-  const [drankWater, setDrankWater] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState('');
+  const [reportForm, setReportForm] = useState({ distance_km: '', notes: '' });
+  const [mileageFrom, setMileageFrom] = useState('');
+  const [checkInError, setCheckInError] = useState('');
+  const [completeError, setCompleteError] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['my-appointments', range.start.toISOString(), range.end.toISOString()],
@@ -53,27 +43,40 @@ export default function MyCalendarPage() {
     }).then(r => r.data.data ?? []),
   });
 
-  const resetReport = () => {
-    setMood('good'); setEnergy('normal'); setEliminated(false);
-    setAteWell(false); setDrankWater(false); setNotes(''); setError('');
-  };
+  // Auto-fetch mileage when Complete Visit modal opens
+  useEffect(() => {
+    if (!completing || !selected) return;
+    setMileageFrom('');
+    api.get(`/admin/time-mileage/appointment/${selected.id}`)
+      .then(res => {
+        setReportForm(f => ({ ...f, distance_km: String(res.data.data.distance_km) }));
+        setMileageFrom(res.data.data.from || '');
+      })
+      .catch(() => {}); // silently fail if Maps not configured
+  }, [completing, selected?.id]); // eslint-disable-line
 
   const checkIn = useMutation({
     mutationFn: (id: number) => api.post(`/admin/appointments/${id}/check-in`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['my-appointments'] }); setSelected(null); },
-    onError: () => setError('Could not check in. Please try again.'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-appointments'] });
+      setSelected(null); setCheckInError('');
+    },
+    onError: (err: any) => setCheckInError(err.response?.data?.message || 'Check-in failed.'),
   });
 
   const complete = useMutation({
-    mutationFn: (id: number) => api.post(`/admin/appointments/${id}/complete`, {
-      mood, energy_level: energy, eliminated, ate_well: ateWell, drank_water: drankWater,
-      notes: notes || undefined,
-    }),
+    mutationFn: (id: number) => {
+      const payload: Record<string, any> = {};
+      if (reportForm.distance_km) payload.distance_km = reportForm.distance_km;
+      if (reportForm.notes) payload.notes = reportForm.notes;
+      return api.post(`/admin/appointments/${id}/complete`, payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-appointments'] });
-      setSelected(null); setCompleting(false); resetReport();
+      setSelected(null); setCompleting(false); setCompleteError('');
+      setReportForm({ distance_km: '', notes: '' });
     },
-    onError: (e: any) => setError(e.response?.data?.message ?? 'Could not complete visit. Please try again.'),
+    onError: (err: any) => setCompleteError(err.response?.data?.message || 'Failed to complete visit.'),
   });
 
   const events = (data ?? []).map((appt: any) => ({
@@ -83,6 +86,11 @@ export default function MyCalendarPage() {
     end: new Date(new Date(appt.scheduled_time).getTime() + 30 * 60 * 1000),
     resource: appt,
   }));
+
+  const goToClient = (userId: number) => {
+    setSelected(null);
+    navigate(`/admin/clients/${userId}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -132,115 +140,124 @@ export default function MyCalendarPage() {
         </Card>
       )}
 
-      {/* Detail modal */}
-      <Modal open={!!selected && !completing} onClose={() => { setSelected(null); setError(''); }} title="Visit" size="md">
+      {/* Appointment detail modal */}
+      <Modal open={!!selected && !completing} onClose={() => { setSelected(null); setCheckInError(''); }} title="Visit" size="md">
         {selected && (
           <div className="space-y-4">
-            <div>
-              <div className="font-semibold text-espresso">{selected.user?.name}</div>
-              <div className="text-sm text-taupe">{selected.dogs?.map((d: any) => d.name).join(', ') || 'No dogs listed'}</div>
-            </div>
-            <div className="text-sm text-taupe">
-              {format(new Date(selected.scheduled_time), 'EEEE, MMM d · h:mm a')}
-            </div>
-            <div className="text-sm text-espresso capitalize">
-              {selected.service_type?.replace(/_/g, ' ')} · {selected.client_time_block?.replace(/_/g, ' ')}
-            </div>
-            <div className="text-sm">
-              Status: <span className="capitalize font-medium text-espresso">{selected.status?.replace(/_/g, ' ')}</span>
+            <div className="flex items-center justify-between">
+              <div>
+                <button
+                  className="font-semibold text-espresso hover:text-gold transition-colors text-left"
+                  onClick={() => goToClient(selected.user_id)}
+                >
+                  {selected.user?.name}
+                </button>
+                <div className="text-sm text-taupe flex flex-wrap gap-x-2">
+                  {selected.dogs?.map((d: any, i: number) => (
+                    <span key={d.id}>
+                      <button className="hover:text-gold transition-colors underline" onClick={() => goToClient(selected.user_id)}>{d.name}</button>
+                      {i < selected.dogs.length - 1 && ','}
+                    </span>
+                  ))}
+                  {!selected.dogs?.length && 'No dogs listed'}
+                </div>
+              </div>
+              <Badge variant={statusBadge(selected.status)}>{selected.status?.replace(/_/g, ' ')}</Badge>
             </div>
 
-            {error && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{error}</div>}
-
-            {selected.status === 'scheduled' && (
-              <Button onClick={() => checkIn.mutate(selected.id)} loading={checkIn.isPending} className="w-full">
-                🐾 Check In
-              </Button>
-            )}
-            {selected.status === 'checked_in' && (
-              <Button onClick={() => { setError(''); setCompleting(true); }} className="w-full">
-                ✓ Complete Visit
-              </Button>
-            )}
-            {selected.status === 'completed' && selected.visit_report && (
-              <div className="text-sm text-taupe">
-                Mood: <span className="capitalize text-espresso">{selected.visit_report.mood}</span>
+            {selected.user?.client_profile?.address && (
+              <div className="text-sm">
+                <span className="text-taupe">Address: </span>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.user.client_profile.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue hover:text-gold transition-colors underline"
+                >
+                  {selected.user.client_profile.address}
+                </a>
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><span className="text-taupe">Service:</span> {selected.service_type === 'walk_30' ? '30-Minute Visit' : selected.service_type === 'walk_60' ? '60-Minute Visit' : selected.service_type === 'pack_hike' ? 'Group Hike' : selected.service_type?.replace(/_/g, ' ')}</div>
+              <div><span className="text-taupe">Time:</span> {format(new Date(selected.scheduled_time), 'h:mm a')}</div>
+              <div><span className="text-taupe">Date:</span> {format(new Date(selected.scheduled_time), 'MMM d, yyyy')}</div>
+            </div>
+
+            {selected.notes && <p className="text-sm text-taupe bg-cream rounded-lg p-3">{selected.notes}</p>}
+
+            {checkInError && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{checkInError}</div>}
+
+            <div className="flex items-center justify-end gap-3 mt-4">
+              {selected.status === 'scheduled' && (
+                <Button loading={checkIn.isPending} onClick={() => checkIn.mutate(selected.id)}>
+                  Check In
+                </Button>
+              )}
+              {selected.status === 'checked_in' && (
+                <Button onClick={() => { setCompleteError(''); setCompleting(true); }}>
+                  Complete Visit
+                </Button>
+              )}
+              {selected.status === 'completed' && (
+                <Button variant="outline" onClick={() => navigate(`/admin/report-cards/new?appointment_id=${selected.id}`)}>
+                  Write Report Card
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </Modal>
 
-      {/* Complete visit modal */}
-      <Modal open={completing} onClose={() => { setCompleting(false); setSelected(null); resetReport(); }} title="Complete Visit" size="md">
+      {/* Complete visit modal — mirrors the admin calendar's flow exactly */}
+      <Modal open={completing} onClose={() => setCompleting(false)} title="Complete Visit" size="md">
         {selected && (
           <div className="space-y-4">
-            {error && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{error}</div>}
-
             <div>
-              <div className="text-sm font-semibold text-espresso mb-2">Mood</div>
-              <div className="flex flex-wrap gap-2">
-                {MOOD_OPTIONS.map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setMood(opt.key)}
-                    className={`px-3 py-2 rounded-lg text-sm border ${mood === opt.key ? 'bg-gold text-white border-gold' : 'border-taupe text-espresso'}`}
-                  >
-                    {opt.emoji} {opt.label}
-                  </button>
-                ))}
-              </div>
+              <label className="label">Mileage (km)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="input"
+                value={reportForm.distance_km}
+                placeholder="e.g. 3.5"
+                onChange={e => setReportForm(f => ({ ...f, distance_km: e.target.value }))}
+              />
+              {mileageFrom && (
+                <p className="text-xs text-taupe mt-1">Auto-calculated from: {mileageFrom}</p>
+              )}
             </div>
-
             <div>
-              <div className="text-sm font-semibold text-espresso mb-2">Energy Level</div>
-              <div className="flex flex-wrap gap-2">
-                {ENERGY_OPTIONS.map(key => (
-                  <button
-                    key={key}
-                    onClick={() => setEnergy(key)}
-                    className={`px-3 py-2 rounded-lg text-sm border capitalize ${energy === key ? 'bg-gold text-white border-gold' : 'border-taupe text-espresso'}`}
-                  >
-                    {key}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-sm font-semibold text-espresso mb-2">Quick Checks</div>
-              <div className="space-y-2">
-                {[
-                  { label: '💩 Eliminated', val: eliminated, set: setEliminated },
-                  { label: '🍗 Ate Well', val: ateWell, set: setAteWell },
-                  { label: '💧 Drank Water', val: drankWater, set: setDrankWater },
-                ].map(({ label, val, set }) => (
-                  <label key={label} className="flex items-center gap-3 text-sm text-espresso">
-                    <input type="checkbox" checked={val} onChange={() => set(!val)} className="h-4 w-4" />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-sm font-semibold text-espresso mb-2">Notes (optional)</div>
+              <label className="label">Internal Notes</label>
               <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                placeholder="How did the visit go?"
                 rows={3}
-                className="w-full border border-taupe rounded-lg p-3 text-sm"
+                className="input resize-none"
+                value={reportForm.notes}
+                placeholder="Notes visible only to you…"
+                onChange={e => setReportForm(f => ({ ...f, notes: e.target.value }))}
               />
             </div>
-
-            <Button
-              onClick={() => complete.mutate(selected.id)}
-              loading={complete.isPending}
-              className="w-full"
-            >
-              Complete & Notify Client
-            </Button>
+            {completeError && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{completeError}</p>
+            )}
+            <div className="flex items-center justify-between mt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCompleting(false);
+                  navigate(`/admin/report-cards/new?appointment_id=${selected.id}`);
+                }}
+              >
+                Write Report Card
+              </Button>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setCompleting(false)}>Cancel</Button>
+                <Button loading={complete.isPending} onClick={() => complete.mutate(selected.id)}>
+                  Complete Visit
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </Modal>
