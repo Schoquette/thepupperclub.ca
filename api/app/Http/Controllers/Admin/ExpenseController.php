@@ -42,6 +42,44 @@ class ExpenseController extends Controller
                 $table->string('source')->default('manual');
                 $table->timestamps();
             });
+            return;
+        }
+
+        $this->ensureExpensesColumnsNullable();
+    }
+
+    /**
+     * Heals tables created by an earlier deploy where expense_date/item/
+     * vendor/subtotal were still NOT NULL. Raw ALTER (not Schema::change(),
+     * which needs doctrine/dbal -- not installed here) to MODIFY each column,
+     * mirroring TeamController::ensureTeamMemberRoleEnum()'s approach. Cheap
+     * SHOW COLUMNS check first so the ALTER only runs once, ever.
+     */
+    private function ensureExpensesColumnsNullable(): void
+    {
+        $columns = [
+            'expense_date' => 'date',
+            'item'         => 'varchar(255)',
+            'vendor'       => 'varchar(255)',
+            'subtotal'     => 'decimal(10,2)',
+        ];
+
+        foreach ($columns as $column => $type) {
+            try {
+                $col = DB::selectOne('SHOW COLUMNS FROM expenses WHERE Field = ?', [$column]);
+                if ($col && $col->Null === 'NO') {
+                    DB::statement("ALTER TABLE expenses MODIFY COLUMN {$column} {$type} NULL");
+                }
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'expenses', 'column' => $column],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
         }
     }
 
