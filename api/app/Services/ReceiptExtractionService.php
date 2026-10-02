@@ -9,22 +9,24 @@ class ReceiptExtractionService
 {
     private const MODEL = 'claude-sonnet-5';
 
-    private const PROMPT = <<<'PROMPT'
-This is a photo of a business expense receipt. Extract the vendor name, transaction date (YYYY-MM-DD), a short item/description of what was purchased, the subtotal before tax, the GST amount, the PST amount, and the total, using BC Canadian sales tax conventions (GST and PST are usually printed separately on the receipt). Respond with ONLY a JSON object with exactly these keys: vendor, date, item, subtotal, gst, pst, total. Use null for any field that is illegible or absent. Do not include any other text, explanation, or markdown code fences.
-PROMPT;
-
     /**
      * Returns the extracted fields, or null if extraction wasn't possible
      * (no API key configured, request failure, or unparseable response).
      * Never throws -- callers should treat null as "fall back to manual entry".
+     *
+     * $categories is the business's current category list -- passed in (not
+     * hardcoded) since categories are user-managed, not a fixed constant.
      */
-    public function extract(string $imageBytes, string $mimeType): ?array
+    public function extract(string $imageBytes, string $mimeType, array $categories = []): ?array
     {
         $apiKey = config('services.anthropic.api_key');
         if (!$apiKey) {
             Log::info('ReceiptExtractionService: ANTHROPIC_API_KEY not configured, skipping extraction.');
             return null;
         }
+
+        $categoryList = implode(', ', $categories) ?: 'Other';
+        $prompt = "This is a photo of a business expense receipt. Extract the vendor name, transaction date (YYYY-MM-DD), a short item/description of what was purchased, the subtotal before tax, the GST amount, the PST amount, and the total, using BC Canadian sales tax conventions (GST and PST are usually printed separately on the receipt). Also pick the single best-fitting category for this expense from exactly this list: {$categoryList}. Respond with ONLY a JSON object with exactly these keys: vendor, date, item, subtotal, gst, pst, total, category. Use null for any field that is illegible or absent (except category, which must always be one of the given options). Do not include any other text, explanation, or markdown code fences.";
 
         try {
             $client = new \GuzzleHttp\Client(['timeout' => 30]);
@@ -50,7 +52,7 @@ PROMPT;
                             ],
                             [
                                 'type' => 'text',
-                                'text' => self::PROMPT,
+                                'text' => $prompt,
                             ],
                         ],
                     ]],
@@ -72,6 +74,11 @@ PROMPT;
                 return null;
             }
 
+            $category = $parsed['category'] ?? null;
+            if (!$category || !in_array($category, $categories, true)) {
+                $category = null;
+            }
+
             return [
                 'vendor'   => $parsed['vendor'] ?? null,
                 'date'     => $parsed['date'] ?? null,
@@ -80,6 +87,7 @@ PROMPT;
                 'gst'      => $parsed['gst'] ?? null,
                 'pst'      => $parsed['pst'] ?? null,
                 'total'    => $parsed['total'] ?? null,
+                'category' => $category,
             ];
         } catch (\Throwable $e) {
             Log::warning('ReceiptExtractionService: extraction failed', ['error' => $e->getMessage()]);

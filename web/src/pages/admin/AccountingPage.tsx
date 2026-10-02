@@ -271,7 +271,7 @@ export default function AdminAccountingPage() {
       return api.post('/admin/accounting/import', fd, fdConfig).then(r => r.data);
     },
     onSuccess: (result) => { setImportResult(result); invalidateAll(); },
-    onError: (e: any) => setImportResult({ failed: e.response?.data?.message ?? 'Import failed.', inserted: 0, incomplete: 0, defaulted_to_other: 0 }),
+    onError: (e: any) => setImportResult({ failed: e.response?.data?.message ?? 'Import failed.', inserted: 0, incomplete: 0, defaulted_to_other: 0, auto_categorized: 0 }),
   });
 
   const closeImport = () => { setShowImport(false); setImportResult(null); };
@@ -332,7 +332,7 @@ export default function AdminAccountingPage() {
           expense_date: res.data.date ?? '',
           item: res.data.item ?? '',
           vendor: res.data.vendor ?? '',
-          category: categories[0] ?? '',
+          category: res.data.category ?? categories[0] ?? '',
           subtotal: res.data.subtotal != null ? String(res.data.subtotal) : '',
           gst: res.data.gst != null ? String(res.data.gst) : '',
           pst: res.data.pst != null ? String(res.data.pst) : '',
@@ -555,7 +555,7 @@ export default function AdminAccountingPage() {
           <p className="text-sm text-taupe">
             Upload a CSV or Excel file with columns: date, item, vendor, category, subtotal, gst, pst.
             Rows with missing info are still imported — fill in the gaps later from the list.
-            Unrecognized categories default to "Other".
+            Rows with a missing or unrecognized category are auto-categorized based on vendor/item, falling back to "Other" if nothing fits.
           </p>
           <button onClick={downloadImportTemplate} className="text-sm text-blue hover:underline">
             Download template
@@ -578,8 +578,13 @@ export default function AdminAccountingPage() {
                 <>
                   <p className="text-sm font-semibold text-espresso">
                     {importResult.inserted} expense{importResult.inserted === 1 ? '' : 's'} imported
-                    {importResult.defaulted_to_other > 0 && `, ${importResult.defaulted_to_other} defaulted to "Other" category`}
+                    {importResult.defaulted_to_other > 0 && `, ${importResult.defaulted_to_other} categorized as "Other"`}
                   </p>
+                  {importResult.auto_categorized > 0 && (
+                    <p className="text-sm text-taupe">
+                      {importResult.auto_categorized} expense{importResult.auto_categorized === 1 ? ' was' : 's were'} auto-categorized based on vendor/item — double-check these from the list.
+                    </p>
+                  )}
                   {importResult.incomplete > 0 && (
                     <p className="text-sm text-taupe">
                       {importResult.incomplete} of those {importResult.incomplete === 1 ? 'is' : 'are'} missing some details (date, item, vendor, or subtotal) — edit them from the list to fill in the rest.

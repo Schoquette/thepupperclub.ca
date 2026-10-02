@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Services\ExpenseCategorizerService;
 use App\Services\ReceiptExtractionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Schema\Blueprint;
@@ -21,7 +22,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExpenseController extends Controller
 {
-    public function __construct(private ReceiptExtractionService $receiptExtraction) {}
+    public function __construct(
+        private ReceiptExtractionService $receiptExtraction,
+        private ExpenseCategorizerService $categorizer,
+    ) {}
 
     private function ensureExpensesTable(): void
     {
@@ -452,7 +456,7 @@ class ExpenseController extends Controller
 
         $toInsert = [];
         $incomplete = 0;
-        $defaultedToOther = 0;
+        $needsCategorization = []; // indices into $toInsert with no category match
 
         foreach ($rows as $row) {
             $get = fn (string $col) => $colMap[$col] !== null ? ($row[$colMap[$col]] ?? null) : null;
@@ -496,16 +500,12 @@ class ExpenseController extends Controller
             $category = $categoryRaw
                 ? collect($categories)->first(fn ($c) => strcasecmp($c, $categoryRaw) === 0)
                 : null;
-            if (!$category) {
-                $category = 'Other';
-                $defaultedToOther++;
-            }
 
             $toInsert[] = [
                 'expense_date' => $date,
                 'item'         => $item,
                 'vendor'       => $vendor,
-                'category'     => $category,
+                'category'     => $category ?? 'Other',
                 'subtotal'     => $subtotal,
                 'gst'          => $gst,
                 'pst'          => $pst,
@@ -514,7 +514,37 @@ class ExpenseController extends Controller
                 'created_at'   => now(),
                 'updated_at'   => now(),
             ];
+
+            if (!$category && ($item || $vendor)) {
+                $needsCategorization[] = count($toInsert) - 1;
+            }
         }
+
+        // Cap how many rows go to the categorizer in one request -- a single
+        // Claude call keeps this fast and cheap for realistic import sizes;
+        // an unusually large batch just falls back to "Other" rather than
+        // needing multi-call chunking logic.
+        $autoCategorized = 0;
+        if (!empty($needsCategorization) && count($needsCategorization) <= 300) {
+            $items = array_map(fn ($idx) => [
+                'vendor' => $toInsert[$idx]['vendor'],
+                'item'   => $toInsert[$idx]['item'],
+            ], $needsCategorization);
+
+            $guesses = $this->categorizer->categorize($items, $categories);
+
+            if ($guesses !== null) {
+                foreach ($needsCategorization as $i => $idx) {
+                    $guess = $guesses[$i] ?? 'Other';
+                    $toInsert[$idx]['category'] = $guess;
+                    if ($guess !== 'Other') {
+                        $autoCategorized++;
+                    }
+                }
+            }
+        }
+
+        $defaultedToOther = collect($toInsert)->where('category', 'Other')->count();
 
         if (!empty($toInsert)) {
             DB::transaction(function () use ($toInsert) {
@@ -528,6 +558,7 @@ class ExpenseController extends Controller
             'inserted'           => count($toInsert),
             'incomplete'         => $incomplete,
             'defaulted_to_other' => $defaultedToOther,
+            'auto_categorized'   => $autoCategorized,
         ]);
     }
 
@@ -541,7 +572,7 @@ class ExpenseController extends Controller
         $bytes = file_get_contents($file->getRealPath());
         $mimeType = $file->getMimeType() ?: 'image/jpeg';
 
-        $data = $this->receiptExtraction->extract($bytes, $mimeType);
+        $data = $this->receiptExtraction->extract($bytes, $mimeType, $this->categoryNames());
 
         if ($data === null) {
             return response()->json([
