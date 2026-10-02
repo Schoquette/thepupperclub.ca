@@ -14,6 +14,7 @@ class Expense extends Model
         'subtotal',
         'gst',
         'pst',
+        'tip',
         'total',
         'receipt_path',
         'source',
@@ -26,6 +27,7 @@ class Expense extends Model
             'subtotal'     => 'decimal:2',
             'gst'          => 'decimal:2',
             'pst'          => 'decimal:2',
+            'tip'          => 'decimal:2',
             'total'        => 'decimal:2',
         ];
     }

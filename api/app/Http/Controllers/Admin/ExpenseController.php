@@ -42,6 +42,7 @@ class ExpenseController extends Controller
                 $table->decimal('subtotal', 10, 2)->nullable();
                 $table->decimal('gst', 10, 2)->default(0);
                 $table->decimal('pst', 10, 2)->default(0);
+                $table->decimal('tip', 10, 2)->default(0);
                 $table->decimal('total', 10, 2)->default(0);
                 $table->string('receipt_path')->nullable();
                 $table->string('source')->default('manual');
@@ -51,6 +52,31 @@ class ExpenseController extends Controller
         }
 
         $this->ensureExpensesColumnsNullable();
+        $this->ensureTipColumn();
+    }
+
+    /**
+     * Adds `tip` to tables created before it existed -- self-healing column
+     * add, same pattern as ReportCardController's report_card_dismissed.
+     */
+    private function ensureTipColumn(): void
+    {
+        if (!Schema::hasColumn('expenses', 'tip')) {
+            try {
+                Schema::table('expenses', function (Blueprint $table) {
+                    $table->decimal('tip', 10, 2)->default(0)->after('pst');
+                });
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'expenses', 'column' => 'tip'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
     }
 
     /**
@@ -241,7 +267,7 @@ class ExpenseController extends Controller
 
         $data = $this->validateExpense($request);
         $data['category'] = $data['category'] ?? 'Other';
-        $data['total'] = round(($data['subtotal'] ?? 0) + ($data['gst'] ?? 0) + ($data['pst'] ?? 0), 2);
+        $data['total'] = round(($data['subtotal'] ?? 0) + ($data['gst'] ?? 0) + ($data['pst'] ?? 0) + ($data['tip'] ?? 0), 2);
         $data['source'] = $request->source === 'receipt_scan' ? 'receipt_scan' : 'manual';
 
         $expense = Expense::create($data);
@@ -259,7 +285,7 @@ class ExpenseController extends Controller
 
         $data = $this->validateExpense($request);
         $data['category'] = $data['category'] ?? 'Other';
-        $data['total'] = round(($data['subtotal'] ?? 0) + ($data['gst'] ?? 0) + ($data['pst'] ?? 0), 2);
+        $data['total'] = round(($data['subtotal'] ?? 0) + ($data['gst'] ?? 0) + ($data['pst'] ?? 0) + ($data['tip'] ?? 0), 2);
 
         $expense->update($data);
 
@@ -286,6 +312,7 @@ class ExpenseController extends Controller
             'subtotal'     => 'nullable|numeric|min:0',
             'gst'          => 'nullable|numeric|min:0',
             'pst'          => 'nullable|numeric|min:0',
+            'tip'          => 'nullable|numeric|min:0',
             'receipt'      => 'nullable|image|max:10240',
         ]);
     }
@@ -321,7 +348,7 @@ class ExpenseController extends Controller
             ->orderBy('expense_date')
             ->get();
 
-        $columns = ['Date', 'Item', 'Vendor', 'Category', 'Subtotal', 'GST', 'PST', 'Total'];
+        $columns = ['Date', 'Item', 'Vendor', 'Category', 'Subtotal', 'GST', 'PST', 'Tip', 'Total'];
 
         $rows = $expenses->map(fn (Expense $e) => [
             $e->expense_date?->format('Y-m-d') ?? '—',
@@ -331,6 +358,7 @@ class ExpenseController extends Controller
             '$' . number_format($e->subtotal ?? 0, 2),
             '$' . number_format($e->gst ?? 0, 2),
             '$' . number_format($e->pst ?? 0, 2),
+            '$' . number_format($e->tip ?? 0, 2),
             '$' . number_format($e->total ?? 0, 2),
         ])->toArray();
 
@@ -339,6 +367,7 @@ class ExpenseController extends Controller
             'Subtotal'       => '$' . number_format($expenses->sum('subtotal'), 2),
             'GST'            => '$' . number_format($expenses->sum('gst'), 2),
             'PST'            => '$' . number_format($expenses->sum('pst'), 2),
+            'Tip'            => '$' . number_format($expenses->sum('tip'), 2),
             'Grand Total'    => '$' . number_format($expenses->sum('total'), 2),
         ];
 
@@ -391,8 +420,8 @@ class ExpenseController extends Controller
 
     public function importTemplate(): Response
     {
-        $csv = "date,item,vendor,category,subtotal,gst,pst\n"
-            . "2026-10-01,Poop bags (bulk),Costco,Supplies,45.00,2.25,3.15\n";
+        $csv = "date,item,vendor,category,subtotal,gst,pst,tip\n"
+            . "2026-10-01,Poop bags (bulk),Costco,Supplies,45.00,2.25,3.15,0.00\n";
 
         return response($csv, 200, [
             'Content-Type'        => 'text/csv',
@@ -440,6 +469,7 @@ class ExpenseController extends Controller
             'subtotal' => ['subtotal', 'amount', 'cost', 'price', 'total', 'value'],
             'gst'      => ['gst', 'gst/hst', 'gst amount'],
             'pst'      => ['pst', 'pst amount'],
+            'tip'      => ['tip', 'gratuity', 'tip amount'],
         ];
         $colMap = [];
         foreach ($aliases as $field => $names) {
@@ -500,6 +530,7 @@ class ExpenseController extends Controller
             $subtotal = $num($get('subtotal'));
             $gst = $num($get('gst')) ?? 0;
             $pst = $num($get('pst')) ?? 0;
+            $tip = $num($get('tip')) ?? 0;
 
             if (!$date || !$item || !$vendor || $subtotal === null) {
                 $incomplete++;
@@ -518,7 +549,8 @@ class ExpenseController extends Controller
                 'subtotal'     => $subtotal,
                 'gst'          => $gst,
                 'pst'          => $pst,
-                'total'        => round(($subtotal ?? 0) + $gst + $pst, 2),
+                'tip'          => $tip,
+                'total'        => round(($subtotal ?? 0) + $gst + $pst + $tip, 2),
                 'source'       => 'import',
                 'created_at'   => now(),
                 'updated_at'   => now(),

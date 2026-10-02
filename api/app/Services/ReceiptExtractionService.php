@@ -26,7 +26,7 @@ class ReceiptExtractionService
         }
 
         $categoryList = implode(', ', $categories) ?: 'Other';
-        $prompt = "This is a photo of a business expense receipt. Extract the vendor name, transaction date (YYYY-MM-DD), a short item/description of what was purchased, the subtotal before tax, the GST amount, the PST amount, and the total, using BC Canadian sales tax conventions (GST and PST are usually printed separately on the receipt). Also pick the single best-fitting category for this expense from exactly this list: {$categoryList}. Respond with ONLY a JSON object with exactly these keys: vendor, date, item, subtotal, gst, pst, total, category. Use null for any field that is illegible or absent (except category, which must always be one of the given options). Do not include any other text, explanation, or markdown code fences.";
+        $prompt = "This is a photo of a business expense receipt. Extract the vendor name, transaction date (YYYY-MM-DD), a short item/description of what was purchased, the subtotal before tax, the GST amount, the PST amount, any tip/gratuity amount, and the total, using BC Canadian sales tax conventions (GST and PST are usually printed separately on the receipt). Also pick the single best-fitting category for this expense from exactly this list: {$categoryList}. Respond with ONLY a JSON object with exactly these keys: vendor, date, item, subtotal, gst, pst, tip, total, category. Use null for any field that is illegible or absent (except category, which must always be one of the given options, and tip, which should be 0 if there's no tip line on the receipt). Do not include any other text, explanation, or markdown code fences.";
 
         try {
             $client = new \GuzzleHttp\Client(['timeout' => 30]);
@@ -86,6 +86,7 @@ class ReceiptExtractionService
                 'subtotal' => $parsed['subtotal'] ?? null,
                 'gst'      => $parsed['gst'] ?? null,
                 'pst'      => $parsed['pst'] ?? null,
+                'tip'      => $parsed['tip'] ?? null,
                 'total'    => $parsed['total'] ?? null,
                 'category' => $category,
             ];

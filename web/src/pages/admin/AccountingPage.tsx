@@ -25,17 +25,19 @@ interface ExpenseForm {
   subtotal: string;
   gst: string;
   pst: string;
+  tip: string;
 }
 
 const BLANK_FORM: ExpenseForm = {
-  expense_date: '', item: '', vendor: '', category: '', subtotal: '', gst: '', pst: '',
+  expense_date: '', item: '', vendor: '', category: '', subtotal: '', gst: '', pst: '', tip: '',
 };
 
 function computeTotal(form: ExpenseForm): number {
   const subtotal = parseFloat(form.subtotal) || 0;
   const gst = parseFloat(form.gst) || 0;
   const pst = parseFloat(form.pst) || 0;
-  return subtotal + gst + pst;
+  const tip = parseFloat(form.tip) || 0;
+  return subtotal + gst + pst + tip;
 }
 
 function ExpenseFields({ form, setForm, categories }: { form: ExpenseForm; setForm: React.Dispatch<React.SetStateAction<ExpenseForm>>; categories: string[] }) {
@@ -65,14 +67,14 @@ function ExpenseFields({ form, setForm, categories }: { form: ExpenseForm; setFo
         onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
         options={categories.map(c => ({ value: c, label: c }))}
       />
+      <Input
+        label="Subtotal"
+        type="number"
+        step="0.01"
+        value={form.subtotal}
+        onChange={e => setForm(f => ({ ...f, subtotal: e.target.value }))}
+      />
       <div className="grid grid-cols-3 gap-3">
-        <Input
-          label="Subtotal"
-          type="number"
-          step="0.01"
-          value={form.subtotal}
-          onChange={e => setForm(f => ({ ...f, subtotal: e.target.value }))}
-        />
         <Input
           label="GST"
           type="number"
@@ -86,6 +88,13 @@ function ExpenseFields({ form, setForm, categories }: { form: ExpenseForm; setFo
           step="0.01"
           value={form.pst}
           onChange={e => setForm(f => ({ ...f, pst: e.target.value }))}
+        />
+        <Input
+          label="Tip"
+          type="number"
+          step="0.01"
+          value={form.tip}
+          onChange={e => setForm(f => ({ ...f, tip: e.target.value }))}
         />
       </div>
       <div className="flex items-center justify-between bg-cream rounded-lg px-4 py-3">
@@ -172,6 +181,7 @@ export default function AdminAccountingPage() {
       subtotal: exp.subtotal != null ? String(exp.subtotal) : '',
       gst: exp.gst != null ? String(exp.gst) : '',
       pst: exp.pst != null ? String(exp.pst) : '',
+      tip: exp.tip != null ? String(exp.tip) : '',
     });
     setReceiptFile(null); setFormSource(undefined); setFormError('');
   };
@@ -188,6 +198,7 @@ export default function AdminAccountingPage() {
     if (f.subtotal) fd.append('subtotal', f.subtotal);
     if (f.gst) fd.append('gst', f.gst);
     if (f.pst) fd.append('pst', f.pst);
+    if (f.tip) fd.append('tip', f.tip);
   };
 
   const buildExpenseFormData = () => {
@@ -343,6 +354,7 @@ export default function AdminAccountingPage() {
           subtotal: res.data.subtotal != null ? String(res.data.subtotal) : '',
           gst: res.data.gst != null ? String(res.data.gst) : '',
           pst: res.data.pst != null ? String(res.data.pst) : '',
+          tip: res.data.tip != null ? String(res.data.tip) : '',
         });
       } else {
         setScanMessage(res.message);
@@ -587,7 +599,7 @@ export default function AdminAccountingPage() {
       <Modal open={showImport} onClose={closeImport} title="Import Spreadsheet" size="md">
         <div className="space-y-4">
           <p className="text-sm text-taupe">
-            Upload a CSV or Excel file with columns: date, item, vendor, category, subtotal, gst, pst.
+            Upload a CSV or Excel file with columns: date, item, vendor, category, subtotal, gst, pst, tip.
             Rows with missing info are still imported — fill in the gaps later from the list.
             Rows with a missing or unrecognized category are auto-categorized based on vendor/item, falling back to "Other" if nothing fits.
           </p>
