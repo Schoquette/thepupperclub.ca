@@ -155,27 +155,34 @@ export default function AdminAccountingPage() {
   const openEdit = (exp: any) => {
     setEditing({ id: exp.id });
     setForm({
-      expense_date: String(exp.expense_date).slice(0, 10),
-      item: exp.item,
-      vendor: exp.vendor,
-      category: exp.category,
-      subtotal: String(exp.subtotal),
-      gst: String(exp.gst),
-      pst: String(exp.pst),
+      expense_date: exp.expense_date ? String(exp.expense_date).slice(0, 10) : '',
+      item: exp.item ?? '',
+      vendor: exp.vendor ?? '',
+      category: exp.category ?? 'Other',
+      subtotal: exp.subtotal != null ? String(exp.subtotal) : '',
+      gst: exp.gst != null ? String(exp.gst) : '',
+      pst: exp.pst != null ? String(exp.pst) : '',
     });
     setReceiptFile(null); setFormSource(undefined); setFormError('');
   };
   const closeForm = () => { setEditing(null); setForm(BLANK_FORM); setReceiptFile(null); setFormSource(undefined); setFormError(''); };
 
+  // Blank fields are omitted entirely rather than sent as '' -- Laravel's
+  // `nullable` rule only skips validation for an absent field, not an empty
+  // string, so appending '' for a `date`/`numeric` field would 422.
+  const appendExpenseFields = (fd: FormData, f: ExpenseForm) => {
+    if (f.expense_date) fd.append('expense_date', f.expense_date);
+    if (f.item) fd.append('item', f.item);
+    if (f.vendor) fd.append('vendor', f.vendor);
+    if (f.category) fd.append('category', f.category);
+    if (f.subtotal) fd.append('subtotal', f.subtotal);
+    if (f.gst) fd.append('gst', f.gst);
+    if (f.pst) fd.append('pst', f.pst);
+  };
+
   const buildExpenseFormData = () => {
     const fd = new FormData();
-    fd.append('expense_date', form.expense_date);
-    fd.append('item', form.item);
-    fd.append('vendor', form.vendor);
-    fd.append('category', form.category);
-    fd.append('subtotal', form.subtotal);
-    if (form.gst) fd.append('gst', form.gst);
-    if (form.pst) fd.append('pst', form.pst);
+    appendExpenseFields(fd, form);
     if (receiptFile) fd.append('receipt', receiptFile);
     if (formSource) fd.append('source', formSource);
     return fd;
@@ -261,7 +268,7 @@ export default function AdminAccountingPage() {
       return api.post('/admin/accounting/import', fd, fdConfig).then(r => r.data);
     },
     onSuccess: (result) => { setImportResult(result); invalidateAll(); },
-    onError: (e: any) => setImportResult({ errors: [{ row: '-', reason: e.response?.data?.message ?? 'Import failed.' }], inserted: 0, defaulted_to_other: 0 }),
+    onError: (e: any) => setImportResult({ failed: e.response?.data?.message ?? 'Import failed.', inserted: 0, incomplete: 0, defaulted_to_other: 0 }),
   });
 
   const closeImport = () => { setShowImport(false); setImportResult(null); };
@@ -320,13 +327,7 @@ export default function AdminAccountingPage() {
   const saveScannedExpense = useMutation({
     mutationFn: () => {
       const fd = new FormData();
-      fd.append('expense_date', scanForm.expense_date);
-      fd.append('item', scanForm.item);
-      fd.append('vendor', scanForm.vendor);
-      fd.append('category', scanForm.category);
-      fd.append('subtotal', scanForm.subtotal);
-      if (scanForm.gst) fd.append('gst', scanForm.gst);
-      if (scanForm.pst) fd.append('pst', scanForm.pst);
+      appendExpenseFields(fd, scanForm);
       if (scanFile) fd.append('receipt', scanFile);
       fd.append('source', 'receipt_scan');
       return api.post('/admin/accounting/expenses', fd, fdConfig);
@@ -444,9 +445,11 @@ export default function AdminAccountingPage() {
               <tbody>
                 {data?.data?.map((exp: any) => (
                   <tr key={exp.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
-                    <td className="px-6 py-4 text-xs text-taupe">{format(new Date(String(exp.expense_date).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}</td>
-                    <td className="px-6 py-4">{exp.item}</td>
-                    <td className="px-6 py-4">{exp.vendor}</td>
+                    <td className="px-6 py-4 text-xs text-taupe">
+                      {exp.expense_date ? format(new Date(String(exp.expense_date).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy') : '—'}
+                    </td>
+                    <td className="px-6 py-4">{exp.item || <span className="text-taupe italic">—</span>}</td>
+                    <td className="px-6 py-4">{exp.vendor || <span className="text-taupe italic">—</span>}</td>
                     <td className="px-6 py-4 text-xs text-taupe">{exp.category}</td>
                     <td className="px-6 py-4 font-semibold">${Number(exp.total).toFixed(2)}</td>
                     <td className="px-6 py-4">
@@ -503,7 +506,6 @@ export default function AdminAccountingPage() {
             <Button variant="outline" onClick={closeForm}>Cancel</Button>
             <Button
               loading={saveExpense.isPending}
-              disabled={!form.expense_date || !form.item || !form.vendor || !form.subtotal}
               onClick={() => saveExpense.mutate()}
             >
               Save
@@ -517,6 +519,7 @@ export default function AdminAccountingPage() {
         <div className="space-y-4">
           <p className="text-sm text-taupe">
             Upload a CSV or Excel file with columns: date, item, vendor, category, subtotal, gst, pst.
+            Rows with missing info are still imported — fill in the gaps later from the list.
             Unrecognized categories default to "Other".
           </p>
           <button onClick={downloadImportTemplate} className="text-sm text-blue hover:underline">
@@ -534,16 +537,20 @@ export default function AdminAccountingPage() {
           {importExpenses.isPending && <p className="text-sm text-taupe">Importing…</p>}
           {importResult && (
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-espresso">
-                {importResult.inserted} expense{importResult.inserted === 1 ? '' : 's'} imported
-                {importResult.defaulted_to_other > 0 && `, ${importResult.defaulted_to_other} defaulted to "Other" category`}
-              </p>
-              {importResult.errors?.length > 0 && (
-                <div className="max-h-48 overflow-y-auto bg-red-50 rounded-lg p-3 space-y-1">
-                  {importResult.errors.map((err: any, i: number) => (
-                    <p key={i} className="text-xs text-red-600">Row {err.row}: {err.reason}</p>
-                  ))}
-                </div>
+              {importResult.failed ? (
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{importResult.failed}</p>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-espresso">
+                    {importResult.inserted} expense{importResult.inserted === 1 ? '' : 's'} imported
+                    {importResult.defaulted_to_other > 0 && `, ${importResult.defaulted_to_other} defaulted to "Other" category`}
+                  </p>
+                  {importResult.incomplete > 0 && (
+                    <p className="text-sm text-taupe">
+                      {importResult.incomplete} of those {importResult.incomplete === 1 ? 'is' : 'are'} missing some details (date, item, vendor, or subtotal) — edit them from the list to fill in the rest.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -582,7 +589,6 @@ export default function AdminAccountingPage() {
                 <Button variant="outline" onClick={closeScan}>Cancel</Button>
                 <Button
                   loading={saveScannedExpense.isPending}
-                  disabled={!scanForm.expense_date || !scanForm.item || !scanForm.vendor || !scanForm.subtotal}
                   onClick={() => saveScannedExpense.mutate()}
                 >
                   Confirm & Save
