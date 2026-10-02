@@ -9,11 +9,6 @@ import { Badge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { format } from 'date-fns';
 
-const CATEGORIES = [
-  'Supplies', 'Vehicle/Gas', 'Insurance', 'Software',
-  'Marketing', 'Professional Fees', 'Equipment', 'Utilities', 'Other',
-];
-
 const SOURCE_BADGE: Record<string, 'gray' | 'blue' | 'gold'> = {
   manual: 'gray', import: 'blue', receipt_scan: 'gold',
 };
@@ -33,7 +28,7 @@ interface ExpenseForm {
 }
 
 const BLANK_FORM: ExpenseForm = {
-  expense_date: '', item: '', vendor: '', category: 'Supplies', subtotal: '', gst: '', pst: '',
+  expense_date: '', item: '', vendor: '', category: '', subtotal: '', gst: '', pst: '',
 };
 
 function computeTotal(form: ExpenseForm): number {
@@ -43,7 +38,7 @@ function computeTotal(form: ExpenseForm): number {
   return subtotal + gst + pst;
 }
 
-function ExpenseFields({ form, setForm }: { form: ExpenseForm; setForm: React.Dispatch<React.SetStateAction<ExpenseForm>> }) {
+function ExpenseFields({ form, setForm, categories }: { form: ExpenseForm; setForm: React.Dispatch<React.SetStateAction<ExpenseForm>>; categories: string[] }) {
   return (
     <div className="space-y-4">
       <Input
@@ -68,7 +63,7 @@ function ExpenseFields({ form, setForm }: { form: ExpenseForm; setForm: React.Di
         label="Category"
         value={form.category}
         onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-        options={CATEGORIES.map(c => ({ value: c, label: c }))}
+        options={categories.map(c => ({ value: c, label: c }))}
       />
       <div className="grid grid-cols-3 gap-3">
         <Input
@@ -130,6 +125,12 @@ export default function AdminAccountingPage() {
     queryFn: () => api.get('/admin/accounting/vendors').then(r => r.data.data ?? []),
   });
 
+  const { data: categoryRows } = useQuery({
+    queryKey: ['accounting-categories'],
+    queryFn: () => api.get('/admin/accounting/categories').then(r => r.data.data ?? []),
+  });
+  const categories: string[] = (categoryRows ?? []).map((c: any) => c.name);
+
   const { data, isLoading } = useQuery({
     queryKey: ['accounting-expenses', monthFilter, vendorFilter, categoryFilter],
     queryFn: () => api.get('/admin/accounting/expenses', { params: filterParams }).then(r => r.data),
@@ -150,7 +151,9 @@ export default function AdminAccountingPage() {
   const [formError, setFormError] = useState('');
 
   const openAdd = () => {
-    setEditing('new'); setForm(BLANK_FORM); setReceiptFile(null); setFormSource(undefined); setFormError('');
+    setEditing('new');
+    setForm({ ...BLANK_FORM, category: categories[0] ?? '' });
+    setReceiptFile(null); setFormSource(undefined); setFormError('');
   };
   const openEdit = (exp: any) => {
     setEditing({ id: exp.id });
@@ -273,6 +276,36 @@ export default function AdminAccountingPage() {
 
   const closeImport = () => { setShowImport(false); setImportResult(null); };
 
+  // ── Manage Categories modal ─────────────────────────────────────────────
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [categoryError, setCategoryError] = useState('');
+
+  const invalidateCategories = () => {
+    qc.invalidateQueries({ queryKey: ['accounting-categories'] });
+    invalidateAll();
+  };
+
+  const addCategory = useMutation({
+    mutationFn: (name: string) => api.post('/admin/accounting/categories', { name }),
+    onSuccess: () => { setNewCategoryName(''); setCategoryError(''); invalidateCategories(); },
+    onError: (e: any) => setCategoryError(e.response?.data?.message ?? 'Failed to add category.'),
+  });
+
+  const renameCategory = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) => api.patch(`/admin/accounting/categories/${id}`, { name }),
+    onSuccess: () => { setRenamingId(null); setCategoryError(''); invalidateCategories(); },
+    onError: (e: any) => setCategoryError(e.response?.data?.message ?? 'Failed to rename category.'),
+  });
+
+  const deleteCategory = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/accounting/categories/${id}`),
+    onSuccess: () => { setCategoryError(''); invalidateCategories(); },
+    onError: (e: any) => setCategoryError(e.response?.data?.message ?? 'Failed to delete category.'),
+  });
+
   // ── Scan Receipt modal ──────────────────────────────────────────────────
   const [showScan, setShowScan] = useState(false);
   const [scanFile, setScanFile] = useState<File | null>(null);
@@ -299,7 +332,7 @@ export default function AdminAccountingPage() {
           expense_date: res.data.date ?? '',
           item: res.data.item ?? '',
           vendor: res.data.vendor ?? '',
-          category: 'Supplies',
+          category: categories[0] ?? '',
           subtotal: res.data.subtotal != null ? String(res.data.subtotal) : '',
           gst: res.data.gst != null ? String(res.data.gst) : '',
           pst: res.data.pst != null ? String(res.data.pst) : '',
@@ -408,8 +441,10 @@ export default function AdminAccountingPage() {
           className="text-sm border border-taupe/50 rounded-lg px-3 py-2 bg-white text-espresso focus:ring-1 focus:ring-gold"
         >
           <option value="">All Categories</option>
-          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+
+        <Button variant="outline" size="sm" onClick={() => setShowCategoryManager(true)}>Manage Categories</Button>
 
         {hasActiveFilters && (
           <button
@@ -491,7 +526,7 @@ export default function AdminAccountingPage() {
       {/* Add/Edit modal */}
       <Modal open={!!editing} onClose={closeForm} title={editing === 'new' ? 'Add Expense' : 'Edit Expense'} size="md">
         <div className="space-y-4">
-          <ExpenseFields form={form} setForm={setForm} />
+          <ExpenseFields form={form} setForm={setForm} categories={categories} />
           <div>
             <label className="block text-sm font-semibold text-espresso mb-1">Receipt (optional)</label>
             <input
@@ -560,6 +595,70 @@ export default function AdminAccountingPage() {
         </div>
       </Modal>
 
+      {/* Manage Categories modal */}
+      <Modal open={showCategoryManager} onClose={() => { setShowCategoryManager(false); setCategoryError(''); setRenamingId(null); }} title="Manage Categories" size="sm">
+        <div className="space-y-4">
+          {categoryError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{categoryError}</p>}
+          <div className="space-y-1 max-h-72 overflow-y-auto">
+            {(categoryRows ?? []).map((c: any) => (
+              <div key={c.id} className="flex items-center gap-2 py-1.5 border-b border-cream last:border-0">
+                {renamingId === c.id ? (
+                  <>
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      className="flex-1 border border-taupe/50 rounded px-2 py-1 text-sm"
+                    />
+                    <button
+                      className="text-xs text-gold hover:text-espresso font-medium"
+                      onClick={() => renameValue.trim() && renameCategory.mutate({ id: c.id, name: renameValue.trim() })}
+                    >
+                      Save
+                    </button>
+                    <button className="text-xs text-taupe hover:text-espresso" onClick={() => setRenamingId(null)}>Cancel</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 text-sm text-espresso">{c.name}</span>
+                    <button
+                      className="text-xs text-blue hover:underline"
+                      onClick={() => { setRenamingId(c.id); setRenameValue(c.name); setCategoryError(''); }}
+                    >
+                      Rename
+                    </button>
+                    {c.name !== 'Other' && (
+                      <button
+                        className="text-xs text-red-500 hover:underline"
+                        onClick={() => { if (confirm(`Delete "${c.name}"? Expenses using it will move to "Other".`)) deleteCategory.mutate(c.id); }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 pt-2 border-t border-cream">
+            <input
+              value={newCategoryName}
+              onChange={e => setNewCategoryName(e.target.value)}
+              placeholder="New category name"
+              className="flex-1 border border-taupe/50 rounded-lg px-3 py-2 text-sm"
+            />
+            <Button
+              size="sm"
+              loading={addCategory.isPending}
+              disabled={!newCategoryName.trim()}
+              onClick={() => addCategory.mutate(newCategoryName.trim())}
+            >
+              Add
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Scan Receipt modal */}
       <Modal open={showScan} onClose={closeScan} title="Scan Receipt" size="md">
         <div className="space-y-4">
@@ -583,7 +682,7 @@ export default function AdminAccountingPage() {
               {scanMessage && (
                 <p className="text-sm text-taupe bg-cream rounded-lg px-3 py-2">{scanMessage}</p>
               )}
-              <ExpenseFields form={scanForm} setForm={setScanForm} />
+              <ExpenseFields form={scanForm} setForm={setScanForm} categories={categories} />
               {scanSaveError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{scanSaveError}</p>}
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={closeScan}>Cancel</Button>

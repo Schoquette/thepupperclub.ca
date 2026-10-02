@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Services\ReceiptExtractionService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Schema\Blueprint;
@@ -81,6 +82,81 @@ class ExpenseController extends Controller
                 } catch (\Throwable $logError) {}
             }
         }
+    }
+
+    private function ensureCategoriesTable(): void
+    {
+        if (!Schema::hasTable('expense_categories')) {
+            Schema::create('expense_categories', function (Blueprint $table) {
+                $table->id();
+                $table->string('name')->unique();
+                $table->timestamps();
+            });
+
+            foreach (ExpenseCategory::DEFAULT_SEED as $name) {
+                ExpenseCategory::create(['name' => $name]);
+            }
+        }
+    }
+
+    private function categoryNames(): array
+    {
+        $this->ensureCategoriesTable();
+
+        return ExpenseCategory::orderBy('name')->pluck('name')->all();
+    }
+
+    public function categories(): JsonResponse
+    {
+        $this->ensureCategoriesTable();
+
+        return response()->json(['data' => ExpenseCategory::orderBy('name')->get()]);
+    }
+
+    public function storeCategory(Request $request): JsonResponse
+    {
+        $this->ensureCategoriesTable();
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255|unique:expense_categories,name',
+        ]);
+
+        $category = ExpenseCategory::create($data);
+
+        return response()->json(['data' => $category], 201);
+    }
+
+    public function updateCategory(Request $request, ExpenseCategory $category): JsonResponse
+    {
+        $this->ensureCategoriesTable();
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('expense_categories', 'name')->ignore($category->id)],
+        ]);
+
+        $oldName = $category->name;
+        $category->update($data);
+
+        if ($oldName !== $data['name']) {
+            $this->ensureExpensesTable();
+            Expense::where('category', $oldName)->update(['category' => $data['name']]);
+        }
+
+        return response()->json(['data' => $category]);
+    }
+
+    public function destroyCategory(ExpenseCategory $category): JsonResponse
+    {
+        $this->ensureCategoriesTable();
+
+        abort_if($category->name === 'Other', 422, '"Other" can\'t be deleted -- it\'s the fallback category for uncategorized expenses.');
+
+        $this->ensureExpensesTable();
+        Expense::where('category', $category->name)->update(['category' => 'Other']);
+
+        $category->delete();
+
+        return response()->json(['message' => 'Category deleted. Any expenses using it were moved to "Other".']);
     }
 
     private function applyFilters($query, Request $request)
@@ -202,7 +278,7 @@ class ExpenseController extends Controller
             'expense_date' => 'nullable|date',
             'item'         => 'nullable|string|max:255',
             'vendor'       => 'nullable|string|max:255',
-            'category'     => ['nullable', Rule::in(Expense::CATEGORIES)],
+            'category'     => ['nullable', Rule::in($this->categoryNames())],
             'subtotal'     => 'nullable|numeric|min:0',
             'gst'          => 'nullable|numeric|min:0',
             'pst'          => 'nullable|numeric|min:0',
@@ -347,14 +423,39 @@ class ExpenseController extends Controller
         }
 
         $header = array_map(fn ($h) => strtolower(trim((string) $h)), array_shift($rows));
-        $colIndex = array_flip($header);
+
+        // Real-world exports rarely use our exact template headers (a bank/
+        // card export might call the amount column "Amount" or "Cost", or
+        // the date column "Transaction Date") -- match on common synonyms
+        // instead of requiring an exact column name.
+        $aliases = [
+            'date'     => ['date', 'expense date', 'transaction date', 'purchase date', 'trans date'],
+            'item'     => ['item', 'description', 'desc', 'details', 'memo', 'expense'],
+            'vendor'   => ['vendor', 'merchant', 'payee', 'supplier', 'merchant name'],
+            'category' => ['category', 'type', 'expense category'],
+            'subtotal' => ['subtotal', 'amount', 'cost', 'price', 'total', 'value'],
+            'gst'      => ['gst', 'gst/hst', 'gst amount'],
+            'pst'      => ['pst', 'pst amount'],
+        ];
+        $colMap = [];
+        foreach ($aliases as $field => $names) {
+            $colMap[$field] = null;
+            foreach ($header as $idx => $h) {
+                if (in_array($h, $names, true)) {
+                    $colMap[$field] = $idx;
+                    break;
+                }
+            }
+        }
+
+        $categories = $this->categoryNames();
 
         $toInsert = [];
         $incomplete = 0;
         $defaultedToOther = 0;
 
         foreach ($rows as $row) {
-            $get = fn (string $col) => isset($colIndex[$col]) ? ($row[$colIndex[$col]] ?? null) : null;
+            $get = fn (string $col) => $colMap[$col] !== null ? ($row[$colMap[$col]] ?? null) : null;
             $str = fn ($v) => $v !== null && trim((string) $v) !== '' ? trim((string) $v) : null;
             $num = fn ($v) => $v !== null && trim((string) $v) !== '' && is_numeric($v) ? round((float) $v, 2) : null;
 
@@ -365,10 +466,20 @@ class ExpenseController extends Controller
 
             $rawDate = $get('date');
             $date = null;
-            try {
-                $date = $str($rawDate) !== null ? Carbon::parse($rawDate)->toDateString() : null;
-            } catch (\Throwable $e) {
-                $date = null;
+            if ($str($rawDate) !== null) {
+                try {
+                    // Excel stores dates as a serial day-count, not text -- a cell
+                    // formatted as a date can come through toArray() as a plain
+                    // number depending on the source file, so detect that case
+                    // before falling back to free-text parsing.
+                    if (is_numeric($rawDate) && $rawDate > 20000 && $rawDate < 80000) {
+                        $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $rawDate)->format('Y-m-d');
+                    } else {
+                        $date = Carbon::parse($rawDate)->toDateString();
+                    }
+                } catch (\Throwable $e) {
+                    $date = null;
+                }
             }
 
             $item = $str($get('item'));
@@ -383,7 +494,7 @@ class ExpenseController extends Controller
 
             $categoryRaw = $str($get('category'));
             $category = $categoryRaw
-                ? collect(Expense::CATEGORIES)->first(fn ($c) => strcasecmp($c, $categoryRaw) === 0)
+                ? collect($categories)->first(fn ($c) => strcasecmp($c, $categoryRaw) === 0)
                 : null;
             if (!$category) {
                 $category = 'Other';

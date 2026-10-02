@@ -6,18 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Expense extends Model
 {
-    public const CATEGORIES = [
-        'Supplies',
-        'Vehicle/Gas',
-        'Insurance',
-        'Software',
-        'Marketing',
-        'Professional Fees',
-        'Equipment',
-        'Utilities',
-        'Other',
-    ];
-
     protected $fillable = [
         'expense_date',
         'item',

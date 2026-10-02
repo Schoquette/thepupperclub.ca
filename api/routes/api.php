@@ -265,6 +265,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Accounting
         Route::get('/accounting/dashboard',             [Admin\ExpenseController::class, 'dashboard']);
         Route::get('/accounting/vendors',               [Admin\ExpenseController::class, 'vendors']);
+        Route::get('/accounting/categories',            [Admin\ExpenseController::class, 'categories']);
+        Route::post('/accounting/categories',           [Admin\ExpenseController::class, 'storeCategory']);
+        Route::patch('/accounting/categories/{category}',[Admin\ExpenseController::class, 'updateCategory']);
+        Route::delete('/accounting/categories/{category}', [Admin\ExpenseController::class, 'destroyCategory']);
         Route::get('/accounting/expenses',              [Admin\ExpenseController::class, 'index']);
         Route::post('/accounting/expenses',             [Admin\ExpenseController::class, 'store']);
         Route::post('/accounting/expenses/{expense}',   [Admin\ExpenseController::class, 'update']);
