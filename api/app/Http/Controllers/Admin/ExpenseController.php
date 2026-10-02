@@ -433,7 +433,7 @@ class ExpenseController extends Controller
         // the date column "Transaction Date") -- match on common synonyms
         // instead of requiring an exact column name.
         $aliases = [
-            'date'     => ['date', 'expense date', 'transaction date', 'purchase date', 'trans date'],
+            'date'     => ['date', 'expense date', 'transaction date', 'purchase date', 'trans date', 'month'],
             'item'     => ['item', 'description', 'desc', 'details', 'memo', 'expense'],
             'vendor'   => ['vendor', 'merchant', 'payee', 'supplier', 'merchant name'],
             'category' => ['category', 'type', 'expense category'],
@@ -461,7 +461,16 @@ class ExpenseController extends Controller
         foreach ($rows as $row) {
             $get = fn (string $col) => $colMap[$col] !== null ? ($row[$colMap[$col]] ?? null) : null;
             $str = fn ($v) => $v !== null && trim((string) $v) !== '' ? trim((string) $v) : null;
-            $num = fn ($v) => $v !== null && trim((string) $v) !== '' && is_numeric($v) ? round((float) $v, 2) : null;
+            // Strip currency formatting ($, commas, whitespace) before checking
+            // numeric -- "$45.00" or "1,234.56" both fail is_numeric() as-is,
+            // which is exactly what silently zeroed out every amount earlier.
+            $num = function ($v) {
+                if ($v === null || trim((string) $v) === '') {
+                    return null;
+                }
+                $cleaned = preg_replace('/[^0-9.\-]/', '', (string) $v);
+                return $cleaned !== '' && is_numeric($cleaned) ? round((float) $cleaned, 2) : null;
+            };
 
             $isBlank = collect($row)->every(fn ($v) => $v === null || trim((string) $v) === '');
             if ($isBlank) {
