@@ -32,6 +32,10 @@ return [
         'maps_api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+    ],
+
     'twilio' => [
         'sid'         => env('TWILIO_SID'),
         'auth_token'  => env('TWILIO_AUTH_TOKEN'),

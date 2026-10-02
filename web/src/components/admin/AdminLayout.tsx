@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Calendar, ClipboardList, Users, PawPrint,
   MessageCircle, FileText, Receipt, Car, BarChart3,
   UserCog, Megaphone, Search, Menu, X, FolderOpen,
-  Mail, AlertTriangle, Settings,
+  Mail, AlertTriangle, Settings, DollarSign,
 } from 'lucide-react';
 
 const NAV = [
@@ -21,6 +21,7 @@ const NAV = [
   { to: '/admin/report-cards',     label: 'Report Cards', icon: FileText },
   { to: '/admin/documents',        label: 'Documents',  icon: FolderOpen },
   { to: '/admin/invoices',         label: 'Invoices',   icon: Receipt },
+  { to: '/admin/accounting',       label: 'Accounting', icon: DollarSign },
   { to: '/admin/time-mileage',     label: 'Time & km',  icon: Car },
   { to: '/admin/reports',          label: 'Export',      icon: BarChart3 },
   { to: '/admin/team',             label: 'Team',        icon: UserCog },

@@ -262,6 +262,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/walk-history',  [Admin\ReportExportController::class, 'walkHistory']);
         Route::get('/reports/billing',       [Admin\ReportExportController::class, 'billingHistory']);
 
+        // Accounting
+        Route::get('/accounting/dashboard',             [Admin\ExpenseController::class, 'dashboard']);
+        Route::get('/accounting/vendors',               [Admin\ExpenseController::class, 'vendors']);
+        Route::get('/accounting/expenses',              [Admin\ExpenseController::class, 'index']);
+        Route::post('/accounting/expenses',             [Admin\ExpenseController::class, 'store']);
+        Route::post('/accounting/expenses/{expense}',   [Admin\ExpenseController::class, 'update']);
+        Route::delete('/accounting/expenses/{expense}', [Admin\ExpenseController::class, 'destroy']);
+        Route::get('/accounting/expenses/{expense}/receipt', [Admin\ExpenseController::class, 'serveReceipt']);
+        Route::get('/accounting/export',                [Admin\ExpenseController::class, 'export']);
+        Route::get('/accounting/import-template',       [Admin\ExpenseController::class, 'importTemplate']);
+        Route::post('/accounting/import',               [Admin\ExpenseController::class, 'import']);
+        Route::post('/accounting/receipts/extract',     [Admin\ExpenseController::class, 'extractReceipt']);
+
         // Audit logs
         Route::get('/audit-logs', [Admin\AuditLogController::class, 'index']);
 

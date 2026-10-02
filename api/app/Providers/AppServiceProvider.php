@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Appointment;
 use App\Models\ClientProfile;
 use App\Models\Dog;
+use App\Models\Expense;
 use App\Models\HomeAccess;
 use App\Models\Invoice;
 use App\Models\ServiceRequest;
@@ -76,5 +77,6 @@ class AppServiceProvider extends ServiceProvider
         VaccinationRecord::observe(AuditObserver::class);
         ClientProfile::observe(AuditObserver::class);
         HomeAccess::observe(AuditObserver::class);
+        Expense::observe(AuditObserver::class);
     }
 }

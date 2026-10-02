@@ -22,6 +22,7 @@ import AdminCalendarPage from './pages/admin/CalendarPage';
 import AdminServiceRequestsPage from './pages/admin/ServiceRequestsPage';
 import AdminInboxPage from './pages/admin/InboxPage';
 import AdminInvoicesPage from './pages/admin/InvoicesPage';
+import AdminAccountingPage from './pages/admin/AccountingPage';
 import AdminInvoiceDetailPage from './pages/admin/InvoiceDetailPage';
 import AdminInvoiceCreatePage from './pages/admin/InvoiceCreatePage';
 import AdminIntakeFormPage from './pages/admin/IntakeFormPage';
@@ -119,6 +120,7 @@ export default function App() {
           <Route path="invoices" element={<AdminInvoicesPage />} />
           <Route path="invoices/new" element={<AdminInvoiceCreatePage />} />
           <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
+          <Route path="accounting" element={<AdminAccountingPage />} />
           <Route path="report-cards" element={<AdminReportCardsPage />} />
           <Route path="report-cards/new" element={<AdminReportCardFormPage />} />
           <Route path="report-cards/:id" element={<AdminReportCardFormPage />} />
