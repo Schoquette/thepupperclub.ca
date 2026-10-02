@@ -32,6 +32,10 @@ const BLANK_FORM: ExpenseForm = {
   expense_date: '', item: '', vendor: '', category: '', subtotal: '', gst: '', pst: '', tip: '',
 };
 
+function formatMoney(n: number): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function computeTotal(form: ExpenseForm): number {
   const subtotal = parseFloat(form.subtotal) || 0;
   const gst = parseFloat(form.gst) || 0;
@@ -99,7 +103,7 @@ function ExpenseFields({ form, setForm, categories }: { form: ExpenseForm; setFo
       </div>
       <div className="flex items-center justify-between bg-cream rounded-lg px-4 py-3">
         <span className="text-sm font-semibold text-espresso">Total</span>
-        <span className="text-lg font-bold text-espresso">${computeTotal(form).toFixed(2)}</span>
+        <span className="text-lg font-bold text-espresso">${formatMoney(computeTotal(form))}</span>
       </div>
     </div>
   );
@@ -403,11 +407,11 @@ export default function AdminAccountingPage() {
       {dashboard && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card padding="sm">
-            <div className="text-2xl font-bold text-espresso">${Number(dashboard.total_this_month ?? 0).toFixed(2)}</div>
+            <div className="text-2xl font-bold text-espresso">${formatMoney(Number(dashboard.total_this_month ?? 0))}</div>
             <div className="text-xs text-taupe mt-0.5">Total This Month</div>
           </Card>
           <Card padding="sm">
-            <div className="text-2xl font-bold text-espresso">${filteredTotal.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-espresso">${formatMoney(filteredTotal)}</div>
             <div className="text-xs text-taupe mt-0.5">Filtered Total ({filteredLabel})</div>
           </Card>
         </div>
@@ -428,7 +432,7 @@ export default function AdminAccountingPage() {
               {dashboard.by_category.map((row: any) => (
                 <div key={row.category} className="flex items-center justify-between text-sm">
                   <span className="text-espresso">{row.category}</span>
-                  <span className="font-medium text-espresso">${Number(row.total).toFixed(2)}</span>
+                  <span className="font-medium text-espresso">${formatMoney(Number(row.total))}</span>
                 </div>
               ))}
             </div>
@@ -505,7 +509,7 @@ export default function AdminAccountingPage() {
                     <td className="px-6 py-4">{exp.item || <span className="text-taupe italic">—</span>}</td>
                     <td className="px-6 py-4">{exp.vendor || <span className="text-taupe italic">—</span>}</td>
                     <td className="px-6 py-4 text-xs text-taupe">{exp.category}</td>
-                    <td className="px-6 py-4 font-semibold">${Number(exp.total).toFixed(2)}</td>
+                    <td className="px-6 py-4 font-semibold">${formatMoney(Number(exp.total))}</td>
                     <td className="px-6 py-4">
                       <Badge variant={SOURCE_BADGE[exp.source] ?? 'gray'}>{SOURCE_LABEL[exp.source] ?? exp.source}</Badge>
                     </td>
@@ -530,7 +534,7 @@ export default function AdminAccountingPage() {
                     <td className="px-6 py-3 font-semibold text-espresso" colSpan={4}>
                       Total ({filteredCount} expense{filteredCount === 1 ? '' : 's'})
                     </td>
-                    <td className="px-6 py-3 font-bold text-espresso" colSpan={3}>${filteredTotal.toFixed(2)}</td>
+                    <td className="px-6 py-3 font-bold text-espresso" colSpan={3}>${formatMoney(filteredTotal)}</td>
                   </tr>
                 </tfoot>
               )}
