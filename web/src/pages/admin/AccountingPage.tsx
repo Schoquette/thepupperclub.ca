@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
@@ -102,12 +102,16 @@ export default function AdminAccountingPage() {
   const [vendorFilter, setVendorFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showCategoryBreakdown, setShowCategoryBreakdown] = useState(false);
+  const [page, setPage] = useState(1);
 
   const filterParams = {
     month: monthFilter || undefined,
     vendor: vendorFilter || undefined,
     category: categoryFilter || undefined,
   };
+
+  // Reset to page 1 whenever a filter changes, so we never land on a now-empty page.
+  useEffect(() => { setPage(1); }, [monthFilter, vendorFilter, categoryFilter]);
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ['accounting-dashboard'] });
@@ -132,14 +136,17 @@ export default function AdminAccountingPage() {
   const categories: string[] = (categoryRows ?? []).map((c: any) => c.name);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['accounting-expenses', monthFilter, vendorFilter, categoryFilter],
-    queryFn: () => api.get('/admin/accounting/expenses', { params: filterParams }).then(r => r.data),
+    queryKey: ['accounting-expenses', monthFilter, vendorFilter, categoryFilter, page],
+    queryFn: () => api.get('/admin/accounting/expenses', { params: { ...filterParams, page } }).then(r => r.data),
   });
 
   const hasActiveFilters = !!(monthFilter || vendorFilter || categoryFilter);
-  const monthLabel = monthFilter
+  // "Filtered Total" is genuinely unscoped by date unless a month is chosen
+  // (so you can see an all-time total), so the label must say so -- it
+  // previously always said "This Month" even when showing every expense ever.
+  const filteredLabel = monthFilter
     ? format(new Date(`${monthFilter}-01T00:00:00`), 'MMMM yyyy')
-    : 'This Month';
+    : 'All Time';
   const filteredTotal = Number(dashboard?.filtered_total ?? 0);
   const filteredCount = dashboard?.filtered_count ?? data?.data?.length ?? 0;
 
@@ -389,7 +396,7 @@ export default function AdminAccountingPage() {
           </Card>
           <Card padding="sm">
             <div className="text-2xl font-bold text-espresso">${filteredTotal.toFixed(2)}</div>
-            <div className="text-xs text-taupe mt-0.5">Filtered Total ({monthLabel})</div>
+            <div className="text-xs text-taupe mt-0.5">Filtered Total ({filteredLabel})</div>
           </Card>
         </div>
       )}
@@ -521,6 +528,33 @@ export default function AdminAccountingPage() {
             <div className="text-center py-12 text-taupe">No expenses found.</div>
           )}
         </Card>
+      )}
+
+      {/* Pagination */}
+      {data && data.last_page > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-taupe">
+            Page {data.current_page} of {data.last_page} ({data.total} total)
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={data.current_page <= 1}
+              onClick={() => setPage(p => p - 1)}
+            >
+              ← Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={data.current_page >= data.last_page}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next →
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Add/Edit modal */}
