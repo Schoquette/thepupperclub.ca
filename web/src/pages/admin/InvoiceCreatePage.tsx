@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -282,7 +283,7 @@ export default function InvoiceCreatePage() {
                     className="inline-flex items-center gap-1.5 bg-cream hover:bg-gold/10 border border-taupe/30 hover:border-gold/50 text-espresso text-xs px-3 py-1.5 rounded-full transition-colors"
                   >
                     <span className="font-medium">{r.label}</span>
-                    <span className="text-gold font-semibold">${r.rate.toFixed(2)}</span>
+                    <span className="text-gold font-semibold">${formatMoney(r.rate)}</span>
                     {r.isCustom && <span className="text-taupe">(custom)</span>}
                   </button>
                 ))}
@@ -311,7 +312,7 @@ export default function InvoiceCreatePage() {
                       )}
                       {price.amount !== null && (
                         <span className="text-gold font-semibold ml-0.5">
-                          ${price.amount.toFixed(2)}
+                          ${formatMoney(price.amount)}
                           {price.interval ? `/${price.interval}` : ''}
                         </span>
                       )}
@@ -413,7 +414,7 @@ export default function InvoiceCreatePage() {
                         value={line.discount_value}
                         onChange={e => updateLine(idx, 'discount_value', e.target.value)}
                       />
-                      <span className="text-xs text-taupe">→ ${lineTotal(line).toFixed(2)}</span>
+                      <span className="text-xs text-taupe">→ ${formatMoney(lineTotal(line))}</span>
                     </>
                   )}
                 </div>
@@ -477,12 +478,12 @@ export default function InvoiceCreatePage() {
               ].map(row => (
                 <div key={row.label} className="flex justify-between text-taupe">
                   <span>{row.label}</span>
-                  <span>${row.value.toFixed(2)}</span>
+                  <span>${formatMoney(row.value)}</span>
                 </div>
               ))}
               <div className="flex justify-between font-bold text-espresso pt-2 border-t border-taupe/30">
                 <span>Total (CAD)</span>
-                <span>${total.toFixed(2)}</span>
+                <span>${formatMoney(total)}</span>
               </div>
             </div>
           </Card>

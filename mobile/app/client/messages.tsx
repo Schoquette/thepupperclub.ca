@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { format } from 'date-fns';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.thepupperclub.ca';
@@ -201,7 +202,7 @@ function MessageItem({
     return (
       <View style={inv.container}>
         <Text style={inv.num}>{meta.invoice_number}</Text>
-        <Text style={inv.total}>${Number(meta.total ?? 0).toFixed(2)}</Text>
+        <Text style={inv.total}>${formatMoney(meta.total ?? 0)}</Text>
         <Text style={inv.time}>{format(new Date(message.created_at), 'h:mm a')}</Text>
       </View>
     );

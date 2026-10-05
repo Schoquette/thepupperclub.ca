@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, statusBadge } from '@/components/ui/Badge';
@@ -149,7 +150,7 @@ export default function AdminInvoiceDetailPage() {
 
   const buildDefaultMessage = (type: 'resend' | 'reminder') => {
     if (!invoice) return '';
-    const total = `$${Number(invoice.total).toFixed(2)}`;
+    const total = `$${formatMoney(invoice.total)}`;
     const period = invoice.billing_period_start && invoice.billing_period_end
       ? ` Service period: ${fmtDate(invoice.billing_period_start, 'MMMM d, yyyy')} - ${fmtDate(invoice.billing_period_end, 'MMMM d, yyyy')}.`
       : '';
@@ -342,7 +343,7 @@ export default function AdminInvoiceDetailPage() {
           </div>
           <div>
             <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-1">Invoice</div>
-            <div className="text-sm text-espresso">{invoice.invoice_number} &middot; ${Number(invoice.total).toFixed(2)} CAD</div>
+            <div className="text-sm text-espresso">{invoice.invoice_number} &middot; ${formatMoney(invoice.total)} CAD</div>
           </div>
           <div>
             <label className="text-xs font-semibold text-taupe uppercase tracking-wide mb-1 block">Message</label>
@@ -377,7 +378,7 @@ export default function AdminInvoiceDetailPage() {
       <Modal open={markPaidModal} onClose={() => setMarkPaidModal(false)} title="Mark Invoice as Paid">
         <div className="space-y-4">
           <p className="text-sm text-espresso">
-            Mark {invoice.invoice_number} (${Number(invoice.total).toFixed(2)} CAD) as paid?
+            Mark {invoice.invoice_number} (${formatMoney(invoice.total)} CAD) as paid?
           </p>
           <div>
             <label className="text-xs font-semibold text-taupe uppercase tracking-wide mb-1 block">Date Paid</label>
@@ -652,7 +653,7 @@ export default function AdminInvoiceDetailPage() {
                           <span className="font-medium">{product.name}</span>
                           {price.amount !== null && (
                             <span className="text-gold font-semibold ml-0.5">
-                              ${price.amount.toFixed(2)}{price.interval ? `/${price.interval}` : ''}
+                              ${formatMoney(price.amount)}{price.interval ? `/${price.interval}` : ''}
                             </span>
                           )}
                         </button>
@@ -759,7 +760,7 @@ export default function AdminInvoiceDetailPage() {
                             value={item.discount_value ?? 0}
                             onChange={e => updateLineItem(i, 'discount_value', Number(e.target.value))}
                           />
-                          <span className="text-xs text-taupe">→ ${lineTotal(item).toFixed(2)}</span>
+                          <span className="text-xs text-taupe">→ ${formatMoney(lineTotal(item))}</span>
                         </>
                       )}
                     </div>
@@ -768,7 +769,7 @@ export default function AdminInvoiceDetailPage() {
               ))}
               <button onClick={addLineItem} className="text-sm text-gold hover:text-espresso font-medium">+ Add line item</button>
               <div className="text-right text-sm font-semibold text-espresso mt-2">
-                Subtotal: ${editSubtotal.toFixed(2)} + GST ${editGst.toFixed(2)} = ${(editSubtotal + editGst).toFixed(2)}
+                Subtotal: ${formatMoney(editSubtotal)} + GST ${formatMoney(editGst)} = ${formatMoney(editSubtotal + editGst)}
               </div>
               <label className="flex items-center gap-3 cursor-pointer pt-2">
                 <input
@@ -812,14 +813,14 @@ export default function AdminInvoiceDetailPage() {
                         {item.gst_exempt && <span className="ml-2 text-xs text-taupe border border-taupe/40 rounded px-1 py-0.5">No GST</span>}
                         {item.discount_type && item.discount_type !== 'none' && Number(item.discount_value) > 0 && (
                           <span className="ml-2 text-xs text-gold border border-gold/40 rounded px-1 py-0.5">
-                            {item.discount_type === 'percent' ? `${Number(item.discount_value)}% off` : `$${Number(item.discount_value).toFixed(2)} off`}
+                            {item.discount_type === 'percent' ? `${Number(item.discount_value)}% off` : `$${formatMoney(item.discount_value)} off`}
                           </span>
                         )}
                       </td>
                       <td className="py-2.5 px-3 text-taupe">{fmtDate(item.service_date, 'MMM d, yyyy')}</td>
                       <td className="py-2.5 px-3 text-center text-taupe">{Number(item.quantity)}</td>
-                      <td className="py-2.5 px-3 text-right text-taupe">${Number(item.unit_price).toFixed(2)}</td>
-                      <td className="py-2.5 px-3 text-right font-medium text-espresso">${Number(item.total).toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right text-taupe">${formatMoney(item.unit_price)}</td>
+                      <td className="py-2.5 px-3 text-right font-medium text-espresso">${formatMoney(item.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -836,12 +837,12 @@ export default function AdminInvoiceDetailPage() {
                 ].filter(Boolean).map((row: any) => (
                   <div key={row.label} className="flex justify-between py-0.5">
                     <span className="text-taupe">{row.label}</span>
-                    <span className="text-espresso">${Number(row.value).toFixed(2)}</span>
+                    <span className="text-espresso">${formatMoney(row.value)}</span>
                   </div>
                 ))}
                 <div className={`flex justify-between pt-3 mt-1 border-t-2 border-gold font-bold text-base ${isVoid ? 'line-through text-taupe' : 'text-espresso'}`}>
                   <span>Total (CAD)</span>
-                  <span>${Number(invoice.total).toFixed(2)}</span>
+                  <span>${formatMoney(invoice.total)}</span>
                 </div>
               </div>
             </>

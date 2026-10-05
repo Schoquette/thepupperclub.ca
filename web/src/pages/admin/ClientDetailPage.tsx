@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -1023,7 +1024,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
             </div>
             <div className="flex justify-between">
               <span className="text-taupe">Amount</span>
-              <span className="font-semibold text-espresso">${Number(cp.subscription_amount).toFixed(2)}/mo</span>
+              <span className="font-semibold text-espresso">${formatMoney(cp.subscription_amount)}/mo</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-taupe">Billing</span>
@@ -1380,10 +1381,10 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
                       )}
                     </td>
                     <td className="py-2 pr-3 text-taupe whitespace-nowrap">
-                      {h.new_amount ? `$${Number(h.new_amount).toFixed(2)}/mo` : '—'}
+                      {h.new_amount ? `$${formatMoney(h.new_amount)}/mo` : '—'}
                       {h.proration_amount && Number(h.proration_amount) !== 0 && (
                         <span className={`ml-1 ${Number(h.proration_amount) > 0 ? 'text-blue-600' : 'text-green-600'}`}>
-                          (${Number(h.proration_amount).toFixed(2)})
+                          (${formatMoney(h.proration_amount)})
                         </span>
                       )}
                     </td>
@@ -1500,7 +1501,7 @@ function PaygCard({ clientId, clientProfile, onChanged }: { clientId: number; cl
             <div className="text-sm flex justify-between items-center pt-2 border-t border-cream">
               <span className="text-taupe">Unbilled tab</span>
               <span className="font-semibold text-espresso">
-                ${status.running_tab.total.toFixed(2)} ({status.running_tab.count} visit{status.running_tab.count === 1 ? '' : 's'})
+                ${formatMoney(status.running_tab.total)} ({status.running_tab.count} visit{status.running_tab.count === 1 ? '' : 's'})
               </span>
             </div>
           )}
@@ -2064,7 +2065,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
           </div>
         </Link>
         <div className="flex items-center gap-3">
-          <span className="font-semibold text-sm text-[#3B2F2A]">${Number(inv.total ?? 0).toFixed(2)}</span>
+          <span className="font-semibold text-sm text-[#3B2F2A]">${formatMoney(inv.total ?? 0)}</span>
           {editable && (
             <button
               onClick={() => navigate(`/admin/invoices/${inv.id}`)}
@@ -2115,7 +2116,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
               </div>
               <div>
                 <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Amount</div>
-                <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">${Number(subscription.amount).toFixed(2)}</div>
+                <div className="text-sm font-medium text-[#3B2F2A] mt-0.5">${formatMoney(subscription.amount)}</div>
               </div>
               <div>
                 <div className="text-[10px] uppercase font-display text-[#C8BFB6]">Next Billing</div>
@@ -2135,14 +2136,14 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
             {unbilledAddOns.length > 0 && (
               <div className="mt-3 bg-[#FFF8E1] border border-[#C9A24D]/30 rounded-lg p-2 text-xs text-[#3B2F2A]">
                 <strong>{unbilledAddOns.length} unbilled add-on{unbilledAddOns.length > 1 ? 's' : ''}</strong> ($
-                {unbilledAddOns.reduce((s: number, a: any) => s + Number(a.billing_amount ?? 0), 0).toFixed(2)}) — add to an invoice below
+                {formatMoney(unbilledAddOns.reduce((s: number, a: any) => s + Number(a.billing_amount ?? 0), 0))}) — add to an invoice below
               </div>
             )}
           </div>
         )}
         {subscription?.paused && (
           <div className="bg-[#F6F3EE] rounded-lg p-3 mb-3 text-sm text-[#C8BFB6]">
-            Subscription paused — {subscription.plan} (${Number(subscription.amount).toFixed(2)}/mo)
+            Subscription paused — {subscription.plan} (${formatMoney(subscription.amount)}/mo)
           </div>
         )}
 
@@ -2215,7 +2216,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
                           <div>
                             <div className="text-sm font-medium text-[#3B2F2A]">{inv.invoice_number}</div>
                             <div className="text-[10px] text-[#C8BFB6]">
-                              {inv.status} · ${Number(inv.total ?? 0).toFixed(2)}
+                              {inv.status} · ${formatMoney(inv.total ?? 0)}
                             </div>
                           </div>
                           <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${statusColor(inv.status)}`}>
@@ -2297,7 +2298,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
                       {addon.preferred_date ? format(new Date(addon.preferred_date + 'T00:00:00'), 'MMM d, yyyy') : '—'}
                     </td>
                     <td className="px-3 py-2.5 text-right font-semibold text-[#3B2F2A] whitespace-nowrap">
-                      ${Number(addon.billing_amount ?? 0).toFixed(2)}
+                      ${formatMoney(addon.billing_amount ?? 0)}
                     </td>
                     <td className="px-3 py-2.5">
                       {addon.billed ? (

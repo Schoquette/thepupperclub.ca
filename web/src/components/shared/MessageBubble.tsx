@@ -5,6 +5,7 @@ import type { Message } from '@pupper/shared';
 import { format } from 'date-fns';
 import DOMPurify from 'dompurify';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Reaction {
@@ -575,7 +576,7 @@ export default function MessageBubble({ message, currentUserId, onEdit, onDelete
     return (
       <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-card p-5 border-l-4 border-blue">
         <div className="font-display text-espresso text-sm mb-2">Invoice #{meta.invoice_number}</div>
-        <div className="text-2xl font-bold text-espresso mb-1">${Number(meta.total ?? 0).toFixed(2)}</div>
+        <div className="text-2xl font-bold text-espresso mb-1">${formatMoney(meta.total ?? 0)}</div>
         {meta.due_date && <div className="text-xs text-taupe">Due {format(new Date(meta.due_date + 'T00:00'), 'MMMM d, yyyy')}</div>}
         {meta.billing_period_start && meta.billing_period_end && (
           <div className="text-xs text-taupe mt-1">

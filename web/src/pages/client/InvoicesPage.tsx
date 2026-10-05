@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, statusBadge } from '@/components/ui/Badge';
@@ -71,7 +72,7 @@ function PaymentForm({ invoice, onSuccess }: { invoice: any; onSuccess: () => vo
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <div className="text-3xl font-bold text-espresso">${Number(invoice.total).toFixed(2)}</div>
+        <div className="text-3xl font-bold text-espresso">${formatMoney(invoice.total)}</div>
         <div className="text-taupe text-sm">{invoice.invoice_number}</div>
       </div>
 
@@ -86,7 +87,7 @@ function PaymentForm({ invoice, onSuccess }: { invoice: any; onSuccess: () => vo
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button className="w-full" loading={loading} onClick={handlePaySaved}>
-            Pay ${Number(invoice.total).toFixed(2)}
+            Pay ${formatMoney(invoice.total)}
           </Button>
           <button onClick={() => setUseNewCard(true)} className="text-sm text-gold hover:text-espresso font-medium w-full text-center">
             Use a different card
@@ -99,7 +100,7 @@ function PaymentForm({ invoice, onSuccess }: { invoice: any; onSuccess: () => vo
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button className="w-full" loading={loading} onClick={handlePayNew}>
-            Pay ${Number(invoice.total).toFixed(2)}
+            Pay ${formatMoney(invoice.total)}
           </Button>
           {savedCard && (
             <button onClick={() => setUseNewCard(false)} className="text-sm text-gold hover:text-espresso font-medium w-full text-center">
@@ -178,7 +179,7 @@ export default function ClientInvoicesPage() {
               {cp.subscription_amount && (
                 <div className="flex justify-between">
                   <span className="text-taupe">Monthly</span>
-                  <span className="font-semibold text-espresso">${Number(cp.subscription_amount).toFixed(2)} CAD</span>
+                  <span className="font-semibold text-espresso">${formatMoney(cp.subscription_amount)} CAD</span>
                 </div>
               )}
               {cp.billing_method && (
@@ -210,7 +211,7 @@ export default function ClientInvoicesPage() {
                 <div key={inv.id} className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-xl cursor-pointer hover:bg-red-100/60 transition-colors" onClick={() => navigate(`/client/invoices/${inv.id}`)}>
                   <div>
                     <div className="font-mono text-xs text-taupe">{inv.invoice_number}</div>
-                    <div className="font-bold text-espresso">${Number(inv.total).toFixed(2)}</div>
+                    <div className="font-bold text-espresso">${formatMoney(inv.total)}</div>
                     {inv.billing_period_start && inv.billing_period_end && (
                       <div className="text-xs text-taupe mt-0.5">
                         {format(new Date(String(inv.billing_period_start).slice(0, 10) + 'T00:00:00'), 'MMM d')} – {format(new Date(String(inv.billing_period_end).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}
@@ -260,7 +261,7 @@ export default function ClientInvoicesPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-mono text-xs text-taupe">{inv.invoice_number}</div>
-                    <div className="font-bold text-espresso mt-0.5">${Number(inv.total).toFixed(2)}</div>
+                    <div className="font-bold text-espresso mt-0.5">${formatMoney(inv.total)}</div>
                     {inv.billing_period_start && inv.billing_period_end && (
                       <div className="text-xs text-taupe mt-0.5">
                         {format(new Date(String(inv.billing_period_start).slice(0, 10) + 'T00:00:00'), 'MMM d')} – {format(new Date(String(inv.billing_period_end).slice(0, 10) + 'T00:00:00'), 'MMM d, yyyy')}
@@ -342,7 +343,7 @@ export default function ClientInvoicesPage() {
               disabled={!tipAmount && !customTip}
               onClick={() => addTip.mutate()}
             >
-              Add Tip ${tipAmount ?? Number(customTip || 0).toFixed(2)}
+              Add Tip ${formatMoney(tipAmount ?? Number(customTip || 0))}
             </Button>
           </div>
         )}

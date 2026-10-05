@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -116,7 +117,7 @@ export default function AdminDashboardPage() {
           { label: "Today's Walks",    value: data?.todays_appointments?.length ?? 0, Icon: PawIcon,       color: 'text-gold' },
           { label: 'Pending Requests', value: data?.pending_service_requests ?? 0,    Icon: ClipboardList, color: 'text-blue' },
           { label: 'Unread Messages',  value: data?.unread_messages ?? 0,             Icon: MessageCircle, color: 'text-espresso' },
-          { label: 'Outstanding',      value: `$${Number(data?.outstanding_total ?? 0).toFixed(0)}`, Icon: DollarSign, color: 'text-gold' },
+          { label: 'Outstanding',      value: `$${formatMoney(data?.outstanding_total ?? 0)}`, Icon: DollarSign, color: 'text-gold' },
         ].map(stat => (
           <Card key={stat.label} padding="sm">
             <stat.Icon className="w-6 h-6 text-taupe mb-1" />
@@ -131,15 +132,15 @@ export default function AdminDashboardPage() {
         <CardHeader title="Revenue This Month" />
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-xl font-bold text-espresso">${Number(data?.revenue_this_month?.billed_this_month ?? 0).toFixed(0)}</div>
+            <div className="text-xl font-bold text-espresso">${formatMoney(data?.revenue_this_month?.billed_this_month ?? 0)}</div>
             <div className="text-xs text-taupe mt-0.5">Billed</div>
           </div>
           <div>
-            <div className="text-xl font-bold text-green-600">${Number(data?.revenue_this_month?.collected_this_month ?? 0).toFixed(0)}</div>
+            <div className="text-xl font-bold text-green-600">${formatMoney(data?.revenue_this_month?.collected_this_month ?? 0)}</div>
             <div className="text-xs text-taupe mt-0.5">Collected</div>
           </div>
           <div>
-            <div className="text-xl font-bold text-red-500">${Number(data?.revenue_this_month?.outstanding ?? 0).toFixed(0)}</div>
+            <div className="text-xl font-bold text-red-500">${formatMoney(data?.revenue_this_month?.outstanding ?? 0)}</div>
             <div className="text-xs text-taupe mt-0.5">Outstanding</div>
           </div>
         </div>

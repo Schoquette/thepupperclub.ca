@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -845,7 +846,7 @@ function InvoiceRow({ inv, statusColor }: { inv: any; statusColor: (s: string) =
         </span>
       </div>
       <div className="flex items-center justify-between mt-1">
-        <span className="text-sm font-semibold text-espresso">${Number(inv.total ?? 0).toFixed(2)}</span>
+        <span className="text-sm font-semibold text-espresso">${formatMoney(inv.total ?? 0)}</span>
         {inv.due_date && (
           <span className="text-[10px] text-taupe flex items-center gap-1">
             <Clock className="w-3 h-3" />

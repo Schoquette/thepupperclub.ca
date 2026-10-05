@@ -7,6 +7,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+import { formatMoney } from '@/lib/money';
 import { format } from 'date-fns';
 
 const SOURCE_BADGE: Record<string, 'gray' | 'blue' | 'gold'> = {
@@ -31,10 +32,6 @@ interface ExpenseForm {
 const BLANK_FORM: ExpenseForm = {
   expense_date: '', item: '', vendor: '', category: '', subtotal: '', gst: '', pst: '', tip: '',
 };
-
-function formatMoney(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function computeTotal(form: ExpenseForm): number {
   const subtotal = parseFloat(form.subtotal) || 0;

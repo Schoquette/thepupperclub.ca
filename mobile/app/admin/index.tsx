@@ -6,6 +6,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { format } from 'date-fns';
 
 const MOOD_EMOJI: Record<string, string> = {
@@ -186,15 +187,15 @@ export default function AdminDashboardScreen() {
                 <Text style={s.revenueTitle}>This Month</Text>
                 <View style={s.revenueRow}>
                   <View style={s.revItem}>
-                    <Text style={s.revAmt}>${Number(dashboard.revenue.billed ?? 0).toFixed(0)}</Text>
+                    <Text style={s.revAmt}>${formatMoney(dashboard.revenue.billed ?? 0)}</Text>
                     <Text style={s.revLabel}>Billed</Text>
                   </View>
                   <View style={s.revItem}>
-                    <Text style={[s.revAmt, { color: '#22c55e' }]}>${Number(dashboard.revenue.collected ?? 0).toFixed(0)}</Text>
+                    <Text style={[s.revAmt, { color: '#22c55e' }]}>${formatMoney(dashboard.revenue.collected ?? 0)}</Text>
                     <Text style={s.revLabel}>Collected</Text>
                   </View>
                   <View style={s.revItem}>
-                    <Text style={[s.revAmt, { color: '#dc2626' }]}>${Number(dashboard.revenue.outstanding ?? 0).toFixed(0)}</Text>
+                    <Text style={[s.revAmt, { color: '#dc2626' }]}>${formatMoney(dashboard.revenue.outstanding ?? 0)}</Text>
                     <Text style={s.revLabel}>Outstanding</Text>
                   </View>
                 </View>

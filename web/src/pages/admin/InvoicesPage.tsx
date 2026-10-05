@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -72,7 +73,7 @@ export default function AdminInvoicesPage() {
             { label: 'Outstanding',             value: dashboard.outstanding,           color: 'text-red-500' },
           ].map(s => (
             <Card key={s.label} padding="sm">
-              <div className={`text-2xl font-bold ${s.color}`}>${Number(s.value ?? 0).toFixed(0)}</div>
+              <div className={`text-2xl font-bold ${s.color}`}>${formatMoney(s.value ?? 0)}</div>
               <div className="text-xs text-taupe mt-0.5">{s.label}</div>
             </Card>
           ))}
@@ -107,7 +108,7 @@ export default function AdminInvoicesPage() {
                     <tr key={row.month} className="border-b border-taupe/10">
                       <td className="py-2">{row.label}</td>
                       <td className="py-2">{row.active_subscribers}</td>
-                      <td className="py-2 font-medium">${Number(row.projected_total).toFixed(2)}</td>
+                      <td className="py-2 font-medium">${formatMoney(row.projected_total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -187,7 +188,7 @@ export default function AdminInvoicesPage() {
                 <tr key={inv.id} className="border-b border-cream last:border-0 hover:bg-cream/50">
                   <td className="px-6 py-4 font-mono text-sm font-medium">{inv.invoice_number}</td>
                   <td className="px-6 py-4">{inv.user?.name}</td>
-                  <td className="px-6 py-4 font-semibold">${Number(inv.total).toFixed(2)}</td>
+                  <td className="px-6 py-4 font-semibold">${formatMoney(inv.total)}</td>
                   <td className="px-6 py-4"><Badge variant={statusBadge(inv.status)}>{inv.status}</Badge></td>
                   <td className="px-6 py-4 text-xs">
                     {inv.status === 'paid' && inv.paid_at ? (
@@ -213,7 +214,7 @@ export default function AdminInvoicesPage() {
                   <td className="px-6 py-3 font-semibold text-espresso" colSpan={2}>
                     Total ({filteredCount} invoice{filteredCount === 1 ? '' : 's'})
                   </td>
-                  <td className="px-6 py-3 font-bold text-espresso">${filteredTotal.toFixed(2)}</td>
+                  <td className="px-6 py-3 font-bold text-espresso">${formatMoney(filteredTotal)}</td>
                   <td className="px-6 py-3" colSpan={3}></td>
                 </tr>
               </tfoot>

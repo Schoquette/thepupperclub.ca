@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { format } from 'date-fns';
@@ -133,7 +134,7 @@ export default function ClientDashboardPage() {
           <div>
             <div className="font-semibold text-red-700 text-sm">Outstanding Invoice{unpaidInvoices.length > 1 ? 's' : ''}</div>
             <div className="text-xs text-red-500 mt-0.5">
-              {unpaidInvoices.length} invoice{unpaidInvoices.length > 1 ? 's' : ''} · ${unpaidInvoices.reduce((s: number, i: any) => s + Number(i.total), 0).toFixed(2)} total
+              {unpaidInvoices.length} invoice{unpaidInvoices.length > 1 ? 's' : ''} · ${formatMoney(unpaidInvoices.reduce((s: number, i: any) => s + Number(i.total), 0))} total
             </div>
           </div>
           <span className="text-red-600 text-sm font-medium">Pay Now →</span>

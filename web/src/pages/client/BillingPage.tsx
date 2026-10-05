@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
@@ -156,7 +157,7 @@ export default function ClientBillingPage() {
               <div className="flex justify-between items-center pt-2 border-t border-cream">
                 <span className="text-taupe">Unbilled tab</span>
                 <span className="font-semibold text-espresso">
-                  ${paygStatus.running_tab.total.toFixed(2)} ({paygStatus.running_tab.count} visit{paygStatus.running_tab.count === 1 ? '' : 's'})
+                  ${formatMoney(paygStatus.running_tab.total)} ({paygStatus.running_tab.count} visit{paygStatus.running_tab.count === 1 ? '' : 's'})
                 </span>
               </div>
             )}
@@ -177,7 +178,7 @@ export default function ClientBillingPage() {
             {cp.subscription_amount && (
               <div className="flex justify-between">
                 <span className="text-taupe">Monthly amount</span>
-                <span className="font-semibold text-espresso">${Number(cp.subscription_amount).toFixed(2)} CAD</span>
+                <span className="font-semibold text-espresso">${formatMoney(cp.subscription_amount)} CAD</span>
               </div>
             )}
             {cp.next_billing_date && (

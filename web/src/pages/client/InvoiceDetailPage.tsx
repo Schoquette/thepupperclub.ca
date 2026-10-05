@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, statusBadge } from '@/components/ui/Badge';
@@ -79,7 +80,7 @@ function PaymentForm({ invoice, onSuccess }: { invoice: any; onSuccess: () => vo
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <div className="text-3xl font-bold text-espresso">${Number(invoice.total).toFixed(2)}</div>
+        <div className="text-3xl font-bold text-espresso">${formatMoney(invoice.total)}</div>
         <div className="text-taupe text-sm">{invoice.invoice_number}</div>
       </div>
 
@@ -94,7 +95,7 @@ function PaymentForm({ invoice, onSuccess }: { invoice: any; onSuccess: () => vo
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button className="w-full" loading={loading} onClick={handlePaySaved}>
-            Pay ${Number(invoice.total).toFixed(2)}
+            Pay ${formatMoney(invoice.total)}
           </Button>
           <button onClick={() => setUseNewCard(true)} className="text-sm text-gold hover:text-espresso font-medium w-full text-center">
             Use a different card
@@ -107,7 +108,7 @@ function PaymentForm({ invoice, onSuccess }: { invoice: any; onSuccess: () => vo
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button className="w-full" loading={loading} onClick={handlePayNew}>
-            Pay ${Number(invoice.total).toFixed(2)}
+            Pay ${formatMoney(invoice.total)}
           </Button>
           {savedCard && (
             <button onClick={() => setUseNewCard(false)} className="text-sm text-gold hover:text-espresso font-medium w-full text-center">
@@ -305,8 +306,8 @@ export default function ClientInvoiceDetailPage() {
                     </td>
                     <td className="py-2.5 px-3 text-taupe">{fmtDate(item.service_date, 'MMM d, yyyy')}</td>
                     <td className="py-2.5 px-3 text-center text-taupe">{Number(item.quantity)}</td>
-                    <td className="py-2.5 px-3 text-right text-taupe">${Number(item.unit_price).toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right font-medium text-espresso">${Number(item.total).toFixed(2)}</td>
+                    <td className="py-2.5 px-3 text-right text-taupe">${formatMoney(item.unit_price)}</td>
+                    <td className="py-2.5 px-3 text-right font-medium text-espresso">${formatMoney(item.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -323,12 +324,12 @@ export default function ClientInvoiceDetailPage() {
             ].filter(Boolean).map((row: any) => (
               <div key={row.label} className="flex justify-between py-0.5">
                 <span className="text-taupe">{row.label}</span>
-                <span className="text-espresso">${Number(row.value).toFixed(2)}</span>
+                <span className="text-espresso">${formatMoney(row.value)}</span>
               </div>
             ))}
             <div className={`flex justify-between pt-3 mt-1 border-t-2 border-gold font-bold text-base ${isVoid ? 'line-through text-taupe' : 'text-espresso'}`}>
               <span>Total (CAD)</span>
-              <span>${Number(invoice.total).toFixed(2)}</span>
+              <span>${formatMoney(invoice.total)}</span>
             </div>
           </div>
         </div>
@@ -427,7 +428,7 @@ export default function ClientInvoiceDetailPage() {
               disabled={!tipAmount && !customTip}
               onClick={() => addTip.mutate()}
             >
-              Add Tip ${tipAmount ?? Number(customTip || 0).toFixed(2)}
+              Add Tip ${formatMoney(tipAmount ?? Number(customTip || 0))}
             </Button>
           </div>
         )}

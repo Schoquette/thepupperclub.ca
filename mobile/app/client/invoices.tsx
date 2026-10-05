@@ -6,6 +6,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { format } from 'date-fns';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -84,7 +85,7 @@ export default function ClientInvoicesScreen() {
                       )}
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={s.total}>${Number(inv.total ?? 0).toFixed(2)}</Text>
+                      <Text style={s.total}>${formatMoney(inv.total ?? 0)}</Text>
                       <View style={[s.badge, { backgroundColor: STATUS_COLORS[inv.status]?.bg }]}>
                         <Text style={[s.badgeText, { color: STATUS_COLORS[inv.status]?.text }]}>
                           {inv.status}
@@ -113,7 +114,7 @@ export default function ClientInvoicesScreen() {
                   )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={s.total}>${Number(inv.total ?? 0).toFixed(2)}</Text>
+                  <Text style={s.total}>${formatMoney(inv.total ?? 0)}</Text>
                   <View style={[s.badge, { backgroundColor: '#f0fdf4' }]}>
                     <Text style={[s.badgeText, { color: '#16a34a' }]}>paid</Text>
                   </View>
@@ -137,10 +138,10 @@ export default function ClientInvoicesScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={md.lineDesc}>{item.description}</Text>
                     {item.quantity > 1 && (
-                      <Text style={md.lineQty}>{item.quantity} × ${Number(item.unit_price).toFixed(2)}</Text>
+                      <Text style={md.lineQty}>{item.quantity} × ${formatMoney(item.unit_price)}</Text>
                     )}
                   </View>
-                  <Text style={md.lineAmt}>${Number(item.total).toFixed(2)}</Text>
+                  <Text style={md.lineAmt}>${formatMoney(item.total)}</Text>
                 </View>
               ))}
 
@@ -148,21 +149,21 @@ export default function ClientInvoicesScreen() {
 
               <View style={md.totalRow}>
                 <Text style={md.totalLabel}>Subtotal</Text>
-                <Text style={md.totalVal}>${Number(selected.subtotal).toFixed(2)}</Text>
+                <Text style={md.totalVal}>${formatMoney(selected.subtotal)}</Text>
               </View>
               <View style={md.totalRow}>
                 <Text style={md.totalLabel}>GST (5%)</Text>
-                <Text style={md.totalVal}>${Number(selected.gst).toFixed(2)}</Text>
+                <Text style={md.totalVal}>${formatMoney(selected.gst)}</Text>
               </View>
               {Number(selected.cc_surcharge) > 0 && (
                 <View style={md.totalRow}>
                   <Text style={md.totalLabel}>CC Fee (2.9%)</Text>
-                  <Text style={md.totalVal}>${Number(selected.cc_surcharge).toFixed(2)}</Text>
+                  <Text style={md.totalVal}>${formatMoney(selected.cc_surcharge)}</Text>
                 </View>
               )}
               <View style={[md.totalRow, md.grandTotal]}>
                 <Text style={md.grandLabel}>Total Due</Text>
-                <Text style={md.grandVal}>${Number(selected.total).toFixed(2)}</Text>
+                <Text style={md.grandVal}>${formatMoney(selected.total)}</Text>
               </View>
 
               <TouchableOpacity
@@ -172,7 +173,7 @@ export default function ClientInvoicesScreen() {
               >
                 {pay.isPending
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={md.payBtnText}>Pay ${Number(selected.total).toFixed(2)}</Text>
+                  : <Text style={md.payBtnText}>Pay ${formatMoney(selected.total)}</Text>
                 }
               </TouchableOpacity>
 
@@ -202,7 +203,7 @@ export default function ClientInvoicesScreen() {
                   >
                     <Text style={[tp.optPct, tipAmount === amount && tp.optTextActive]}>{opt.label}</Text>
                     <Text style={[tp.optAmt, tipAmount === amount && tp.optTextActive]}>
-                      ${amount.toFixed(2)}
+                      ${formatMoney(amount)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -217,7 +218,7 @@ export default function ClientInvoicesScreen() {
               {sendTip.isPending
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={tp.sendBtnText}>
-                    {tipAmount > 0 ? `Send $${tipAmount.toFixed(2)} Tip` : 'Select a Tip'}
+                    {tipAmount > 0 ? `Send $${formatMoney(tipAmount)} Tip` : 'Select a Tip'}
                   </Text>
               }
             </TouchableOpacity>

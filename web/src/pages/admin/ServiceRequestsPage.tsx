@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { formatMoney } from '@/lib/money';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge, statusBadge } from '@/components/ui/Badge';
@@ -770,7 +771,7 @@ export default function AdminServiceRequestsPage() {
                             {(stripeProducts as any[]).map((p: any) =>
                               (p.prices ?? []).map((pr: any) => (
                                 <option key={pr.id} value={`${p.name}|||${pr.amount ?? 0}`}>
-                                  {p.name}{pr.nickname ? ` — ${pr.nickname}` : ''} — ${pr.amount?.toFixed(2) ?? '0.00'} {pr.currency}
+                                  {p.name}{pr.nickname ? ` — ${pr.nickname}` : ''} — ${pr.amount != null ? formatMoney(pr.amount) : '0.00'} {pr.currency}
                                 </option>
                               ))
                             )}
