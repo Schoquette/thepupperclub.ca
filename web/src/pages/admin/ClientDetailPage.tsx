@@ -1218,7 +1218,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
         <div className="space-y-3">
           <p className="text-sm text-taupe">No active subscription.</p>
           {billingMethod === 'credit_card' && !cp.stripe_payment_method_id && (
-            <p className="text-xs text-red-500">Client must add a card on file before subscribing via credit card.</p>
+            <p className="text-xs text-taupe">No card on file yet — the client's invoices will stay unpaid until one is added, but you can set up the subscription now.</p>
           )}
 
           {/* Editable billing info */}
@@ -1312,7 +1312,7 @@ function SubscriptionCard({ clientId, clientProfile, onChanged }: { clientId: nu
             <div>
               <Button
                 size="sm"
-                disabled={!selectedPrice || (billingMethod === 'credit_card' && !cp.stripe_payment_method_id)}
+                disabled={!selectedPrice}
                 loading={subscribe.isPending}
                 onClick={() => selectedPrice && subscribe.mutate({ priceId: selectedPrice, effective: effectiveDate })}
               >

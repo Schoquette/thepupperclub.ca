@@ -53,14 +53,11 @@ class StripeSubscriptionService
             throw new \RuntimeException('Could not retrieve plan from Stripe: ' . $e->getMessage());
         }
 
-        $billingMethod = $profile->billing_method ?? 'credit_card';
-
-        // Ensure a card is on file before setting up CC billing — nothing
-        // charges it automatically anymore, but there needs to be one on
-        // file for when the invoice is eventually sent.
-        if ($billingMethod === 'credit_card') {
-            abort_unless($profile->stripe_payment_method_id, 422, 'Client must have a card on file before subscribing with credit card.');
-        }
+        // No upfront card-on-file requirement for credit_card billing --
+        // nothing charges automatically anymore (charges happen manually at
+        // invoice send time), and maybeChargeOnSend() already no-ops safely
+        // if a card still isn't on file by then, so the admin can set up a
+        // subscription before the client has added one.
 
         // Cancel any existing real Stripe subscription first (e.g. left
         // over from before this method stopped creating them)
