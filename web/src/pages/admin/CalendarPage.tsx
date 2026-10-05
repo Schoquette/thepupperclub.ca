@@ -317,6 +317,13 @@ export default function AdminCalendarPage() {
   // for one occurrence, clicked from the collapsed calendar tile)
   const [hikeRoster, setHikeRoster] = useState<any>(null);
 
+  // Editing the shared time/duration for every participant in a hike
+  // occurrence at once -- each participant is its own Appointment row with
+  // its own id, so saving fires one PATCH per participant.
+  const [editingHikeTime, setEditingHikeTime] = useState(false);
+  const [hikeTimeForm, setHikeTimeForm] = useState<{ scheduled_time: string; duration_minutes: number } | null>(null);
+  const [hikeTimeError, setHikeTimeError] = useState('');
+
   // Non-client calendar blocks
   const [creatingBlock, setCreatingBlock] = useState(false);
   const [newBlockForm, setNewBlockForm] = useState<BlockForm>(blankBlockForm());
@@ -455,6 +462,22 @@ export default function AdminCalendarPage() {
     },
     onError: (err: any) => {
       setCreateError(err.response?.data?.message ?? 'Failed to create appointment.');
+    },
+  });
+
+  const updateHikeTime = useMutation({
+    mutationFn: ({ participantIds, payload }: { participantIds: number[]; payload: any }) =>
+      Promise.all(participantIds.map(id => api.patch(`/admin/appointments/${id}`, payload))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-appointments'] });
+      setEditingHikeTime(false);
+      setHikeTimeForm(null);
+      setHikeTimeError('');
+      setHikeRoster(null);
+      setCalSuccess('Group hike updated.'); setTimeout(() => setCalSuccess(''), 2500);
+    },
+    onError: (err: any) => {
+      setHikeTimeError(err.response?.data?.message ?? 'Failed to update one or more participants.');
     },
   });
 
@@ -1819,13 +1842,86 @@ export default function AdminCalendarPage() {
       {/* Group Hike roster modal */}
       <Modal
         open={!!hikeRoster}
-        onClose={() => setHikeRoster(null)}
+        onClose={() => { setHikeRoster(null); setEditingHikeTime(false); setHikeTimeForm(null); setHikeTimeError(''); }}
         title={hikeRoster?.group_hike_name || 'Group Hike'}
         size="lg"
       >
         {hikeRoster && (() => {
           const localStr = hikeRoster.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
           const start = localStr ? new Date(localStr) : null;
+
+          if (editingHikeTime && hikeTimeForm) {
+            const hikeDateStr = hikeTimeForm.scheduled_time.substring(0, 10);
+            const hikeTimeStr = hikeTimeForm.scheduled_time.substring(11, 16);
+            const isPending = updateHikeTime.isPending;
+            return (
+              <div className="space-y-4">
+                <p className="text-sm text-taupe">
+                  Updates the time for every dog on this hike ({hikeRoster.participants.length}). This occurrence only — recurring participants keep their existing weekly pattern.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Date</label>
+                    <input
+                      type="date"
+                      className="input"
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      value={hikeDateStr}
+                      onChange={e => setHikeTimeForm(f => f && ({ ...f, scheduled_time: `${e.target.value}T${hikeTimeStr || '09:00'}` }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Time</label>
+                    <select
+                      className="input"
+                      value={hikeTimeStr}
+                      onChange={e => setHikeTimeForm(f => f && ({ ...f, scheduled_time: `${hikeDateStr}T${e.target.value}` }))}
+                    >
+                      <option value="" disabled>Select time</option>
+                      {TIME_SLOTS.map(t => (
+                        <option key={t} value={t}>{formatTime12(t)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Duration (minutes)</label>
+                  <input
+                    type="number"
+                    min={15}
+                    step={1}
+                    className="input"
+                    value={hikeTimeForm.duration_minutes || ''}
+                    onChange={e => setHikeTimeForm(f => f && ({ ...f, duration_minutes: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+                {hikeTimeError && <p className="text-sm text-red-600">{hikeTimeError}</p>}
+                <div className="flex justify-end gap-3 pt-2 border-t border-taupe/20">
+                  <Button variant="outline" onClick={() => { setEditingHikeTime(false); setHikeTimeForm(null); setHikeTimeError(''); }}>
+                    Cancel
+                  </Button>
+                  <Button
+                    loading={isPending}
+                    disabled={!hikeTimeStr || !hikeTimeForm.duration_minutes}
+                    onClick={() => {
+                      setHikeTimeError('');
+                      updateHikeTime.mutate({
+                        participantIds: hikeRoster.participants.map((p: any) => p.id),
+                        payload: {
+                          scheduled_time: hikeTimeForm.scheduled_time,
+                          duration_minutes: hikeTimeForm.duration_minutes,
+                          client_time_block: getTimeBlock(hikeTimeForm.scheduled_time),
+                        },
+                      });
+                    }}
+                  >
+                    Save Time
+                  </Button>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div className="space-y-4">
               <div className="text-sm text-taupe">
@@ -1862,6 +1958,21 @@ export default function AdminCalendarPage() {
 
               <div className="flex justify-end gap-3 pt-2 border-t border-taupe/20">
                 <Button variant="outline" onClick={() => setHikeRoster(null)}>Close</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setHikeTimeForm({
+                      scheduled_time: start
+                        ? `${format(start, 'yyyy-MM-dd')}T${format(start, 'HH:mm')}`
+                        : '',
+                      duration_minutes: hikeRoster.duration_minutes,
+                    });
+                    setHikeTimeError('');
+                    setEditingHikeTime(true);
+                  }}
+                >
+                  Edit Time
+                </Button>
                 <Button
                   onClick={() => {
                     setNewForm({
