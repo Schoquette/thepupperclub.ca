@@ -36,6 +36,7 @@ const WALK_DAYS_OPTIONS = [
 const WALK_LENGTH_OPTIONS = [
   { value: '30_min', label: '30 min' },
   { value: '60_min', label: '60 min' },
+  { value: 'pack_hike', label: 'Group Hike' },
 ];
 
 const WALK_TIME_OPTIONS = [
@@ -195,10 +196,12 @@ export function VetInformationCard({ profile, mode, clientId }: BaseProps) {
 export function VisitPreferencesCard({ profile, mode, clientId }: BaseProps) {
   const save = usePatchProfile(mode, clientId);
   const [editing, setEditing] = useState(false);
+  const walkLengthArr = (v: any): string[] => Array.isArray(v) ? v : (v ? [v] : []);
+
   const [form, setForm] = useState({
     preferred_walk_days:      profile.preferred_walk_days ?? [],
     preferred_walk_times:     profile.preferred_walk_times ?? [],
-    preferred_walk_length:    profile.preferred_walk_length ?? '',
+    preferred_walk_length:    walkLengthArr(profile.preferred_walk_length),
     customized_care_options:  profile.customized_care_options ?? [],
     food_storage_location:    profile.food_storage_location ?? '',
   });
@@ -206,7 +209,7 @@ export function VisitPreferencesCard({ profile, mode, clientId }: BaseProps) {
     setForm({
       preferred_walk_days:      profile.preferred_walk_days ?? [],
       preferred_walk_times:     profile.preferred_walk_times ?? [],
-      preferred_walk_length:    profile.preferred_walk_length ?? '',
+      preferred_walk_length:    walkLengthArr(profile.preferred_walk_length),
       customized_care_options:  profile.customized_care_options ?? [],
       food_storage_location:    profile.food_storage_location ?? '',
     });
@@ -215,7 +218,7 @@ export function VisitPreferencesCard({ profile, mode, clientId }: BaseProps) {
     profile.customized_care_options, profile.food_storage_location,
   ]);
 
-  const toggleIn = (key: 'preferred_walk_days' | 'preferred_walk_times' | 'customized_care_options', v: string) =>
+  const toggleIn = (key: 'preferred_walk_days' | 'preferred_walk_times' | 'preferred_walk_length' | 'customized_care_options', v: string) =>
     setForm(f => ({
       ...f,
       [key]: (f[key] as string[]).includes(v)
@@ -266,7 +269,7 @@ export function VisitPreferencesCard({ profile, mode, clientId }: BaseProps) {
             <label className="block text-sm font-medium text-espresso mb-2">Preferred visit length</label>
             <div className="flex gap-2 flex-wrap">
               {WALK_LENGTH_OPTIONS.map(opt => (
-                <Pill key={opt.value} active={form.preferred_walk_length === opt.value} onClick={() => setForm(f => ({ ...f, preferred_walk_length: f.preferred_walk_length === opt.value ? '' : opt.value }))}>{opt.label}</Pill>
+                <Pill key={opt.value} active={form.preferred_walk_length.includes(opt.value)} onClick={() => toggleIn('preferred_walk_length', opt.value)}>{opt.label}</Pill>
               ))}
             </div>
           </div>
@@ -284,7 +287,7 @@ export function VisitPreferencesCard({ profile, mode, clientId }: BaseProps) {
         <dl className="space-y-3">
           <Row label="Preferred days" value={(profile.preferred_walk_days ?? []).map(dayLabel).join(', ')} />
           <Row label="Preferred times" value={(profile.preferred_walk_times ?? []).map(timeLabel).join(', ')} />
-          <Row label="Visit length" value={labelOf(WALK_LENGTH_OPTIONS, profile.preferred_walk_length)} />
+          <Row label="Visit length" value={walkLengthArr(profile.preferred_walk_length).map(v => WALK_LENGTH_OPTIONS.find(o => o.value === v)?.label ?? v).join(', ')} />
           <Row label="Customized care" value={(profile.customized_care_options ?? []).map(careLabel).join(', ')} />
           <Row label="Food storage" value={profile.food_storage_location} />
         </dl>

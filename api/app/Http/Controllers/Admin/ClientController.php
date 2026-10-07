@@ -13,6 +13,7 @@ use App\Services\InviteService;
 use App\Services\StripeSubscriptionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -61,6 +62,7 @@ class ClientController extends Controller
     public function show(User $client): JsonResponse
     {
         $this->ensureIsClient($client);
+        $this->ensureWalkLengthIsJsonArray();
 
         return response()->json([
             'data' => $client->load([
@@ -126,6 +128,7 @@ class ClientController extends Controller
     public function update(Request $request, User $client): JsonResponse
     {
         $this->ensureIsClient($client);
+        $this->ensureWalkLengthIsJsonArray();
 
         $data = $request->validate([
             'name'   => 'sometimes|string|max:255',
@@ -164,7 +167,8 @@ class ClientController extends Controller
             'profile.preferred_walk_days.*'   => 'string',
             'profile.preferred_walk_times'    => 'sometimes|array',
             'profile.preferred_walk_times.*'  => 'string',
-            'profile.preferred_walk_length'   => 'sometimes|nullable|string|max:50',
+            'profile.preferred_walk_length'   => 'sometimes|array',
+            'profile.preferred_walk_length.*' => 'string',
             'profile.vet_clinic_name'         => 'sometimes|nullable|string|max:255',
             'profile.vet_phone'               => 'sometimes|nullable|string|max:30',
             'profile.vet_address'             => 'sometimes|nullable|string|max:500',
@@ -355,6 +359,37 @@ class ClientController extends Controller
         $homeAccess = HomeAccess::updateOrCreate(['user_id' => $client->id], $data);
 
         return response()->json(['data' => $homeAccess]);
+    }
+
+    /**
+     * preferred_walk_length was originally a single VARCHAR value
+     * ("30_min"); converting it to a multi-select JSON array column so a
+     * client can prefer multiple visit lengths (including the new
+     * "pack_hike"/Group Hike option). Wraps any existing single value into
+     * a 1-element array before changing the column type, so nobody's
+     * existing preference is silently lost.
+     */
+    private function ensureWalkLengthIsJsonArray(): void
+    {
+        $col = DB::selectOne("SHOW COLUMNS FROM client_profiles WHERE Field = 'preferred_walk_length'");
+        if (!$col || stripos($col->Type, 'json') !== false) {
+            return;
+        }
+
+        try {
+            DB::statement("UPDATE client_profiles SET preferred_walk_length = NULL WHERE preferred_walk_length = ''");
+            DB::statement("UPDATE client_profiles SET preferred_walk_length = CONCAT('[\"', preferred_walk_length, '\"]') WHERE preferred_walk_length IS NOT NULL");
+            DB::statement('ALTER TABLE client_profiles MODIFY COLUMN preferred_walk_length JSON NULL');
+        } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SchemaHealFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['table' => 'client_profiles', 'column' => 'preferred_walk_length'],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+        }
     }
 
     /**

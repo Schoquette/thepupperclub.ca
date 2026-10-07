@@ -96,7 +96,7 @@ interface FormData {
   biggest_concern: string;
   comfort_factors: string;
   preferred_walk_days: string[];
-  preferred_walk_length: string;
+  preferred_walk_length: string[];
   preferred_walk_times: string[];
   billing_method: string;
   referral_source: string;
@@ -254,7 +254,7 @@ function buildForm(data: any): FormData {
     biggest_concern: p.biggest_concern ?? '',
     comfort_factors: p.comfort_factors ?? '',
     preferred_walk_days: p.preferred_walk_days ?? [],
-    preferred_walk_length: p.preferred_walk_length ?? '',
+    preferred_walk_length: Array.isArray(p.preferred_walk_length) ? p.preferred_walk_length : (p.preferred_walk_length ? [p.preferred_walk_length] : []),
     preferred_walk_times: p.preferred_walk_times ?? [],
     billing_method: p.billing_method ?? '',
     referral_source: p.referral_source ?? '',
@@ -1152,6 +1152,7 @@ const WALK_DAYS_OPTIONS = [
 const WALK_LENGTH_OPTIONS = [
   { value: '30_min', label: '30 min' },
   { value: '60_min', label: '60 min' },
+  { value: 'pack_hike', label: 'Group Hike' },
 ];
 
 const WALK_TIME_OPTIONS = [
@@ -1718,10 +1719,10 @@ export default function IntakeFormPage() {
                   )}
                 </div>
 
-                <RadioGroup
+                <CheckboxGroup
                   label="Preferred Visit Length"
                   options={WALK_LENGTH_OPTIONS}
-                  value={form.preferred_walk_length}
+                  values={form.preferred_walk_length}
                   onChange={v => updateField('preferred_walk_length', v)}
                   readOnly={readOnly}
                 />

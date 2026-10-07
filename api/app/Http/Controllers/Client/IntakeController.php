@@ -10,6 +10,7 @@ use App\Services\AdminNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class IntakeController extends Controller
@@ -21,10 +22,39 @@ class IntakeController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
+        $this->ensureWalkLengthIsJsonArray();
         $user = $request->user();
         return response()->json([
             'data' => $user->load(['clientProfile', 'dogs', 'homeAccess']),
         ]);
+    }
+
+    /**
+     * See Client\ProfileController::ensureWalkLengthIsJsonArray() — same
+     * VARCHAR→JSON conversion, duplicated here since this controller is a
+     * fourth independent write path to the same column.
+     */
+    private function ensureWalkLengthIsJsonArray(): void
+    {
+        $col = DB::selectOne("SHOW COLUMNS FROM client_profiles WHERE Field = 'preferred_walk_length'");
+        if (!$col || stripos($col->Type, 'json') !== false) {
+            return;
+        }
+
+        try {
+            DB::statement("UPDATE client_profiles SET preferred_walk_length = NULL WHERE preferred_walk_length = ''");
+            DB::statement("UPDATE client_profiles SET preferred_walk_length = CONCAT('[\"', preferred_walk_length, '\"]') WHERE preferred_walk_length IS NOT NULL");
+            DB::statement('ALTER TABLE client_profiles MODIFY COLUMN preferred_walk_length JSON NULL');
+        } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SchemaHealFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['table' => 'client_profiles', 'column' => 'preferred_walk_length'],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+        }
     }
 
     /**
@@ -139,6 +169,8 @@ class IntakeController extends Controller
 
     private function applyFormData(Request $request, User $client): void
     {
+        $this->ensureWalkLengthIsJsonArray();
+
         // User fields (clients can update their own name but not email)
         if ($request->has('name') && $request->name) {
             $client->update(['name' => $request->name]);

@@ -93,6 +93,7 @@ class ClientProfile extends Model
             'customized_care_options'       => 'array',
             'preferred_update_method'       => 'array',
             'preferred_walk_days'           => 'array',
+            'preferred_walk_length'         => 'array',
             'preferred_walk_times'          => 'array',
             'secondary_notify_messages'     => 'boolean',
             'secondary_notify_report_cards' => 'boolean',

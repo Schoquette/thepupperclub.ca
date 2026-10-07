@@ -7,6 +7,7 @@ use App\Models\HomeAccess;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ProfileController extends Controller
@@ -27,12 +28,47 @@ class ProfileController extends Controller
     public function show(Request $request): JsonResponse
     {
         $this->ensureNotifyColumns();
+        $this->ensureWalkLengthIsJsonArray();
         return response()->json(['data' => $request->user()->load('clientProfile')]);
+    }
+
+    /**
+     * preferred_walk_length was originally a single VARCHAR value
+     * ("30_min"); converting it to a multi-select JSON array column so a
+     * client can prefer multiple visit lengths (including the new
+     * "pack_hike"/Group Hike option). Wraps any existing single value into
+     * a 1-element array before changing the column type, so nobody's
+     * existing preference is silently lost. Runs on both read and write so
+     * it activates on the very first page load after deploy, not only
+     * when someone happens to re-save the field.
+     */
+    private function ensureWalkLengthIsJsonArray(): void
+    {
+        $col = DB::selectOne("SHOW COLUMNS FROM client_profiles WHERE Field = 'preferred_walk_length'");
+        if (!$col || stripos($col->Type, 'json') !== false) {
+            return;
+        }
+
+        try {
+            DB::statement("UPDATE client_profiles SET preferred_walk_length = NULL WHERE preferred_walk_length = ''");
+            DB::statement("UPDATE client_profiles SET preferred_walk_length = CONCAT('[\"', preferred_walk_length, '\"]') WHERE preferred_walk_length IS NOT NULL");
+            DB::statement('ALTER TABLE client_profiles MODIFY COLUMN preferred_walk_length JSON NULL');
+        } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SchemaHealFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['table' => 'client_profiles', 'column' => 'preferred_walk_length'],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+        }
     }
 
     public function update(Request $request): JsonResponse
     {
         $this->ensureNotifyColumns();
+        $this->ensureWalkLengthIsJsonArray();
 
         $data = $request->validate([
             'name'                     => 'sometimes|string|max:255',
@@ -58,7 +94,8 @@ class ProfileController extends Controller
             'preferred_walk_days.*'    => 'string',
             'preferred_walk_times'     => 'sometimes|array',
             'preferred_walk_times.*'   => 'string',
-            'preferred_walk_length'    => 'sometimes|nullable|string|max:50',
+            'preferred_walk_length'    => 'sometimes|array',
+            'preferred_walk_length.*'  => 'string',
             'notification_preferences' => 'sometimes|array',
 
             // Vet
