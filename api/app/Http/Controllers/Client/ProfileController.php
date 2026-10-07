@@ -197,8 +197,11 @@ class ProfileController extends Controller
 
     public function updateHomeAccess(Request $request): JsonResponse
     {
+        $this->ensureBuzzerCodeColumn();
+
         $data = $request->validate([
             'entry_instructions'   => 'nullable|string',
+            'buzzer_code'          => 'nullable|string',
             'lockbox_code'         => 'nullable|string',
             'door_code'            => 'nullable|string',
             'alarm_code'           => 'nullable|string',
@@ -212,5 +215,28 @@ class ProfileController extends Controller
         $this->adminNotifications->homeAccessUpdated($user);
 
         return response()->json(['message' => 'Home access updated.']);
+    }
+
+    /**
+     * Adds buzzer_code to home_accesses tables created before it existed.
+     */
+    private function ensureBuzzerCodeColumn(): void
+    {
+        if (!Schema::hasColumn('home_accesses', 'buzzer_code')) {
+            try {
+                Schema::table('home_accesses', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->text('buzzer_code')->nullable()->after('entry_instructions');
+                });
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'home_accesses', 'column' => 'buzzer_code'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
     }
 }

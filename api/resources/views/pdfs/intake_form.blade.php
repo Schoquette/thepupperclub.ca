@@ -134,6 +134,9 @@
         @if($homeAccess->entry_instructions)
         <tr><td class="lbl">Entry Instructions</td><td class="val">{{ $homeAccess->entry_instructions }}</td></tr>
         @endif
+        @if($homeAccess->buzzer_code)
+        <tr><td class="lbl">Buzzer Number</td><td class="val">{{ $homeAccess->buzzer_code }}</td></tr>
+        @endif
         @if($homeAccess->lockbox_code)
         <tr><td class="lbl">Lockbox Code</td><td class="val">{{ $homeAccess->lockbox_code }}</td></tr>
         @endif

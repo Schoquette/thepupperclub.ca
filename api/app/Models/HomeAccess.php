@@ -11,6 +11,7 @@ class HomeAccess extends Model
     protected $fillable = [
         'user_id',
         'entry_instructions',
+        'buzzer_code',
         'lockbox_code',
         'door_code',
         'alarm_code',
@@ -20,6 +21,16 @@ class HomeAccess extends Model
     ];
 
     // Encrypt sensitive codes on set, decrypt on get
+    public function setBuzzerCodeAttribute(?string $value): void
+    {
+        $this->attributes['buzzer_code'] = $value ? Crypt::encryptString($value) : null;
+    }
+
+    public function getBuzzerCodeAttribute(?string $value): ?string
+    {
+        return $value ? Crypt::decryptString($value) : null;
+    }
+
     public function setLockboxCodeAttribute(?string $value): void
     {
         $this->attributes['lockbox_code'] = $value ? Crypt::encryptString($value) : null;

@@ -257,6 +257,7 @@ function HomeAccessCard() {
 
   const [form, setForm] = useState({
     entry_instructions: '',
+    buzzer_code: '',
     lockbox_code: '',
     door_code: '',
     alarm_code: '',
@@ -269,6 +270,7 @@ function HomeAccessCard() {
     if (access) {
       setForm({
         entry_instructions: access.entry_instructions ?? '',
+        buzzer_code: access.buzzer_code ?? '',
         lockbox_code: access.lockbox_code === '****' ? '' : (access.lockbox_code ?? ''),
         door_code: access.door_code === '****' ? '' : (access.door_code ?? ''),
         alarm_code: access.alarm_code === '****' ? '' : (access.alarm_code ?? ''),
@@ -300,6 +302,7 @@ function HomeAccessCard() {
   const startEdit = () => {
     setForm({
       entry_instructions: access?.entry_instructions ?? '',
+      buzzer_code: access?.buzzer_code ?? '',
       lockbox_code: '',
       door_code: '',
       alarm_code: '',
@@ -314,6 +317,7 @@ function HomeAccessCard() {
 
   const fields: [string, string | null][] = [
     ['Entry Instructions', access?.entry_instructions],
+    ['Buzzer Number', access?.buzzer_code],
     ['Lockbox Code', access?.lockbox_code],
     ['Door Code', access?.door_code],
     ['Alarm Code', access?.alarm_code],
@@ -343,6 +347,7 @@ function HomeAccessCard() {
       {editing ? (
         <div className="space-y-3">
           <Input label="Entry Instructions" value={form.entry_instructions} onChange={e => setForm(f => ({ ...f, entry_instructions: e.target.value }))} placeholder="How to get into the home" />
+          <Input label="Buzzer Number" value={form.buzzer_code} onChange={e => setForm(f => ({ ...f, buzzer_code: e.target.value }))} placeholder="e.g. 2051" />
           <div className="grid grid-cols-3 gap-3">
             <Input label="Lockbox Code" value={form.lockbox_code} onChange={e => setForm(f => ({ ...f, lockbox_code: e.target.value }))} placeholder={access?.lockbox_code ? 'Leave blank to keep current' : ''} />
             <Input label="Door Code" value={form.door_code} onChange={e => setForm(f => ({ ...f, door_code: e.target.value }))} placeholder={access?.door_code ? 'Leave blank to keep current' : ''} />

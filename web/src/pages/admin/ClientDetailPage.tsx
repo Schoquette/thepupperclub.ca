@@ -2844,6 +2844,7 @@ function fileIcon(mimeType: string): string {
 interface HomeAccessForm {
   [key: string]: string;
   entry_instructions: string;
+  buzzer_code: string;
   lockbox_code: string;
   door_code: string;
   alarm_code: string;
@@ -2855,6 +2856,7 @@ interface HomeAccessForm {
 function buildHomeAccessForm(data?: any): HomeAccessForm {
   return {
     entry_instructions:   data?.entry_instructions   ?? '',
+    buzzer_code:          data?.buzzer_code          ?? '',
     lockbox_code:         data?.lockbox_code         ?? '',
     door_code:            data?.door_code            ?? '',
     alarm_code:           data?.alarm_code           ?? '',
@@ -3382,6 +3384,7 @@ export default function AdminClientDetailPage() {
             <div className="space-y-4">
               {([
                 { label: 'Entry Instructions', key: 'entry_instructions', multiline: true },
+                { label: 'Buzzer Number',      key: 'buzzer_code' },
                 { label: 'Lockbox Code',       key: 'lockbox_code' },
                 { label: 'Door Code',          key: 'door_code' },
                 { label: 'Alarm Code',         key: 'alarm_code' },
@@ -3411,6 +3414,7 @@ export default function AdminClientDetailPage() {
             <dl className="space-y-3 text-sm">
               {[
                 ['Entry Instructions', homeAccess.entry_instructions],
+                ['Buzzer Number',      homeAccess.buzzer_code],
                 ['Lockbox Code',       homeAccess.lockbox_code],
                 ['Door Code',          homeAccess.door_code],
                 ['Alarm Code',         homeAccess.alarm_code],

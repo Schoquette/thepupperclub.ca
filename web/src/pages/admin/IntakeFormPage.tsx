@@ -80,6 +80,7 @@ interface FormData {
   vet_address: string;
   home_access: {
     entry_instructions: string;
+    buzzer_code: string;
     lockbox_code: string;
     door_code: string;
     alarm_code: string;
@@ -237,6 +238,7 @@ function buildForm(data: any): FormData {
     vet_address: p.vet_address ?? '',
     home_access: {
       entry_instructions: ha.entry_instructions ?? '',
+      buzzer_code: ha.buzzer_code ?? '',
       lockbox_code: ha.lockbox_code ?? '',
       door_code: ha.door_code ?? '',
       alarm_code: ha.alarm_code ?? '',
@@ -1547,6 +1549,12 @@ export default function IntakeFormPage() {
               }
             </FieldRow>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FieldRow label="Buzzer Number">
+                {readOnly
+                  ? <ReadValue value={form.home_access.buzzer_code} />
+                  : <input className={fieldCls} value={form.home_access.buzzer_code} onChange={e => updateHomeAccess('buzzer_code', e.target.value)} placeholder="e.g. 2051" />
+                }
+              </FieldRow>
               <FieldRow label="Lockbox Code">
                 {readOnly
                   ? <ReadValue value={form.home_access.lockbox_code} />

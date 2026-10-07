@@ -189,12 +189,13 @@ export default function MyClientsPage() {
             )}
 
             {/* Home Access -- needed to actually get into the property */}
-            {homeAccess && (homeAccess.entry_instructions || homeAccess.lockbox_code || homeAccess.door_code || homeAccess.alarm_code || homeAccess.key_location || homeAccess.parking_instructions || homeAccess.notes) && (
+            {homeAccess && (homeAccess.entry_instructions || homeAccess.buzzer_code || homeAccess.lockbox_code || homeAccess.door_code || homeAccess.alarm_code || homeAccess.key_location || homeAccess.parking_instructions || homeAccess.notes) && (
               <div>
                 <h3 className="text-sm font-semibold text-espresso mb-2">Home Access</h3>
                 <div className="bg-gold/5 border border-gold/20 rounded-lg p-4 space-y-2 text-sm">
                   {[
                     ['Entry Instructions', homeAccess.entry_instructions],
+                    ['Buzzer Number', homeAccess.buzzer_code],
                     ['Lockbox Code', homeAccess.lockbox_code],
                     ['Door Code', homeAccess.door_code],
                     ['Alarm Code', homeAccess.alarm_code],
