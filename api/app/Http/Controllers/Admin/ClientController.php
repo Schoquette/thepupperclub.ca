@@ -47,7 +47,15 @@ class ClientController extends Controller
 
         $query->orderBy('name', 'asc');
 
-        return response()->json($query->paginate(20));
+        // No frontend consumer of this endpoint (the Clients management page
+        // included) implements real pagination controls -- they all treat
+        // the response as the complete list, so a 20-row default silently
+        // dropped anyone alphabetically past that cutoff. Clamp generously
+        // high instead of truly removing pagination, so the response shape
+        // stays a paginator for any future caller that does page properly.
+        $perPage = max(1, min((int) ($request->per_page ?? 500), 1000));
+
+        return response()->json($query->paginate($perPage));
     }
 
     public function show(User $client): JsonResponse
@@ -76,7 +84,9 @@ class ClientController extends Controller
             ->with(['clientProfile:id,user_id,phone,address,city,province,postal_code', 'dogs:id,user_id,name'])
             ->orderBy('name', 'asc');
 
-        return response()->json($query->paginate(20));
+        $perPage = max(1, min((int) ($request->per_page ?? 500), 1000));
+
+        return response()->json($query->paginate($perPage));
     }
 
     /**
