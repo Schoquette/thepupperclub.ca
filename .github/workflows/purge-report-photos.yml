@@ -1,0 +1,48 @@
+# Purge Old Report Card Photos
+#
+# Deletes report card photos older than 30 days (measured from when the
+# report was sent) to keep storage from growing unbounded. GoDaddy has no
+# CLI/SSH access to run `php artisan schedule:run`, so this hits an
+# HTTP endpoint on the live site instead, gated by a shared secret.
+#
+# SETUP REQUIRED:
+#   Add a GitHub repo secret CRON_TRIGGER_SECRET matching the
+#   CRON_TRIGGER_SECRET env var configured on GoDaddy.
+
+name: Purge Old Report Card Photos
+
+on:
+  schedule:
+    # 3 AM Pacific = 10:00 UTC (PDT) / 11:00 UTC (PST)
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  purge:
+    name: Trigger photo purge endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call purge endpoint
+        env:
+          CRON_TRIGGER_SECRET: ${{ secrets.CRON_TRIGGER_SECRET }}
+        run: |
+          if [ -z "$CRON_TRIGGER_SECRET" ]; then
+            echo "::error::CRON_TRIGGER_SECRET secret is not set."
+            exit 1
+          fi
+
+          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            --max-time 60 \
+            "https://thepupperclub.ca/api/tasks/purge-old-report-photos?key=${CRON_TRIGGER_SECRET}")
+
+          cat response.json
+          echo ""
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::Purge endpoint returned HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+
+          cat response.json >> "$GITHUB_STEP_SUMMARY"

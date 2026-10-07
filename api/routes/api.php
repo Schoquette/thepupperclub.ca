@@ -63,6 +63,13 @@ Route::get('/clear-cache-9x7k', function () {
     ]);
 });
 
+// Hit on a schedule by a GitHub Actions cron workflow to purge report card
+// photos older than 30 days — GoDaddy has no CLI/SSH access to run
+// `php artisan schedule:run`, so this is triggered over HTTP instead.
+// Gated by a shared secret (?key=...), same pattern as the inbound email
+// webhook below.
+Route::get('/tasks/purge-old-report-photos', [AdminReportCardController::class, 'purgeOldPhotos']);
+
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');

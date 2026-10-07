@@ -11,6 +11,7 @@ use App\Models\VisitReportComment;
 use App\Services\ReportCardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -347,6 +348,67 @@ class ReportCardController extends Controller
         }
 
         return response()->json(['message' => 'Photo removed.']);
+    }
+
+    /**
+     * Deletes report card photos older than 30 days (measured from
+     * sent_at) to keep storage from growing unbounded. Unauthenticated
+     * route gated by a shared secret — triggered on a schedule by a
+     * GitHub Actions cron workflow, since GoDaddy has no CLI/SSH access
+     * to run `php artisan schedule:run` directly.
+     */
+    public function purgeOldPhotos(Request $request): JsonResponse
+    {
+        $secret = config('services.cron.trigger_secret');
+        if (!$secret || $request->query('key') !== $secret) {
+            Log::warning('ReportCard photo purge: rejected request with missing/invalid key', ['ip' => $request->ip()]);
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'ReportCardPhotoPurgeAuthFailed',
+                    'message'    => $secret ? 'Invalid key' : 'CRON_TRIGGER_SECRET not configured',
+                    'context'    => ['ip' => $request->ip()],
+                    'ip_address' => $request->ip(),
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $cutoff = now()->subDays(30);
+        $reportsCleared = 0;
+        $filesDeleted = 0;
+
+        VisitReport::whereNotNull('sent_at')
+            ->where('sent_at', '<', $cutoff)
+            ->where(function ($q) {
+                $q->whereNotNull('report_photo_path')->orWhereNotNull('photo_paths');
+            })
+            ->chunkById(50, function ($reports) use (&$reportsCleared, &$filesDeleted) {
+                foreach ($reports as $report) {
+                    $hadPhotos = false;
+
+                    foreach ($report->photo_paths ?? [] as $path) {
+                        if (Storage::disk('local')->delete($path)) $filesDeleted++;
+                        $hadPhotos = true;
+                    }
+                    if ($report->report_photo_path) {
+                        if (Storage::disk('local')->delete($report->report_photo_path)) $filesDeleted++;
+                        $hadPhotos = true;
+                    }
+
+                    if ($hadPhotos) {
+                        $report->update(['photo_paths' => [], 'report_photo_path' => null]);
+                        $reportsCleared++;
+                    }
+                }
+            });
+
+        return response()->json([
+            'message'         => 'Report card photo purge complete.',
+            'cutoff'          => $cutoff->toDateString(),
+            'reports_cleared' => $reportsCleared,
+            'files_deleted'   => $filesDeleted,
+        ]);
     }
 
     // ── Templates ─────────────────────────────────────────────────────────────

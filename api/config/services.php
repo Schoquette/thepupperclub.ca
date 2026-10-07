@@ -43,4 +43,12 @@ return [
     ],
 
     'frontend_url' => env('FRONTEND_URL', 'https://thepupperclub.ca'),
+
+    'cron' => [
+        // Shared secret appended as ?key=... to scheduled-task URLs hit by
+        // the GitHub Actions cron workflows (GoDaddy has no CLI/SSH access
+        // to run `php artisan schedule:run`, so periodic jobs are triggered
+        // over HTTP instead).
+        'trigger_secret' => env('CRON_TRIGGER_SECRET'),
+    ],
 ];
