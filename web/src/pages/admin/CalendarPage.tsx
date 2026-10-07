@@ -430,7 +430,7 @@ export default function AdminCalendarPage() {
   const [calSuccess, setCalSuccess] = useState('');
   const checkIn = useMutation({
     mutationFn: (id: number) => api.post(`/admin/appointments/${id}/check-in`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-appointments'] }); setSelected(null); setCheckInError(''); setCalSuccess('Checked in!'); setTimeout(() => setCalSuccess(''), 2500); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-appointments'] }); setSelected(null); setHikeRoster(null); setCheckInError(''); setCalSuccess('Checked in!'); setTimeout(() => setCalSuccess(''), 2500); },
     onError: (err: any) => { setCheckInError(err.response?.data?.message || 'Check-in failed.'); },
   });
 
@@ -444,7 +444,7 @@ export default function AdminCalendarPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-appointments'] });
-      setSelected(null); setCompleting(false);
+      setSelected(null); setCompleting(false); setHikeRoster(null);
       setCompleteError('');
       setCalSuccess('Visit completed!'); setTimeout(() => setCalSuccess(''), 2500);
     },
@@ -1929,12 +1929,15 @@ export default function AdminCalendarPage() {
                 {hikeRoster.assigned_admin?.name && <> · {hikeRoster.assigned_admin.name}</>}
               </div>
 
+              {checkInError && <p className="text-sm text-red-600">{checkInError}</p>}
+
               <div className="space-y-2">
                 {hikeRoster.participants.map((p: any) => {
                   const profile = p.user?.client_profile;
                   const address = [profile?.address, profile?.city].filter(Boolean).join(', ');
                   const dogNames = (p.dogs ?? []).map((d: any) => d.name).join(', ');
                   const isRecurring = !!(p.recurrence_rule || p.recurrence_parent_id);
+                  const isToday = start && format(start, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
                   return (
                     <div key={p.id} className="flex items-center justify-between border border-taupe/30 rounded-lg px-3 py-2">
                       <div>
@@ -1943,6 +1946,28 @@ export default function AdminCalendarPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={statusBadge(p.status)}>{p.status.replace('_', ' ')}</Badge>
+                        {p.status === 'scheduled' && isToday && (
+                          <Button
+                            size="sm"
+                            loading={checkIn.isPending}
+                            onClick={() => { setCheckInError(''); checkIn.mutate(p.id); }}
+                          >
+                            Check In
+                          </Button>
+                        )}
+                        {p.status === 'checked_in' && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelected(p);
+                              setHikeRoster(null);
+                              setCompleteError('');
+                              setCompleting(true);
+                            }}
+                          >
+                            Complete
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
