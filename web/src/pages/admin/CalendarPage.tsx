@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge, statusBadge } from '@/components/ui/Badge';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
+import { CompleteVisitModal } from '@/components/admin/CompleteVisitModal';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 /** Format a Date as YYYY-MM-DDTHH:mm in local time (no UTC conversion) */
@@ -352,22 +353,8 @@ export default function AdminCalendarPage() {
   // Delete appointment
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; hasRecurrence: boolean } | null>(null);
 
-  // Visit completion report form (legacy – still used for check-out)
+  // Visit completion (modal itself lives in CompleteVisitModal, shared with DashboardPage)
   const [completing, setCompleting] = useState(false);
-  const [reportForm, setReportForm] = useState({ distance_km: '', notes: '' });
-  const [mileageFrom, setMileageFrom] = useState('');
-
-  // Auto-fetch mileage when Complete Visit modal opens
-  useEffect(() => {
-    if (!completing || !selected) return;
-    setMileageFrom('');
-    api.get(`/admin/time-mileage/appointment/${selected.id}`)
-      .then(res => {
-        setReportForm(f => ({ ...f, distance_km: String(res.data.data.distance_km) }));
-        setMileageFrom(res.data.data.from || '');
-      })
-      .catch(() => {}); // silently fail if Maps not configured
-  }, [completing, selected?.id]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-appointments', range],
@@ -432,23 +419,6 @@ export default function AdminCalendarPage() {
     mutationFn: (id: number) => api.post(`/admin/appointments/${id}/check-in`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-appointments'] }); setSelected(null); setHikeRoster(null); setCheckInError(''); setCalSuccess('Checked in!'); setTimeout(() => setCalSuccess(''), 2500); },
     onError: (err: any) => { setCheckInError(err.response?.data?.message || 'Check-in failed.'); },
-  });
-
-  const [completeError, setCompleteError] = useState('');
-  const complete = useMutation({
-    mutationFn: async (id: number) => {
-      const payload: Record<string, any> = {};
-      if (reportForm.distance_km) payload.distance_km = reportForm.distance_km;
-      if (reportForm.notes) payload.notes = reportForm.notes;
-      return api.post(`/admin/appointments/${id}/complete`, payload);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-appointments'] });
-      setSelected(null); setCompleting(false); setHikeRoster(null);
-      setCompleteError('');
-      setCalSuccess('Visit completed!'); setTimeout(() => setCalSuccess(''), 2500);
-    },
-    onError: (err: any) => { setCompleteError(err.response?.data?.message || 'Failed to complete visit.'); },
   });
 
   const createAppointment = useMutation({
@@ -1315,50 +1285,16 @@ export default function AdminCalendarPage() {
       </Modal>
 
       {/* Complete visit modal */}
-      <Modal open={completing} onClose={() => setCompleting(false)} title="Complete Visit" size="md">
-        {selected && (
-          <div className="space-y-4">
-            <div>
-              <label className="label">Mileage (km)</label>
-              <input type="number" step="0.1" className="input" value={reportForm.distance_km}
-                placeholder="e.g. 3.5"
-                onChange={e => setReportForm(f => ({ ...f, distance_km: e.target.value }))} />
-              {mileageFrom && (
-                <p className="text-xs text-taupe mt-1">Auto-calculated from: {mileageFrom}</p>
-              )}
-            </div>
-            <div>
-              <label className="label">Internal Notes</label>
-              <textarea rows={3} className="input resize-none" value={reportForm.notes}
-                placeholder="Notes visible only to you…"
-                onChange={e => setReportForm(f => ({ ...f, notes: e.target.value }))} />
-            </div>
-            {completeError && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{completeError}</p>
-            )}
-            <div className="flex items-center justify-between mt-4">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setCompleting(false);
-                  navigate(`/admin/report-cards/new?appointment_id=${selected.id}`);
-                }}
-              >
-                Write Report Card
-              </Button>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setCompleting(false)}>Cancel</Button>
-                <Button
-                  loading={complete.isPending}
-                  onClick={() => complete.mutate(selected.id)}
-                >
-                  Complete Visit
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <CompleteVisitModal
+        appointmentId={selected?.id ?? null}
+        open={completing}
+        onClose={() => setCompleting(false)}
+        onCompleted={() => {
+          qc.invalidateQueries({ queryKey: ['admin-appointments'] });
+          setSelected(null); setCompleting(false); setHikeRoster(null);
+          setCalSuccess('Visit completed!'); setTimeout(() => setCalSuccess(''), 2500);
+        }}
+      />
 
       {/* New appointment modal */}
       <Modal
@@ -1961,7 +1897,6 @@ export default function AdminCalendarPage() {
                             onClick={() => {
                               setSelected(p);
                               setHikeRoster(null);
-                              setCompleteError('');
                               setCompleting(true);
                             }}
                           >

@@ -11,13 +11,14 @@ import type { Appointment } from '@pupper/shared';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle, AlertTriangle, Mail, XCircle } from 'lucide-react';
 import { PawIcon } from '@/components/ui/PawIcon';
+import { CompleteVisitModal } from '@/components/admin/CompleteVisitModal';
 
 const TIME_BLOCK_LABELS: Record<string, string> = {
   early_morning: '6–9 AM', morning: '9 AM–12 PM', midday: '12–3 PM',
   afternoon: '3–6 PM', evening: '6–9 PM',
 };
 
-function WalkCard({ appointment }: { appointment: Appointment }) {
+function WalkCard({ appointment, onCompleteVisit }: { appointment: Appointment; onCompleteVisit: (id: number) => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const isCheckedIn = appointment.status === 'checked_in';
@@ -69,7 +70,7 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
           ) : (
             <Button
               size="sm"
-              onClick={() => navigate(`/admin/calendar`)}
+              onClick={() => onCompleteVisit(appointment.id)}
             >
               Complete Visit
             </Button>
@@ -92,6 +93,8 @@ function WalkCard({ appointment }: { appointment: Appointment }) {
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [completingId, setCompletingId] = useState<number | null>(null);
   const { data, isLoading } = useQuery<any>({
     queryKey: ['admin-dashboard'],
     queryFn: () => api.get('/admin/dashboard').then(r => r.data.data),
@@ -156,7 +159,7 @@ export default function AdminDashboardPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {data?.todays_appointments.map((appt: Appointment) => (
-              <WalkCard key={appt.id} appointment={appt} />
+              <WalkCard key={appt.id} appointment={appt} onCompleteVisit={setCompletingId} />
             ))}
           </div>
         )}
@@ -259,6 +262,17 @@ export default function AdminDashboardPage() {
           </div>
         </Card>
       )}
+
+      <CompleteVisitModal
+        appointmentId={completingId}
+        open={completingId !== null}
+        onClose={() => setCompletingId(null)}
+        onCompleted={() => {
+          qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
+          qc.invalidateQueries({ queryKey: ['admin-dashboard-counts'] });
+          setCompletingId(null);
+        }}
+      />
     </div>
   );
 }
