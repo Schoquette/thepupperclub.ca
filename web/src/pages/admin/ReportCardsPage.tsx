@@ -205,6 +205,11 @@ export default function AdminReportCardsPage() {
                           )}
                         </div>
                       </div>
+                      {r.group_report_id && (
+                        <span className="text-[11px] font-semibold px-2 py-1 rounded-full flex-shrink-0 bg-blue/10 text-blue">
+                          Group Hike
+                        </span>
+                      )}
                       <span
                         className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${
                           r.sent_at ? 'bg-green-50 text-green-700' : 'bg-cream text-taupe'

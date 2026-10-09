@@ -97,6 +97,17 @@ class ReportCardService
         $dogData     = $report->dog_data;
 
         if (!empty($dogData) && is_array($dogData)) {
+            // Group Hike combined reports reference dogs across every
+            // participant's own appointment, not just this client's —
+            // $dogNameMap above only covers $report's own appointment, so
+            // backfill any dog ids the checklist mentions that belong to
+            // OTHER clients on the same hike (otherwise they'd render as
+            // the generic "Dog #47" instead of their real name).
+            $missingIds = array_filter(array_keys($dogData), fn($k) => $k !== '_general' && !isset($dogNameMap[(int) $k]));
+            if (!empty($missingIds)) {
+                $dogNameMap += \App\Models\Dog::whereIn('id', $missingIds)->pluck('name', 'id')->toArray();
+            }
+
             foreach ($dogData as $key => $section) {
                 $name  = $dogNameMap[$key] ?? ($key === '_general' ? null : "Dog #{$key}");
                 $items = collect($section['checklist'] ?? [])

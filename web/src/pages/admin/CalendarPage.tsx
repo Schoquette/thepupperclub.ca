@@ -1903,6 +1903,18 @@ export default function AdminCalendarPage() {
                             Complete
                           </Button>
                         )}
+                        {p.status === 'completed' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setHikeRoster(null);
+                              navigate(`/admin/report-cards/new?appointment_id=${p.id}`);
+                            }}
+                          >
+                            Report Card
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -1918,6 +1930,23 @@ export default function AdminCalendarPage() {
 
               <div className="flex justify-end gap-3 pt-2 border-t border-taupe/20">
                 <Button variant="outline" onClick={() => setHikeRoster(null)}>Close</Button>
+                {(() => {
+                  const completedIds = hikeRoster.participants
+                    .filter((p: any) => p.status === 'completed')
+                    .map((p: any) => p.id);
+                  if (completedIds.length < 2) return null;
+                  return (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setHikeRoster(null);
+                        navigate(`/admin/report-cards/new?appointment_ids=${completedIds.join(',')}`);
+                      }}
+                    >
+                      Write Group Report ({completedIds.length})
+                    </Button>
+                  );
+                })()}
                 <Button
                   variant="outline"
                   onClick={() => {

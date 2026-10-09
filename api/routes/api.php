@@ -313,6 +313,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/report-cards',                                [AdminReportCardController::class, 'index']);
         Route::post('/report-cards',                               [AdminReportCardController::class, 'store']);
+        // Group Hike combined report cards — registered before the
+        // {reportCard} wildcard routes below so "group" isn't swallowed
+        // by VisitReport implicit route-model binding.
+        Route::post('/report-cards/group',                         [AdminReportCardController::class, 'storeGroup']);
+        Route::get('/report-cards/group/{groupReportId}',          [AdminReportCardController::class, 'showGroup']);
+        Route::post('/report-cards/group/{groupReportId}',         [AdminReportCardController::class, 'updateGroup']);
+        Route::post('/report-cards/group/{groupReportId}/send',    [AdminReportCardController::class, 'sendGroup']);
         Route::get('/report-cards/{reportCard}',                   [AdminReportCardController::class, 'show']);
         Route::post('/report-cards/{reportCard}',                  [AdminReportCardController::class, 'update']);
         Route::post('/report-cards/{reportCard}/send',             [AdminReportCardController::class, 'send']);

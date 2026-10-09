@@ -127,6 +127,43 @@ export default function AdminReportCardFormPage() {
     }
   }, [qsAppointment?.id]); // eslint-disable-line
 
+  // Group Hike combined report: ?appointment_ids=1,2,3 (from the hike
+  // roster) instead of a single ?appointment_id — one report authored
+  // once, fanned out server-side into a separate VisitReport per
+  // participant so each client still only ever sees their own.
+  const qsAppointmentIds = (searchParams.get('appointment_ids') ?? '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const isGroupCreate = isNew && qsAppointmentIds.length > 1;
+  type GroupParticipant = { appointmentId: number; userId: number; clientName: string; dogs: { id: number; name: string }[] };
+  const [groupParticipants, setGroupParticipants] = useState<GroupParticipant[]>([]);
+
+  const { data: groupAppointments } = useQuery({
+    queryKey: ['admin-appointments-group', qsAppointmentIds.join(',')],
+    queryFn: () => Promise.all(qsAppointmentIds.map(aid => api.get(`/admin/appointments/${aid}`).then(r => r.data.data))),
+    enabled: isGroupCreate,
+  });
+
+  useEffect(() => {
+    if (!isGroupCreate || !groupAppointments) return;
+    const participants: GroupParticipant[] = groupAppointments.map((a: any) => ({
+      appointmentId: a.id,
+      userId: a.user_id,
+      clientName: a.user?.name ?? `Client #${a.user_id}`,
+      dogs: (a.dogs ?? []).map((d: any) => ({ id: d.id, name: d.name })),
+    }));
+    setGroupParticipants(participants);
+    const mergedDogIds = Array.from(new Set(participants.flatMap(p => p.dogs.map(d => d.id))));
+    setDogIds(mergedDogIds);
+    const first = groupAppointments[0];
+    if (first?.scheduled_time) {
+      const start = new Date(first.scheduled_time);
+      setArrivalTime(format(start, "yyyy-MM-dd'T'HH:mm"));
+      if (first.duration_minutes) {
+        setDepartureTime(format(addMinutes(start, first.duration_minutes), "yyyy-MM-dd'T'HH:mm"));
+      }
+    }
+  }, [isGroupCreate, groupAppointments]); // eslint-disable-line
+
   const { data: clientsData } = useQuery({
     queryKey: ['admin-clients-list', isTeamMember],
     queryFn: () => api.get(isTeamMember ? '/admin/my/clients' : '/admin/clients').then((r) => r.data.data ?? []),
@@ -172,6 +209,27 @@ export default function AdminReportCardFormPage() {
     queryFn: () => api.get(`/admin/report-cards/${id}`).then((r) => r.data.data),
     enabled: !isNew,
   });
+
+  // Editing a report that's part of a Group Hike: content (and sending)
+  // applies to every sibling, so pull the whole participant list.
+  const groupReportId: string | null = (!isNew && report?.group_report_id) || null;
+  const isGroupMode = isGroupCreate || !!groupReportId;
+
+  const { data: groupSiblings } = useQuery({
+    queryKey: ['admin-report-card-group', groupReportId],
+    queryFn: () => api.get(`/admin/report-cards/group/${groupReportId}`).then(r => r.data.data),
+    enabled: !!groupReportId,
+  });
+
+  useEffect(() => {
+    if (!groupSiblings) return;
+    setGroupParticipants(groupSiblings.map((s: any) => ({
+      appointmentId: s.appointment_id,
+      userId: s.user_id,
+      clientName: s.user?.name ?? `Client #${s.user_id}`,
+      dogs: (s.appointment?.dogs ?? []).map((d: any) => ({ id: d.id, name: d.name })),
+    })));
+  }, [groupSiblings]);
 
   // Pre-fill form when report loads
   useEffect(() => {
@@ -274,7 +332,12 @@ export default function AdminReportCardFormPage() {
   // Determine section keys for rendering
   const sectionKeys = dogIds.length > 0 ? dogIds.map(String) : [GENERAL_KEY];
   const dogNameMap: Record<string, string> = {};
+  const dogOwnerMap: Record<string, string> = {};
   clientDogs.forEach(d => { dogNameMap[String(d.id)] = d.name; });
+  groupParticipants.forEach(p => p.dogs.forEach(d => {
+    dogNameMap[String(d.id)] = d.name;
+    dogOwnerMap[String(d.id)] = p.clientName;
+  }));
 
   // Helpers to update per-dog state
   const locked = isSent && !editing;
@@ -394,6 +457,70 @@ export default function AdminReportCardFormPage() {
     onError: (e: any) => setError(e.response?.data?.message ?? e.response?.data?.error ?? `Failed to send. (${e.response?.status ?? 'network error'})`),
   });
 
+  const makeGroupPayload = (includeAppointmentIds = false) => {
+    const fd = buildFormData({
+      dogIds: dogIds.length ? dogIds : undefined,
+      arrivalTime: arrivalTime || undefined,
+      departureTime: departureTime || undefined,
+      dogData,
+      specialTripDetails: specialTripDetails || undefined,
+      photos: newPhotos,
+    });
+    if (includeAppointmentIds) {
+      qsAppointmentIds.forEach(aid => fd.append('appointment_ids[]', aid));
+    }
+    return fd;
+  };
+
+  const createGroupReport = useMutation({
+    mutationFn: () => api.post('/admin/report-cards/group', makeGroupPayload(true), fdConfig),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
+      qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
+      navigate('/admin/report-cards');
+    },
+    onError: (e: any) => setError(e.response?.data?.message ?? `Failed to save. (${e.response?.status ?? 'network error'})`),
+  });
+
+  const createAndSendGroup = useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/admin/report-cards/group', makeGroupPayload(true), fdConfig);
+      const gid = res.data.data.group_report_id;
+      await api.post(`/admin/report-cards/group/${gid}/send`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
+      qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
+      navigate('/admin/report-cards');
+    },
+    onError: (e: any) => setError(e.response?.data?.message ?? `Failed to send. (${e.response?.status ?? 'network error'})`),
+  });
+
+  const updateGroupReport = useMutation({
+    mutationFn: () => api.post(`/admin/report-cards/group/${groupReportId}`, makeGroupPayload(), fdConfig),
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+      setNewPhotos([]);
+      qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
+      qc.invalidateQueries({ queryKey: ['admin-report-card-group', groupReportId] });
+    },
+    onError: (e: any) => setError(e.response?.data?.message ?? `Failed to save. (${e.response?.status ?? 'network error'})`),
+  });
+
+  const sendGroupReport = useMutation({
+    mutationFn: async () => {
+      await api.post(`/admin/report-cards/group/${groupReportId}`, makeGroupPayload(), fdConfig);
+      return api.post(`/admin/report-cards/group/${groupReportId}/send`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-report-cards'] });
+      qc.invalidateQueries({ queryKey: ['admin-report-cards-due'] });
+      navigate('/admin/report-cards');
+    },
+    onError: (e: any) => setError(e.response?.data?.message ?? `Failed to send. (${e.response?.status ?? 'network error'})`),
+  });
+
   const deleteReport = useMutation({
     mutationFn: () => api.delete(`/admin/report-cards/${id}`),
     onSuccess: () => {
@@ -456,10 +583,12 @@ export default function AdminReportCardFormPage() {
             <span className="text-espresso">{isNew ? 'New' : 'Edit'}</span>
           </div>
           <h1 className="page-title text-xl">
-            {isNew ? 'New Report Card' : isSent && !editing ? 'Report Card' : 'Edit Report Card'}
+            {isNew
+              ? (isGroupCreate ? 'New Group Hike Report' : 'New Report Card')
+              : isSent && !editing ? 'Report Card' : 'Edit Report Card'}
           </h1>
         </div>
-        {!isNew && !isSent && !isTeamMember && (
+        {!isNew && !isSent && !isTeamMember && !groupReportId && (
           <button
             onClick={() => deleteReport.mutate()}
             className="text-xs text-red-400 hover:text-red-600 underline"
@@ -485,8 +614,26 @@ export default function AdminReportCardFormPage() {
       )}
 
       <Card>
+        {/* Group Hike banner — one report, fanned out to every participant */}
+        {isGroupMode && (
+          <div className="mb-5 text-sm bg-gold/10 border border-gold/30 rounded-lg px-3 py-2.5">
+            <span className="font-semibold text-espresso">Group Hike Report</span>
+            <span className="text-taupe"> — sent individually to each client below with identical notes &amp; photos:</span>
+            <ul className="mt-1.5 space-y-0.5 text-espresso">
+              {groupParticipants.length > 0 ? groupParticipants.map(p => (
+                <li key={p.appointmentId}>
+                  <span className="font-medium">{p.clientName}</span>
+                  {p.dogs.length > 0 && <span className="text-taupe"> — {p.dogs.map(d => d.name).join(', ')}</span>}
+                </li>
+              )) : (
+                <li className="text-taupe italic">Loading participants…</li>
+              )}
+            </ul>
+          </div>
+        )}
+
         {/* Client picker (new only) */}
-        {isNew && (
+        {isNew && !isGroupCreate && (
           <div className="mb-4">
             <Select
               label="Client"
@@ -576,7 +723,7 @@ export default function AdminReportCardFormPage() {
           </div>
         )}
 
-        {!isNew && (
+        {!isNew && !groupReportId && (
           <div className="mb-4 flex items-center justify-between">
             <div className="font-semibold text-espresso">
               {report?.user?.name ?? report?.appointment?.user?.name ?? (
@@ -588,6 +735,12 @@ export default function AdminReportCardFormPage() {
                 Sent {format(new Date(report.sent_at), 'MMM d, yyyy')}
               </div>
             )}
+          </div>
+        )}
+
+        {!isNew && groupReportId && isSent && report?.sent_at && (
+          <div className="mb-4 text-right text-xs text-taupe">
+            Sent {format(new Date(report.sent_at), 'MMM d, yyyy')}
           </div>
         )}
 
@@ -717,7 +870,9 @@ export default function AdminReportCardFormPage() {
                   <div className="h-7 w-7 rounded-full bg-gold flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {dogName.charAt(0)}
                   </div>
-                  <h3 className="font-semibold text-espresso">{dogName}</h3>
+                  <h3 className="font-semibold text-espresso">
+                    {dogName}{dogOwnerMap[sectionKey] ? <span className="text-taupe font-normal"> — {dogOwnerMap[sectionKey]}</span> : null}
+                  </h3>
                 </div>
               )}
 
@@ -792,43 +947,100 @@ export default function AdminReportCardFormPage() {
         {!locked && (
           <div className="flex gap-3 justify-end pt-2 border-t border-cream">
             {isNew ? (
+              isGroupCreate ? (
+                <>
+                  <Button
+                    variant="outline"
+                    loading={createGroupReport.isPending}
+                    disabled={qsAppointmentIds.length < 2 || createAndSendGroup.isPending}
+                    onClick={() => { setError(''); createGroupReport.mutate(); }}
+                  >
+                    Save Draft
+                  </Button>
+                  <Button
+                    loading={createAndSendGroup.isPending}
+                    disabled={qsAppointmentIds.length < 2 || createGroupReport.isPending}
+                    onClick={() => { setError(''); createAndSendGroup.mutate(); }}
+                  >
+                    Send to All ({qsAppointmentIds.length})
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    loading={createReport.isPending}
+                    disabled={!clientId || createAndSend.isPending}
+                    onClick={() => { setError(''); createReport.mutate(); }}
+                  >
+                    Save Draft
+                  </Button>
+                  <Button
+                    loading={createAndSend.isPending}
+                    disabled={!clientId || createReport.isPending}
+                    onClick={() => { setError(''); createAndSend.mutate(); }}
+                  >
+                    Send to Client
+                  </Button>
+                </>
+              )
+            ) : editing ? (
+              isGroupMode ? (
+                <>
+                  <Button variant="outline" onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    loading={updateGroupReport.isPending}
+                    onClick={() => { setError(''); updateGroupReport.mutate(); }}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    loading={sendGroupReport.isPending}
+                    onClick={() => { setError(''); sendGroupReport.mutate(); }}
+                  >
+                    Update & Resend All
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditing(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    loading={updateReport.isPending}
+                    onClick={() => { setError(''); updateReport.mutate(); }}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    loading={sendReport.isPending}
+                    onClick={() => { setError(''); sendReport.mutate(); }}
+                  >
+                    Update & Resend
+                  </Button>
+                </>
+              )
+            ) : isGroupMode ? (
               <>
                 <Button
                   variant="outline"
-                  loading={createReport.isPending}
-                  disabled={!clientId || createAndSend.isPending}
-                  onClick={() => { setError(''); createReport.mutate(); }}
+                  loading={updateGroupReport.isPending}
+                  onClick={() => { setError(''); updateGroupReport.mutate(); }}
                 >
                   Save Draft
                 </Button>
                 <Button
-                  loading={createAndSend.isPending}
-                  disabled={!clientId || createReport.isPending}
-                  onClick={() => { setError(''); createAndSend.mutate(); }}
+                  loading={sendGroupReport.isPending}
+                  onClick={() => { setError(''); sendGroupReport.mutate(); }}
                 >
-                  Send to Client
-                </Button>
-              </>
-            ) : editing ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => setEditing(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="outline"
-                  loading={updateReport.isPending}
-                  onClick={() => { setError(''); updateReport.mutate(); }}
-                >
-                  Save
-                </Button>
-                <Button
-                  loading={sendReport.isPending}
-                  onClick={() => { setError(''); sendReport.mutate(); }}
-                >
-                  Update & Resend
+                  Send to All ({groupParticipants.length || qsAppointmentIds.length})
                 </Button>
               </>
             ) : (

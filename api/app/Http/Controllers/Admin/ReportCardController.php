@@ -99,6 +99,54 @@ class ReportCardController extends Controller
         return response()->json(['data' => $reportCard->load(['user:id,name,email', 'appointment.dogs', 'appointment.user:id,name,email'])]);
     }
 
+    /**
+     * All sibling report cards sharing a group_report_id (a Group Hike
+     * report written once for every participant) — so the edit page can
+     * show "Sent to: Alice, Bob, Carol" and so Update/Send can act on the
+     * whole group instead of just the one row the walker happened to open.
+     */
+    public function showGroup(Request $request, string $groupReportId): JsonResponse
+    {
+        $this->ensureGroupReportColumn();
+
+        $reports = VisitReport::with(['user:id,name,email', 'appointment.dogs'])
+            ->where('group_report_id', $groupReportId)
+            ->get();
+        abort_if($reports->isEmpty(), 404);
+
+        if ($request->user()->role === 'team_member') {
+            foreach ($reports as $r) {
+                $this->ensureTeamMemberOwnsClient($request, $r->user_id);
+            }
+        }
+
+        return response()->json(['data' => $reports]);
+    }
+
+    /**
+     * Adds group_report_id to visit_reports tables created before Group
+     * Hike combined reports existed.
+     */
+    private function ensureGroupReportColumn(): void
+    {
+        if (!Schema::hasColumn('visit_reports', 'group_report_id')) {
+            try {
+                Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('group_report_id', 36)->nullable()->after('appointment_id');
+                });
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'visit_reports', 'column' => 'group_report_id'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
+    }
+
     // ── Create / Update ───────────────────────────────────────────────────────
 
     public function store(Request $request): JsonResponse
@@ -185,6 +233,90 @@ class ReportCardController extends Controller
         }
 
         return response()->json(['data' => $report->fresh(['user', 'appointment'])], 201);
+    }
+
+    /**
+     * Writes ONE report card and fans it out into a separate VisitReport
+     * row per hike participant (preserving the existing one-report-per-
+     * appointment/client invariant everywhere else in the app), all
+     * stamped with the same group_report_id so they can be edited/sent
+     * together. Each client only ever sees their own row — the shared
+     * content (notes/checklist/photos) is simply identical across rows.
+     */
+    public function storeGroup(Request $request): JsonResponse
+    {
+        $this->ensureGroupReportColumn();
+
+        $data = $request->validate([
+            'appointment_ids'      => 'required|array|min:2',
+            'appointment_ids.*'    => 'integer|exists:appointments,id',
+            'dog_ids'              => 'nullable|array',
+            'dog_ids.*'            => 'integer|exists:dogs,id',
+            'arrival_time'         => 'nullable|date',
+            'departure_time'       => 'nullable|date',
+            'checklist'            => 'nullable|array',
+            'special_trip_details' => 'nullable|string|max:255',
+            'notes'                => 'nullable|string|max:5000',
+            'dog_data'             => 'nullable|json',
+            'photos'               => 'nullable|array',
+            'photos.*'             => 'file|max:20480',
+        ]);
+
+        $appointments = Appointment::whereIn('id', $data['appointment_ids'])->get();
+        abort_if($appointments->count() !== count(array_unique($data['appointment_ids'])), 422, 'One or more appointments not found.');
+
+        if ($request->user()->role === 'team_member') {
+            foreach ($appointments as $appt) {
+                $this->ensureTeamMemberOwnsClient($request, $appt->user_id);
+            }
+        }
+
+        $checklist = isset($data['checklist']) ? array_map('boolval', $data['checklist']) : null;
+        $dogData = isset($data['dog_data']) ? json_decode($data['dog_data'], true) : null;
+        $groupId = (string) \Illuminate\Support\Str::uuid();
+
+        $reports = [];
+        try {
+            foreach ($appointments as $appt) {
+                $reports[] = VisitReport::create(array_filter([
+                    'user_id'              => $appt->user_id,
+                    'appointment_id'       => $appt->id,
+                    'group_report_id'      => $groupId,
+                    'dog_ids'              => $data['dog_ids'] ?? null,
+                    'arrival_time'         => $data['arrival_time'] ?? null,
+                    'departure_time'       => $data['departure_time'] ?? null,
+                    'checklist'            => $checklist,
+                    'special_trip_details' => $data['special_trip_details'] ?? null,
+                    'notes'                => $data['notes'] ?? null,
+                    'dog_data'             => $dogData,
+                ], fn($v) => $v !== null));
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Store failed: ' . $e->getMessage()], 422);
+        }
+
+        // Each sibling gets its OWN copy of every photo (not a shared path)
+        // so deleting/purging one client's report can never break another
+        // client's already-sent photos.
+        if ($request->hasFile('photos')) {
+            try {
+                foreach ($reports as $report) {
+                    $paths = collect($request->file('photos'))
+                        ->map(fn($file) => $file->store("report_cards/{$report->id}", 'local'))
+                        ->all();
+                    $report->update(['photo_paths' => $paths]);
+                }
+            } catch (\Throwable $e) {
+                return response()->json(['message' => 'Reports saved but photo upload failed: ' . $e->getMessage()], 201);
+            }
+        }
+
+        return response()->json([
+            'data' => [
+                'group_report_id' => $groupId,
+                'reports'         => collect($reports)->map(fn($r) => $r->fresh(['user', 'appointment']))->values(),
+            ],
+        ], 201);
     }
 
     /**
@@ -278,6 +410,72 @@ class ReportCardController extends Controller
         return response()->json(['data' => $reportCard->fresh(['user', 'appointment'])]);
     }
 
+    /**
+     * Edits every sibling report sharing a group_report_id at once —
+     * since they're meant to carry identical content, editing "the"
+     * report after it was created really means editing all of them.
+     * Each sibling still gets its own copy of any newly-added photos.
+     */
+    public function updateGroup(Request $request, string $groupReportId): JsonResponse
+    {
+        $this->ensureGroupReportColumn();
+
+        $reports = VisitReport::where('group_report_id', $groupReportId)->get();
+        abort_if($reports->isEmpty(), 404);
+
+        if ($request->user()->role === 'team_member') {
+            foreach ($reports as $r) {
+                $this->ensureTeamMemberOwnsClient($request, $r->user_id);
+            }
+        }
+
+        $data = $request->validate([
+            'arrival_time'         => 'sometimes|nullable|date',
+            'departure_time'       => 'sometimes|nullable|date',
+            'checklist'            => 'sometimes|nullable|array',
+            'special_trip_details' => 'sometimes|nullable|string|max:255',
+            'notes'                => 'sometimes|nullable|string|max:5000',
+            'dog_data'             => 'sometimes|nullable|json',
+            'photos'               => 'sometimes|array',
+            'photos.*'             => 'file|max:20480',
+        ]);
+
+        if (isset($data['checklist'])) {
+            $data['checklist'] = array_map('boolval', $data['checklist']);
+        }
+        if (isset($data['dog_data'])) {
+            $data['dog_data'] = json_decode($data['dog_data'], true);
+        }
+
+        unset($data['photos']);
+        try {
+            foreach ($reports as $r) {
+                $r->update($data);
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Update failed: ' . $e->getMessage()], 422);
+        }
+
+        if ($request->hasFile('photos')) {
+            try {
+                foreach ($reports as $report) {
+                    $existing = $report->photo_paths ?? [];
+                    $newPaths = collect($request->file('photos'))
+                        ->map(fn($file) => $file->store("report_cards/{$report->id}", 'local'))
+                        ->all();
+                    $report->update(['photo_paths' => array_merge($existing, $newPaths)]);
+                }
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'data' => ['group_report_id' => $groupReportId, 'reports' => $reports->fresh()],
+                    'message' => 'Saved but photo upload failed: ' . $e->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json(['data' => ['group_report_id' => $groupReportId, 'reports' => $reports->fresh()]]);
+    }
+
     public function destroy(VisitReport $reportCard): JsonResponse
     {
         abort_unless(!$reportCard->sent_at, 422, 'Cannot delete a sent report card.');
@@ -309,6 +507,39 @@ class ReportCardController extends Controller
         }
 
         return response()->json(['message' => 'Report card sent.', 'data' => $reportCard->fresh()]);
+    }
+
+    /**
+     * Sends every sibling report sharing a group_report_id — each client
+     * still gets their own personalized email/chat message (handled by
+     * the existing single-report send() below, unchanged), just with
+     * identical notes/checklist/photos.
+     */
+    public function sendGroup(Request $request, string $groupReportId): JsonResponse
+    {
+        $reports = VisitReport::where('group_report_id', $groupReportId)->get();
+        abort_if($reports->isEmpty(), 404);
+
+        if ($request->user()->role === 'team_member') {
+            foreach ($reports as $r) {
+                $this->ensureTeamMemberOwnsClient($request, $r->user_id);
+            }
+        }
+
+        $errors = [];
+        foreach ($reports as $r) {
+            try {
+                $this->service->send($r);
+            } catch (\Throwable $e) {
+                $errors[] = ($r->user->name ?? "client #{$r->user_id}") . ': ' . $e->getMessage();
+            }
+        }
+
+        if ($errors) {
+            return response()->json(['message' => 'Some sends failed: ' . implode('; ', $errors)], 422);
+        }
+
+        return response()->json(['message' => 'Report cards sent to all participants.', 'data' => $reports->fresh()]);
     }
 
     // ── Photos ────────────────────────────────────────────────────────────────
