@@ -1,6 +1,6 @@
 # Purge Old Report Card Photos
 #
-# Deletes report card photos older than 30 days (measured from when the
+# Deletes report card photos older than 1 year (measured from when the
 # report was sent) to keep storage from growing unbounded. GoDaddy has no
 # CLI/SSH access to run `php artisan schedule:run`, so this hits an
 # HTTP endpoint on the live site instead, gated by a shared secret.

@@ -64,7 +64,7 @@ Route::get('/clear-cache-9x7k', function () {
 });
 
 // Hit on a schedule by a GitHub Actions cron workflow to purge report card
-// photos older than 30 days — GoDaddy has no CLI/SSH access to run
+// photos older than 1 year — GoDaddy has no CLI/SSH access to run
 // `php artisan schedule:run`, so this is triggered over HTTP instead.
 // Gated by a shared secret (?key=...), same pattern as the inbound email
 // webhook below.

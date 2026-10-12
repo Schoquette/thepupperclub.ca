@@ -582,7 +582,7 @@ class ReportCardController extends Controller
     }
 
     /**
-     * Deletes report card photos older than 30 days (measured from
+     * Deletes report card photos older than 1 year (measured from
      * sent_at) to keep storage from growing unbounded. Unauthenticated
      * route gated by a shared secret — triggered on a schedule by a
      * GitHub Actions cron workflow, since GoDaddy has no CLI/SSH access
@@ -605,7 +605,7 @@ class ReportCardController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $cutoff = now()->subDays(30);
+        $cutoff = now()->subYear();
         $reportsCleared = 0;
         $filesDeleted = 0;
 
