@@ -74,6 +74,7 @@ Route::get('/tasks/purge-old-report-photos', [AdminReportCardController::class, 
 Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/auth/accept-invite',  [AuthController::class, 'acceptInvite']);
 Route::post('/webhooks/stripe',     [StripeWebhookController::class, 'handle']);
 Route::post('/webhooks/email',      [\App\Http\Controllers\InboundEmailController::class, 'handle']);
 Route::post('/contact',             [ContactController::class, 'submit'])->middleware('throttle:5,1');

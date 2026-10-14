@@ -23,8 +23,10 @@ export default function SetPasswordPage() {
     setError('');
     setLoading(true);
     try {
-      // Use reset-password endpoint (works for first-time setup too)
-      await api.post('/auth/reset-password', {
+      // Dedicated invite-accept endpoint — validates against the 7-day
+      // invite token window, not the 4-hour forgot-password window that
+      // /auth/reset-password enforces.
+      await api.post('/auth/accept-invite', {
         token,
         email,
         password,

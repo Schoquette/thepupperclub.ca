@@ -100,6 +100,46 @@ class AuthController extends Controller
         return response()->json(['message' => __($status)]);
     }
 
+    /**
+     * First-time password setup from an invite email (client or team
+     * member). Uses the default 'users' broker (7-day expiry,
+     * config/auth.php) instead of resetPassword()'s 'password-resets'
+     * broker (4 hours) — invite tokens are minted via Password::createToken()
+     * with no broker specified, i.e. the 'users' broker, so they must be
+     * validated against that same broker's TTL or they appear to expire
+     * in 4 hours instead of the advertised 7 days.
+     */
+    public function acceptInvite(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token'    => 'required',
+            'email'    => 'required|email',
+            'password' => ['required', 'confirmed', PasswordRule::min(8)->mixedCase()->numbers()],
+        ]);
+
+        $status = Password::broker('users')->reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->update(['password' => Hash::make($password), 'status' => 'active']);
+                $user->tokens()->delete();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            $resetUser = User::where('email', $request->email)->first();
+            if ($resetUser) {
+                AuditLog::recordEvent($resetUser, 'password_reset');
+                $resetUser->onboardingSteps()->updateOrCreate(
+                    ['step' => 'set_password'],
+                    ['completed_at' => now()]
+                );
+            }
+            return response()->json(['message' => 'Password set successfully.']);
+        }
+
+        return response()->json(['message' => __($status)], 422);
+    }
+
     public function resetPassword(Request $request): JsonResponse
     {
         $request->validate([
