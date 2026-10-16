@@ -131,6 +131,7 @@ function getScheduleWarnings(
   durationMinutes: number,
   appointments: any[],
   excludeId?: number,
+  groupHikeId?: string,
 ): ScheduleWarning[] {
   if (!assignedTo || !scheduledTime || !durationMinutes) return [];
 
@@ -148,6 +149,9 @@ function getScheduleWarnings(
     if (appt.id === excludeId) continue;
     if (appt.status === 'cancelled') continue;
     if (appt.assigned_admin?.id !== assignedToNum) continue;
+    // Siblings on the same Group Hike are meant to be at the identical
+    // time with the same walker — that's not a scheduling conflict.
+    if (groupHikeId && appt.group_hike_id === groupHikeId) continue;
 
     const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
     const otherStart = new Date(localStr).getTime();
@@ -916,7 +920,9 @@ export default function AdminCalendarPage() {
     newForm.scheduled_time,
     newForm.duration_minutes,
     data ?? [],
-  ), [newForm.assigned_to, newForm.scheduled_time, newForm.duration_minutes, data]);
+    undefined,
+    newForm.group_hike_id || undefined,
+  ), [newForm.assigned_to, newForm.scheduled_time, newForm.duration_minutes, data, newForm.group_hike_id]);
 
   return (
     <div className="space-y-6">
@@ -1195,6 +1201,7 @@ export default function AdminCalendarPage() {
                         assigned_to: selected.assigned_admin?.id?.toString() ?? '',
                         recurrence_rule: selected.recurrence_rule,
                         recurrence_parent_id: selected.recurrence_parent_id,
+                        group_hike_id: selected.group_hike_id,
                       });
                       setEditing(true);
                       setEditError('');
@@ -2545,7 +2552,8 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
     editForm.duration_minutes,
     appointments,
     editForm.id,
-  ), [editForm.assigned_to, editForm.scheduled_time, editForm.duration_minutes, appointments, editForm.id]);
+    editForm.group_hike_id || undefined,
+  ), [editForm.assigned_to, editForm.scheduled_time, editForm.duration_minutes, appointments, editForm.id, editForm.group_hike_id]);
 
   return (
     <div className="space-y-4">
