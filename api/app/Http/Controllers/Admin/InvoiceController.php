@@ -57,6 +57,7 @@ class InvoiceController extends Controller
             'invoice_date'         => 'nullable|date',
             'notes'                => 'nullable|string',
             'apply_cc_surcharge'   => 'sometimes|boolean',
+            'cc_surcharge_rate'    => ['sometimes', 'nullable', 'numeric', \Illuminate\Validation\Rule::in(InvoiceService::CC_SURCHARGE_RATES)],
             'billing_period_start' => 'nullable|date',
             'billing_period_end'   => 'nullable|date',
             'line_items'           => 'required|array|min:1',
@@ -79,6 +80,7 @@ class InvoiceController extends Controller
             $data['apply_cc_surcharge'] ?? false,
             $data['billing_period_start'] ?? null,
             $data['billing_period_end'] ?? null,
+            $data['cc_surcharge_rate'] ?? null,
         );
 
         if (!empty($data['invoice_date']) && \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'invoice_date')) {
@@ -124,6 +126,7 @@ class InvoiceController extends Controller
             'invoice_date'       => 'sometimes|nullable|date',
             'notes'              => 'sometimes|nullable|string',
             'apply_cc_surcharge' => 'sometimes|boolean',
+            'cc_surcharge_rate'  => ['sometimes', 'nullable', 'numeric', \Illuminate\Validation\Rule::in(InvoiceService::CC_SURCHARGE_RATES)],
             'billing_method'              => 'sometimes|nullable|in:credit_card,e_transfer,cash',
             'line_items'                  => 'sometimes|array|min:1',
             'line_items.*.description'    => 'required_with:line_items|string',
@@ -136,7 +139,14 @@ class InvoiceController extends Controller
         ]);
 
         if (array_key_exists('apply_cc_surcharge', $data)) {
-            $invoice->update(['apply_cc_surcharge' => $data['apply_cc_surcharge']]);
+            $invoice->update([
+                'apply_cc_surcharge' => $data['apply_cc_surcharge'],
+                'cc_surcharge_rate'  => $data['apply_cc_surcharge']
+                    ? ($data['cc_surcharge_rate'] ?? $invoice->cc_surcharge_rate ?? 0.02)
+                    : null,
+            ]);
+        } elseif (array_key_exists('cc_surcharge_rate', $data) && $invoice->apply_cc_surcharge) {
+            $invoice->update(['cc_surcharge_rate' => $data['cc_surcharge_rate'] ?? 0.02]);
         }
 
         if (isset($data['line_items'])) {
@@ -145,7 +155,7 @@ class InvoiceController extends Controller
         }
 
         // Recalculate if line items or surcharge changed
-        if (isset($data['line_items']) || array_key_exists('apply_cc_surcharge', $data)) {
+        if (isset($data['line_items']) || array_key_exists('apply_cc_surcharge', $data) || array_key_exists('cc_surcharge_rate', $data)) {
             $this->invoiceService->recalculate($invoice);
         }
 

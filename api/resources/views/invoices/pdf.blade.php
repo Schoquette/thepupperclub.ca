@@ -249,8 +249,9 @@
         </tr>
         @endif
         @if($invoice->credit_card_surcharge > 0)
+        @php $surchargePct = rtrim(rtrim(number_format(($invoice->cc_surcharge_rate ?? 0.02) * 100, 1), '0'), '.'); @endphp
         <tr>
-          <td class="t-label">CC Surcharge (2%)</td>
+          <td class="t-label">CC Surcharge ({{ $surchargePct }}%)</td>
           <td class="t-amount">${{ number_format($invoice->credit_card_surcharge, 2) }}</td>
         </tr>
         @endif
@@ -285,7 +286,8 @@
     <div class="payment-box">
       <p class="payment-title">Payment Terms &mdash; {{ $methodLabel }}</p>
       @if($billingMethod === 'credit_card')
-      <p class="payment-detail">Charged automatically to card on file. A 2% credit card surcharge is applied.</p>
+      @php $billingSurchargePct = rtrim(rtrim(number_format(($invoice->cc_surcharge_rate ?? 0.02) * 100, 1), '0'), '.'); @endphp
+      <p class="payment-detail">Charged automatically to card on file. A {{ $billingSurchargePct }}% credit card surcharge is applied.</p>
       @elseif($billingMethod === 'e_transfer')
       <p class="payment-detail">Please send your e-Transfer to <strong>sophie@thepupperclub.ca</strong> before the due date.</p>
       @elseif($billingMethod === 'cash')

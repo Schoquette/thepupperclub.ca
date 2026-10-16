@@ -17,7 +17,35 @@ class InvoiceService
         'cash'        => 'Cash',
     ];
     private const GST_RATE       = 0.05;
+    // Default/fallback surcharge rate — used when apply_cc_surcharge is true
+    // but no explicit cc_surcharge_rate was set (e.g. invoices created
+    // before the selectable-rate option existed).
     private const CC_SURCHARGE   = 0.02;
+    public const CC_SURCHARGE_RATES = [0.02, 0.035];
+
+    /**
+     * Adds cc_surcharge_rate to invoices tables created before the
+     * selectable surcharge rate (2% vs 3.5%) existed.
+     */
+    private function ensureCcSurchargeRateColumn(): void
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('invoices', 'cc_surcharge_rate')) {
+            try {
+                \Illuminate\Support\Facades\Schema::table('invoices', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->decimal('cc_surcharge_rate', 5, 4)->nullable()->after('apply_cc_surcharge');
+                });
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'invoices', 'column' => 'cc_surcharge_rate'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
+    }
 
     public function create(
         User $client,
@@ -27,7 +55,10 @@ class InvoiceService
         ?bool $applyCcSurcharge = null,
         ?string $billingPeriodStart = null,
         ?string $billingPeriodEnd = null,
+        ?float $ccSurchargeRate = null,
     ): Invoice {
+        $this->ensureCcSurchargeRateColumn();
+
         $billingMethod = $client->clientProfile?->billing_method ?? 'credit_card';
 
         // Auto-apply CC surcharge if billing method is credit_card (unless explicitly overridden)
@@ -42,6 +73,7 @@ class InvoiceService
             'due_date'             => $dueDate,
             'notes'                => $notes,
             'apply_cc_surcharge'   => $applyCcSurcharge,
+            'cc_surcharge_rate'    => $applyCcSurcharge ? ($ccSurchargeRate ?? self::CC_SURCHARGE) : null,
             'billing_method'       => $billingMethod,
             'billing_period_start' => $billingPeriodStart,
             'billing_period_end'   => $billingPeriodEnd,
@@ -97,13 +129,15 @@ class InvoiceService
 
     public function recalculate(Invoice $invoice): void
     {
+        $this->ensureCcSurchargeRateColumn();
         $invoice->refresh();
         $subtotal  = $invoice->lineItems->sum('total');
         $taxable   = $invoice->lineItems->where('gst_exempt', false)->sum('total');
         $gst       = round($taxable * self::GST_RATE, 2);
 
+        $rate      = (float) ($invoice->cc_surcharge_rate ?? self::CC_SURCHARGE);
         $surcharge = $invoice->apply_cc_surcharge
-            ? round(($subtotal + $gst) * self::CC_SURCHARGE, 2)
+            ? round(($subtotal + $gst) * $rate, 2)
             : 0;
 
         $total = $subtotal + $gst + $surcharge + $invoice->tip;

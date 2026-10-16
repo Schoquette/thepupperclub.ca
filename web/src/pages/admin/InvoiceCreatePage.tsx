@@ -64,7 +64,10 @@ function lineTotal(l: { quantity: number; unit_price: string; discount_type: Dis
 }
 
 const GST_RATE = 0.05;
-const CC_SURCHARGE = 0.02;
+const CC_SURCHARGE_RATES = [
+  { value: 0.02, label: '2%' },
+  { value: 0.035, label: '3.5%' },
+];
 
 export default function InvoiceCreatePage() {
   const navigate = useNavigate();
@@ -76,6 +79,7 @@ export default function InvoiceCreatePage() {
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
   const [applyCcSurcharge, setApplyCcSurcharge] = useState(false);
+  const [ccSurchargeRate, setCcSurchargeRate] = useState(0.02);
   const [error, setError] = useState('');
   const dragIndex = useRef<number | null>(null);
   const dragOverIndex = useRef<number | null>(null);
@@ -182,7 +186,7 @@ export default function InvoiceCreatePage() {
   const subtotal = lines.reduce((sum, l) => sum + lineTotal(l), 0);
   const taxable = lines.reduce((sum, l) => l.gst_exempt ? sum : sum + lineTotal(l), 0);
   const gst = taxable * GST_RATE;
-  const surcharge = applyCcSurcharge && subtotal > 0 ? (subtotal + gst) * CC_SURCHARGE : 0;
+  const surcharge = applyCcSurcharge && subtotal > 0 ? (subtotal + gst) * ccSurchargeRate : 0;
   const total = subtotal + gst + surcharge;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -198,6 +202,7 @@ export default function InvoiceCreatePage() {
       invoice_date: invoiceDate || undefined,
       notes: notes || undefined,
       apply_cc_surcharge: applyCcSurcharge,
+      cc_surcharge_rate: applyCcSurcharge ? ccSurchargeRate : undefined,
       line_items: validLines.map(l => ({
         description:    l.description,
         quantity:       Number(l.quantity),
@@ -458,8 +463,26 @@ export default function InvoiceCreatePage() {
               onChange={e => setApplyCcSurcharge(e.target.checked)}
               className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
             />
-            <span className="text-sm text-espresso font-medium">Apply credit card surcharge (2%)</span>
+            <span className="text-sm text-espresso font-medium">Apply credit card surcharge</span>
           </label>
+          {applyCcSurcharge && (
+            <div className="flex gap-2 mt-2 ml-7">
+              {CC_SURCHARGE_RATES.map(r => (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => setCcSurchargeRate(r.value)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    ccSurchargeRate === r.value
+                      ? 'bg-gold text-white border-gold'
+                      : 'border-taupe text-taupe hover:border-gold/60'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
           {userId && (
             <p className="text-xs text-taupe mt-2">
               Client billing method: <span className="font-semibold">{{ credit_card: 'Credit Card', e_transfer: 'E-Transfer', cash: 'Cash' }[clientBillingMethod] ?? clientBillingMethod}</span>
@@ -474,7 +497,7 @@ export default function InvoiceCreatePage() {
               {[
                 { label: 'Subtotal',   value: subtotal },
                 { label: 'GST (5%)',   value: gst },
-                ...(applyCcSurcharge ? [{ label: 'CC Surcharge (2%)', value: surcharge }] : []),
+                ...(applyCcSurcharge ? [{ label: `CC Surcharge (${CC_SURCHARGE_RATES.find(r => r.value === ccSurchargeRate)?.label})`, value: surcharge }] : []),
               ].map(row => (
                 <div key={row.label} className="flex justify-between text-taupe">
                   <span>{row.label}</span>

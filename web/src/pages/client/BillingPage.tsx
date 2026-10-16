@@ -66,7 +66,7 @@ function AddCardForm({ onSuccess }: { onSuccess: () => void }) {
 
 
 const METHOD_OPTIONS = [
-  { value: 'credit_card', label: 'Credit Card (2% fee)', icon: CreditCard },
+  { value: 'credit_card', label: 'Credit Card (surcharge applies)', icon: CreditCard },
   { value: 'e_transfer', label: 'E-Transfer (no fee)', icon: ArrowRightLeft },
   { value: 'cash', label: 'Cash (no fee)', icon: Banknote },
 ];
@@ -218,7 +218,7 @@ export default function ClientBillingPage() {
                     {opt.label}
                   </div>
                   {opt.value === 'credit_card' && (
-                    <div className="text-xs text-taupe mt-0.5">A 2% transaction fee applies to credit card payments</div>
+                    <div className="text-xs text-taupe mt-0.5">A transaction fee applies to credit card payments</div>
                   )}
                   {opt.value === 'e_transfer' && selected && (
                     <div className="text-xs text-taupe mt-0.5">Send to sophie@thepupperclub.ca before your billing date</div>
@@ -277,7 +277,7 @@ export default function ClientBillingPage() {
 
           <div className="mt-4 p-3 bg-gold/5 border border-gold/20 rounded-lg">
             <p className="text-xs text-espresso">
-              A 2% credit card surcharge will be added to all invoices paid by credit card.
+              A credit card surcharge will be added to all invoices paid by credit card.
               Your payment information is securely stored by Stripe and never touches our servers.
             </p>
           </div>

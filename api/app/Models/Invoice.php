@@ -24,6 +24,7 @@ class Invoice extends Model
         'stripe_invoice_id',
         'notes',
         'apply_cc_surcharge',
+        'cc_surcharge_rate',
         'billing_method',
         'billing_period_start',
         'billing_period_end',
@@ -43,6 +44,7 @@ class Invoice extends Model
             'invoice_date'           => 'date',
             'paid_at'                => 'datetime',
             'apply_cc_surcharge'     => 'boolean',
+            'cc_surcharge_rate'      => 'decimal:4',
             'billing_period_start'   => 'date',
             'billing_period_end'     => 'date',
         ];

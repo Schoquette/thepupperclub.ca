@@ -319,7 +319,7 @@ export default function ClientInvoiceDetailPage() {
             {[
               { label: 'Subtotal', value: displaySubtotal },
               displayGst > 0 && { label: 'GST (5%)', value: displayGst },
-              Number(invoice.credit_card_surcharge) > 0 && { label: 'CC Surcharge (2%)', value: invoice.credit_card_surcharge },
+              Number(invoice.credit_card_surcharge) > 0 && { label: `CC Surcharge (${Math.round(Number(invoice.cc_surcharge_rate ?? 0.02) * 1000) / 10}%)`, value: invoice.credit_card_surcharge },
               Number(invoice.tip) > 0 && { label: 'Tip', value: invoice.tip },
             ].filter(Boolean).map((row: any) => (
               <div key={row.label} className="flex justify-between py-0.5">
@@ -346,7 +346,7 @@ export default function ClientInvoiceDetailPage() {
                   Payment Terms &mdash; {METHOD_LABELS[method] ?? method}
                 </div>
                 {method === 'credit_card' && (
-                  <p className="text-taupe text-xs">Charged to card on file when the invoice is sent. A 2% credit card surcharge is applied.</p>
+                  <p className="text-taupe text-xs">Charged to card on file when the invoice is sent. A {Math.round(Number(invoice.cc_surcharge_rate ?? 0.02) * 1000) / 10}% credit card surcharge is applied.</p>
                 )}
                 {method === 'e_transfer' && (
                   <p className="text-taupe text-xs">Please send your e-Transfer to sophie@thepupperclub.ca before the due date.</p>
