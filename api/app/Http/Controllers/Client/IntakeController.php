@@ -23,6 +23,7 @@ class IntakeController extends Controller
     public function show(Request $request): JsonResponse
     {
         $this->ensureWalkLengthIsJsonArray();
+        $this->ensureInteractionColumnsAreJsonArray();
         $user = $request->user();
         return response()->json([
             'data' => $user->load(['clientProfile', 'dogs', 'homeAccess']),
@@ -54,6 +55,36 @@ class IntakeController extends Controller
                     'created_at' => now(),
                 ]);
             } catch (\Throwable $logError) {}
+        }
+    }
+
+    /**
+     * See Admin\DogController::ensureInteractionColumnsAreJsonArray() —
+     * same VARCHAR→JSON conversion, duplicated here since this intake
+     * controller is a fourth independent write path to the same columns.
+     */
+    private function ensureInteractionColumnsAreJsonArray(): void
+    {
+        foreach (['interaction_strangers', 'interaction_children'] as $column) {
+            $col = DB::selectOne("SHOW COLUMNS FROM dogs WHERE Field = '{$column}'");
+            if (!$col || stripos($col->Type, 'json') !== false) {
+                continue;
+            }
+
+            try {
+                DB::statement("UPDATE dogs SET {$column} = NULL WHERE {$column} = ''");
+                DB::statement("UPDATE dogs SET {$column} = CONCAT('[\"', {$column}, '\"]') WHERE {$column} IS NOT NULL");
+                DB::statement("ALTER TABLE dogs MODIFY COLUMN {$column} JSON NULL");
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'dogs', 'column' => $column],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
         }
     }
 
@@ -170,6 +201,7 @@ class IntakeController extends Controller
     private function applyFormData(Request $request, User $client): void
     {
         $this->ensureWalkLengthIsJsonArray();
+        $this->ensureInteractionColumnsAreJsonArray();
 
         // User fields (clients can update their own name but not email)
         if ($request->has('name') && $request->name) {

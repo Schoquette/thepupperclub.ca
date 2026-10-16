@@ -16,6 +16,8 @@ class DogController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->ensureInteractionColumnsAreJsonArray();
+
         $query = Dog::with(['user', 'vaccinationRecords'])
             ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->active !== null, function ($q) use ($request) {
@@ -49,6 +51,7 @@ class DogController extends Controller
     public function store(Request $request): JsonResponse
     {
         $this->ensureAgeColumns();
+        $this->ensureInteractionColumnsAreJsonArray();
         $data = $this->validated($request);
         if (!empty($data['age_estimate']) && empty($data['age_estimate_date'])) {
             $data['age_estimate_date'] = now()->toDateString();
@@ -60,12 +63,14 @@ class DogController extends Controller
 
     public function show(Dog $dog): JsonResponse
     {
+        $this->ensureInteractionColumnsAreJsonArray();
         return response()->json(['data' => $dog->load(['user', 'vaccinationRecords'])]);
     }
 
     public function update(Request $request, Dog $dog): JsonResponse
     {
         $this->ensureAgeColumns();
+        $this->ensureInteractionColumnsAreJsonArray();
         $data = $this->validated($request);
         if (array_key_exists('age_estimate', $data) && $data['age_estimate'] != $dog->age_estimate) {
             $data['age_estimate_date'] = $data['age_estimate'] !== null ? now()->toDateString() : null;
@@ -151,6 +156,38 @@ class DogController extends Controller
         }
     }
 
+    /**
+     * interaction_strangers/interaction_children were originally single
+     * VARCHAR values; converting to multi-select JSON arrays (matching
+     * interaction_dogs) so a dog can have more than one descriptor.
+     * Wraps any existing single value into a 1-element array before
+     * changing the column type, so nobody's existing data is lost.
+     */
+    private function ensureInteractionColumnsAreJsonArray(): void
+    {
+        foreach (['interaction_strangers', 'interaction_children'] as $column) {
+            $col = DB::selectOne("SHOW COLUMNS FROM dogs WHERE Field = '{$column}'");
+            if (!$col || stripos($col->Type, 'json') !== false) {
+                continue;
+            }
+
+            try {
+                DB::statement("UPDATE dogs SET {$column} = NULL WHERE {$column} = ''");
+                DB::statement("UPDATE dogs SET {$column} = CONCAT('[\"', {$column}, '\"]') WHERE {$column} IS NOT NULL");
+                DB::statement("ALTER TABLE dogs MODIFY COLUMN {$column} JSON NULL");
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'dogs', 'column' => $column],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -193,8 +230,10 @@ class DogController extends Controller
             'energy_level'                    => 'sometimes|nullable|string|max:50',
             'interaction_dogs'                => 'sometimes|nullable|array',
             'interaction_dogs.*'              => 'string|max:50',
-            'interaction_strangers'           => 'sometimes|nullable|string|max:50',
-            'interaction_children'            => 'sometimes|nullable|string|max:50',
+            'interaction_strangers'           => 'sometimes|nullable|array',
+            'interaction_strangers.*'         => 'string|max:50',
+            'interaction_children'            => 'sometimes|nullable|array',
+            'interaction_children.*'          => 'string|max:50',
             'triggers'                        => 'sometimes|nullable|string',
             'medical_conditions'              => 'sometimes|nullable|string',
             'allergies'                       => 'sometimes|nullable|string',

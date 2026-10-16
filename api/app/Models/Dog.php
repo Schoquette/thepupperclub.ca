@@ -84,6 +84,8 @@ class Dog extends Model
             'preferred_walk_style'              => 'array',
             'preferred_gear'                    => 'array',
             'interaction_dogs'                  => 'array',
+            'interaction_strangers'             => 'array',
+            'interaction_children'              => 'array',
             'administer_medication_on_visits'   => 'boolean',
             'mobility_limitations'              => 'boolean',
         ];

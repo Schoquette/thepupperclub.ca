@@ -20,6 +20,8 @@ class DogController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->ensureInteractionColumnsAreJsonArray();
+
         return response()->json([
             'data' => $request->user()->dogs()
                 ->where(fn($q) => $q->where('is_archived', false)->orWhereNull('is_archived'))
@@ -31,6 +33,7 @@ class DogController extends Controller
     public function store(Request $request): JsonResponse
     {
         $this->ensureAgeColumns();
+        $this->ensureInteractionColumnsAreJsonArray();
         $data = $this->validated($request);
 
         if (!empty($data['age_estimate']) && empty($data['age_estimate_date'])) {
@@ -53,6 +56,7 @@ class DogController extends Controller
         abort_unless($dog->user_id === $request->user()->id, 403);
 
         $this->ensureAgeColumns();
+        $this->ensureInteractionColumnsAreJsonArray();
         $oldData = $dog->toArray();
         $data    = $this->validated($request, required: false);
         if (array_key_exists('age_estimate', $data) && $data['age_estimate'] != $dog->age_estimate) {
@@ -152,6 +156,36 @@ class DogController extends Controller
         }
     }
 
+    /**
+     * See Admin\DogController::ensureInteractionColumnsAreJsonArray() —
+     * same VARCHAR→JSON conversion, duplicated here since this is a
+     * second independent write path to the same columns.
+     */
+    private function ensureInteractionColumnsAreJsonArray(): void
+    {
+        foreach (['interaction_strangers', 'interaction_children'] as $column) {
+            $col = DB::selectOne("SHOW COLUMNS FROM dogs WHERE Field = '{$column}'");
+            if (!$col || stripos($col->Type, 'json') !== false) {
+                continue;
+            }
+
+            try {
+                DB::statement("UPDATE dogs SET {$column} = NULL WHERE {$column} = ''");
+                DB::statement("UPDATE dogs SET {$column} = CONCAT('[\"', {$column}, '\"]') WHERE {$column} IS NOT NULL");
+                DB::statement("ALTER TABLE dogs MODIFY COLUMN {$column} JSON NULL");
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'dogs', 'column' => $column],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
+    }
+
     private function validated(Request $request, bool $required = true): array
     {
         $prefix = $required ? 'required|' : 'sometimes|';
@@ -167,6 +201,11 @@ class DogController extends Controller
             'colour'             => 'sometimes|nullable|string',
             'microchip_number'   => 'sometimes|nullable|string',
             'spayed_neutered'    => 'sometimes|boolean',
+            // Note: is_active/is_archived are deliberately NOT accepted here —
+            // only admins can approve/archive a dog (Admin\DogController).
+            'off_leash_approved' => 'sometimes|boolean',
+            'buddy_walks_ok'     => 'sometimes|boolean',
+            'media_consent'      => 'sometimes|boolean',
             'bite_history'       => 'sometimes|boolean',
             'bite_history_notes' => 'sometimes|nullable|string',
             'aggression_notes'   => 'sometimes|nullable|string',
@@ -180,8 +219,10 @@ class DogController extends Controller
             'energy_level'                  => 'sometimes|nullable|string|max:50',
             'interaction_dogs'              => 'sometimes|nullable|array',
             'interaction_dogs.*'            => 'string|max:50',
-            'interaction_strangers'         => 'sometimes|nullable|string|max:50',
-            'interaction_children'          => 'sometimes|nullable|string|max:50',
+            'interaction_strangers'         => 'sometimes|nullable|array',
+            'interaction_strangers.*'       => 'string|max:50',
+            'interaction_children'          => 'sometimes|nullable|array',
+            'interaction_children.*'        => 'string|max:50',
             'triggers'                      => 'sometimes|nullable|string',
             'medical_conditions'            => 'sometimes|nullable|string',
             'allergies'                     => 'sometimes|nullable|string',

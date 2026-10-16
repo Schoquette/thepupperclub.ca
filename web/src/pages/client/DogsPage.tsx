@@ -110,14 +110,15 @@ const EMPTY_FORM = {
   date_of_birth: '', age_estimate: '', adoptaversary: '', weight_kg: '',
   colour: '', microchip_number: '',
   spayed_neutered: false, special_instructions: '',
+  off_leash_approved: false, buddy_walks_ok: false, media_consent: false,
   vet_name: '', vet_phone: '', vet_address: '',
   bite_history: false, bite_history_notes: '', aggression_notes: '',
   // Intake fields
   personality_description: '',
   energy_level: '',
   interaction_dogs: [] as string[],
-  interaction_strangers: '',
-  interaction_children: '',
+  interaction_strangers: [] as string[],
+  interaction_children: [] as string[],
   triggers: '',
   medical_conditions: '',
   allergies: '',
@@ -152,6 +153,9 @@ function dogToForm(dog: any): DogForm {
     microchip_number: dog.microchip_number ?? '',
     spayed_neutered: !!dog.spayed_neutered,
     special_instructions: dog.special_instructions ?? '',
+    off_leash_approved: !!dog.off_leash_approved,
+    buddy_walks_ok: !!dog.buddy_walks_ok,
+    media_consent: !!dog.media_consent,
     vet_name: dog.vet_name ?? '',
     vet_phone: dog.vet_phone ?? '',
     vet_address: dog.vet_address ?? '',
@@ -161,8 +165,8 @@ function dogToForm(dog: any): DogForm {
     personality_description: dog.personality_description ?? '',
     energy_level: dog.energy_level ?? '',
     interaction_dogs: Array.isArray(dog.interaction_dogs) ? dog.interaction_dogs : (dog.interaction_dogs ? [dog.interaction_dogs] : []),
-    interaction_strangers: dog.interaction_strangers ?? '',
-    interaction_children: dog.interaction_children ?? '',
+    interaction_strangers: Array.isArray(dog.interaction_strangers) ? dog.interaction_strangers : (dog.interaction_strangers ? [dog.interaction_strangers] : []),
+    interaction_children: Array.isArray(dog.interaction_children) ? dog.interaction_children : (dog.interaction_children ? [dog.interaction_children] : []),
     triggers: dog.triggers ?? '',
     medical_conditions: dog.medical_conditions ?? '',
     allergies: dog.allergies ?? '',
@@ -438,6 +442,18 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
             <input type="checkbox" checked={form.spayed_neutered} onChange={e => setForm(f => ({ ...f, spayed_neutered: e.target.checked }))} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
             <span className="text-sm text-espresso">Spayed / Neutered</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={form.off_leash_approved} onChange={e => setForm(f => ({ ...f, off_leash_approved: e.target.checked }))} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
+            <span className="text-sm text-espresso">Off-Leash Approved</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={form.buddy_walks_ok} onChange={e => setForm(f => ({ ...f, buddy_walks_ok: e.target.checked }))} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
+            <span className="text-sm text-espresso">Buddy Walks OK</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={form.media_consent} onChange={e => setForm(f => ({ ...f, media_consent: e.target.checked }))} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />
+            <span className="text-sm text-espresso">Media Consent</span>
+          </label>
         </div>
       </Card>
 
@@ -448,8 +464,8 @@ function DogFormFields({ form, setForm }: { form: DogForm; setForm: React.Dispat
           <Textarea label="Personality Description" rows={3} value={form.personality_description} onChange={e => setForm(f => ({ ...f, personality_description: e.target.value }))} placeholder="Describe your dog's personality…" />
           <RadioPillGroup label="Energy Level" options={ENERGY_OPTIONS} value={form.energy_level} onChange={v => setForm(f => ({ ...f, energy_level: v }))} />
           <CheckboxPillGroup label="Interaction with Other Dogs" options={DOG_INTERACTION_OPTIONS} selected={form.interaction_dogs} onChange={v => setForm(f => ({ ...f, interaction_dogs: v }))} />
-          <RadioPillGroup label="Interaction with Strangers" options={STRANGER_OPTIONS} value={form.interaction_strangers} onChange={v => setForm(f => ({ ...f, interaction_strangers: v }))} />
-          <RadioPillGroup label="Interaction with Children" options={CHILDREN_OPTIONS} value={form.interaction_children} onChange={v => setForm(f => ({ ...f, interaction_children: v }))} />
+          <CheckboxPillGroup label="Interaction with Strangers" options={STRANGER_OPTIONS} selected={form.interaction_strangers} onChange={v => setForm(f => ({ ...f, interaction_strangers: v }))} />
+          <CheckboxPillGroup label="Interaction with Children" options={CHILDREN_OPTIONS} selected={form.interaction_children} onChange={v => setForm(f => ({ ...f, interaction_children: v }))} />
           <Textarea label="Triggers / Fears" rows={2} value={form.triggers} onChange={e => setForm(f => ({ ...f, triggers: e.target.value }))} placeholder="e.g. skateboards, loud noises…" />
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" checked={form.bite_history} onChange={e => setForm(f => ({ ...f, bite_history: e.target.checked }))} className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold" />

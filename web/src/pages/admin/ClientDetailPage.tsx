@@ -119,8 +119,8 @@ interface DogForm {
   personality_description: string;
   energy_level: string;
   interaction_dogs: string[];
-  interaction_strangers: string;
-  interaction_children: string;
+  interaction_strangers: string[];
+  interaction_children: string[];
   triggers: string;
   medical_conditions: string;
   allergies: string;
@@ -167,8 +167,8 @@ function buildDogForm(dog?: any): DogForm {
     personality_description: dog?.personality_description ?? '',
     energy_level:       dog?.energy_level ?? '',
     interaction_dogs:   dog?.interaction_dogs ?? [],
-    interaction_strangers: dog?.interaction_strangers ?? '',
-    interaction_children:  dog?.interaction_children ?? '',
+    interaction_strangers: Array.isArray(dog?.interaction_strangers) ? dog.interaction_strangers : (dog?.interaction_strangers ? [dog.interaction_strangers] : []),
+    interaction_children:  Array.isArray(dog?.interaction_children) ? dog.interaction_children : (dog?.interaction_children ? [dog.interaction_children] : []),
     triggers:           dog?.triggers ?? '',
     medical_conditions: dog?.medical_conditions ?? '',
     allergies:          dog?.allergies ?? '',
@@ -217,8 +217,8 @@ function dogPayload(f: DogForm, userId: number) {
     personality_description: f.personality_description || null,
     energy_level:       f.energy_level || null,
     interaction_dogs:   f.interaction_dogs.length ? f.interaction_dogs : null,
-    interaction_strangers: f.interaction_strangers || null,
-    interaction_children:  f.interaction_children || null,
+    interaction_strangers: f.interaction_strangers.length ? f.interaction_strangers : null,
+    interaction_children:  f.interaction_children.length ? f.interaction_children : null,
     triggers:           f.triggers || null,
     medical_conditions: f.medical_conditions || null,
     allergies:          f.allergies || null,
@@ -426,14 +426,13 @@ function DogEditForm({
         </div>
         <div>
           <label className="label">Size</label>
-          <select className="input" value={form.size} onChange={e => onChange({ size: e.target.value })}>
+          <select className="input" value={form.size === 'extra_large' ? 'xl' : form.size} onChange={e => onChange({ size: e.target.value })}>
             <option value="">Select…</option>
-            <option value="toy">Toy</option>
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
-            <option value="extra_large">Extra Large</option>
-            <option value="xl">XL</option>
+            <option value="toy">Toy (under 10 lbs)</option>
+            <option value="small">Small (under 20 lbs)</option>
+            <option value="medium">Medium (20–55 lbs)</option>
+            <option value="large">Large (55–90 lbs)</option>
+            <option value="xl">Extra Large (90+ lbs)</option>
           </select>
         </div>
         <div>
@@ -482,20 +481,18 @@ function DogEditForm({
           selected={form.interaction_dogs}
           onChange={v => onChange({ interaction_dogs: v })}
         />
-        <div>
-          <label className="label">Interaction with Strangers</label>
-          <select className="input" value={form.interaction_strangers} onChange={e => onChange({ interaction_strangers: e.target.value })}>
-            <option value="">Select…</option>
-            {STRANGER_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="label">Interaction with Children</label>
-          <select className="input" value={form.interaction_children} onChange={e => onChange({ interaction_children: e.target.value })}>
-            <option value="">Select…</option>
-            {CHILDREN_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-          </select>
-        </div>
+        <CheckboxGroup
+          label="Interaction with Strangers"
+          options={STRANGER_OPTIONS}
+          selected={form.interaction_strangers}
+          onChange={v => onChange({ interaction_strangers: v })}
+        />
+        <CheckboxGroup
+          label="Interaction with Children"
+          options={CHILDREN_OPTIONS}
+          selected={form.interaction_children}
+          onChange={v => onChange({ interaction_children: v })}
+        />
         <div>
           <label className="label">Triggers</label>
           <textarea className="input min-h-16 resize-y" value={form.triggers}
@@ -1763,8 +1760,8 @@ function DogCard({ dog, clientId, onSaved }: { dog: any; clientId: number; onSav
                 <ProfileRow label="Personality" value={dog.personality_description} />
                 <ProfileRow label="Energy Level" value={fmtVal(dog.energy_level)} />
                 <ProfileRow label="With Dogs" value={Array.isArray(dog.interaction_dogs) ? dog.interaction_dogs.map((d: string) => fmtVal(d)).join(', ') : fmtVal(dog.interaction_dogs)} />
-                <ProfileRow label="With Strangers" value={fmtVal(dog.interaction_strangers)} />
-                <ProfileRow label="With Children" value={fmtVal(dog.interaction_children)} />
+                <ProfileRow label="With Strangers" value={Array.isArray(dog.interaction_strangers) ? dog.interaction_strangers.map((d: string) => fmtVal(d)).join(', ') : fmtVal(dog.interaction_strangers)} />
+                <ProfileRow label="With Children" value={Array.isArray(dog.interaction_children) ? dog.interaction_children.map((d: string) => fmtVal(d)).join(', ') : fmtVal(dog.interaction_children)} />
                 <ProfileRow label="Triggers" value={dog.triggers} />
                 <ProfileRow label="Walk Style" value={Array.isArray(dog.preferred_walk_style) ? dog.preferred_walk_style.map((s: string) => fmtVal(s)).join(', ') : fmtVal(dog.preferred_walk_style)} />
                 <ProfileRow label="Gear" value={Array.isArray(dog.preferred_gear) ? dog.preferred_gear.map((g: string) => fmtVal(g)).join(', ') : fmtVal(dog.preferred_gear)} />

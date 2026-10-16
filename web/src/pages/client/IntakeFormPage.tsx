@@ -30,11 +30,14 @@ interface DogData {
   sex: string;
   microchip_number: string;
   spayed_neutered: boolean;
+  off_leash_approved: boolean;
+  buddy_walks_ok: boolean;
+  media_consent: boolean;
   personality_description: string;
   energy_level: string;
   interaction_dogs: string[];
-  interaction_strangers: string;
-  interaction_children: string;
+  interaction_strangers: string[];
+  interaction_children: string[];
   triggers: string;
   bite_history: boolean;
   bite_history_notes: string;
@@ -139,11 +142,14 @@ function emptyDog(partial?: Partial<DogData>): DogData {
     sex: '',
     microchip_number: '',
     spayed_neutered: false,
+    off_leash_approved: false,
+    buddy_walks_ok: false,
+    media_consent: false,
     personality_description: '',
     energy_level: '',
     interaction_dogs: [],
-    interaction_strangers: '',
-    interaction_children: '',
+    interaction_strangers: [],
+    interaction_children: [],
     triggers: '',
     bite_history: false,
     bite_history_notes: '',
@@ -188,11 +194,14 @@ function buildForm(data: any): FormData {
     sex: d.sex ?? '',
     microchip_number: d.microchip_number ?? '',
     spayed_neutered: d.spayed_neutered ?? false,
+    off_leash_approved: d.off_leash_approved ?? false,
+    buddy_walks_ok: d.buddy_walks_ok ?? false,
+    media_consent: d.media_consent ?? false,
     personality_description: d.personality_description ?? '',
     energy_level: d.energy_level ?? '',
     interaction_dogs: Array.isArray(d.interaction_dogs) ? d.interaction_dogs : (d.interaction_dogs ? [d.interaction_dogs] : []),
-    interaction_strangers: d.interaction_strangers ?? '',
-    interaction_children: d.interaction_children ?? '',
+    interaction_strangers: Array.isArray(d.interaction_strangers) ? d.interaction_strangers : (d.interaction_strangers ? [d.interaction_strangers] : []),
+    interaction_children: Array.isArray(d.interaction_children) ? d.interaction_children : (d.interaction_children ? [d.interaction_children] : []),
     triggers: d.triggers ?? '',
     bite_history: d.bite_history ?? false,
     bite_history_notes: d.bite_history_notes ?? '',
@@ -807,14 +816,16 @@ function DogCard({
                 }
               </FieldRow>
             </div>
-            <div className="mt-4">
-              {readOnly
-                ? (
-                  <FieldRow label="Spayed / Neutered">
-                    <ReadBool value={dog.spayed_neutered} />
-                  </FieldRow>
-                )
-                : (
+            <div className="mt-4 space-y-2">
+              {readOnly ? (
+                <>
+                  <FieldRow label="Spayed / Neutered"><ReadBool value={dog.spayed_neutered} /></FieldRow>
+                  <FieldRow label="Off-Leash Approved"><ReadBool value={dog.off_leash_approved} /></FieldRow>
+                  <FieldRow label="Buddy Walks OK"><ReadBool value={dog.buddy_walks_ok} /></FieldRow>
+                  <FieldRow label="Media Consent"><ReadBool value={dog.media_consent} /></FieldRow>
+                </>
+              ) : (
+                <>
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -824,8 +835,35 @@ function DogCard({
                     />
                     <span className="text-sm text-espresso">Spayed / Neutered</span>
                   </label>
-                )
-              }
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={dog.off_leash_approved}
+                      onChange={e => set({ off_leash_approved: e.target.checked })}
+                      className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                    />
+                    <span className="text-sm text-espresso">Off-Leash Approved</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={dog.buddy_walks_ok}
+                      onChange={e => set({ buddy_walks_ok: e.target.checked })}
+                      className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                    />
+                    <span className="text-sm text-espresso">Buddy Walks OK</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={dog.media_consent}
+                      onChange={e => set({ media_consent: e.target.checked })}
+                      className="h-4 w-4 rounded border-taupe text-gold focus:ring-gold"
+                    />
+                    <span className="text-sm text-espresso">Media Consent</span>
+                  </label>
+                </>
+              )}
             </div>
           </div>
 
@@ -889,8 +927,8 @@ function DogCard({
               </FieldRow>
               <RadioGroup label="Energy Level" options={ENERGY_OPTIONS} value={dog.energy_level} onChange={v => set({ energy_level: v })} readOnly={readOnly} />
               <CheckboxGroup label="Interaction with Other Dogs" options={DOG_OPTIONS} values={dog.interaction_dogs} onChange={v => set({ interaction_dogs: v })} readOnly={readOnly} />
-              <RadioGroup label="Interaction with Strangers" options={STRANGER_OPTIONS} value={dog.interaction_strangers} onChange={v => set({ interaction_strangers: v })} readOnly={readOnly} />
-              <RadioGroup label="Interaction with Children" options={CHILDREN_OPTIONS} value={dog.interaction_children} onChange={v => set({ interaction_children: v })} readOnly={readOnly} />
+              <CheckboxGroup label="Interaction with Strangers" options={STRANGER_OPTIONS} values={dog.interaction_strangers} onChange={v => set({ interaction_strangers: v })} readOnly={readOnly} />
+              <CheckboxGroup label="Interaction with Children" options={CHILDREN_OPTIONS} values={dog.interaction_children} onChange={v => set({ interaction_children: v })} readOnly={readOnly} />
               <FieldRow label="Triggers">
                 {readOnly
                   ? <ReadValue value={dog.triggers} />
