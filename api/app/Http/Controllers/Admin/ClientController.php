@@ -63,6 +63,7 @@ class ClientController extends Controller
     {
         $this->ensureIsClient($client);
         $this->ensureWalkLengthIsJsonArray();
+        $this->ensureUnitNumberColumn();
 
         return response()->json([
             'data' => $client->load([
@@ -99,7 +100,7 @@ class ClientController extends Controller
      */
     private const TEAM_MEMBER_PROFILE_FIELDS = [
         'id', 'user_id',
-        'phone', 'address', 'city', 'province', 'postal_code',
+        'phone', 'address', 'unit_number', 'city', 'province', 'postal_code',
         'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
         'secondary_contact_name', 'secondary_contact_email', 'secondary_contact_phone',
         'vet_clinic_name', 'vet_phone', 'vet_address',
@@ -112,6 +113,7 @@ class ClientController extends Controller
     public function myShow(Request $request, User $client): JsonResponse
     {
         $this->ensureIsClient($client);
+        $this->ensureUnitNumberColumn();
         abort_unless(
             $client->appointments()->where('assigned_to', $request->user()->id)->exists(),
             403
@@ -129,6 +131,7 @@ class ClientController extends Controller
     {
         $this->ensureIsClient($client);
         $this->ensureWalkLengthIsJsonArray();
+        $this->ensureUnitNumberColumn();
 
         $data = $request->validate([
             'name'   => 'sometimes|string|max:255',
@@ -136,6 +139,7 @@ class ClientController extends Controller
             'status' => 'sometimes|in:active,inactive,pending',
             'profile.phone'                    => 'sometimes|nullable|string',
             'profile.address'                  => 'sometimes|nullable|string',
+            'profile.unit_number'              => 'sometimes|nullable|string|max:20',
             'profile.city'                     => 'sometimes|nullable|string',
             'profile.province'                 => 'sometimes|nullable|string|max:2',
             'profile.postal_code'              => 'sometimes|nullable|string|max:7',
@@ -408,6 +412,26 @@ class ClientController extends Controller
                         'type'       => 'SchemaHealFailed',
                         'message'    => $e->getMessage(),
                         'context'    => ['table' => 'home_accesses', 'column' => 'buzzer_code'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
+    }
+
+    private function ensureUnitNumberColumn(): void
+    {
+        if (!Schema::hasColumn('client_profiles', 'unit_number')) {
+            try {
+                Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('unit_number', 20)->nullable()->after('address');
+                });
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'client_profiles', 'column' => 'unit_number'],
                         'created_at' => now(),
                     ]);
                 } catch (\Throwable $logError) {}

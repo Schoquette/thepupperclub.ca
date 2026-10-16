@@ -11,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class IntakeController extends Controller
@@ -24,10 +25,31 @@ class IntakeController extends Controller
     {
         $this->ensureWalkLengthIsJsonArray();
         $this->ensureInteractionColumnsAreJsonArray();
+        $this->ensureUnitNumberColumn();
         $user = $request->user();
         return response()->json([
             'data' => $user->load(['clientProfile', 'dogs', 'homeAccess']),
         ]);
+    }
+
+    private function ensureUnitNumberColumn(): void
+    {
+        if (!Schema::hasColumn('client_profiles', 'unit_number')) {
+            try {
+                Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('unit_number', 20)->nullable()->after('address');
+                });
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'client_profiles', 'column' => 'unit_number'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+            }
+        }
     }
 
     /**
@@ -202,6 +224,7 @@ class IntakeController extends Controller
     {
         $this->ensureWalkLengthIsJsonArray();
         $this->ensureInteractionColumnsAreJsonArray();
+        $this->ensureUnitNumberColumn();
 
         // User fields (clients can update their own name but not email)
         if ($request->has('name') && $request->name) {
@@ -210,7 +233,7 @@ class IntakeController extends Controller
 
         // Profile fields
         $profileFields = $request->only([
-            'phone', 'address', 'city', 'province', 'postal_code',
+            'phone', 'address', 'unit_number', 'city', 'province', 'postal_code',
             'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
             'secondary_contact_name', 'secondary_contact_email', 'secondary_contact_phone',
             'vet_clinic_name', 'vet_phone', 'vet_address',

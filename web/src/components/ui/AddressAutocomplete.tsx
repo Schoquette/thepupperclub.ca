@@ -4,6 +4,7 @@ import { ProvinceSelect } from './ProvinceSelect';
 
 export interface AddressFields {
   street: string;
+  unit?: string;
   city: string;
   province: string;
   postal_code: string;
@@ -85,7 +86,7 @@ export default function AddressAutocomplete({
       const place = autocomplete.getPlace();
       if (!place.address_components) return;
 
-      const fields: AddressFields = { street: '', city: '', province: '', postal_code: '' };
+      const fields: AddressFields = { street: '', unit: value.unit ?? '', city: '', province: '', postal_code: '' };
       let streetNumber = '';
       let route = '';
 
@@ -97,6 +98,11 @@ export default function AddressAutocomplete({
             break;
           case 'route':
             route = component.long_name;
+            break;
+          case 'subpremise':
+            // Only overwrite a manually-typed unit if Google actually
+            // returned one for this address — don't blank it otherwise.
+            fields.unit = component.long_name;
             break;
           case 'locality':
             fields.city = component.long_name;
@@ -137,21 +143,31 @@ export default function AddressAutocomplete({
       {label && (
         <div className="text-xs font-semibold text-taupe uppercase tracking-wide">{label}</div>
       )}
-      <div>
-        <label className="block text-sm font-medium text-espresso mb-1">
-          {inputLabel ?? 'Street Address'}
-        </label>
-        <input
-          ref={inputRef}
-          type="text"
-          className="input text-sm w-full"
-          placeholder={placeholder ?? 'Start typing an address...'}
-          value={searchValue}
-          onChange={e => {
-            setSearchValue(e.target.value);
-            onChange({ ...value, street: e.target.value });
-          }}
-        />
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className="block text-sm font-medium text-espresso mb-1">
+            {inputLabel ?? 'Street Address'}
+          </label>
+          <input
+            ref={inputRef}
+            type="text"
+            className="input text-sm w-full"
+            placeholder={placeholder ?? 'Start typing an address...'}
+            value={searchValue}
+            onChange={e => {
+              setSearchValue(e.target.value);
+              onChange({ ...value, street: e.target.value });
+            }}
+          />
+        </div>
+        <div className="w-24 flex-shrink-0">
+          <Input
+            label="Unit #"
+            value={value.unit ?? ''}
+            onChange={e => onChange({ ...value, unit: e.target.value })}
+            placeholder="Optional"
+          />
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <Input

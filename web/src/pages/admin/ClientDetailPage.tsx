@@ -30,6 +30,7 @@ interface ProfileForm {
   status: string;
   phone: string;
   address: string;
+  unit_number: string;
   city: string;
   province: string;
   postal_code: string;
@@ -61,6 +62,7 @@ function buildProfileForm(client: any): ProfileForm {
     status:                  client?.status ?? 'active',
     phone:                   p.phone ?? '',
     address:                 p.address ?? '',
+    unit_number:             p.unit_number ?? '',
     city:                    p.city ?? '',
     province:                p.province ?? '',
     postal_code:             p.postal_code ?? '',
@@ -2925,6 +2927,7 @@ export default function AdminClientDetailPage() {
       profile: {
         phone:                   f.phone || null,
         address:                 f.address || null,
+        unit_number:             f.unit_number || null,
         city:                    f.city || null,
         province:                f.province || null,
         postal_code:             f.postal_code || null,
@@ -3145,7 +3148,14 @@ export default function AdminClientDetailPage() {
                 <CardHeader title="Contact Info" />
                 <div className="space-y-4">
                   <FormField label="Phone" name="phone" form={form} onChange={handleProfileChange} type="tel" />
-                  <FormField label="Address" name="address" form={form} onChange={handleProfileChange} />
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <FormField label="Address" name="address" form={form} onChange={handleProfileChange} />
+                    </div>
+                    <div className="w-24 flex-shrink-0">
+                      <FormField label="Unit #" name="unit_number" form={form} onChange={handleProfileChange} />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <FormField label="City" name="city" form={form} onChange={handleProfileChange} />
                     <FormField label="Province" name="province" form={form} onChange={handleProfileChange} />
@@ -3243,6 +3253,7 @@ export default function AdminClientDetailPage() {
                   <Field label="Email" value={client.email} />
                   <Field label="Phone" value={p.phone} />
                   <Field label="Address" value={p.address} />
+                  <Field label="Unit #" value={p.unit_number} />
                   <Field label="City" value={p.city} />
                   <Field label="Province" value={p.province} />
                   <Field label="Postal Code" value={p.postal_code} />

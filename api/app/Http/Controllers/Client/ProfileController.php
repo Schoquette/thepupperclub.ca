@@ -25,10 +25,20 @@ class ProfileController extends Controller
         }
     }
 
+    private function ensureUnitNumberColumn(): void
+    {
+        if (!Schema::hasColumn('client_profiles', 'unit_number')) {
+            Schema::table('client_profiles', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('unit_number', 20)->nullable()->after('address');
+            });
+        }
+    }
+
     public function show(Request $request): JsonResponse
     {
         $this->ensureNotifyColumns();
         $this->ensureWalkLengthIsJsonArray();
+        $this->ensureUnitNumberColumn();
         return response()->json(['data' => $request->user()->load('clientProfile')]);
     }
 
@@ -69,11 +79,13 @@ class ProfileController extends Controller
     {
         $this->ensureNotifyColumns();
         $this->ensureWalkLengthIsJsonArray();
+        $this->ensureUnitNumberColumn();
 
         $data = $request->validate([
             'name'                     => 'sometimes|string|max:255',
             'phone'                    => 'sometimes|nullable|string',
             'address'                  => 'sometimes|nullable|string',
+            'unit_number'              => 'sometimes|nullable|string|max:20',
             'city'                     => 'sometimes|nullable|string',
             'province'                 => 'sometimes|nullable|string|max:2',
             'postal_code'              => 'sometimes|nullable|string|max:7',

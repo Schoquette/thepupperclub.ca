@@ -11,6 +11,7 @@ class ClientProfile extends Model
         'user_id',
         'phone',
         'address',
+        'unit_number',
         'city',
         'province',
         'postal_code',

@@ -69,6 +69,7 @@ interface FormData {
   email: string;
   phone: string;
   address: string;
+  unit_number: string;
   city: string;
   province: string;
   postal_code: string;
@@ -233,6 +234,7 @@ function buildForm(data: any): FormData {
     email: data?.email ?? '',
     phone: p.phone ?? '',
     address: p.address ?? '',
+    unit_number: p.unit_number ?? '',
     city: p.city ?? '',
     province: p.province ?? '',
     postal_code: p.postal_code ?? '',
@@ -1465,6 +1467,7 @@ export default function IntakeFormPage() {
             {readOnly ? (
               <>
                 <FieldRow label="Street Address"><ReadValue value={form.address} /></FieldRow>
+                <FieldRow label="Unit #"><ReadValue value={form.unit_number} /></FieldRow>
                 <FieldRow label="City"><ReadValue value={form.city} /></FieldRow>
                 <FieldRow label="Province"><ReadValue value={form.province} /></FieldRow>
                 <FieldRow label="Postal Code"><ReadValue value={form.postal_code} /></FieldRow>
@@ -1473,8 +1476,8 @@ export default function IntakeFormPage() {
               <div className="sm:col-span-2">
                 <AddressAutocomplete
                   label="Address"
-                  value={{ street: form.address, city: form.city, province: form.province, postal_code: form.postal_code }}
-                  onChange={({ street, city, province, postal_code }) => update({ address: street, city, province, postal_code })}
+                  value={{ street: form.address, unit: form.unit_number, city: form.city, province: form.province, postal_code: form.postal_code }}
+                  onChange={({ street, unit, city, province, postal_code }) => update({ address: street, unit_number: unit ?? '', city, province, postal_code })}
                 />
               </div>
             )}

@@ -101,6 +101,7 @@ export default function ClientProfilePage() {
                   name: profile?.name ?? '',
                   phone: p.phone ?? '',
                   address: p.address ?? '',
+                  unit_number: p.unit_number ?? '',
                   city: p.city ?? '',
                   province: p.province ?? '',
                   postal_code: p.postal_code ?? '',
@@ -121,7 +122,14 @@ export default function ClientProfilePage() {
           <div className="space-y-4">
             <Input label="Full name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <Input label="Phone" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-            <Input label="Address" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <Input label="Address" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+              </div>
+              <div className="w-24 flex-shrink-0">
+                <Input label="Unit #" value={form.unit_number} onChange={e => setForm(f => ({ ...f, unit_number: e.target.value }))} placeholder="Optional" />
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <Input label="City" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
               <ProvinceSelect value={form.province} onChange={v => setForm(f => ({ ...f, province: v }))} />
@@ -154,6 +162,7 @@ export default function ClientProfilePage() {
                 ['Name', profile?.name],
                 ['Phone', p.phone],
                 ['Address', p.address],
+                ['Unit #', p.unit_number],
                 ['City', p.city],
                 ['Province', p.province],
                 ['Postal Code', p.postal_code],
