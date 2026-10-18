@@ -113,6 +113,15 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             $conversation->increment('unread_count_admin');
+
+            $adminPreview = $body !== ''
+                ? $body
+                : (count($attachmentsMeta) === 1 ? '📷 Photo' : '📷 ' . count($attachmentsMeta) . ' photos');
+            try {
+                app(\App\Services\AdminNotificationService::class)->clientMessageReceived($user, $adminPreview);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Admin message-notification failed: {$e->getMessage()}");
+            }
         } else {
             $conversation->increment('unread_count_client');
 
@@ -199,6 +208,12 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             $conversation->increment('unread_count_admin');
+
+            try {
+                app(\App\Services\AdminNotificationService::class)->clientMessageReceived($user, '📷 Photo');
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Admin message-notification failed: {$e->getMessage()}");
+            }
         } else {
             $conversation->increment('unread_count_client');
 

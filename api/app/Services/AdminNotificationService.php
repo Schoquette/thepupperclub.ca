@@ -47,6 +47,17 @@ class AdminNotificationService
     }
 
     /**
+     * A client sent a chat message/photo — the Message row already exists
+     * (created by ConversationController), so this only fires the
+     * push/email side of notifyAdmin(), not notifyWithMessage()'s extra
+     * conversation post (that would duplicate the message).
+     */
+    public function clientMessageReceived(User $client, string $preview): void
+    {
+        $this->notifyAdmin("New message from {$client->name}", $preview);
+    }
+
+    /**
      * Notify admin AND send a notification message in the client's conversation thread.
      */
     public function notifyWithMessage(User $client, string $title, string $body): void
