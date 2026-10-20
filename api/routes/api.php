@@ -73,13 +73,13 @@ Route::get('/tasks/purge-old-report-photos', [AdminReportCardController::class, 
 // ── Public ───────────────────────────────────────────────────────────────────
 Route::post('/auth/login',          [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password',[AuthController::class, 'forgotPassword'])->middleware('throttle:3,1');
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
-Route::post('/auth/accept-invite',  [AuthController::class, 'acceptInvite']);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:10,1');
+Route::post('/auth/accept-invite',  [AuthController::class, 'acceptInvite'])->middleware('throttle:10,1');
 Route::post('/webhooks/stripe',     [StripeWebhookController::class, 'handle']);
 Route::post('/webhooks/email',      [\App\Http\Controllers\InboundEmailController::class, 'handle']);
 Route::post('/contact',             [ContactController::class, 'submit'])->middleware('throttle:5,1');
-Route::post('/rescue-trip-interest', [\App\Http\Controllers\RescueTripInterestController::class, 'store']);
-Route::post('/transport-quote',      [\App\Http\Controllers\TransportQuoteController::class, 'quote']);
+Route::post('/rescue-trip-interest', [\App\Http\Controllers\RescueTripInterestController::class, 'store'])->middleware('throttle:5,1');
+Route::post('/transport-quote',      [\App\Http\Controllers\TransportQuoteController::class, 'quote'])->middleware('throttle:5,1');
 
 // Public — returns the Google Maps browser key so static marketing
 // pages can attach Places Autocomplete without committing the key.

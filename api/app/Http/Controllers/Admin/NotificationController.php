@@ -503,7 +503,19 @@ class NotificationController extends Controller
             return null;
         }
 
-        $body = str_replace(array_keys($tokens), array_values($tokens), $custom->body);
+        // Token values are free text (client/dog names, notes, etc.) and get
+        // substituted straight into HTML rendered via {!! !!} — escape every
+        // value except ones that are deliberately pre-built HTML fragments
+        // (by convention, a {xxx_html} key, or the {content} token used for
+        // an already-assembled notification body), or a client could set
+        // their name to a script/img tag and have it fire in outgoing email.
+        $safeTokens = [];
+        foreach ($tokens as $tokenKey => $value) {
+            $isHtml = $tokenKey === '{content}' || str_ends_with(rtrim($tokenKey, '}'), '_html');
+            $safeTokens[$tokenKey] = $isHtml ? $value : e((string) $value);
+        }
+
+        $body = str_replace(array_keys($safeTokens), array_values($safeTokens), $custom->body);
 
         return view('emails.custom', [
             'content' => $body,

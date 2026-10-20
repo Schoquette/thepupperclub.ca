@@ -164,7 +164,7 @@ class ReportCardController extends Controller
                 'notes'                => 'nullable|string|max:5000',
                 'dog_data'             => 'nullable|json',
                 'photos'               => 'nullable|array',
-                'photos.*'             => 'file|max:20480',
+                'photos.*'             => 'file|max:20480|extensions:jpg,jpeg,png,gif,webp,heic,heif',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e; // let Laravel return the standard 422 with field errors
@@ -259,7 +259,7 @@ class ReportCardController extends Controller
             'notes'                => 'nullable|string|max:5000',
             'dog_data'             => 'nullable|json',
             'photos'               => 'nullable|array',
-            'photos.*'             => 'file|max:20480',
+            'photos.*'             => 'file|max:20480|extensions:jpg,jpeg,png,gif,webp,heic,heif',
         ]);
 
         $appointments = Appointment::whereIn('id', $data['appointment_ids'])->get();
@@ -356,7 +356,7 @@ class ReportCardController extends Controller
             'notes'                => 'sometimes|nullable|string|max:5000',
             'dog_data'             => 'sometimes|nullable|json',
             'photos'               => 'sometimes|array',
-            'photos.*'             => 'file|max:20480', // skip image MIME check — HEIC unsupported on GoDaddy
+            'photos.*'             => 'file|max:20480|extensions:jpg,jpeg,png,gif,webp,heic,heif', // extension-checked, not MIME — HEIC content unrecognized by GoDaddy's finfo
         ]);
 
         if (isset($data['checklist'])) {
@@ -444,7 +444,7 @@ class ReportCardController extends Controller
             'notes'                => 'sometimes|nullable|string|max:5000',
             'dog_data'             => 'sometimes|nullable|json',
             'photos'               => 'sometimes|array',
-            'photos.*'             => 'file|max:20480',
+            'photos.*'             => 'file|max:20480|extensions:jpg,jpeg,png,gif,webp,heic,heif',
         ]);
 
         if (isset($data['checklist'])) {

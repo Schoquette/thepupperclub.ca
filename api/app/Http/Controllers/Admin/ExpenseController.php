@@ -382,13 +382,24 @@ class ExpenseController extends Controller
         return $this->respondPdf('Expenses', $dateRange, $columns, $rows, $summary);
     }
 
+    /**
+     * Prefix a cell value that starts with =, +, -, or @ with a leading
+     * apostrophe — otherwise Excel/Sheets treats it as a formula when the
+     * export is reopened (CSV/formula injection via a vendor name, note,
+     * etc. that starts with one of those characters).
+     */
+    private function csvSafe(string $value): string
+    {
+        return preg_match('/^[=+\-@]/', $value) ? "'" . $value : $value;
+    }
+
     private function respondCsv(string $title, array $columns, array $rows, array $summary): Response
     {
         $lines = [];
         $lines[] = implode(',', array_map(fn ($c) => '"' . str_replace('"', '""', $c) . '"', $columns));
 
         foreach ($rows as $row) {
-            $lines[] = implode(',', array_map(fn ($v) => '"' . str_replace('"', '""', (string) $v) . '"', $row));
+            $lines[] = implode(',', array_map(fn ($v) => '"' . str_replace('"', '""', $this->csvSafe((string) $v)) . '"', $row));
         }
 
         $lines[] = '';

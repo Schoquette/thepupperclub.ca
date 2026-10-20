@@ -182,6 +182,13 @@ class AuthController extends Controller
 
         $user->update(['password' => Hash::make($request->password)]);
 
+        // Revoke every other active session/token — changing your password
+        // after a suspected compromise should actually invalidate a stolen
+        // token, not just silently coexist with it. Keep the current
+        // session's token alive so this action doesn't log the user out.
+        $currentTokenId = $user->currentAccessToken()?->id;
+        $user->tokens()->when($currentTokenId, fn($q) => $q->where('id', '!=', $currentTokenId))->delete();
+
         AuditLog::recordEvent($user, 'password_changed');
 
         return response()->json(['message' => 'Password changed successfully.']);
