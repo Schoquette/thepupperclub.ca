@@ -532,6 +532,15 @@ class ReportCardController extends Controller
                 $this->service->send($r);
             } catch (\Throwable $e) {
                 $errors[] = ($r->user->name ?? "client #{$r->user_id}") . ': ' . $e->getMessage();
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $r->user_id,
+                        'type'       => 'GroupReportSendFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['report_id' => $r->id, 'group_report_id' => $groupReportId],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         }
 

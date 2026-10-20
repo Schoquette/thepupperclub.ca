@@ -121,6 +121,15 @@ class ConversationController extends Controller
                 app(\App\Services\AdminNotificationService::class)->clientMessageReceived($user, $adminPreview);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Admin message-notification failed: {$e->getMessage()}");
+                try {
+                    \App\Models\ErrorLog::create([
+                        'user_id'    => $user->id,
+                        'type'       => 'AdminMessageNotificationFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['conversation_id' => $conversation->id],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
             }
         } else {
             $conversation->increment('unread_count_client');

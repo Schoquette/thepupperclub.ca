@@ -222,6 +222,7 @@ export default function SigningPage() {
 
   // PDF
   const [pdfData, setPdfData] = useState<Uint8Array | null>(null);
+  const [pdfLoadFailed, setPdfLoadFailed] = useState(false);
   const [numPages, setNumPages] = useState(0);
   const [pageWidth, setPageWidth] = useState(700);
 
@@ -263,9 +264,12 @@ export default function SigningPage() {
     if (!token) return;
     const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
     fetch(`${apiBase}/api/signing/${token}/document`)
-      .then(r => r.arrayBuffer())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
       .then(buf => setPdfData(new Uint8Array(buf.slice(0))))
-      .catch(() => {});
+      .catch(() => setPdfLoadFailed(true));
   }, [token]);
 
   const pdfFile = useMemo(
@@ -800,6 +804,8 @@ export default function SigningPage() {
                 </div>
               ))}
             </Document>
+          ) : pdfLoadFailed ? (
+            <div className="text-center py-20 text-red-400">Failed to load document. Please refresh the page or try again later.</div>
           ) : (
             <div className="text-center py-20 text-cream/60">Loading document...</div>
           )}
