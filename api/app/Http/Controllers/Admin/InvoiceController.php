@@ -266,6 +266,9 @@ class InvoiceController extends Controller
 
     public function send(Invoice $invoice): JsonResponse
     {
+        // Sending can trigger an automatic card charge (maybeChargeOnSend) —
+        // guard against a double-click/double-submit firing it twice.
+        abort_unless(in_array($invoice->status, ['draft', 'approved']), 422, 'Invoice has already been sent.');
         $this->invoiceService->send($invoice);
         return response()->json(['message' => 'Invoice sent.']);
     }

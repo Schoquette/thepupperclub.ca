@@ -282,8 +282,13 @@ class IntakeController extends Controller
                 $dogData['age_estimate_date'] = now()->toDateString();
             }
 
-            // Only keep fillable fields to avoid mass-assignment errors
-            $fillable = (new Dog())->getFillable();
+            // Only keep fillable fields to avoid mass-assignment errors.
+            // is_active/is_archived are deliberately excluded even though
+            // they're in Dog::$fillable — intake is never the place to
+            // approve or archive a dog (that's an admin-only judgment call
+            // made via the Client Detail page), so a client must never be
+            // able to self-approve their own dog by posting it through intake.
+            $fillable = array_diff((new Dog())->getFillable(), ['is_active', 'is_archived']);
             $dogData = array_intersect_key($dogData, array_flip($fillable));
             $dogData['user_id'] = $client->id;
 

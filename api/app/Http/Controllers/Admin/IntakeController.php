@@ -233,8 +233,12 @@ class IntakeController extends Controller
                 $dogData['age_estimate_date'] = now()->toDateString();
             }
 
-            // Only keep fillable fields
-            $fillable = (new Dog())->getFillable();
+            // Only keep fillable fields. is_active/is_archived are
+            // deliberately excluded even though they're in Dog::$fillable —
+            // this controller is also reachable by team_member (role:admin,
+            // team_member), and approving/archiving a dog is an admin-only
+            // judgment call made via the Client Detail page, never intake.
+            $fillable = array_diff((new Dog())->getFillable(), ['is_active', 'is_archived']);
             $dogData = array_intersect_key($dogData, array_flip($fillable));
             $dogData['user_id'] = $client->id;
 

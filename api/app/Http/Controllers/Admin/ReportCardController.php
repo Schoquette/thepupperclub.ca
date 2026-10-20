@@ -277,20 +277,27 @@ class ReportCardController extends Controller
 
         $reports = [];
         try {
-            foreach ($appointments as $appt) {
-                $reports[] = VisitReport::create(array_filter([
-                    'user_id'              => $appt->user_id,
-                    'appointment_id'       => $appt->id,
-                    'group_report_id'      => $groupId,
-                    'dog_ids'              => $data['dog_ids'] ?? null,
-                    'arrival_time'         => $data['arrival_time'] ?? null,
-                    'departure_time'       => $data['departure_time'] ?? null,
-                    'checklist'            => $checklist,
-                    'special_trip_details' => $data['special_trip_details'] ?? null,
-                    'notes'                => $data['notes'] ?? null,
-                    'dog_data'             => $dogData,
-                ], fn($v) => $v !== null));
-            }
+            // All-or-nothing: a partial failure (e.g. sibling 2 of 3) must
+            // not leave a group_report_id with fewer reports than
+            // participants — that'd strand the already-created siblings as
+            // phantom drafts with no way for the admin to know they're
+            // incomplete.
+            \Illuminate\Support\Facades\DB::transaction(function () use ($appointments, $groupId, $data, $checklist, $dogData, &$reports) {
+                foreach ($appointments as $appt) {
+                    $reports[] = VisitReport::create(array_filter([
+                        'user_id'              => $appt->user_id,
+                        'appointment_id'       => $appt->id,
+                        'group_report_id'      => $groupId,
+                        'dog_ids'              => $data['dog_ids'] ?? null,
+                        'arrival_time'         => $data['arrival_time'] ?? null,
+                        'departure_time'       => $data['departure_time'] ?? null,
+                        'checklist'            => $checklist,
+                        'special_trip_details' => $data['special_trip_details'] ?? null,
+                        'notes'                => $data['notes'] ?? null,
+                        'dog_data'             => $dogData,
+                    ], fn($v) => $v !== null));
+                }
+            });
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Store failed: ' . $e->getMessage()], 422);
         }

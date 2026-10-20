@@ -20,6 +20,8 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             abort_unless($user->id === $clientId, 403);
+        } elseif ($user->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $clientId);
         }
 
         $conversation = Conversation::firstOrCreate(['user_id' => $clientId]);
@@ -70,6 +72,8 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             abort_unless($user->id === $clientId, 403);
+        } elseif ($user->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $clientId);
         }
 
         $request->validate([
@@ -193,6 +197,8 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             abort_unless($user->id === $clientId, 403);
+        } elseif ($user->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $clientId);
         }
 
         $request->validate([
@@ -265,6 +271,8 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             abort_unless($conversation->user_id === $user->id, 403);
+        } elseif ($user->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, (int) $conversation->user_id);
         }
 
         abort_unless($message->type === 'photo', 404);
@@ -288,6 +296,8 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             abort_unless($conversation->user_id === $user->id, 403);
+        } elseif ($user->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, (int) $conversation->user_id);
         }
 
         $attachments = $message->metadata['attachments'] ?? [];
@@ -342,6 +352,8 @@ class ConversationController extends Controller
 
         if ($user->isClient()) {
             abort_unless($conversation->user_id === $user->id, 403);
+        } elseif ($user->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, (int) $conversation->user_id);
         }
 
         $data = $request->validate(['emoji' => 'required|string|max:20']);
@@ -378,6 +390,8 @@ class ConversationController extends Controller
         $user = $request->user();
         if ($user->isClient()) {
             abort_unless($user->id === $clientId, 403);
+        } elseif ($user->role === 'team_member') {
+            $this->ensureTeamMemberOwnsClient($request, $clientId);
         }
         abort_unless((int) $message->conversation->user_id === $clientId, 403);
 
@@ -401,6 +415,23 @@ class ConversationController extends Controller
         $request->validate(['status' => 'required|in:open,resolved,needs_follow_up']);
         $conversation->update(['status' => $request->status]);
         return response()->json(['data' => $conversation->fresh()]);
+    }
+
+    /**
+     * A team_member may only read/send/react to conversations for clients
+     * they're actually assigned to — checked against Appointment.assigned_to,
+     * never trusted from the request. Matches the established pattern in
+     * ReportCardController/ClientController/DogController.
+     */
+    private function ensureTeamMemberOwnsClient(Request $request, int $clientUserId): void
+    {
+        abort_unless(
+            \App\Models\Appointment::where('user_id', $clientUserId)
+                ->where('assigned_to', $request->user()->id)
+                ->exists(),
+            403,
+            'You can only message your own assigned clients.'
+        );
     }
 
     private function ensureReplyColumn(): void
