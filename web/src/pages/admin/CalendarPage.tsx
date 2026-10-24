@@ -3094,6 +3094,7 @@ function UpcomingBirthdays({ birthdays }: { birthdays: any[] }) {
 function VisitHistory() {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(true);
+  const [clientFilter, setClientFilter] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['visit-history'],
@@ -3106,12 +3107,18 @@ function VisitHistory() {
     }).then(r => r.data.data),
   });
 
+  const { data: clientsData } = useQuery({
+    queryKey: ['admin-clients-visit-history'],
+    queryFn: () => api.get('/admin/clients').then(r => r.data.data),
+  });
+
   const grouped = useMemo(() => {
     if (!data || data.length === 0) return [];
     const now = Date.now();
     const past = data.filter((appt: any) => {
       if (!appt.scheduled_time) return false;
       if (appt.status === 'cancelled') return false;
+      if (clientFilter && String(appt.user_id) !== clientFilter) return false;
       const localStr = appt.scheduled_time.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
       return new Date(localStr).getTime() < now;
     });
@@ -3133,9 +3140,9 @@ function VisitHistory() {
     return Array.from(map.values()).sort(
       (a, b) => b.weekStart.getTime() - a.weekStart.getTime()
     );
-  }, [data]);
+  }, [data, clientFilter]);
 
-  if (isLoading || grouped.length === 0) return null;
+  if (isLoading || !data || data.length === 0) return null;
 
   const serviceLabel = (type: string) => {
     if (type === 'walk_30') return '30-Minute Visit';
@@ -3146,21 +3153,37 @@ function VisitHistory() {
 
   return (
     <Card>
-      <button
-        className="w-full flex items-center justify-between"
-        onClick={() => setExpanded(v => !v)}
-      >
-        <h2 className="text-lg font-display text-espresso">Visit History</h2>
-        <svg
-          className={`w-5 h-5 text-taupe transition-transform ${expanded ? '' : '-rotate-90'}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <button
+          className="flex items-center gap-2"
+          onClick={() => setExpanded(v => !v)}
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-        </svg>
-      </button>
+          <h2 className="text-lg font-display text-espresso">Visit History</h2>
+          <svg
+            className={`w-5 h-5 text-taupe transition-transform ${expanded ? '' : '-rotate-90'}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </button>
+        <select
+          className="input text-sm w-auto"
+          value={clientFilter}
+          onChange={(e) => setClientFilter(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <option value="">All Clients</option>
+          {(clientsData ?? []).map((c: any) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
 
       {expanded && (
         <div className="mt-4 space-y-5">
+          {grouped.length === 0 && (
+            <p className="text-sm text-taupe text-center py-6">No visits found for this client.</p>
+          )}
           {grouped.map(group => (
             <div key={format(group.weekStart, 'yyyy-MM-dd')}>
               <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2 px-1">
