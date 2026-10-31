@@ -1,0 +1,99 @@
+# One-Time: Delete Voided Invoices
+#
+# Manually-triggered cleanup. Deletes every invoice with status='void' from
+# the live database (invoice_line_items cascade-delete automatically via the
+# existing FK constraint). Before deleting anything, it dumps the rows it's
+# about to remove to a downloadable artifact, so there's a recovery path if
+# this was run in error.
+#
+# This workflow is meant to be deleted once it's been run.
+
+name: One-Time - Delete Void Invoices
+
+on:
+  workflow_dispatch:
+
+jobs:
+  delete-void-invoices:
+    name: Delete Void Invoices
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_DATABASE: ${{ secrets.DB_DATABASE }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+    steps:
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mysql-client
+
+      - name: Back up voided invoices before deleting
+        run: |
+          set -euo pipefail
+
+          if [ -z "$DB_HOST" ] || [ -z "$DB_DATABASE" ] || [ -z "$DB_USERNAME" ]; then
+            echo "::error::DB_HOST/DB_DATABASE/DB_USERNAME secrets are not set."
+            exit 1
+          fi
+
+          COUNT=$(mysql --host="$DB_HOST" --port="${DB_PORT:-3306}" \
+            --user="$DB_USERNAME" --password="$DB_PASSWORD" -N -B \
+            -e "SELECT COUNT(*) FROM invoices WHERE status='void';" "$DB_DATABASE")
+          echo "Found ${COUNT} voided invoice(s)."
+          echo "void_count=${COUNT}" >> "$GITHUB_OUTPUT"
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "Nothing to do."
+            exit 0
+          fi
+
+          mysqldump \
+            --host="$DB_HOST" --port="${DB_PORT:-3306}" \
+            --user="$DB_USERNAME" --password="$DB_PASSWORD" \
+            --single-transaction --no-create-info --column-statistics=0 \
+            --where="status='void'" \
+            "$DB_DATABASE" invoices > void_invoices_backup.sql
+
+          mysqldump \
+            --host="$DB_HOST" --port="${DB_PORT:-3306}" \
+            --user="$DB_USERNAME" --password="$DB_PASSWORD" \
+            --single-transaction --no-create-info --column-statistics=0 \
+            --where="invoice_id IN (SELECT id FROM invoices WHERE status='void')" \
+            "$DB_DATABASE" invoice_line_items >> void_invoices_backup.sql
+
+        id: precheck
+
+      - name: Upload pre-deletion backup
+        if: steps.precheck.outputs.void_count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: void-invoices-backup-${{ github.run_id }}
+          path: void_invoices_backup.sql
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Delete voided invoices
+        if: steps.precheck.outputs.void_count != '0'
+        run: |
+          set -euo pipefail
+          mysql --host="$DB_HOST" --port="${DB_PORT:-3306}" \
+            --user="$DB_USERNAME" --password="$DB_PASSWORD" \
+            -e "DELETE FROM invoices WHERE status='void';" "$DB_DATABASE"
+
+          REMAINING=$(mysql --host="$DB_HOST" --port="${DB_PORT:-3306}" \
+            --user="$DB_USERNAME" --password="$DB_PASSWORD" -N -B \
+            -e "SELECT COUNT(*) FROM invoices WHERE status='void';" "$DB_DATABASE")
+
+          echo "### Void Invoices Deleted" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Deleted:** ${{ steps.precheck.outputs.void_count }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Remaining void invoices:** ${REMAINING}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Backup artifact:** void-invoices-backup-${{ github.run_id }} (30-day retention)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary (nothing to delete)
+        if: steps.precheck.outputs.void_count == '0'
+        run: echo "### No voided invoices found. Nothing deleted." >> "$GITHUB_STEP_SUMMARY"
