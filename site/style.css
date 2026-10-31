@@ -13,6 +13,7 @@
   --cream: #F6F3EE;
   --espresso: #3B2F2A;
   --taupe: #C8BFB6;
+  --taupe-dark: #A89C8D;
   --gold: #C9A24D;
   --blue: #6492D8;
   --white: #FFFFFF;
@@ -274,12 +275,12 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
 
 .hero-label {
   font-family: var(--font-body);
-  font-size: clamp(0.85rem, 1.2vw, 1rem);
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--espresso);
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .hero-heading {
@@ -297,6 +298,62 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
   color: var(--espresso);
   opacity: 0.7;
   line-height: 1.6;
+  max-width: 30rem;
+  margin-bottom: 2.5rem;
+}
+
+/* --- Hero Boxes --- */
+.hero-boxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.hero-box {
+  display: block;
+  padding: 2.25rem 2.25rem 2.5rem;
+  border-radius: 10px;
+  background: transparent;
+  transition: transform 0.25s ease;
+}
+
+.hero-box:hover,
+.hero-box:focus-visible {
+  transform: translateY(-4px);
+}
+
+.hero-box-adventures {
+  background: var(--taupe-dark);
+}
+
+.hero-box-heading {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.6rem, 2.8vw, 2.2rem);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: var(--white);
+  text-align: left;
+  min-height: 3.36em;
+  margin-bottom: 1.75rem;
+}
+
+.hero-box-visits .hero-box-heading {
+  color: var(--espresso);
+}
+
+.hero-box-photos {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.hero-box-photos img {
+  flex: 1;
+  min-width: 0;
+  height: clamp(220px, 26vw, 300px);
+  object-fit: cover;
+  border-radius: 6px;
 }
 
 /* --- Intro --- */
@@ -342,10 +399,44 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
   font-size: 0.95rem;
 }
 
+/* --- Pack Adventures --- */
+.adventures {
+  background: var(--cream);
+}
+
+.adventure-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin: 2rem 0 0.5rem;
+}
+
+.adventure-mode img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+}
+
+.adventure-mode h4 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  color: var(--espresso);
+}
+
+.adventure-mode p {
+  font-size: 0.9rem;
+  color: #6b5e58;
+  line-height: 1.7;
+}
+
 /* --- Ethos --- */
 .ethos {
   padding: 100px 0;
-  background: var(--cream);
+  background: var(--white);
 }
 
 .section-title {
@@ -406,6 +497,16 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
 
 .social .section-title {
   font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 1.5rem;
+}
+
+.social-subtitle {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-align: center;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  color: var(--espresso);
+  margin: 3rem 0 2rem;
 }
 
 .social-grid {
@@ -638,6 +739,23 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
     padding: 120px 0 60px;
   }
 
+  .hero-boxes {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .hero-box {
+    padding: 1.75rem 1.5rem 2rem;
+  }
+
+  .hero-box-heading {
+    min-height: auto;
+  }
+
+  .hero-box-photos img {
+    height: 200px;
+  }
+
   /* Intro */
   .intro {
     padding: 60px 0;
@@ -650,6 +768,12 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
 
   .intro-left h2 {
     position: static;
+  }
+
+  /* Pack Adventures */
+  .adventure-modes {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
   }
 
   /* Ethos */
