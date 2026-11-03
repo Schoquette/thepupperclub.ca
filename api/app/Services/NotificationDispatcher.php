@@ -22,8 +22,12 @@ class NotificationDispatcher
      * @param string $body    Plain text body (used for push + SMS)
      * @param string|null $htmlBody  Optional HTML body for email (falls back to $body)
      * @param array  $data    Optional data payload for push notifications
+     * @param bool   $forceEmail  Send the email regardless of the user's notify_email
+     *                            preference. For billing-critical mail (invoices) where
+     *                            the email itself is the point, not an optional extra —
+     *                            push/SMS stay preference-gated as before.
      */
-    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null, ?string $type = null, array $inlineImages = [], array $fileAttachments = [], ?string $bcc = null): void
+    public function notify(User $user, string $title, string $body, ?string $htmlBody = null, array $data = [], ?string $replyTo = null, ?string $type = null, array $inlineImages = [], array $fileAttachments = [], ?string $bcc = null, bool $forceEmail = false): void
     {
         // Check if client has opted out of this notification type
         if ($type && $user->role === 'client' && $user->clientProfile) {
@@ -41,7 +45,7 @@ class NotificationDispatcher
         }
 
         // Email
-        if ($prefs['notify_email'] && $user->email) {
+        if (($prefs['notify_email'] || $forceEmail) && $user->email) {
             $this->sendEmail($user, $title, $htmlBody ?? nl2br(e($body)), $replyTo, $inlineImages, $fileAttachments, $bcc);
         }
 

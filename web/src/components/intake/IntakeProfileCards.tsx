@@ -414,7 +414,6 @@ export function CommunicationCard({ profile, mode, clientId }: BaseProps) {
               {[
                 { key: 'notify_app',   label: 'App notifications' },
                 { key: 'notify_email', label: 'Email' },
-                { key: 'notify_sms',   label: 'SMS (one-way)' },
               ].map(({ key, label }) => (
                 <label key={key} className="flex items-center gap-2 text-sm text-espresso">
                   <input
@@ -451,7 +450,6 @@ export function CommunicationCard({ profile, mode, clientId }: BaseProps) {
             value={[
               (profile.notify_app ?? true) ? 'App' : null,
               profile.notify_email ? 'Email' : null,
-              profile.notify_sms ? 'SMS' : null,
             ].filter(Boolean).join(', ') || 'None'}
           />
           <Row

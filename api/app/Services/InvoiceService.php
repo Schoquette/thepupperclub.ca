@@ -294,7 +294,7 @@ class InvoiceService
             $plainBody .= " Service period: {$billingPeriod}.";
         }
 
-        app(NotificationDispatcher::class)->notify($client, $title, $plainBody, $htmlBody, type: 'invoices', bcc: 'sophie@thepupperclub.ca');
+        app(NotificationDispatcher::class)->notify($client, $title, $plainBody, $htmlBody, type: 'invoices', bcc: 'sophie@thepupperclub.ca', forceEmail: true);
     }
 
     public function markPaid(Invoice $invoice, bool $notifyClient = true, ?string $paidAt = null): void
