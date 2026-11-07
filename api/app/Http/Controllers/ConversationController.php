@@ -29,13 +29,17 @@ class ConversationController extends Controller
         $this->ensureReplyColumn();
 
         $currentUserId = $user->id;
+        // No pagination here: every consumer (web/mobile, admin/client)
+        // just reads response.data with no page-2+ fetch anywhere, so a
+        // paginate() cap silently hid any message past the cutoff once a
+        // conversation grew past it.
         $messages = $conversation->messages()
             ->with(['sender:id,name,role', 'reactions', 'replyTo:id,sender_id,type,body', 'replyTo.sender:id,name'])
             ->orderBy('id')
-            ->paginate(50);
+            ->get();
 
         // Transform reactions into grouped summary
-        $messages->getCollection()->transform(function ($msg) use ($currentUserId) {
+        $messages->transform(function ($msg) use ($currentUserId) {
             $grouped = $msg->reactions
                 ->groupBy('emoji')
                 ->map(fn($group, $emoji) => [
@@ -63,7 +67,7 @@ class ConversationController extends Controller
             $conversation->update(['unread_count_admin' => 0]);
         }
 
-        return response()->json($messages);
+        return response()->json(['data' => $messages]);
     }
 
     public function sendMessage(Request $request, int $clientId): JsonResponse
