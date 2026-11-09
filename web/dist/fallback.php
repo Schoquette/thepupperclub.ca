@@ -47,6 +47,7 @@ $pages = [
     '/services' => 'services.html',
     '/contact'  => 'contact.html',
     '/faq'      => 'faq.html',
+    '/safety'   => 'safety.html',
     '/privacy'  => 'privacy.html',
     '/terms'    => 'terms.html',
     '/rescue-trips'  => 'rescue-trips.html',
