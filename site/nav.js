@@ -20,6 +20,37 @@
     });
   }
 
+  // About dropdown (click/tap toggle, alongside the CSS hover reveal)
+  document.querySelectorAll('.nav-dropdown-trigger').forEach(trigger => {
+    const dropdown = trigger.closest('.nav-dropdown');
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const opening = !dropdown.classList.contains('open');
+      document.querySelectorAll('.nav-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        d.querySelector('.nav-dropdown-trigger')?.setAttribute('aria-expanded', 'false');
+      });
+      if (opening) {
+        dropdown.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.nav-dropdown.open').forEach(d => {
+      d.classList.remove('open');
+      d.querySelector('.nav-dropdown-trigger')?.setAttribute('aria-expanded', 'false');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.nav-dropdown.open').forEach(d => {
+        d.classList.remove('open');
+        d.querySelector('.nav-dropdown-trigger')?.setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+
   // Sticky header scroll effect
   const header = document.getElementById('header');
   if (header) {
