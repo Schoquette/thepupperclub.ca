@@ -254,7 +254,23 @@ class IntakeController extends Controller
                 } else {
                     unset($dogData['id']);
                     if (!empty($dogData['name'])) {
-                        $client->dogs()->create($dogData);
+                        // No id usually means a genuinely new dog, but it also
+                        // happens when a prior save's server-assigned id never
+                        // made it back into local form state (a second tab/
+                        // device, or Save/Submit clicked back to back) —
+                        // resubmitting that same entry would otherwise create
+                        // a duplicate. Treat a same-named, still-active dog as
+                        // that one instead of creating another.
+                        $existing = Dog::where('user_id', $client->id)
+                            ->whereRaw('LOWER(name) = ?', [mb_strtolower($dogData['name'])])
+                            ->where(fn($q) => $q->where('is_archived', false)->orWhereNull('is_archived'))
+                            ->first();
+                        if ($existing) {
+                            $existing->fill($dogData);
+                            $existing->save();
+                        } else {
+                            $client->dogs()->create($dogData);
+                        }
                     }
                 }
             } catch (\Throwable $e) {
