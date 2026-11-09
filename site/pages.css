@@ -378,19 +378,6 @@
   width: auto;
 }
 
-.safety-icon-pair {
-  flex-direction: column;
-  height: 96px;
-  gap: 0.5rem;
-}
-
-.safety-icon-pair img {
-  height: auto;
-  max-height: 40px;
-  width: auto;
-  max-width: 150px;
-}
-
 .safety-card h4 {
   font-family: 'Lato', sans-serif;
   font-size: 1.05rem;
