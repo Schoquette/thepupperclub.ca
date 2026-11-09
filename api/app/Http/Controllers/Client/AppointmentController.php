@@ -261,6 +261,16 @@ class AppointmentController extends Controller
 
         $sr->dogs()->attach($data['dog_ids']);
 
+        $dogNames = \App\Models\Dog::whereIn('id', $data['dog_ids'])->pluck('name')->join(', ');
+        $body = "{$user->name} requested a "
+            . str_replace('_', ' ', $data['service_type'])
+            . " on {$data['preferred_date']}, {$data['preferred_time_block']} ({$dogNames}).";
+        if ($notes) {
+            $body .= "\nNote: {$notes}";
+        }
+
+        $this->adminNotifications->notifyWithMessage($user, 'Visit Requested', $body);
+
         return response()->json(['data' => $sr->load('dogs')], 201);
     }
 
