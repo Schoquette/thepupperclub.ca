@@ -1558,3 +1558,10 @@
 .pac-item-query { color: var(--espresso); font-weight: 600; }
 .pac-matched { color: var(--gold); }
 .pac-icon { margin-top: 4px; }
+
+@media (max-width: 480px) {
+  .safety-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}

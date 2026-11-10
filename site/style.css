@@ -272,27 +272,6 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
   color: var(--gold);
 }
 
-.mobile-nav-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.mobile-nav-label {
-  font-family: var(--font-body);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--taupe);
-  margin-top: 0.25rem;
-}
-
-.mobile-nav-sublink {
-  font-size: 1.15rem;
-}
-
 /* Burger (mobile) */
 .burger {
   display: none;
@@ -926,5 +905,13 @@ h4 { font-family: var(--font-body); font-size: 1.1rem; font-weight: 700; letter-
   .social-grid {
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
+  }
+
+  .hero-box {
+    padding: 1.5rem 1.25rem 1.75rem;
+  }
+
+  .hero-box-photos img {
+    height: 160px;
   }
 }
