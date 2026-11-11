@@ -24,6 +24,10 @@ class ReportCardService
      */
     public function send(VisitReport $report): void
     {
+        if ($report->sent_at) {
+            throw new \RuntimeException('This report card has already been sent.');
+        }
+
         $client = $report->user ?? $report->appointment?->user;
         if (!$client) return;
 

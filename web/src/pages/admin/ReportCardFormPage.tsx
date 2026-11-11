@@ -96,7 +96,7 @@ export default function AdminReportCardFormPage() {
   const [specialTripDetails, setSpecialTripDetails] = useState('');
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
-  const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
+  const [existingPhotoUrls, setExistingPhotoUrls] = useState<(string | undefined)[]>([]);
   const [existingPhotoCount, setExistingPhotoCount] = useState(0);
   const [templateItems, setTemplateItems] = useState<TemplateItem[]>([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -313,7 +313,11 @@ export default function AdminReportCardFormPage() {
           .then(r => { if (!cancelled) urls[i] = URL.createObjectURL(r.data); })
           .catch(() => {})
       )
-    ).then(() => { if (!cancelled) setExistingPhotoUrls(urls.filter(Boolean)); });
+      // Keep the array at its original length/index positions -- the
+      // remove button below deletes by server-side index, so collapsing
+      // a failed slot out of the array would shift every later photo's
+      // local index and delete the wrong one.
+    ).then(() => { if (!cancelled) setExistingPhotoUrls(urls); });
     return () => { cancelled = true; urls.forEach(u => u && URL.revokeObjectURL(u)); };
   }, [id, report?.photo_paths?.length, report?.report_photo_path]); // eslint-disable-line
 
@@ -768,7 +772,13 @@ export default function AdminReportCardFormPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
               {existingPhotoUrls.map((url, i) => (
                 <div key={`existing-${i}`} className="relative group">
-                  <img src={url} alt={`Visit photo ${i + 1}`} className="w-full h-32 object-cover rounded-xl" />
+                  {url ? (
+                    <img src={url} alt={`Visit photo ${i + 1}`} className="w-full h-32 object-cover rounded-xl" />
+                  ) : (
+                    <div className="w-full h-32 bg-cream rounded-xl flex items-center justify-center">
+                      <span className="text-xs text-espresso/60 text-center px-2">Couldn't load photo</span>
+                    </div>
+                  )}
                   {!locked && (
                     <button
                       onClick={() => {

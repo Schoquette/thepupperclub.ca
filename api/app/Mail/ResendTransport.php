@@ -151,7 +151,14 @@ class ResendTransport extends AbstractTransport
                 'created_at'    => now(),
             ]);
         } catch (\Throwable $e) {
-            // Don't let logging failures break email sending
+            // Don't let logging failures break email sending, but don't let
+            // them vanish either -- this is the one place email send/fail
+            // visibility is recorded, so a broken email_logs write would
+            // otherwise be invisible.
+            \Illuminate\Support\Facades\Log::warning('ResendTransport: email_logs write failed', [
+                'to'    => $to,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

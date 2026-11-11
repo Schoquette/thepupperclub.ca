@@ -176,6 +176,7 @@ class InvoiceController extends Controller
 
     public function markPaid(Request $request, Invoice $invoice): JsonResponse
     {
+        abort_if($invoice->status === 'paid', 422, 'Invoice is already marked as paid.');
         $data = $request->validate(['paid_at' => 'sometimes|nullable|date']);
         $notifyClient = filter_var($request->input('notify_client', true), FILTER_VALIDATE_BOOLEAN);
         $this->invoiceService->markPaid($invoice, $notifyClient, $data['paid_at'] ?? null);

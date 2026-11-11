@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\ClientProfile;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class AppointmentService
@@ -117,19 +118,30 @@ class AppointmentService
         if (!$profile || empty($profile->payg_mode)) return;
 
         if ($profile->payg_mode === 'prepaid_pack') {
-            $purchasedColumn = "pack_purchased_{$appointment->service_type}";
-            $purchased = Schema::hasColumn('client_profiles', $purchasedColumn) ? (int) $profile->{$purchasedColumn} : 0;
-            $used = Appointment::where('user_id', $appointment->user_id)
-                ->where('service_type', $appointment->service_type)
-                ->where('payg_charge_mode', 'pack')
-                ->where('status', '!=', 'cancelled')
-                ->where('id', '!=', $appointment->id)
-                ->count();
+            // Locking the profile row serializes concurrent allocation
+            // attempts for this client (e.g. two tabs, or a cron run
+            // overlapping a manual create) so two requests can't both read
+            // the same "used" count and both get allocated against the
+            // same last pack slot.
+            $allocated = DB::transaction(function () use ($profile, $appointment) {
+                $lockedProfile = ClientProfile::where('id', $profile->id)->lockForUpdate()->first();
+                $purchasedColumn = "pack_purchased_{$appointment->service_type}";
+                $purchased = Schema::hasColumn('client_profiles', $purchasedColumn) ? (int) $lockedProfile->{$purchasedColumn} : 0;
+                $used = Appointment::where('user_id', $appointment->user_id)
+                    ->where('service_type', $appointment->service_type)
+                    ->where('payg_charge_mode', 'pack')
+                    ->where('status', '!=', 'cancelled')
+                    ->where('id', '!=', $appointment->id)
+                    ->count();
 
-            if ($purchased - $used > 0) {
-                $appointment->update(['payg_charge_mode' => 'pack']);
-                return;
-            }
+                if ($purchased - $used > 0) {
+                    $appointment->update(['payg_charge_mode' => 'pack']);
+                    return true;
+                }
+                return false;
+            });
+
+            if ($allocated) return;
         }
 
         // per_visit mode, or a prepaid pack that's run dry — falls back

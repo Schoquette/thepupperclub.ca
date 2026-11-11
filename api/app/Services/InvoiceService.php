@@ -431,16 +431,34 @@ class InvoiceService
         return $invoice;
     }
 
+    /**
+     * Charges a tip against the same card used to pay this invoice. Tipping
+     * is a follow-up action after the invoice is already settled, so there's
+     * no live Stripe Elements session to collect a payment method from --
+     * reuse the payment method from the invoice's original PaymentIntent
+     * instead of prompting the client to re-enter their card.
+     */
     public function addTip(Invoice $invoice, float $amount): Invoice
     {
         Stripe::setApiKey(config('services.stripe.secret'));
+
+        abort_unless($invoice->stripe_payment_intent_id, 422, 'This invoice has no card payment on file to tip against.');
+
+        $originalIntent = PaymentIntent::retrieve($invoice->stripe_payment_intent_id);
+        $paymentMethodId = $originalIntent->payment_method;
+        abort_unless($paymentMethodId, 422, 'No payment method found for this invoice.');
 
         $intent = PaymentIntent::create([
             'amount'         => (int) ($amount * 100),
             'currency'       => 'cad',
             'customer'       => $invoice->user->clientProfile?->stripe_customer_id,
+            'payment_method' => $paymentMethodId,
+            'off_session'    => true,
+            'confirm'        => true,
             'metadata'       => ['invoice_id' => $invoice->id, 'type' => 'tip'],
         ]);
+
+        abort_unless($intent->status === 'succeeded', 422, "Tip payment did not succeed (status: {$intent->status}).");
 
         $invoice->increment('tip', $amount);
         $invoice->increment('total', $amount);

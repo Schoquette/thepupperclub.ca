@@ -10,9 +10,11 @@ import { format } from 'date-fns';
 
 function ReportPhoto({ reportId, index }: { reportId: number; index: number }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let url = '';
+    setFailed(false);
     const token = localStorage.getItem('token');
     fetch(`/api/client/report-cards/${reportId}/photos/${index}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -25,10 +27,17 @@ function ReportPhoto({ reportId, index }: { reportId: number; index: number }) {
         url = URL.createObjectURL(blob);
         setSrc(url);
       })
-      .catch(() => {});
+      .catch(() => setFailed(true));
     return () => { if (url) URL.revokeObjectURL(url); };
   }, [reportId, index]);
 
+  if (failed) {
+    return (
+      <div className="w-full h-48 bg-cream rounded-xl flex items-center justify-center">
+        <span className="text-sm text-espresso/60">Couldn't load photo</span>
+      </div>
+    );
+  }
   if (!src) return <div className="w-full h-48 bg-cream animate-pulse rounded-xl" />;
   return <img src={src} alt="Visit photo" className="w-full h-auto rounded-xl" />;
 }

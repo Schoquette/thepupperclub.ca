@@ -63,18 +63,20 @@ function InlineAttachment({
   onOpen: (blobUrl: string, name: string) => void;
 }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const isImage = (attachment.mime_type ?? '').startsWith('image/');
 
   useEffect(() => {
     if (!isImage) return;
     let url = '';
+    setFailed(false);
     api
       .get(`/messages/${messageId}/attachment/${index}`, { responseType: 'blob' })
       .then((r) => {
         url = URL.createObjectURL(r.data);
         setSrc(url);
       })
-      .catch(() => {});
+      .catch(() => setFailed(true));
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
@@ -106,6 +108,20 @@ function InlineAttachment({
         <span className="text-sm font-medium text-espresso truncate">
           {attachment.original_name || 'File'}
         </span>
+      </button>
+    );
+  }
+
+  if (failed) {
+    return (
+      <button
+        onClick={handleDownload}
+        className="flex items-center gap-2 bg-cream/80 hover:bg-cream border border-taupe/20 rounded-xl px-3 py-2 transition-colors w-full text-left"
+      >
+        <svg className="w-4 h-4 text-espresso/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+        <span className="text-sm text-espresso/60">Couldn't load photo — tap to download</span>
       </button>
     );
   }
@@ -208,17 +224,19 @@ function PhotoBubble({
   const isBroadcastAttachment = meta?.broadcast === true;
   const [open, setOpen] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (isBroadcastAttachment) return; // Don't fetch blob for broadcast attachments
     let url = '';
+    setFailed(false);
     api
       .get(`/messages/${message.id}/photo`, { responseType: 'blob' })
       .then((r) => {
         url = URL.createObjectURL(r.data);
         setBlobUrl(url);
       })
-      .catch(() => {});
+      .catch(() => setFailed(true));
     return () => {
       if (url) URL.revokeObjectURL(url);
     };
@@ -272,7 +290,11 @@ function PhotoBubble({
     <>
       <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
         <div>
-          {!blobUrl ? (
+          {failed ? (
+            <div className="h-48 w-56 bg-cream rounded-2xl flex items-center justify-center px-4 text-center">
+              <span className="text-sm text-espresso/60">Couldn't load photo</span>
+            </div>
+          ) : !blobUrl ? (
             <div className="h-48 w-56 bg-cream animate-pulse rounded-2xl" />
           ) : (
             <img
