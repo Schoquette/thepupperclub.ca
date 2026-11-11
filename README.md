@@ -188,19 +188,36 @@ The Community app uses the same React Router shell, but every screen passes thro
 - **Legal**: Privacy Policy (BC PIPA compliant), Terms of Service (CASL compliant)
 - Custom favicon (leaping dog silhouette on cream background)
 
+The nav's **About** item is a dropdown (hover on desktop, tap-to-toggle via `nav.js`, flat list on mobile) with three sub-pages: Who We Are, Safety & Gear, FAQ.
+
 #### Pages
 
 | Page | Description |
 |------|-------------|
-| Home (`index.html`) | Hero, ethos section, contact form, JSON-LD LocalBusiness schema |
+| Home (`index.html`) | Hero with two clickable boxes (Thoughtful Walks & Visits / Pack Adventures) linking to in-page sections, ethos section, contact form, JSON-LD LocalBusiness schema |
 | Services (`services.html`) | Four pricing tabs — Custom Visits 60 min / Custom Visits 30 min / Midday Pack Walks / **Appointment Transportation**. Each subscription tab has Essential / Signature / Premier / 10-Pack cards. Transportation tab pairs marketing copy with a **live fare calculator** (Google Places autocomplete on both address fields → `POST /api/transport-quote` → server-side Distance Matrix → $30 base + $1/km past 5 km, doubled for return trips). Includes a "Custom & Casual" blue callout section linking to /contact for off-menu plans, plus the existing JSON-LD Service schema. |
-| About (`about.html`) | Founder story, Instagram feed |
+| About — Who We Are (`about.html`) | Founder story, Instagram feed |
+| About — Safety & Gear (`safety.html`) | Small group sizes, temperament testing, Red Cross pet first aid, satellite communication (inReach), AskAVet + Tractive GPS trackers, weather-aware seasonal adjustments, equipment maintenance |
+| About — FAQ (`faq.html`) | 9-item accordion, JSON-LD FAQPage schema |
 | Contact (`contact.html`) | Contact form, email, phone, service area |
-| FAQ (`faq.html`) | 9-item accordion, JSON-LD FAQPage schema |
 | Privacy (`privacy.html`) | BC PIPA-compliant privacy policy |
 | Terms (`terms.html`) | Terms of service with CASL compliance |
 | Community landing (`community/index.html`) | Marketing page for the Community sub-brand with waitlist + early-access CTA |
 | **Hidden** — Prospect one-pager (`the411.html`) | Shareable digital one-pager for prospects. Not linked from nav, not in sitemap, `robots noindex,nofollow`, `Disallow: /the411.html` in robots.txt. Used by Sophie to introduce the service one-on-one. |
+
+> **Adding a new top-level marketing page?** It's not enough to drop the `.html` file in `/site` — `web/public/fallback.php`'s `$pages` array is a hardcoded whitelist mapping clean URLs (`/safety`) to their static file. A page missing from that list is still reachable at its full `.html` filename, but the clean URL silently falls through to the portal's React shell instead of 404ing or erroring, which makes the gap easy to miss. Add an entry there whenever you add a page (see "Marketing Site Routing" below).
+
+#### Marketing Site Routing
+
+GoDaddy's host is Windows/IIS (Plesk), not Apache — **`web.config`, not `.htaccess`, is the routing authority** here (an `.htaccess` exists but is not what's actually in effect). The chain for any request:
+
+1. **`web.config`** (`web/public/web.config`, deployed to server root) — an IIS URL Rewrite rule sends any request that isn't a real file or directory to `/fallback.php`. `/api/*` gets its own rule straight to the Laravel front controller.
+2. **`fallback.php`** (`web/public/fallback.php`) — a small PHP router that:
+   - Answers CORS preflights and 404s cleanly for unmatched `/api/*` paths.
+   - Serves a **hardcoded `$pages` whitelist** of clean marketing URLs → their `.html` file (`/about` → `about.html`, etc.) and a `$seoFiles` map for `robots.txt`/`sitemap.xml`.
+   - Falls back to `/community/app/index.html` under the `/community/app` prefix (the Community SPA's own client-side routing).
+   - **Everything else** (anything not in those maps) → `app.html`, the main React portal's shell, so `/admin`, `/client`, `/login`, etc. all resolve client-side.
+3. Because step 2's marketing-page map is an explicit whitelist rather than a "does this `.html` file exist" check, a new static page is invisible at its clean URL until it's added there — it silently falls through to step 2's final catch-all (the portal shell) instead of erroring, which is easy to miss in testing. `web/dist/fallback.php` is a Vite-copied build artifact of `web/public/fallback.php` — edit the `public/` source, not `dist/` (CI regenerates `dist/` on every deploy, but the repo's checked-in copy is kept in sync by hand for anyone reading it between deploys).
 
 ### Shared Types — TypeScript
 
