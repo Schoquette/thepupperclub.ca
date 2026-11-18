@@ -20,7 +20,7 @@ class DashboardController extends Controller
     {
         $today = now()->toDateString();
 
-        $todaysAppointments = Appointment::with(['user.clientProfile', 'dogs', 'visitReport'])
+        $todaysAppointments = Appointment::with(['user.clientProfile', 'user.homeAccess', 'dogs', 'visitReport'])
             ->whereDate('scheduled_time', $today)
             ->whereIn('status', ['scheduled', 'checked_in'])
             ->orderBy('scheduled_time')

@@ -53,6 +53,7 @@ export interface HomeAccess {
   user_id: number;
   entry_instructions: string | null;
   lockbox_code: string | null; // Only returned to admin (decrypted)
+  buzzer_code: string | null;  // Only returned to admin (decrypted)
   door_code: string | null;    // Only returned to admin (decrypted)
   alarm_code: string | null;   // Only returned to admin (decrypted)
   key_location: string | null;

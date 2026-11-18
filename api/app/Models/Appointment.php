@@ -42,6 +42,7 @@ class Appointment extends Model
         'pre_visit_notification_sent',
         'distance_km',
         'report_card_dismissed',
+        'cancellation_dismissed',
     ];
 
     protected function casts(): array
@@ -53,6 +54,7 @@ class Appointment extends Model
             'recurrence_rule'              => 'array',
             'pre_visit_notification_sent'  => 'boolean',
             'report_card_dismissed'        => 'boolean',
+            'cancellation_dismissed'       => 'boolean',
             'payg_rate'                    => 'decimal:2',
             'payg_billed_at'               => 'datetime',
         ];

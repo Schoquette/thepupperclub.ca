@@ -7,7 +7,7 @@ import { format, parse, startOfWeek, getDay, endOfWeek, addDays, isBefore, start
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { enCA } from 'date-fns/locale';
 import api from '@/lib/api';
-import { toDateStrPacific } from '@/lib/date';
+import { toDateStrPacific, nowPacific } from '@/lib/date';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -308,9 +308,9 @@ const DnDCalendar = withDragAndDrop(Calendar);
 export default function AdminCalendarPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(nowPacific());
   const [range, setRange] = useState(() => {
-    const now = new Date();
+    const now = nowPacific();
     return { start: startOfWeek(now, { locale: enCA }), end: addDays(endOfWeek(now, { locale: enCA }), 1) };
   });
   const [selected, setSelected] = useState<any>(null);
@@ -589,7 +589,7 @@ export default function AdminCalendarPage() {
   };
 
   const handleDragDrop = useCallback(({ event, start, end }: any) => {
-    if (isBefore(start, new Date())) return; // don't allow moving to the past
+    if (isBefore(start, nowPacific())) return; // don't allow moving to the past
     if (event.resource?._isBlock) {
       const durationMin = Math.round((end.getTime() - start.getTime()) / 60_000);
       updateBlock.mutate({ id: event.resource.id, scheduled_time: toLocalISO(start), duration_minutes: durationMin });
@@ -759,58 +759,33 @@ export default function AdminCalendarPage() {
     }));
   };
 
-  // Cancelled appointments this week
-  const weekKey = format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-  const storageKey = `dismissed-cancellations-${weekKey}`;
-
-  const [dismissedIds, setDismissedIds] = useState<Set<number>>(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch { return new Set(); }
+  // Cancelled appointments this week. Dismissal is persisted on the
+  // appointment itself (cancellation_dismissed) rather than localStorage --
+  // the old per-browser/per-week local storage meant a dismissal on one
+  // device (or in a past week's view) didn't stick anywhere else, so a
+  // cancelled walk could keep reappearing.
+  const dismissCancellationMutation = useMutation({
+    mutationFn: (id: number) => api.post(`/admin/appointments/${id}/dismiss-cancellation`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-appointments'] }),
   });
 
-  // Re-read from localStorage when the week changes
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      setDismissedIds(stored ? new Set(JSON.parse(stored)) : new Set());
-    } catch { setDismissedIds(new Set()); }
-  }, [storageKey]);
-
-  const dismissCancellation = (id: number) => {
-    setDismissedIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      localStorage.setItem(storageKey, JSON.stringify([...next]));
-      return next;
-    });
-  };
+  const dismissCancellation = (id: number) => dismissCancellationMutation.mutate(id);
 
   const dismissAllCancellations = (ids: number[]) => {
-    setDismissedIds(prev => {
-      const next = new Set(prev);
-      ids.forEach(id => next.add(id));
-      localStorage.setItem(storageKey, JSON.stringify([...next]));
-      return next;
-    });
+    Promise.all(ids.map(id => api.post(`/admin/appointments/${id}/dismiss-cancellation`)))
+      .then(() => qc.invalidateQueries({ queryKey: ['admin-appointments'] }));
   };
 
-  const cancelledThisWeek = useMemo(() => {
+  const visibleCancellations = useMemo(() => {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
     return (data ?? []).filter((appt: any) => {
-      if (appt.status !== 'cancelled') return false;
+      if (appt.status !== 'cancelled' || appt.cancellation_dismissed) return false;
       const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
       const d = new Date(localStr);
       return d >= weekStart && d <= weekEnd;
     });
   }, [data, currentDate]);
-
-  const visibleCancellations = useMemo(
-    () => cancelledThisWeek.filter((a: any) => !dismissedIds.has(a.id)),
-    [cancelledThisWeek, dismissedIds],
-  );
 
   const activeAppointments = (data ?? []).filter((appt: any) => appt.status !== 'cancelled');
 
@@ -908,7 +883,7 @@ export default function AdminCalendarPage() {
 
   const events = [...appointmentEvents, ...hikeEvents, ...birthdayEvents, ...blockEvents];
 
-  const today = startOfDay(new Date());
+  const today = startOfDay(nowPacific());
 
   const dayPropGetter = useCallback((date: Date) => {
     if (isBefore(date, today)) {
@@ -1124,7 +1099,7 @@ export default function AdminCalendarPage() {
               // read as history at a glance — dim to grey normally, or just
               // fade a custom assignee colour so their identity still shows.
               const isElapsed =
-                e.resource.status === 'scheduled' && e.start < new Date();
+                e.resource.status === 'scheduled' && e.start < nowPacific();
               if (isElapsed && !assigneeColor) {
                 bg = '#9CA3AF';
                 textColor = 'white';
@@ -1233,9 +1208,19 @@ export default function AdminCalendarPage() {
                 </a>
               </div>
             )}
+            {(selected.user?.home_access?.door_code || selected.user?.home_access?.buzzer_code) && (
+              <div className="flex items-center gap-4 text-sm font-medium text-espresso bg-cream rounded-lg px-3 py-2">
+                {selected.user.home_access.door_code && (
+                  <span>Door code: <span className="text-gold">{selected.user.home_access.door_code}</span></span>
+                )}
+                {selected.user.home_access.buzzer_code && (
+                  <span>Buzzer: <span className="text-gold">{selected.user.home_access.buzzer_code}</span></span>
+                )}
+              </div>
+            )}
             {(() => {
               const apptDate = new Date(selected.scheduled_time);
-              const todayStr = format(new Date(), 'yyyy-MM-dd');
+              const todayStr = format(nowPacific(), 'yyyy-MM-dd');
               const apptStr = format(apptDate, 'yyyy-MM-dd');
               const isToday = todayStr === apptStr;
               const isRecurring = !!(selected.recurrence_rule || selected.recurrence_parent_id);
@@ -1811,7 +1796,7 @@ export default function AdminCalendarPage() {
                     <input
                       type="date"
                       className="input"
-                      min={format(new Date(), 'yyyy-MM-dd')}
+                      min={format(nowPacific(), 'yyyy-MM-dd')}
                       value={hikeDateStr}
                       onChange={e => setHikeTimeForm(f => f && ({ ...f, scheduled_time: `${e.target.value}T${hikeTimeStr || '09:00'}` }))}
                     />
@@ -1883,7 +1868,7 @@ export default function AdminCalendarPage() {
                   const address = [profile?.address, profile?.city].filter(Boolean).join(', ');
                   const dogNames = (p.dogs ?? []).map((d: any) => d.name).join(', ');
                   const isRecurring = !!(p.recurrence_rule || p.recurrence_parent_id);
-                  const isToday = start && format(start, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                  const isToday = start && format(start, 'yyyy-MM-dd') === format(nowPacific(), 'yyyy-MM-dd');
                   return (
                     <div key={p.id} className="flex items-center justify-between border border-taupe/30 rounded-lg px-3 py-2">
                       <div>
@@ -2686,7 +2671,7 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
           <input
             type="date"
             className="input"
-            min={format(new Date(), 'yyyy-MM-dd')}
+            min={format(nowPacific(), 'yyyy-MM-dd')}
             value={dateStr}
             onChange={e => {
               const newDate = e.target.value;
@@ -2731,7 +2716,7 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
               <input
                 type="date"
                 className="input"
-                min={startStr || format(new Date(), 'yyyy-MM-dd')}
+                min={startStr || format(nowPacific(), 'yyyy-MM-dd')}
                 value={endStr}
                 onChange={e => {
                   const newEnd = e.target.value;
@@ -2819,7 +2804,7 @@ function EditAppointmentForm({ editForm, setEditForm, editError, teamMembers, ap
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
         <Button
           loading={isPending}
-          disabled={editForm.dog_ids.length === 0 || !editForm.scheduled_time || !editForm.duration_minutes || isBefore(new Date(editForm.scheduled_time), new Date())}
+          disabled={editForm.dog_ids.length === 0 || !editForm.scheduled_time || !editForm.duration_minutes || isBefore(new Date(editForm.scheduled_time), nowPacific())}
           onClick={onSave}
         >
           Save Changes
@@ -2839,7 +2824,7 @@ function TodaysAppointments({ appointments, onCheckIn, checkInPending, onSelect 
 }) {
   const [checkingInId, setCheckingInId] = useState<number | null>(null);
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todayStr = format(nowPacific(), 'yyyy-MM-dd');
   const todaysAppts = appointments
     .filter((a: any) => a.scheduled_time?.startsWith(todayStr) && a.status !== 'cancelled')
     .sort((a: any, b: any) => a.scheduled_time.localeCompare(b.scheduled_time));

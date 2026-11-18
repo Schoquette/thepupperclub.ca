@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import type { Appointment } from '@pupper/shared';
 import { format, formatDistanceToNow } from 'date-fns';
-import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle, AlertTriangle, Mail, XCircle } from 'lucide-react';
+import { nowPacific } from '@/lib/date';
+import { ClipboardList, MessageCircle, DollarSign, Clock, Dog, CheckCircle, AlertTriangle, Mail, XCircle, KeyRound, Bell } from 'lucide-react';
 import { PawIcon } from '@/components/ui/PawIcon';
 import { CompleteVisitModal } from '@/components/admin/CompleteVisitModal';
 
@@ -23,6 +24,7 @@ function WalkCard({ appointment, onCompleteVisit }: { appointment: Appointment; 
   const qc = useQueryClient();
   const isCheckedIn = appointment.status === 'checked_in';
   const isDone = appointment.status === 'completed';
+  const homeAccess = (appointment as any).user?.home_access;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,6 +59,16 @@ function WalkCard({ appointment, onCompleteVisit }: { appointment: Appointment; 
         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {TIME_BLOCK_LABELS[appointment.client_time_block]}</span>
         <span className="flex items-center gap-1"><Dog className="w-3.5 h-3.5" /> {appointment.service_type === 'walk_30' ? '30-Minute Visit' : appointment.service_type === 'walk_60' ? '60-Minute Visit' : appointment.service_type.replace('_', ' ')}</span>
       </div>
+      {(homeAccess?.door_code || homeAccess?.buzzer_code) && (
+        <div className="flex items-center gap-4 text-sm font-medium text-espresso bg-cream rounded-lg px-3 py-1.5">
+          {homeAccess.door_code && (
+            <span className="flex items-center gap-1"><KeyRound className="w-3.5 h-3.5 text-gold" /> Door: {homeAccess.door_code}</span>
+          )}
+          {homeAccess.buzzer_code && (
+            <span className="flex items-center gap-1"><Bell className="w-3.5 h-3.5 text-gold" /> Buzzer: {homeAccess.buzzer_code}</span>
+          )}
+        </div>
+      )}
       {!isDone && (
         <div className="flex gap-2 mt-1">
           {!isCheckedIn ? (
@@ -103,7 +115,7 @@ export default function AdminDashboardPage() {
 
   if (isLoading) return <PageLoader />;
 
-  const today = format(new Date(), 'EEEE, MMMM d');
+  const today = format(nowPacific(), 'EEEE, MMMM d');
   const recentErrors: any[] = data?.recent_errors ?? [];
   const recentEmails: any[] = data?.recent_emails ?? [];
 

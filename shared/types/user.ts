@@ -9,6 +9,7 @@ export interface User {
   status: UserStatus;
   email_verified_at: string | null;
   client_profile?: ClientProfile | null;
+  home_access?: import('./dog').HomeAccess | null;
   created_at: string;
   updated_at: string;
 }

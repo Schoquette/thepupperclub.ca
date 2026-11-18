@@ -21,7 +21,7 @@ class AppointmentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
-        $eagerLoads = ['user.clientProfile', 'dogs', 'visitReport'];
+        $eagerLoads = ['user.clientProfile', 'user.homeAccess', 'dogs', 'visitReport'];
         if ($hasAssignedTo) $eagerLoads[] = 'assignedAdmin:id,name,color';
 
         $query = Appointment::with($eagerLoads)
@@ -40,6 +40,29 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Dismisses a cancelled appointment from the Calendar's "Cancelled
+     * this week" banner, permanently -- this used to be tracked client-side
+     * in localStorage (per browser, per week), so dismissing on one device
+     * didn't stick on another, and re-dismissing was needed every week.
+     * Persisting it on the appointment itself fixes both.
+     */
+    public function dismissCancellation(Appointment $appointment): JsonResponse
+    {
+        if (!Schema::hasColumn('appointments', 'cancellation_dismissed')) {
+            try {
+                Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->boolean('cancellation_dismissed')->default(false)->after('status');
+                });
+            } catch (\Throwable $e) {
+                return response()->json(['message' => 'Could not dismiss — column unavailable.'], 422);
+            }
+        }
+
+        $appointment->update(['cancellation_dismissed' => true]);
+        return response()->json(['message' => 'Dismissed.']);
+    }
+
+    /**
      * Scoped version of index() for the restricted team_member role --
      * hard-codes assigned_to to the caller's own id regardless of any
      * assigned_to/user_id param on the request, so a team member can never
@@ -47,7 +70,7 @@ class AppointmentController extends Controller
      */
     public function myAppointments(Request $request): JsonResponse
     {
-        $query = Appointment::with(['user.clientProfile', 'dogs', 'visitReport'])
+        $query = Appointment::with(['user.clientProfile', 'user.homeAccess', 'dogs', 'visitReport'])
             ->where('assigned_to', $request->user()->id)
             ->when($request->date, fn($q) => $q->whereDate('scheduled_time', $request->date))
             ->when($request->start, fn($q) => $q->where('scheduled_time', '>=', $request->start))
@@ -152,7 +175,7 @@ class AppointmentController extends Controller
     public function show(Appointment $appointment): JsonResponse
     {
         return response()->json([
-            'data' => $appointment->load(['user.clientProfile', 'dogs', 'visitReport']),
+            'data' => $appointment->load(['user.clientProfile', 'user.homeAccess', 'dogs', 'visitReport']),
         ]);
     }
 

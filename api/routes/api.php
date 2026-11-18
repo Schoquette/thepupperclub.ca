@@ -187,6 +187,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/appointments/{appointment}/times',    [Admin\AppointmentController::class, 'updateTimes']);
         Route::delete('/appointments/{appointment}',         [Admin\AppointmentController::class, 'destroy']);
         Route::post('/appointments/{appointment}/dismiss-report-card', [Admin\ReportCardController::class, 'dismissDue']);
+        Route::post('/appointments/{appointment}/dismiss-cancellation', [Admin\AppointmentController::class, 'dismissCancellation']);
         Route::get('/appointments/{appointment}/report',     [Admin\AppointmentController::class, 'report']);
         Route::patch('/appointments/{appointment}/report',   [Admin\AppointmentController::class, 'updateReport']);
 
