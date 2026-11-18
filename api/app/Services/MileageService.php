@@ -28,11 +28,19 @@ class MileageService
 
         $hasAssignedTo = Schema::hasColumn('appointments', 'assigned_to');
 
-        // Get all past appointments for this team member on this day, ordered by scheduled time
+        // Ordered by actual check-in time, not scheduled_time: a group hike's
+        // participants typically share one scheduled_time slot, so sorting
+        // by schedule alone leaves their relative order arbitrary even
+        // though the walker visited their homes one at a time. check_in_time
+        // reflects the real sequence. Anything not yet checked in (still
+        // 'scheduled') has no check_in_time, so those fall back to
+        // scheduled_time and sort after everything that's actually happened.
         $appointments = Appointment::with(['user.clientProfile', 'visitReport'])
             ->whereIn('status', ['scheduled', 'checked_in', 'completed'])
             ->whereDate('scheduled_time', $date->toDateString())
             ->when($hasAssignedTo && $teamMemberId, fn($q) => $q->where('assigned_to', $teamMemberId))
+            ->orderByRaw('check_in_time IS NULL')
+            ->orderBy('check_in_time')
             ->orderBy('scheduled_time')
             ->get();
 

@@ -511,6 +511,7 @@ When an appointment is completed (check-out), the system automatically calculate
 - **Middle appointments**: previous client's address -> current client's address
 - **Last appointment of the day**: includes return trip to team member's home
 - If another appointment is completed later, mileage for the entire day is recalculated
+- Ordered by **actual check-in time**, not scheduled time — a Group Hike's participants typically share one scheduled slot, so this matters: the first dog checked in legs from home, the second from the first dog's address, and so on, reflecting the real order the walker visited each home rather than an arbitrary tie-break among identical scheduled times
 
 Requires `GOOGLE_MAPS_API_KEY` in `api/.env` and team member home addresses set on the Team page.
 
