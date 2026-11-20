@@ -158,6 +158,9 @@ class AppointmentController extends Controller
             'recurrence'       => 'nullable|array',
             'group_hike_id'    => 'nullable|string',
             'group_hike_name'  => 'nullable|string',
+            'billing_type'        => 'nullable|in:included_in_plan,charge',
+            'billing_description' => 'nullable|string|max:255',
+            'billing_amount'      => 'nullable|numeric|min:0',
         ];
 
         if (Schema::hasColumn('appointments', 'assigned_to')) {
@@ -167,9 +170,47 @@ class AppointmentController extends Controller
         $data = $request->validate($rules);
         $data['force'] = filter_var($request->input('force', false), FILTER_VALIDATE_BOOLEAN);
 
+        $billingType = $data['billing_type'] ?? null;
+        unset($data['billing_type'], $data['billing_description'], $data['billing_amount']);
+
         $appointment = $this->service->create($data);
 
+        // Billing classification is admin-only metadata, tracked the same
+        // way as a service request's approval billing -- the admin adds it
+        // to an invoice later from the client's Billing tab, it's never
+        // shown to the client anywhere.
+        if ($billingType) {
+            $this->ensureBillingColumns();
+            $appointment->update([
+                'billing_type'        => $billingType,
+                'billing_amount'      => $billingType === 'charge' ? ($request->input('billing_amount') ?? 0) : null,
+                'billing_description' => $billingType === 'charge' ? $request->input('billing_description') : null,
+            ]);
+        }
+
         return response()->json(['data' => $appointment->load(['dogs', 'user'])], 201);
+    }
+
+    private function ensureBillingColumns(): void
+    {
+        if (Schema::hasColumn('appointments', 'billing_type')) return;
+        try {
+            Schema::table('appointments', function (\Illuminate\Database\Schema\Blueprint $table) {
+                $table->string('billing_type')->nullable()->after('status');
+                $table->decimal('billing_amount', 10, 2)->nullable()->after('billing_type');
+                $table->string('billing_description')->nullable()->after('billing_amount');
+                $table->foreignId('invoice_line_item_id')->nullable()->after('billing_description')->constrained()->nullOnDelete();
+            });
+        } catch (\Throwable $e) {
+            try {
+                \App\Models\ErrorLog::create([
+                    'type'       => 'SchemaHealFailed',
+                    'message'    => $e->getMessage(),
+                    'context'    => ['table' => 'appointments', 'column' => 'billing_type'],
+                    'created_at' => now(),
+                ]);
+            } catch (\Throwable $logError) {}
+        }
     }
 
     public function show(Appointment $appointment): JsonResponse

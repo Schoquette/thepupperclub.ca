@@ -8,6 +8,7 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { enCA } from 'date-fns/locale';
 import api from '@/lib/api';
 import { toDateStrPacific, nowPacific } from '@/lib/date';
+import { formatMoney } from '@/lib/money';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -250,6 +251,13 @@ type NewApptForm = {
    *  (via the roster modal's "Add Dog" button) — joins that hike instead
    *  of minting a new group_hike_id. */
   group_hike_id: string;
+  /** Admin-only billing classification, never shown to the client — same
+   *  purpose as a service request's approval billing: "included_in_plan"
+   *  needs no further action, "charge" surfaces this appointment as an
+   *  unbilled add-on on the client's Billing tab. */
+  billing_type: 'included_in_plan' | 'charge';
+  billing_description: string;
+  billing_amount: string;
 };
 
 function blankForm(): NewApptForm {
@@ -266,6 +274,9 @@ function blankForm(): NewApptForm {
     recurrence: blankRecurrence(),
     group_hike_name: '',
     group_hike_id: '',
+    billing_type: 'included_in_plan',
+    billing_description: '',
+    billing_amount: '',
   };
 }
 
@@ -386,6 +397,14 @@ export default function AdminCalendarPage() {
   const { data: clientsData } = useQuery({
     queryKey: ['admin-clients-calendar'],
     queryFn: () => api.get('/admin/clients').then(r => r.data.data),
+    enabled: creatingAppt,
+  });
+
+  // Stripe products for the billing quick-pick, same source as the
+  // Service Requests approve flow
+  const { data: stripeProducts } = useQuery({
+    queryKey: ['stripe-products'],
+    queryFn: () => api.get('/admin/stripe/products').then(r => r.data.data ?? []),
     enabled: creatingAppt,
   });
 
@@ -670,6 +689,9 @@ export default function AdminCalendarPage() {
       client_time_block: newForm.client_time_block,
       duration_minutes:  newForm.duration_minutes,
       notes:             newForm.notes || undefined,
+      billing_type:        newForm.billing_type,
+      billing_description: newForm.billing_type === 'charge' ? newForm.billing_description || undefined : undefined,
+      billing_amount:      newForm.billing_type === 'charge' ? (parseFloat(newForm.billing_amount) || 0) : undefined,
     };
     if (newForm.service_type === 'pack_hike') {
       if (newForm.group_hike_id) {
@@ -1743,6 +1765,79 @@ export default function AdminCalendarPage() {
                       />
                     </label>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Billing — admin-only, never shown to the client */}
+          <div className="border-t border-cream pt-4">
+            <label className="label">Billing</label>
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setNewForm(f => ({ ...f, billing_type: 'included_in_plan', billing_description: '', billing_amount: '' }))}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                  newForm.billing_type === 'included_in_plan' ? 'bg-gold text-white border-gold' : 'border-taupe text-espresso hover:bg-cream'
+                }`}
+              >
+                Included in Plan
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewForm(f => ({ ...f, billing_type: 'charge' }))}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                  newForm.billing_type === 'charge' ? 'bg-gold text-white border-gold' : 'border-taupe text-espresso hover:bg-cream'
+                }`}
+              >
+                Extra Charge
+              </button>
+            </div>
+
+            {newForm.billing_type === 'charge' && (
+              <div className="space-y-3">
+                {Array.isArray(stripeProducts) && stripeProducts.length > 0 && (
+                  <div>
+                    <label className="label text-xs">Quick pick from Stripe</label>
+                    <select
+                      className="input"
+                      value=""
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const [name, amt] = val.split('|||');
+                        setNewForm(f => ({ ...f, billing_description: name, billing_amount: amt }));
+                      }}
+                    >
+                      <option value="">Select a product...</option>
+                      {(stripeProducts as any[]).map((p: any) =>
+                        (p.prices ?? []).map((pr: any) => (
+                          <option key={pr.id} value={`${p.name}|||${pr.amount ?? 0}`}>
+                            {p.name}{pr.nickname ? ` — ${pr.nickname}` : ''} — ${pr.amount != null ? formatMoney(pr.amount) : '0.00'} {pr.currency}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Input
+                      label="Description"
+                      value={newForm.billing_description}
+                      onChange={e => setNewForm(f => ({ ...f, billing_description: e.target.value }))}
+                      placeholder="e.g. 60-Minute Visit (extra)"
+                    />
+                  </div>
+                  <Input
+                    label="Amount ($)"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newForm.billing_amount}
+                    onChange={e => setNewForm(f => ({ ...f, billing_amount: e.target.value }))}
+                  />
                 </div>
               </div>
             )}

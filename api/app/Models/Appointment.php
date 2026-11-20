@@ -43,6 +43,10 @@ class Appointment extends Model
         'distance_km',
         'report_card_dismissed',
         'cancellation_dismissed',
+        'billing_type',
+        'billing_amount',
+        'billing_description',
+        'invoice_line_item_id',
     ];
 
     protected function casts(): array
@@ -57,7 +61,13 @@ class Appointment extends Model
             'cancellation_dismissed'       => 'boolean',
             'payg_rate'                    => 'decimal:2',
             'payg_billed_at'               => 'datetime',
+            'billing_amount'               => 'decimal:2',
         ];
+    }
+
+    public function invoiceLineItem(): BelongsTo
+    {
+        return $this->belongsTo(InvoiceLineItem::class);
     }
 
     public function user(): BelongsTo

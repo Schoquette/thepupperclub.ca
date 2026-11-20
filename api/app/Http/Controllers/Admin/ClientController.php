@@ -752,36 +752,70 @@ class ClientController extends Controller
             ];
         }
 
-        // Add-ons: service requests that were approved with billing_type = 'charge'
-        $hasBillingType = \Illuminate\Support\Facades\Schema::hasColumn('service_requests', 'billing_type');
+        // Add-ons: service requests approved with billing_type = 'charge', and
+        // directly-created appointments given the same billing_type = 'charge'
+        // classification at creation time. Both feed the same unbilled-add-ons
+        // list/checkbox UI on the Billing tab -- 'source' tells the frontend
+        // which id field to send back when adding one to an invoice.
         $addOns = collect();
-        if ($hasBillingType) {
-            $addOns = \App\Models\ServiceRequest::with(['dogs', 'invoiceLineItem.invoice'])
-                ->where('user_id', $client->id)
-                ->where('status', 'approved')
-                ->where('billing_type', 'charge')
-                ->orderByDesc('preferred_date')
-                ->get()
-                ->map(function ($sr) {
-                    $lineItem = $sr->invoiceLineItem;
-                    $invoice = $lineItem?->invoice;
-                    $isVoid = $invoice?->status === 'void';
-                    return [
-                        'id'                  => $sr->id,
-                        'service_type'        => $sr->service_type,
-                        'preferred_date'      => $sr->preferred_date?->toDateString(),
-                        'notes'               => $sr->notes,
-                        'billing_amount'      => (float) ($sr->billing_amount ?? 0),
-                        'billing_description' => $sr->billing_description,
-                        'dogs'                => $sr->dogs->pluck('name')->join(', '),
-                        'billed'              => $lineItem !== null && !$isVoid,
-                        'invoice_id'          => $isVoid ? null : $invoice?->id,
-                        'invoice_number'      => $isVoid ? null : $invoice?->invoice_number,
-                        'invoice_status'      => $isVoid ? null : $invoice?->status,
-                        'paid'                => $invoice?->status === 'paid',
-                    ];
-                });
+        if (\Illuminate\Support\Facades\Schema::hasColumn('service_requests', 'billing_type')) {
+            $addOns = $addOns->merge(
+                \App\Models\ServiceRequest::with(['dogs', 'invoiceLineItem.invoice'])
+                    ->where('user_id', $client->id)
+                    ->where('status', 'approved')
+                    ->where('billing_type', 'charge')
+                    ->get()
+                    ->map(function ($sr) {
+                        $lineItem = $sr->invoiceLineItem;
+                        $invoice = $lineItem?->invoice;
+                        $isVoid = $invoice?->status === 'void';
+                        return [
+                            'source'              => 'service_request',
+                            'id'                   => $sr->id,
+                            'service_type'         => $sr->service_type,
+                            'preferred_date'       => $sr->preferred_date?->toDateString(),
+                            'notes'                => $sr->notes,
+                            'billing_amount'       => (float) ($sr->billing_amount ?? 0),
+                            'billing_description'  => $sr->billing_description,
+                            'dogs'                 => $sr->dogs->pluck('name')->join(', '),
+                            'billed'               => $lineItem !== null && !$isVoid,
+                            'invoice_id'           => $isVoid ? null : $invoice?->id,
+                            'invoice_number'       => $isVoid ? null : $invoice?->invoice_number,
+                            'invoice_status'       => $isVoid ? null : $invoice?->status,
+                            'paid'                 => $invoice?->status === 'paid',
+                        ];
+                    })
+            );
         }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('appointments', 'billing_type')) {
+            $addOns = $addOns->merge(
+                \App\Models\Appointment::with(['dogs', 'invoiceLineItem.invoice'])
+                    ->where('user_id', $client->id)
+                    ->where('billing_type', 'charge')
+                    ->get()
+                    ->map(function ($appt) {
+                        $lineItem = $appt->invoiceLineItem;
+                        $invoice = $lineItem?->invoice;
+                        $isVoid = $invoice?->status === 'void';
+                        return [
+                            'source'              => 'appointment',
+                            'id'                   => $appt->id,
+                            'service_type'         => $appt->service_type,
+                            'preferred_date'       => $appt->scheduled_time?->toDateString(),
+                            'notes'                => $appt->notes,
+                            'billing_amount'       => (float) ($appt->billing_amount ?? 0),
+                            'billing_description'  => $appt->billing_description,
+                            'dogs'                 => $appt->dogs->pluck('name')->join(', '),
+                            'billed'               => $lineItem !== null && !$isVoid,
+                            'invoice_id'           => $isVoid ? null : $invoice?->id,
+                            'invoice_number'       => $isVoid ? null : $invoice?->invoice_number,
+                            'invoice_status'       => $isVoid ? null : $invoice?->status,
+                            'paid'                 => $invoice?->status === 'paid',
+                        ];
+                    })
+            );
+        }
+        $addOns = $addOns->sortByDesc('preferred_date')->values();
 
         // Recent invoices
         $invoices = \App\Models\Invoice::with('lineItems')
@@ -836,11 +870,17 @@ class ClientController extends Controller
             $periodEnd->toDateString(),
         );
 
-        // Link service requests to line items (skip the first one — that's the subscription)
+        // Link service requests/appointments to line items (skip the first one — that's the subscription)
         $allLineItems = $invoice->lineItems;
         foreach ($addOnItems as $i => $item) {
-            if (!empty($item['service_request_id']) && isset($allLineItems[$i + 1])) {
+            if (!isset($allLineItems[$i + 1])) continue;
+            if (!empty($item['service_request_id'])) {
                 \App\Models\ServiceRequest::where('id', $item['service_request_id'])
+                    ->update(['invoice_line_item_id' => $allLineItems[$i + 1]->id]);
+            }
+            if (!empty($item['billing_appointment_id']) && \Illuminate\Support\Facades\Schema::hasColumn('appointments', 'invoice_line_item_id')) {
+                \App\Models\Appointment::where('id', $item['billing_appointment_id'])
+                    ->where('billing_type', 'charge')
                     ->update(['invoice_line_item_id' => $allLineItems[$i + 1]->id]);
             }
         }

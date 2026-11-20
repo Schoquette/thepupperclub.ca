@@ -70,6 +70,7 @@ class InvoiceController extends Controller
             'line_items.*.service_date'        => 'nullable|date',
             'line_items.*.appointment_id'      => 'nullable|exists:appointments,id',
             'line_items.*.service_request_id'  => 'nullable|integer',
+            'line_items.*.billing_appointment_id' => 'nullable|exists:appointments,id',
         ]);
 
         $invoice = $this->invoiceService->create(
@@ -88,7 +89,7 @@ class InvoiceController extends Controller
         }
 
         // Link service requests to the newly created line items
-        $this->linkServiceRequests($data['line_items'], $invoice->lineItems);
+        $this->linkBillingSources($data['line_items'], $invoice->lineItems);
 
         return response()->json(['data' => $invoice->load('lineItems')], 201);
     }
@@ -196,11 +197,15 @@ class InvoiceController extends Controller
         abort_unless(in_array($invoice->status, ['draft', 'approved', 'sent', 'overdue']), 422, 'Cannot void a paid invoice.');
         $invoice->update(['status' => 'void']);
 
-        // Unlink any add-on service requests so they return to unbilled status
+        // Unlink any add-on service requests/appointments so they return to unbilled status
         $lineItemIds = $invoice->lineItems()->pluck('id');
         if ($lineItemIds->isNotEmpty()) {
             ServiceRequest::whereIn('invoice_line_item_id', $lineItemIds)
                 ->update(['invoice_line_item_id' => null]);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('appointments', 'invoice_line_item_id')) {
+                \App\Models\Appointment::whereIn('invoice_line_item_id', $lineItemIds)
+                    ->update(['invoice_line_item_id' => null]);
+            }
         }
 
         return response()->json(['data' => $invoice->fresh()]);
@@ -220,18 +225,20 @@ class InvoiceController extends Controller
             'line_items.*.gst_exempt'          => 'sometimes|boolean',
             'line_items.*.service_date'        => 'nullable|date',
             'line_items.*.service_request_id'  => 'nullable|integer',
+            'line_items.*.billing_appointment_id' => 'nullable|exists:appointments,id',
         ]);
 
         $this->invoiceService->attachLineItems($invoice, $data['line_items']);
         $this->invoiceService->recalculate($invoice);
 
-        // Link service requests to the newly created line items. Grab the
-        // newest N rows (in case the invoice already had line items), then
-        // reverse to ascending/insertion order so index i lines up with the
-        // submitted $data['line_items'][i] — attachLineItems() creates rows
-        // in submitted order via a plain foreach.
+        // Link service requests/appointments to the newly created line
+        // items. Grab the newest N rows (in case the invoice already had
+        // line items), then reverse to ascending/insertion order so index i
+        // lines up with the submitted $data['line_items'][i] —
+        // attachLineItems() creates rows in submitted order via a plain
+        // foreach.
         $newLineItems = $invoice->lineItems()->latest('id')->limit(count($data['line_items']))->get()->reverse()->values();
-        $this->linkServiceRequests($data['line_items'], $newLineItems);
+        $this->linkBillingSources($data['line_items'], $newLineItems);
 
         return response()->json(['data' => $invoice->fresh('lineItems')]);
     }
@@ -346,15 +353,23 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Link service requests to their corresponding invoice line items.
+     * Link service requests and billing-flagged appointments (both are
+     * "add-ons" on the client's Billing tab) to their corresponding invoice
+     * line items, so they show as billed and stop appearing as unbilled.
      */
-    private function linkServiceRequests(array $inputItems, $lineItems): void
+    private function linkBillingSources(array $inputItems, $lineItems): void
     {
         $lineItemsArr = $lineItems instanceof \Illuminate\Support\Collection ? $lineItems->values() : collect($lineItems)->values();
 
         foreach ($inputItems as $i => $item) {
-            if (!empty($item['service_request_id']) && isset($lineItemsArr[$i])) {
+            if (!isset($lineItemsArr[$i])) continue;
+            if (!empty($item['service_request_id'])) {
                 ServiceRequest::where('id', $item['service_request_id'])
+                    ->update(['invoice_line_item_id' => $lineItemsArr[$i]->id]);
+            }
+            if (!empty($item['billing_appointment_id']) && \Illuminate\Support\Facades\Schema::hasColumn('appointments', 'invoice_line_item_id')) {
+                \App\Models\Appointment::where('id', $item['billing_appointment_id'])
+                    ->where('billing_type', 'charge')
                     ->update(['invoice_line_item_id' => $lineItemsArr[$i]->id]);
             }
         }

@@ -1922,23 +1922,28 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
     queryFn: () => api.get(`/admin/clients/${clientId}/billing-summary`).then(r => r.data.data),
   });
 
-  const [selectedAddOns, setSelectedAddOns] = useState<Set<number>>(new Set());
+  // Keyed by "source:id" rather than bare id -- add-ons now come from two
+  // separate tables (service_requests and appointments) with independent
+  // auto-increment ids, so a bare numeric id could collide between a
+  // service request and an appointment that happen to share the same id.
+  const addOnKey = (a: { source?: string; id: number }) => `${a.source ?? 'service_request'}:${a.id}`;
+  const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [addToInvoiceOpen, setAddToInvoiceOpen] = useState(false);
 
-  const toggleAddOn = (id: number) => {
+  const toggleAddOn = (key: string) => {
     setSelectedAddOns(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   };
 
-  const toggleAll = (ids: number[]) => {
+  const toggleAll = (keys: string[]) => {
     setSelectedAddOns(prev => {
-      const allSelected = ids.every(id => prev.has(id));
+      const allSelected = keys.every(key => prev.has(key));
       if (allSelected) return new Set();
-      return new Set(ids);
+      return new Set(keys);
     });
   };
 
@@ -1948,12 +1953,12 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
       quantity: 1,
       unit_price: a.billing_amount,
       service_date: a.preferred_date,
-      service_request_id: a.id,
+      ...(a.source === 'appointment' ? { billing_appointment_id: a.id } : { service_request_id: a.id }),
     }));
 
   const handleCreateNewInvoice = async () => {
     if (!data) return;
-    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(a.id));
+    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(addOnKey(a)));
     if (!selected.length) return;
     setBusy(true);
     try {
@@ -1971,7 +1976,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
 
   const handleAddToInvoice = async (invoiceId: number) => {
     if (!data) return;
-    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(a.id));
+    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(addOnKey(a)));
     if (!selected.length) return;
     setBusy(true);
     try {
@@ -1988,7 +1993,7 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
 
   const handleAddToUpcomingInvoice = async () => {
     if (!data) return;
-    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(a.id));
+    const selected = data.add_ons.filter((a: any) => !a.billed && selectedAddOns.has(addOnKey(a)));
     if (!selected.length) return;
     setBusy(true);
     try {
@@ -2251,8 +2256,8 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
                     <th className="pl-4 pr-2 py-2.5 w-8">
                       <input
                         type="checkbox"
-                        checked={unbilledAddOns.length > 0 && unbilledAddOns.every((a: any) => selectedAddOns.has(a.id))}
-                        onChange={() => toggleAll(unbilledAddOns.map((a: any) => a.id))}
+                        checked={unbilledAddOns.length > 0 && unbilledAddOns.every((a: any) => selectedAddOns.has(addOnKey(a)))}
+                        onChange={() => toggleAll(unbilledAddOns.map((a: any) => addOnKey(a)))}
                         className="w-4 h-4 rounded border-[#C8BFB6] text-[#C9A24D] focus:ring-[#C9A24D] cursor-pointer"
                       />
                     </th>
@@ -2268,9 +2273,9 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
               <tbody>
                 {(add_ons ?? []).map((addon: any) => (
                   <tr
-                    key={addon.id}
+                    key={addOnKey(addon)}
                     className={`border-b border-[#F6F3EE] last:border-0 hover:bg-[#F6F3EE]/50 transition-colors ${
-                      selectedAddOns.has(addon.id) ? 'bg-[#C9A24D]/5' : ''
+                      selectedAddOns.has(addOnKey(addon)) ? 'bg-[#C9A24D]/5' : ''
                     }`}
                   >
                     {unbilledAddOns.length > 0 && (
@@ -2278,8 +2283,8 @@ function ClientBillingTab({ clientId }: { clientId: number }) {
                         {!addon.billed ? (
                           <input
                             type="checkbox"
-                            checked={selectedAddOns.has(addon.id)}
-                            onChange={() => toggleAddOn(addon.id)}
+                            checked={selectedAddOns.has(addOnKey(addon))}
+                            onChange={() => toggleAddOn(addOnKey(addon))}
                             className="w-4 h-4 rounded border-[#C8BFB6] text-[#C9A24D] focus:ring-[#C9A24D] cursor-pointer"
                           />
                         ) : (
