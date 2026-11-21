@@ -4,7 +4,8 @@
 // Using the DST-aware zone here would read one hour behind true local
 // time for as long as this holds. Mirrors api/config/app.php's
 // 'Etc/GMT+7'. Revisit if/when the region resumes normal DST observance.
-const TZ = 'Etc/GMT+7';
+export const PACIFIC_TZ = 'Etc/GMT+7';
+const TZ = PACIFIC_TZ;
 
 /** Today's date as YYYY-MM-DD in current Vancouver local time. */
 export const todayPacific = (): string =>

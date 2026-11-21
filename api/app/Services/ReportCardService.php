@@ -147,9 +147,9 @@ class ReportCardService
         $dogPhotoCid = ($firstDog && $firstDog->photo_path) ? 'dog-photo@thepupperclub.ca' : null;
 
         // ── Shared HTML fragments ─────────────────────────────────────────────
-        $arrivalTime   = $report->arrival_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
-        $departureTime = $report->departure_time?->setTimezone('America/Vancouver')->format('g:i A') ?? '';
-        $visitDate     = $report->arrival_time?->setTimezone('America/Vancouver')->format('F j, Y') ?? '';
+        $arrivalTime   = $report->arrival_time?->setTimezone(config('app.timezone'))->format('g:i A') ?? '';
+        $departureTime = $report->departure_time?->setTimezone(config('app.timezone'))->format('g:i A') ?? '';
+        $visitDate     = $report->arrival_time?->setTimezone(config('app.timezone'))->format('F j, Y') ?? '';
         $portalUrl     = rtrim(config('services.frontend_url', 'https://thepupperclub.ca'), '/') . '/client/report-cards';
         $replyAddr     = config('services.resend.inbound_address') ?: config('mail.from.address');
 

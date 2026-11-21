@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import { X, Pen, Type, ChevronDown } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { todayPacific } from '@/lib/date';
+import { todayPacific, PACIFIC_TZ } from '@/lib/date';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const publicApi = axios.create({
@@ -591,7 +591,7 @@ export default function SigningPage() {
     // ── Date field — read-only, auto-filled ──
     if (field.field_type === 'date') {
       const displayDate = new Date((val || todayPacific()) + 'T00:00:00')
-        .toLocaleDateString('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: 'long', day: 'numeric' });
+        .toLocaleDateString('en-CA', { timeZone: PACIFIC_TZ, year: 'numeric', month: 'long', day: 'numeric' });
       return (
         <div
           key={field.id}

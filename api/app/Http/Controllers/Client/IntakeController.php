@@ -158,7 +158,7 @@ class IntakeController extends Controller
                 'profile'     => $user->clientProfile,
                 'dogs'        => $user->dogs,
                 'homeAccess'  => $user->homeAccess,
-                'submittedAt' => now()->setTimezone('America/Vancouver')->format('F j, Y g:i A'),
+                'submittedAt' => now()->setTimezone(config('app.timezone'))->format('F j, Y g:i A'),
             ]);
 
             $pdfContent  = $pdf->output();

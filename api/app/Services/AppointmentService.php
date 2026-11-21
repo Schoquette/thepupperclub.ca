@@ -32,9 +32,13 @@ class AppointmentService
     {
         $scheduledTime = $this->parseTime($data['scheduled_time']);
 
-        // Compare against Pacific "now" since all times are stored as naive Pacific
-        $nowPacific = Carbon::now('America/Vancouver');
-        $scheduledCheck = Carbon::parse($scheduledTime->format('Y-m-d H:i:s'), 'America/Vancouver');
+        // Compare against Pacific "now" since all times are stored as naive
+        // Pacific. Uses config('app.timezone') rather than the literal
+        // 'America/Vancouver' string -- that IANA zone is DST-aware and BC
+        // did not fall back for the 2026 autumn change, so it currently
+        // reads an hour behind the fixed offset the rest of the app uses.
+        $nowPacific = Carbon::now(config('app.timezone'));
+        $scheduledCheck = Carbon::parse($scheduledTime->format('Y-m-d H:i:s'), config('app.timezone'));
         abort_if($scheduledCheck->lt($nowPacific), 422, 'Cannot schedule appointments in the past.');
 
         if (!Schema::hasColumn('appointments', 'assigned_to')) {
@@ -229,6 +233,48 @@ class AppointmentService
         } else {
             $appointment->update(['status' => 'cancelled']);
         }
+    }
+
+    /**
+     * Changes the recurrence pattern (frequency/interval/days/end
+     * condition) for a whole series going forward. Unlike update()'s
+     * future_all/all scopes -- which shift or patch existing rows in
+     * place -- a pattern change can mean an entirely different set of
+     * future dates, so this discards not-yet-occurred occurrences and
+     * regenerates them under the new rule. Already-happened occurrences
+     * (anything with scheduled_time in the past) are real history and are
+     * left untouched, as is the parent's own anchor date.
+     *
+     * Accepts either the parent or any child of the series -- always
+     * resolves to the parent, since that's the row recurrence_rule lives
+     * on and generateRecurring() reads from.
+     */
+    public function updateRecurrence(Appointment $appointment, array $rule): Appointment
+    {
+        $parent = $appointment->recurrence_parent_id
+            ? Appointment::findOrFail($appointment->recurrence_parent_id)
+            : $appointment;
+
+        $parent->update(['recurrence_rule' => $rule]);
+
+        // Hard delete, not the usual soft delete: generateRecurring() uses
+        // withTrashed() when deciding where to resume from and how many
+        // occurrences already exist, specifically so a soft-deleted
+        // (cancelled) occurrence's slot stays skipped on the next monthly
+        // run rather than being silently re-filled. That's correct for an
+        // ordinary cancellation, but wrong here -- these rows are being
+        // superseded by a deliberate pattern change, not cancelled, and a
+        // future/un-occurred row has no check-in, report, or billing data
+        // that a hard delete could lose.
+        $now = Carbon::now(config('app.timezone'));
+        Appointment::where('recurrence_parent_id', $parent->id)
+            ->where('scheduled_time', '>=', $now)
+            ->get()
+            ->each(fn ($child) => $child->forceDelete());
+
+        $this->generateRecurring($parent->fresh());
+
+        return $parent->fresh();
     }
 
     public function generateRecurring(Appointment $parent, ?string $upTo = null): void

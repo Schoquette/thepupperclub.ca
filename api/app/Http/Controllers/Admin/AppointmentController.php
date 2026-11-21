@@ -308,6 +308,33 @@ class AppointmentController extends Controller
         return response()->json(['message' => 'Appointment cancelled.']);
     }
 
+    /**
+     * Changes the recurrence pattern for an appointment's whole series
+     * (frequency/interval/days-of-week/end condition), accepted from
+     * either the parent or any child row. Regenerates every not-yet-
+     * occurred occurrence under the new rule; past occurrences are
+     * untouched. Separate from update()'s future_all/all scopes, which
+     * shift or patch existing rows rather than re-deriving the date set.
+     */
+    public function updateRecurrence(Request $request, Appointment $appointment): JsonResponse
+    {
+        abort_unless($appointment->recurrence_rule || $appointment->recurrence_parent_id, 422, 'This appointment is not part of a recurring series.');
+
+        $data = $request->validate([
+            'frequency'        => 'required|in:daily,weekly,monthly',
+            'interval'         => 'required|integer|min:1|max:52',
+            'days_of_week'     => 'nullable|array',
+            'days_of_week.*'   => 'string',
+            'end_type'         => 'required|in:never,after,on_date',
+            'end_after_count'  => 'nullable|integer|min:1|max:999',
+            'end_date'         => 'nullable|date',
+        ]);
+
+        $parent = $this->service->updateRecurrence($appointment, $data);
+
+        return response()->json(['data' => $parent->load(['dogs', 'user'])]);
+    }
+
     public function checkIn(Request $request, Appointment $appointment): JsonResponse
     {
         if ($request->user()->role === 'team_member') {
@@ -465,8 +492,8 @@ class AppointmentController extends Controller
         // Build schedule rows
         $rows = '';
         foreach ($appointments as $appt) {
-            $time = $appt->scheduled_time->setTimezone('America/Vancouver')->format('g:i A');
-            $endTime = $appt->scheduled_time->copy()->addMinutes($appt->duration_minutes)->setTimezone('America/Vancouver')->format('g:i A');
+            $time = $appt->scheduled_time->setTimezone(config('app.timezone'))->format('g:i A');
+            $endTime = $appt->scheduled_time->copy()->addMinutes($appt->duration_minutes)->setTimezone(config('app.timezone'))->format('g:i A');
             $client = $appt->user;
             $dogs = $appt->dogs->pluck('name')->join(', ');
             $service = $serviceLabels[$appt->service_type] ?? ucwords(str_replace('_', ' ', $appt->service_type));

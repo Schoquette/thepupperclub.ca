@@ -231,6 +231,20 @@ function blankRecurrence(): RecurrencePattern {
   };
 }
 
+/** Converts a stored recurrence_rule (as returned by the API) into the
+ *  editable RecurrencePattern shape the form widgets are built around. */
+function ruleToForm(rule: any): RecurrencePattern {
+  return {
+    enabled: true,
+    frequency: rule?.frequency ?? 'weekly',
+    interval: rule?.interval ?? 1,
+    days_of_week: rule?.days_of_week ?? [],
+    end_type: rule?.end_type ?? 'never',
+    end_after_count: rule?.end_after_count ?? rule?.occurrences ?? 10,
+    end_date: rule?.end_date ?? '',
+  };
+}
+
 type NewApptForm = {
   user_id: string;
   assigned_to: string;
@@ -359,6 +373,13 @@ export default function AdminCalendarPage() {
   const [editForm, setEditForm] = useState<any>(null);
   const [editError, setEditError] = useState('');
 
+  // Editing a recurring series' pattern (frequency/interval/days/end
+  // condition) -- distinct from the single-occurrence edit form above.
+  const [editingRecurrence, setEditingRecurrence] = useState(false);
+  const [recurrenceForm, setRecurrenceForm] = useState<RecurrencePattern | null>(null);
+  const [recurrenceError, setRecurrenceError] = useState('');
+  const [recurrenceTargetId, setRecurrenceTargetId] = useState<number | null>(null);
+
   // "Send Update?" prompt after save
   const [notifyPrompt, setNotifyPrompt] = useState<{ appointmentId: number; payload: any } | null>(null);
 
@@ -485,6 +506,23 @@ export default function AdminCalendarPage() {
     },
     onError: (err: any) => {
       setEditError(err.response?.data?.message ?? 'Failed to update appointment.');
+    },
+  });
+
+  const updateRecurrence = useMutation({
+    mutationFn: ({ id, ...payload }: any) => api.patch(`/admin/appointments/${id}/recurrence`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-appointments'] });
+      setEditingRecurrence(false);
+      setRecurrenceForm(null);
+      setRecurrenceError('');
+      setRecurrenceTargetId(null);
+      setSelected(null);
+      setHikeRoster(null);
+      setCalSuccess('Recurring schedule updated.'); setTimeout(() => setCalSuccess(''), 2500);
+    },
+    onError: (err: any) => {
+      setRecurrenceError(err.response?.data?.message ?? 'Failed to update recurring schedule.');
     },
   });
 
@@ -636,6 +674,45 @@ export default function AdminCalendarPage() {
     // Show notify prompt instead of saving directly
     setNotifyPrompt({ appointmentId: appointment.id, payload });
     setDragPending(null);
+  };
+
+  /**
+   * Opens the "edit recurring schedule" form for an appointment, loading
+   * the pattern from wherever it actually lives: the rule is only ever
+   * stored on the series' parent row, so if the clicked appointment is a
+   * child occurrence its own recurrence_rule is null and the parent has
+   * to be fetched first.
+   */
+  const openEditRecurrence = async (appt: any) => {
+    setRecurrenceError('');
+    setRecurrenceTargetId(appt.id);
+    if (appt.recurrence_rule) {
+      setRecurrenceForm(ruleToForm(appt.recurrence_rule));
+      setEditingRecurrence(true);
+      return;
+    }
+    if (appt.recurrence_parent_id) {
+      try {
+        const res = await api.get(`/admin/appointments/${appt.recurrence_parent_id}`);
+        setRecurrenceForm(ruleToForm(res.data.data.recurrence_rule));
+        setEditingRecurrence(true);
+      } catch {
+        setRecurrenceError('Could not load the recurring schedule.');
+      }
+    }
+  };
+
+  const handleRecurrenceSave = () => {
+    if (!recurrenceForm || recurrenceTargetId == null) return;
+    updateRecurrence.mutate({
+      id: recurrenceTargetId,
+      frequency: recurrenceForm.frequency,
+      interval: recurrenceForm.interval,
+      days_of_week: recurrenceForm.frequency === 'weekly' ? recurrenceForm.days_of_week : undefined,
+      end_type: recurrenceForm.end_type,
+      end_after_count: recurrenceForm.end_type === 'after' ? recurrenceForm.end_after_count : undefined,
+      end_date: recurrenceForm.end_type === 'on_date' ? recurrenceForm.end_date : undefined,
+    });
   };
 
   const handleEditSave = () => {
@@ -1257,7 +1334,17 @@ export default function AdminCalendarPage() {
                       <div><span className="text-taupe">Team Member:</span> {selected.assigned_admin.name}</div>
                     )}
                     {isRecurring && (
-                      <div className="col-span-2"><span className="text-taupe">Recurring:</span> Yes</div>
+                      <div className="col-span-2 flex items-center gap-2">
+                        <span className="text-taupe">Recurring:</span> Yes
+                        {selected.status !== 'completed' && selected.status !== 'cancelled' && (
+                          <button
+                            onClick={() => openEditRecurrence(selected)}
+                            className="text-xs text-blue hover:text-gold underline"
+                          >
+                            Edit schedule
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   {selected.notes && <p className="text-sm text-taupe bg-cream rounded-lg p-3">{selected.notes}</p>}
@@ -1967,7 +2054,22 @@ export default function AdminCalendarPage() {
                   return (
                     <div key={p.id} className="flex items-center justify-between border border-taupe/30 rounded-lg px-3 py-2">
                       <div>
-                        <div className="font-medium text-sm">{p.user?.name}{isRecurring && <span className="text-xs text-taupe ml-1">(recurring)</span>}</div>
+                        <div className="font-medium text-sm">
+                          {p.user?.name}
+                          {isRecurring && (
+                            <>
+                              <span className="text-xs text-taupe ml-1">(recurring)</span>
+                              {p.status !== 'completed' && p.status !== 'cancelled' && (
+                                <button
+                                  onClick={() => openEditRecurrence(p)}
+                                  className="text-xs text-blue hover:text-gold underline ml-1.5"
+                                >
+                                  Edit schedule
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                         <div className="text-xs text-taupe">{dogNames}{address && ` — ${address}`}</div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -2095,6 +2197,129 @@ export default function AdminCalendarPage() {
             onSave={handleEditSave}
             isPending={updateAppointment.isPending}
           />
+        )}
+      </Modal>
+
+      {/* Edit recurring schedule modal — changes the pattern (frequency/
+          interval/days/end condition) for the whole series going forward.
+          Past occurrences are untouched; not-yet-occurred ones are
+          regenerated under the new rule. */}
+      <Modal
+        open={editingRecurrence && !!recurrenceForm}
+        onClose={() => { setEditingRecurrence(false); setRecurrenceForm(null); setRecurrenceError(''); setRecurrenceTargetId(null); }}
+        title="Edit Recurring Schedule"
+      >
+        {recurrenceForm && (
+          <div className="space-y-4">
+            <p className="text-sm text-taupe">
+              Changes apply to this and every future occurrence in the series. Past visits are not affected.
+            </p>
+
+            {/* Frequency & interval */}
+            <div className="flex items-center gap-2 text-sm">
+              <span>Repeat every</span>
+              <input
+                type="number"
+                min={1}
+                max={52}
+                className="input w-16 text-center"
+                value={recurrenceForm.interval}
+                onChange={e => setRecurrenceForm(f => f && ({ ...f, interval: parseInt(e.target.value) || 1 }))}
+              />
+              <select
+                className="input w-auto"
+                value={recurrenceForm.frequency}
+                onChange={e => setRecurrenceForm(f => f && ({ ...f, frequency: e.target.value as any }))}
+              >
+                <option value="daily">{recurrenceForm.interval === 1 ? 'day' : 'days'}</option>
+                <option value="weekly">{recurrenceForm.interval === 1 ? 'week' : 'weeks'}</option>
+                <option value="monthly">{recurrenceForm.interval === 1 ? 'month' : 'months'}</option>
+              </select>
+            </div>
+
+            {/* Days of week (weekly only) */}
+            {recurrenceForm.frequency === 'weekly' && (
+              <div>
+                <label className="label text-xs mb-1">Repeat on</label>
+                <div className="flex gap-1">
+                  {DAYS_OF_WEEK.map(day => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => {
+                        setRecurrenceForm(f => {
+                          if (!f) return f;
+                          const days = f.days_of_week.includes(day.value)
+                            ? f.days_of_week.filter(d => d !== day.value)
+                            : [...f.days_of_week, day.value];
+                          return { ...f, days_of_week: days };
+                        });
+                      }}
+                      className={`w-9 h-9 rounded-full text-xs font-medium border transition-colors ${
+                        recurrenceForm.days_of_week.includes(day.value)
+                          ? 'bg-espresso text-cream border-espresso'
+                          : 'border-taupe text-espresso hover:bg-cream'
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* End condition */}
+            <div>
+              <label className="label text-xs mb-1">Ends</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="edit-recur-end" checked={recurrenceForm.end_type === 'never'}
+                    onChange={() => setRecurrenceForm(f => f && ({ ...f, end_type: 'never' }))}
+                    className="accent-espresso" />
+                  Never
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="edit-recur-end" checked={recurrenceForm.end_type === 'after'}
+                    onChange={() => setRecurrenceForm(f => f && ({ ...f, end_type: 'after' }))}
+                    className="accent-espresso" />
+                  After
+                  <input type="number" min={1} max={100} className="input w-16 text-center"
+                    value={recurrenceForm.end_after_count}
+                    onChange={e => setRecurrenceForm(f => f && ({ ...f, end_after_count: parseInt(e.target.value) || 1 }))}
+                    disabled={recurrenceForm.end_type !== 'after'}
+                  />
+                  occurrences
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="edit-recur-end" checked={recurrenceForm.end_type === 'on_date'}
+                    onChange={() => setRecurrenceForm(f => f && ({ ...f, end_type: 'on_date' }))}
+                    className="accent-espresso" />
+                  On
+                  <input type="date" className="input w-auto"
+                    value={recurrenceForm.end_date}
+                    onChange={e => setRecurrenceForm(f => f && ({ ...f, end_date: e.target.value }))}
+                    disabled={recurrenceForm.end_type !== 'on_date'}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {recurrenceError && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{recurrenceError}</p>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-cream">
+              <Button
+                variant="outline"
+                onClick={() => { setEditingRecurrence(false); setRecurrenceForm(null); setRecurrenceError(''); setRecurrenceTargetId(null); }}
+              >
+                Cancel
+              </Button>
+              <Button loading={updateRecurrence.isPending} onClick={handleRecurrenceSave}>
+                Save Schedule
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
 

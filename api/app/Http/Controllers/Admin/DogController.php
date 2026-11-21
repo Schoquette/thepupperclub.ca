@@ -121,7 +121,7 @@ class DogController extends Controller
             ->get()
             ->map(function ($dog) {
                 $dob = \Carbon\Carbon::parse($dog->date_of_birth);
-                $now = now()->setTimezone('America/Vancouver');
+                $now = now()->setTimezone(config('app.timezone'));
 
                 // Next birthday this year or next
                 $birthday = $dob->copy()->year($now->year);

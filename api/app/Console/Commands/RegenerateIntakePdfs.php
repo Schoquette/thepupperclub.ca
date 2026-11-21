@@ -31,7 +31,7 @@ class RegenerateIntakePdfs extends Command
         foreach ($clients as $client) {
             try {
                 $submittedAt = $client->clientProfile->intake_submitted_at
-                    ->setTimezone('America/Vancouver')
+                    ->setTimezone(config('app.timezone'))
                     ->format('F j, Y g:i A');
 
                 $pdf = Pdf::loadView('pdfs.intake_form', [
