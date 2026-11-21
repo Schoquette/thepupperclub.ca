@@ -57,6 +57,19 @@ export default function ClientReportCardsPage() {
 
   const [errorMsg, setErrorMsg] = useState<Record<number, string>>({});
 
+  // Fire-and-forget: tells admin the client opened this report card. The
+  // endpoint itself is idempotent (only the first call per report does
+  // anything), so no need to track which ids were already sent client-side.
+  const markViewed = (id: number) => {
+    api.post(`/client/report-cards/${id}/view`).catch(() => {});
+  };
+
+  const toggleExpanded = (id: number) => {
+    const opening = expandedId !== id;
+    setExpandedId(opening ? id : null);
+    if (opening) markViewed(id);
+  };
+
   const postComment = useMutation({
     mutationFn: ({ id, body }: { id: number; body: string }) =>
       api.post(`/client/report-cards/${id}/comments`, { body }),
@@ -129,7 +142,7 @@ export default function ClientReportCardsPage() {
               <Card key={r.id} padding="sm">
                 {/* Header row */}
                 <button
-                  onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                  onClick={() => toggleExpanded(r.id)}
                   className="w-full flex items-center justify-between text-left"
                 >
                   <div className="font-semibold text-espresso text-sm">

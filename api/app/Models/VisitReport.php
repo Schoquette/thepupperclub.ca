@@ -23,6 +23,7 @@ class VisitReport extends Model
         'change_request',
         'sent_at',
         'email_sent_at',
+        'viewed_at',
         // Legacy fields (kept for backward compat)
         'eliminated',
         'ate_well',
@@ -43,6 +44,7 @@ class VisitReport extends Model
             'checklist'      => 'array',
             'sent_at'        => 'datetime',
             'email_sent_at'  => 'datetime',
+            'viewed_at'      => 'datetime',
             // Legacy
             'eliminated'     => 'boolean',
             'ate_well'       => 'boolean',

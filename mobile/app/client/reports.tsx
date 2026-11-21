@@ -18,6 +18,19 @@ export default function ClientReportsScreen() {
 
   const reports = data?.data ?? [];
 
+  // Fire-and-forget: tells admin the client opened this report card. The
+  // endpoint itself is idempotent (only the first call per report does
+  // anything), so no need to track which ids were already sent client-side.
+  const markViewed = (id: number) => {
+    api.post(`/client/report-cards/${id}/view`).catch(() => {});
+  };
+
+  const toggleExpanded = (id: number) => {
+    const opening = expandedId !== id;
+    setExpandedId(opening ? id : null);
+    if (opening) markViewed(id);
+  };
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#F6F3EE' }}>
@@ -55,7 +68,7 @@ export default function ClientReportsScreen() {
             return (
               <View key={r.id} style={s.card}>
                 <TouchableOpacity
-                  onPress={() => setExpandedId(isExpanded ? null : r.id)}
+                  onPress={() => toggleExpanded(r.id)}
                   style={s.cardHeader}
                   activeOpacity={0.7}
                 >

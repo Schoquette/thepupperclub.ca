@@ -376,6 +376,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Report cards
         Route::get('/report-cards',                          [ClientReportCardController::class, 'index']);
         Route::get('/report-cards/{reportCard}',             [ClientReportCardController::class, 'show']);
+        Route::post('/report-cards/{reportCard}/view',       [ClientReportCardController::class, 'markViewed']);
         Route::get('/report-cards/{reportCard}/photos/{index}',              [ClientReportCardController::class, 'servePhoto']);
         Route::post('/report-cards/{reportCard}/comments',                   [ClientReportCardController::class, 'postComment']);
         Route::delete('/report-cards/{reportCard}/comments/{comment}',       [ClientReportCardController::class, 'deleteComment']);

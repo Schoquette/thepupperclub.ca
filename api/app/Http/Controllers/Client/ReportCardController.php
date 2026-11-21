@@ -8,6 +8,7 @@ use App\Models\VisitReportComment;
 use App\Services\AdminNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -30,6 +31,51 @@ class ReportCardController extends Controller
         abort_unless($reportCard->sent_at, 404);
 
         return response()->json(['data' => $reportCard->load(['appointment.dogs', 'comments.user'])]);
+    }
+
+    /**
+     * Marks a report card as viewed and notifies admin -- but only on the
+     * first view. Both the web and mobile client apps already fetch every
+     * report card's full content up front (the list endpoint), so this is
+     * called explicitly when the client expands/opens one, not on every
+     * page load; idempotent beyond the first call so re-opening the same
+     * card doesn't re-notify.
+     */
+    public function markViewed(Request $request, VisitReport $reportCard): JsonResponse
+    {
+        abort_unless($reportCard->user_id === $request->user()->id, 403);
+        abort_unless($reportCard->sent_at, 404);
+
+        if (!Schema::hasColumn('visit_reports', 'viewed_at')) {
+            try {
+                Schema::table('visit_reports', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->timestamp('viewed_at')->nullable()->after('sent_at');
+                });
+            } catch (\Throwable $e) {
+                try {
+                    \App\Models\ErrorLog::create([
+                        'type'       => 'SchemaHealFailed',
+                        'message'    => $e->getMessage(),
+                        'context'    => ['table' => 'visit_reports', 'column' => 'viewed_at'],
+                        'created_at' => now(),
+                    ]);
+                } catch (\Throwable $logError) {}
+                return response()->json(['message' => 'Could not record view.'], 422);
+            }
+        }
+
+        if (!$reportCard->viewed_at) {
+            $reportCard->update(['viewed_at' => now()]);
+
+            $client = $request->user();
+            $dogs = $reportCard->appointment?->dogs ?? $client->dogs;
+            $dogNames = $dogs?->pluck('name')->implode(', ') ?: null;
+            $visitDate = $reportCard->arrival_time?->format('M j, Y') ?? $reportCard->sent_at?->format('M j, Y');
+
+            app(AdminNotificationService::class)->reportCardViewed($client, $dogNames, $visitDate);
+        }
+
+        return response()->json(['data' => $reportCard->fresh()]);
     }
 
     public function postComment(Request $request, VisitReport $reportCard): JsonResponse

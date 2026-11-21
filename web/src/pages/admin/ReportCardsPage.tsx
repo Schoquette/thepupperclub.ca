@@ -217,6 +217,16 @@ export default function AdminReportCardsPage() {
                       >
                         {r.sent_at ? 'Sent' : 'Draft'}
                       </span>
+                      {r.sent_at && (
+                        <span
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                            r.viewed_at ? 'bg-blue/10 text-blue' : 'bg-cream text-taupe'
+                          }`}
+                          title={r.viewed_at ? `Viewed ${format(new Date(r.viewed_at), 'MMM d, h:mm a')}` : 'Not yet viewed'}
+                        >
+                          {r.viewed_at ? 'Viewed' : 'Unviewed'}
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </div>

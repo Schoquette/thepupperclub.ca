@@ -47,6 +47,25 @@ class AdminNotificationService
     }
 
     /**
+     * Admin-only: the client opened/viewed a report card (first view only --
+     * the controller only calls this once, when viewed_at transitions from
+     * null). Uses notifyAdmin() directly (push + email), not
+     * notifyWithMessage() -- this should never post a visible message into
+     * the client's own conversation thread, it's purely an admin-side
+     * signal that the report was seen.
+     */
+    public function reportCardViewed(User $client, ?string $dogNames, ?string $visitDate): void
+    {
+        $detail = trim(implode(' ', array_filter([
+            $dogNames ? "for {$dogNames}" : null,
+            $visitDate ? "({$visitDate})" : null,
+        ])));
+        $body = "{$client->name} viewed their report card" . ($detail ? " {$detail}" : '') . '.';
+
+        $this->notifyAdmin("Report Card Viewed", $body);
+    }
+
+    /**
      * A client sent a chat message/photo — the Message row already exists
      * (created by ConversationController), so this only fires the
      * push/email side of notifyAdmin(), not notifyWithMessage()'s extra
