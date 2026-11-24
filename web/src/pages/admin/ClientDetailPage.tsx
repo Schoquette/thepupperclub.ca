@@ -3063,11 +3063,16 @@ export default function AdminClientDetailPage() {
   });
 
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [deactivateError, setDeactivateError] = useState('');
   const toggleStatus = useMutation({
     mutationFn: (newStatus: string) => api.patch(`/admin/clients/${id}`, { status: newStatus }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-client', id] });
       setShowDeactivateConfirm(false);
+      setDeactivateError('');
+    },
+    onError: (e: any) => {
+      setDeactivateError(e.response?.data?.message || 'Failed to update status. Please try again.');
     },
   });
 
@@ -3133,7 +3138,7 @@ export default function AdminClientDetailPage() {
             <Button
               variant={client.status === 'active' ? 'danger' : 'outline'}
               size="sm"
-              onClick={() => setShowDeactivateConfirm(true)}
+              onClick={() => { setDeactivateError(''); setShowDeactivateConfirm(true); }}
             >
               {client.status === 'active' ? 'Deactivate' : 'Reactivate'}
             </Button>
@@ -3571,8 +3576,9 @@ export default function AdminClientDetailPage() {
                 : <>Reactivate <strong>{client.name}</strong>? They will be able to log in again.</>
               }
             </p>
+            {deactivateError && <p className="text-sm text-red-600">{deactivateError}</p>}
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowDeactivateConfirm(false)}>
+              <Button variant="outline" size="sm" onClick={() => { setShowDeactivateConfirm(false); setDeactivateError(''); }}>
                 Cancel
               </Button>
               <Button
