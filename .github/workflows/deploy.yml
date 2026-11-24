@@ -6,42 +6,13 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
-  # ── Marketing Site → GitHub Pages ──────────────────────────────────
-  deploy-site:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site folder
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      # Cloudflare sits in front of the GitHub Pages origin, so a fresh
-      # deploy isn't visible to visitors until the edge cache is purged.
-      - name: Purge Cloudflare cache
-        run: |
-          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            --data '{"purge_everything":true}' || true
-
-  # ── API + Web Portal → GoDaddy (FTP) ──────────────────────────────
+  # ── API + Web Portal + Marketing Site + Community App → GoDaddy (FTP) ──
+  # The marketing site used to publish to GitHub Pages (behind Cloudflare)
+  # via a separate deploy-site job here; that job was removed once
+  # everything moved onto one GoDaddy host -- this job's own "Deploy
+  # marketing site to GoDaddy" step below is what actually publishes it now.
   deploy-godaddy:
     runs-on: ubuntu-latest
     steps:
