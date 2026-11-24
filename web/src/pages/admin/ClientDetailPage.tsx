@@ -10,7 +10,7 @@ import { Badge, statusBadge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoader } from '@/components/ui/LoadingSpinner';
 import { Pencil, ArrowUp, ArrowDown, Plus, Clock, AlertCircle, FileText, ExternalLink } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek } from 'date-fns';
 import { todayPacific } from '@/lib/date';
 import {
   VetInformationCard,
@@ -20,7 +20,7 @@ import {
   GeneralNotesCard,
 } from '@/components/intake/IntakeProfileCards';
 
-type Tab = 'profile' | 'dogs' | 'billing' | 'documents' | 'access';
+type Tab = 'profile' | 'dogs' | 'appointments' | 'billing' | 'documents' | 'access';
 
 // ── Profile form ──────────────────────────────────────────────────────────────
 
@@ -1911,6 +1911,99 @@ function AddDogCard({ clientId, onSaved }: { clientId: number; onSaved: () => vo
   );
 }
 
+// ── Upcoming Walks tab ───────────────────────────────────────────────────────
+
+function serviceLabel(type: string): string {
+  if (type === 'walk_30') return '30-Minute Visit';
+  if (type === 'walk_60') return '60-Minute Visit';
+  if (type === 'pack_hike') return 'Group Hike';
+  return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function UpcomingWalksTab({ clientId }: { clientId: number }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['client-upcoming-appointments', clientId],
+    // Every future-dated row for this client, any status -- cancelled ones
+    // are still shown (with their badge) rather than silently hidden, same
+    // convention as the Calendar's own cancellation handling.
+    queryFn: () => api.get('/admin/appointments', {
+      params: { user_id: clientId, start: `${todayPacific()}T00:00:00`, sort: 'asc', per_page: 200 },
+    }).then(r => r.data.data),
+  });
+
+  const grouped = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const map = new Map<string, { weekStart: Date; weekEnd: Date; visits: any[] }>();
+    for (const appt of data) {
+      const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      const d = new Date(localStr);
+      const ws = startOfWeek(d, { weekStartsOn: 0 });
+      const we = endOfWeek(d, { weekStartsOn: 0 });
+      const key = format(ws, 'yyyy-MM-dd');
+      if (!map.has(key)) map.set(key, { weekStart: ws, weekEnd: we, visits: [] });
+      map.get(key)!.visits.push(appt);
+    }
+    // Soonest week first
+    return Array.from(map.values()).sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
+  }, [data]);
+
+  if (isLoading) return <PageLoader />;
+
+  return (
+    <Card>
+      <CardHeader title="Upcoming Walks" subtitle={data?.length ? `${data.length} scheduled` : undefined} />
+      {grouped.length === 0 ? (
+        <p className="text-sm text-taupe text-center py-8">No upcoming walks scheduled.</p>
+      ) : (
+        <div className="mt-2 space-y-5">
+          {grouped.map(group => (
+            <div key={format(group.weekStart, 'yyyy-MM-dd')}>
+              <div className="text-xs font-semibold text-taupe uppercase tracking-wide mb-2 px-1">
+                {format(group.weekStart, 'MMM d')} &ndash; {format(group.weekEnd, 'MMM d, yyyy')}
+                <span className="ml-2 text-taupe/60 font-normal normal-case">
+                  ({group.visits.length} visit{group.visits.length !== 1 ? 's' : ''})
+                </span>
+              </div>
+              <div className="divide-y divide-cream rounded-xl border border-cream overflow-hidden">
+                {group.visits.map((appt: any) => {
+                  const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+                  const d = new Date(localStr);
+                  const dogs = appt.dogs?.map((dog: any) => dog.name).join(', ') || '';
+                  const isRecurring = !!(appt.recurrence_rule || appt.recurrence_parent_id);
+
+                  return (
+                    <div key={appt.id} className="flex items-center gap-3 px-4 py-3">
+                      <div className="flex-shrink-0 w-12 text-center">
+                        <div className="text-xs font-bold text-espresso">{format(d, 'EEE')}</div>
+                        <div className="text-lg font-bold text-gold leading-tight">{format(d, 'd')}</div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-espresso">
+                          {dogs || '—'}
+                          {isRecurring && <span className="text-xs text-taupe font-normal ml-1.5">(recurring)</span>}
+                        </div>
+                        <div className="text-xs text-taupe">
+                          {serviceLabel(appt.service_type)}
+                          {appt.assigned_admin?.name && <span> &mdash; {appt.assigned_admin.name}</span>}
+                          {appt.group_hike_name && <span> &mdash; {appt.group_hike_name}</span>}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right text-xs text-taupe">
+                        {format(d, 'h:mm a')}
+                      </div>
+                      <Badge variant={statusBadge(appt.status)}>{appt.status.replace('_', ' ')}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ── Billing tab ──────────────────────────────────────────────────────────────
 
 function ClientBillingTab({ clientId }: { clientId: number }) {
@@ -2877,7 +2970,7 @@ export default function AdminClientDetailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
-  const initialTab = (['profile', 'dogs', 'billing', 'documents', 'access'] as const).includes(
+  const initialTab = (['profile', 'dogs', 'appointments', 'billing', 'documents', 'access'] as const).includes(
     searchParams.get('tab') as Tab
   ) ? (searchParams.get('tab') as Tab) : 'profile';
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -3084,7 +3177,7 @@ export default function AdminClientDetailPage() {
 
       {/* Tabs */}
       <div className="flex border-b border-taupe/30">
-        {(['profile', 'dogs', 'billing', 'documents', 'access'] as const).map(t => (
+        {(['profile', 'dogs', 'appointments', 'billing', 'documents', 'access'] as const).map(t => (
           <button
             key={t}
             onClick={() => { setTab(t); setEditing(false); }}
@@ -3092,7 +3185,7 @@ export default function AdminClientDetailPage() {
               tab === t ? 'border-gold text-gold' : 'border-transparent text-taupe hover:text-espresso'
             }`}
           >
-            {t === 'access' ? 'Home Access' : t}
+            {t === 'access' ? 'Home Access' : t === 'appointments' ? 'Upcoming Walks' : t}
           </button>
         ))}
       </div>
@@ -3350,6 +3443,11 @@ export default function AdminClientDetailPage() {
           ))}
           <AddDogCard clientId={Number(id)} onSaved={refreshClient} />
         </div>
+      )}
+
+      {/* ── Upcoming Walks tab ───────────────────────────────────────────── */}
+      {tab === 'appointments' && (
+        <UpcomingWalksTab clientId={Number(id)} />
       )}
 
       {/* ── Billing tab ──────────────────────────────────────────────────── */}
