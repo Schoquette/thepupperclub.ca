@@ -251,7 +251,7 @@ export default function AdminInvoiceDetailPage() {
     mutationFn: () => api.post(`/admin/invoices/${id}/approve`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-invoice', id] });
-      showToast('Invoice approved. It will be sent automatically on the due date.');
+      showToast('Invoice approved. It will be sent automatically on the invoice date.');
     },
     onError: (e: any) => setMutError(e.response?.data?.message || 'Failed to approve invoice.'),
   });

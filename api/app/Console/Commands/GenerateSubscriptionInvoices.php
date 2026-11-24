@@ -191,24 +191,33 @@ class GenerateSubscriptionInvoices extends Command
     }
 
     /**
-     * Auto-send approved invoices whose due date has arrived. Excludes
-     * subscription/PAYG billing-cycle invoices (billing_period_start set)
-     * — those need an explicit manual send, since send() is what triggers
-     * the card charge for them now; this stage remains for ad-hoc
-     * invoices an admin approved but might forget to send by the due date.
+     * Auto-send approved invoices once their invoice date has arrived (not
+     * the due date -- an invoice is meant to go out when it's issued, with
+     * the due date just marking when payment is expected after that).
+     * invoice_date is optional (an admin can leave it blank when creating
+     * an invoice), so this falls back to created_at when unset, same
+     * convention already used by InvoiceService::subscriptionProjections()
+     * for "effective invoice date" -- otherwise an invoice with no
+     * invoice_date would silently never qualify here.
+     *
+     * Excludes subscription/PAYG billing-cycle invoices (billing_period_start
+     * set) — those need an explicit manual send, since send() is what
+     * triggers the card charge for them now; this stage remains for ad-hoc
+     * invoices an admin approved but might forget to send.
      */
     private function sendApprovedInvoices(InvoiceService $invoiceService): void
     {
         $today = now()->toDateString();
 
         $approvedInvoices = Invoice::where('status', 'approved')
-            ->where('due_date', '<=', $today)
+            ->whereRaw('COALESCE(invoice_date, created_at) <= ?', ["{$today} 23:59:59"])
             ->whereNull('billing_period_start')
             ->get();
 
         foreach ($approvedInvoices as $invoice) {
             $invoiceService->send($invoice);
-            $this->info("Auto-sent approved invoice #{$invoice->invoice_number} (due {$invoice->due_date->toDateString()}).");
+            $effectiveDate = $invoice->invoice_date?->toDateString() ?? $invoice->created_at->toDateString();
+            $this->info("Auto-sent approved invoice #{$invoice->invoice_number} (invoice date {$effectiveDate}).");
         }
     }
 

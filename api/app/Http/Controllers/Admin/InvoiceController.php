@@ -269,7 +269,7 @@ class InvoiceController extends Controller
     {
         abort_unless($invoice->status === 'draft', 422, 'Only draft invoices can be approved.');
         $invoice->update(['status' => 'approved']);
-        return response()->json(['data' => $invoice->fresh(), 'message' => 'Invoice approved. It will be sent automatically on the due date.']);
+        return response()->json(['data' => $invoice->fresh(), 'message' => 'Invoice approved. It will be sent automatically on the invoice date.']);
     }
 
     public function send(Invoice $invoice): JsonResponse
