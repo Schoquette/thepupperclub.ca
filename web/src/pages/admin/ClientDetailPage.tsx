@@ -1923,18 +1923,17 @@ function serviceLabel(type: string): string {
 function UpcomingWalksTab({ clientId }: { clientId: number }) {
   const { data, isLoading } = useQuery({
     queryKey: ['client-upcoming-appointments', clientId],
-    // Every future-dated row for this client, any status -- cancelled ones
-    // are still shown (with their badge) rather than silently hidden, same
-    // convention as the Calendar's own cancellation handling.
     queryFn: () => api.get('/admin/appointments', {
       params: { user_id: clientId, start: `${todayPacific()}T00:00:00`, sort: 'asc', per_page: 200 },
     }).then(r => r.data.data),
   });
 
+  const upcoming = useMemo(() => (data ?? []).filter((a: any) => a.status !== 'cancelled'), [data]);
+
   const grouped = useMemo(() => {
-    if (!data || data.length === 0) return [];
+    if (upcoming.length === 0) return [];
     const map = new Map<string, { weekStart: Date; weekEnd: Date; visits: any[] }>();
-    for (const appt of data) {
+    for (const appt of upcoming) {
       const localStr = appt.scheduled_time?.replace(/[Zz]$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
       const d = new Date(localStr);
       const ws = startOfWeek(d, { weekStartsOn: 0 });
@@ -1945,13 +1944,13 @@ function UpcomingWalksTab({ clientId }: { clientId: number }) {
     }
     // Soonest week first
     return Array.from(map.values()).sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
-  }, [data]);
+  }, [upcoming]);
 
   if (isLoading) return <PageLoader />;
 
   return (
     <Card>
-      <CardHeader title="Upcoming Walks" subtitle={data?.length ? `${data.length} scheduled` : undefined} />
+      <CardHeader title="Upcoming Walks" subtitle={upcoming.length ? `${upcoming.length} scheduled` : undefined} />
       {grouped.length === 0 ? (
         <p className="text-sm text-taupe text-center py-8">No upcoming walks scheduled.</p>
       ) : (
